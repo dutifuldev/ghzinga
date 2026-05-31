@@ -20,5 +20,5 @@ warn Warnings: 1
                                                                                 
   Summary The PR adds a SenseAudio speech provider to the bundled senseaudio    
   plugin, including TTS and voice-list HTTP helpers, voice-note opus            
-[refresh] [open] [settings] [help] [quit]                                       
+[refresh] [open] [settings] [help] [quit] scroll 10/69 14%                      
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

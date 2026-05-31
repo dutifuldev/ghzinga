@@ -20,5 +20,5 @@ warn Warnings: 1
   This PR changes dependency-related files. Maintainers should confirm these    
   changes are intentional.                                                      
                                                                                 
-[refresh] [open] [settings] [help] [quit]                                       
+[refresh] [open] [settings] [help] [quit] scroll 0/69 0%                        
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
