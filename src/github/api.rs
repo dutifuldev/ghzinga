@@ -3865,6 +3865,25 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         "repository": {"nameWithOwner": "openclaw/openclaw"}
                                     }
                                 }),
+                                serde_json::json!({
+                                    "__typename": "ConvertedToDiscussionEvent",
+                                    "id": "converted-discussion",
+                                    "createdAt": "2026-05-31T07:15:12Z",
+                                    "actor": {"login": "alice"},
+                                    "discussion": {
+                                        "title": "design discussion",
+                                        "url": "https://github.com/orgs/openclaw/discussions/12"
+                                    }
+                                }),
+                                serde_json::json!({
+                                    "__typename": "IssueCommentPinnedEvent",
+                                    "id": "pinned-comment",
+                                    "createdAt": "2026-05-31T07:16:12Z",
+                                    "actor": {"login": "alice"},
+                                    "issueComment": {
+                                        "url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-2"
+                                    }
+                                }),
                             ],
                         },
                     }),
@@ -3873,7 +3892,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             },
         });
 
-        assert_eq!(activity.len(), 15);
+        assert_eq!(activity.len(), 17);
         assert_eq!(activity[0].kind, ActivityKind::Timeline);
         assert_eq!(activity[0].author, "clawsweeper");
         assert_eq!(activity[0].body, "added label P2");
@@ -3919,6 +3938,19 @@ diff --git a/docs/two.md b/docs/two.md\n\
             Some("https://github.com/openclaw/openclaw/issues/88538")
         );
         assert_eq!(activity[14].body, "blocked by openclaw/openclaw#88499");
+        assert_eq!(
+            activity[15].body,
+            "converted to discussion design discussion"
+        );
+        assert_eq!(
+            activity[15].url.as_deref(),
+            Some("https://github.com/orgs/openclaw/discussions/12")
+        );
+        assert_eq!(activity[16].body, "pinned a comment");
+        assert_eq!(
+            activity[16].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/issues/88499#issuecomment-2")
+        );
     }
 
     #[test]

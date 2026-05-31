@@ -37,7 +37,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | Issue body, reactions, comments, timeline events, labels, author, state | issue fixture integration test and issue captures under `captures/ghzoom-issue-88499/`; comment and timeline metadata is normalized through the shared activity model, including pins, locks, duplicate markers, transfers, connected/disconnected references, issue types, sub-issues, parent issues, blocking relationships, and converted discussions; ordinary comment and timeline GraphQL pages are fetched until `hasNextPage` is false |
 | Issue metadata such as pinned/state reason/closed time/milestone/projects | `issue_view_preserves_extra_github_metadata`, `project_items_query_uses_selector_and_pagination_state`, `project_items_page_preserves_pagination_state`, `apply_project_metadata_replaces_existing_value_and_dedupes`, `project_scope_errors_are_suppressed_for_optional_metadata`, issue overview smoke |
 | Linked issue/PR navigation targets | `render_registers_github_link_hit_area`, `render_registers_relative_issue_link_hit_area`, `rendered_visible_link_hit_area_can_be_clicked_to_navigate`, and `navigation_loads_target_and_back_restores_previous_resource` verify rendered link targets, reducer intents, gateway-backed navigation, history push, and back navigation |
-| Exact detail URL open targets | `render_registers_exact_comment_url_as_open_url`, `check_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, `keyboard_enter_opens_first_visible_url_action`, `mouse_click_on_url_target_requests_open_url`, `url_open_command_uses_browser_env_when_available` |
+| Exact detail URL open targets | `render_registers_exact_comment_url_as_open_url`, `activity_permalink_details_are_clickable_without_expansion`, `check_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, `keyboard_enter_opens_first_visible_url_action`, `mouse_click_on_url_target_requests_open_url`, `url_open_command_uses_browser_env_when_available` |
 | Explicit GitHub relationship links | `related_resource_ids_parse_urls_and_number_fallbacks`, `links_tab_renders_explicit_related_resources_once` |
 | Auto-refresh | `auto_refresh_due_requires_live_mode_positive_interval_and_elapsed_time`, `automatic_refresh_fetches_resource_and_records_changes`, and `automatic_refresh_waits_until_interval_is_due` verify the event-loop interval predicate and the gateway-backed refresh path without live network calls; `apply_refreshed_resource` tests preserve tab/scroll and record changed/no-change state; `renders_last_refresh_changed_sections` verifies changed surfaces render in the status panel; `fingerprint_changes_when_activity_content_or_metadata_changes` verifies activity body and metadata changes are part of change detection |
 | Manual refresh | reducer tests for `r` and `[refresh]`, footer render-to-click tests |
@@ -45,6 +45,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | Mouse click routing | synthetic Crossterm `MouseEvent` tests in `src/app/update.rs` and render-to-click tests in `src/render/resource.rs` |
 | Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, Enter for first visible content action, `r`, `?`, `q`, `o`, Backspace; no Ctrl-b/Ctrl-a/Ctrl-d/Ctrl-u primary shortcuts |
 | No special UI fonts required | renderer defaults to `--symbols ascii`, with ASCII chrome and symbols such as `[+ more]`, `[- less]`, `[refresh]`, `[open]`, `[quit]`, `[help]`, `OK`, `!!`, `..`, `*`, and `-` rules; `renders_pr_overview_in_ascii_chrome` rejects box-drawing separators, the default fixture smoke prints no non-ASCII lines, and `--symbols emoji` is opt-in with `once_can_render_emoji_symbols_when_requested` |
+| Responsive TUI wrapping | `ViewRects::compute` tests verify narrow chrome row reservations and cramped content preservation; `narrow_render_wraps_chrome_without_losing_click_targets` verifies wrapped tabs/footer controls keep hit areas; `content_rows_wrap_long_text_and_preserve_click_targets` verifies the final content wrapping pass keeps wrapped clickable rows clickable; `narrow_content_wraps_metadata_without_clipping` verifies long metadata wraps in a narrow viewport; `wrap_display_text` tests preserve markup characters while splitting wide/emoji text by display width |
 | Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories |
 | Current-resource browser open | reducer tests for `o` and `[open]`; smoke checks with `BROWSER=echo gh pr view ... --web` and `gh issue view ... --web` |
 
@@ -84,6 +85,7 @@ Covered click targets:
 - tabs
 - body `[more]` / `[less]`
 - activity/comment `[more]` / `[less]`
+- activity/comment `[details]` permalinks
 - check rows
 - file rows and long patch expansion controls
 - visible body/activity links
