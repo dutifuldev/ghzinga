@@ -63,9 +63,10 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
 accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
 `emoji`. `--spacing` accepts `comfortable` and `compact`. Comfortable is the
-default and adds gh-dash-like breathing room between repeated rows plus a small
-content gutter; compact keeps more rows visible in small terminals. CLI theme,
-symbol, and spacing flags override saved config for that run only.
+default and adds gh-dash-like breathing room between repeated rows, a small
+content gutter, and hanging indents for wrapped long lines; compact keeps more
+rows visible in small terminals. CLI theme, symbol, and spacing flags override
+saved config for that run only.
 
 ## Configuration
 

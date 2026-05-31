@@ -27,6 +27,12 @@ count.
   enough. The gutter follows the gh-dash preview pattern of not starting every
   readable line at column zero, while compact preserves full-width output for
   smaller terminals and maximum density.
+- Wrapped continuation lines in comfortable mode get a two-column hanging
+  indent when there is enough width. This makes long comments and PR bodies
+  scan more like the gh-dash preview pane: the first line anchors the item, and
+  later lines visually belong to it instead of restarting as separate rows.
+- Compact mode keeps wrapped lines flush-left so it preserves the maximum
+  amount of horizontal space in narrow terminals.
 - Section rules get a blank row after them when the next line has content.
 - Repeated content groups get one blank row between groups:
   - chronological overview entries
@@ -37,6 +43,10 @@ count.
   - link rows
 - Existing blank rows are reused; the renderer must not stack multiple blank
   rows just because a builder already included one.
+- Repeated-row builders should prefer semantic gap markers over hard-coded
+  blank rows. A hard blank row is still valid for a deliberate internal break,
+  such as separating an expanded detail block from the next heading, but row
+  density should otherwise be owned by the spacing mode.
 - Click targets stay on the visible control row. Blank spacing rows are never
   clickable. Comfortable gutters shift the hit rectangles with the visible
   content so the clickable target still matches what the user sees.
