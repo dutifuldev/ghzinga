@@ -212,9 +212,10 @@ status and overview areas show a warning while keeping the base resource
 visible.
 
 Refresh, linked-resource navigation, and Backspace navigation run as background
-GitHub fetches. The previous resource stays readable while the status band shows
-`Loading: ...`; duplicate fetch starts are ignored until the current one
-finishes, so rapid clicks or auto-refresh ticks do not build a request queue.
+GitHub fetches. The previous resource stays readable while the status band and
+footer show a terminal-safe loading marker such as `Loading |: ...`; duplicate
+fetch starts are ignored until the current one finishes, so rapid clicks or
+auto-refresh ticks do not build a request queue.
 
 ## Verification
 

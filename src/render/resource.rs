@@ -236,10 +236,10 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         ),
         style: resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
     });
-    if let Some(message) = state.loading_message() {
+    if let Some(message) = loading_status_text(state) {
         push_status_piece(
             &mut pieces,
-            format!("{} Loading: {message}", symbols.refresh),
+            message,
             Style::default()
                 .fg(palette.accent)
                 .add_modifier(Modifier::BOLD),
@@ -389,13 +389,19 @@ fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
     if let Some(error) = &state.last_error {
         return Some(format!("{} {error}", symbols.error));
     }
-    if let Some(message) = state.loading_message() {
-        return Some(format!("{} Loading: {message}", symbols.refresh));
+    if let Some(message) = loading_status_text(state) {
+        return Some(message);
     }
     if let Some(message) = &state.status_message {
         return Some(format!("{} {message}", symbols.info));
     }
     None
+}
+
+fn loading_status_text(state: &AppState) -> Option<String> {
+    let message = state.loading_message()?;
+    let indicator = state.loading_indicator().unwrap_or("|");
+    Some(format!("Loading {indicator}: {message}"))
 }
 
 fn status_labeled_count(symbol: &str, label: &str, count: usize) -> String {
@@ -2021,8 +2027,8 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
-    } else if let Some(message) = state.loading_message() {
-        format!("Loading: {message}")
+    } else if let Some(message) = loading_status_text(state) {
+        message
     } else if let Some(message) = &state.status_message {
         message.clone()
     } else {
@@ -2666,7 +2672,15 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("Loading: refreshing openclaw/openclaw#81834 from GitHub"));
+        assert!(content.contains("Loading |: refreshing openclaw/openclaw#81834 from GitHub"));
+
+        state.advance_loading_frame();
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("Loading /: refreshing openclaw/openclaw#81834 from GitHub"));
     }
 
     #[test]

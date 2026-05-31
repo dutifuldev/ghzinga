@@ -120,6 +120,7 @@ async fn run_tui(
     let mut last_refresh = Instant::now();
     loop {
         apply_completed_fetches(state, &mut fetch_rx);
+        state.advance_loading_frame();
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
             return Ok(());

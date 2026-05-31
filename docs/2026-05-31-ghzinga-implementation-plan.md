@@ -454,7 +454,9 @@ Loading state rules:
 - Starting link navigation sets `Loading: opening owner/repo#number from GitHub`.
 - Starting back navigation sets `Loading: returning to owner/repo#number from GitHub`.
 - The status band and footer both show the loading message until the job
-  finishes.
+  finishes. A plain ASCII progress marker, for example `Loading |: ...`, should
+  advance while the fetch is pending so the user can distinguish a live wait
+  from a stale message.
 - Mouse wheel and keyboard scrolling remain available while a refresh is in
   flight because the previous resource remains on screen.
 - Starting a second fetch while one is running does not enqueue another network
