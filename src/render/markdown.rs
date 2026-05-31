@@ -40,6 +40,14 @@ fn wrap_line(input: &str, width: usize, out: &mut Vec<String>) {
 
     let mut current = String::new();
     for word in input.split_whitespace() {
+        if UnicodeWidthStr::width(word) > width {
+            if !current.is_empty() {
+                out.push(current);
+                current = String::new();
+            }
+            out.extend(split_long_word(word, width));
+            continue;
+        }
         let separator = if current.is_empty() { 0 } else { 1 };
         if UnicodeWidthStr::width(current.as_str()) + separator + UnicodeWidthStr::width(word)
             > width
@@ -56,6 +64,26 @@ fn wrap_line(input: &str, width: usize, out: &mut Vec<String>) {
     if !current.is_empty() {
         out.push(current);
     }
+}
+
+fn split_long_word(word: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut current_width = 0;
+    for ch in word.chars() {
+        let ch_width = UnicodeWidthStr::width(ch.to_string().as_str()).max(1);
+        if current_width > 0 && current_width + ch_width > width {
+            lines.push(current);
+            current = String::new();
+            current_width = 0;
+        }
+        current.push(ch);
+        current_width += ch_width;
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
 }
 
 #[cfg(test)]
@@ -75,6 +103,14 @@ mod tests {
         assert_eq!(
             wrap_plain_text("one two three four", 8),
             vec!["one two", "three", "four"]
+        );
+    }
+
+    #[test]
+    fn wraps_long_words_to_width() {
+        assert_eq!(
+            wrap_plain_text("abcdef emoji🙂word", 5),
+            vec!["abcde", "f", "emoji", "🙂wor", "d"]
         );
     }
 
