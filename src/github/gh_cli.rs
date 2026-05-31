@@ -724,6 +724,19 @@ fn timeline_query(kind: ResourceKind) -> String {
         REVIEW_REQUEST_REMOVED_EVENT,
         READY_FOR_REVIEW_EVENT,
         CONVERT_TO_DRAFT_EVENT,
+        BASE_REF_CHANGED_EVENT,
+        BASE_REF_FORCE_PUSHED_EVENT,
+        BASE_REF_DELETED_EVENT,
+        HEAD_REF_FORCE_PUSHED_EVENT,
+        HEAD_REF_DELETED_EVENT,
+        HEAD_REF_RESTORED_EVENT,
+        REVIEW_DISMISSED_EVENT,
+        ADDED_TO_MERGE_QUEUE_EVENT,
+        REMOVED_FROM_MERGE_QUEUE_EVENT,
+        AUTOMATIC_BASE_CHANGE_FAILED_EVENT,
+        AUTOMATIC_BASE_CHANGE_SUCCEEDED_EVENT,
+        AUTO_REBASE_ENABLED_EVENT,
+        AUTO_SQUASH_ENABLED_EVENT,
         AUTO_MERGE_ENABLED_EVENT,
         AUTO_MERGE_DISABLED_EVENT"#
         }
@@ -753,6 +766,52 @@ fn timeline_query(kind: ResourceKind) -> String {
           }
           ... on ReadyForReviewEvent { id createdAt actor { login } }
           ... on ConvertToDraftEvent { id createdAt actor { login } }
+          ... on BaseRefChangedEvent { id createdAt actor { login } previousRefName currentRefName }
+          ... on BaseRefForcePushedEvent {
+            id
+            createdAt
+            actor { login }
+            beforeCommit { oid }
+            afterCommit { oid }
+            ref { name }
+          }
+          ... on BaseRefDeletedEvent { id createdAt actor { login } baseRefName }
+          ... on HeadRefForcePushedEvent {
+            id
+            createdAt
+            actor { login }
+            beforeCommit { oid }
+            afterCommit { oid }
+            ref { name }
+          }
+          ... on HeadRefDeletedEvent { id createdAt actor { login } headRefName }
+          ... on HeadRefRestoredEvent { id createdAt actor { login } }
+          ... on ReviewDismissedEvent {
+            id
+            createdAt
+            actor { login }
+            previousReviewState
+            dismissalMessage
+            url
+          }
+          ... on AddedToMergeQueueEvent {
+            id
+            createdAt
+            actor { login }
+            enqueuer { login }
+          }
+          ... on RemovedFromMergeQueueEvent {
+            id
+            createdAt
+            actor { login }
+            enqueuer { login }
+            beforeCommit { oid }
+            reason
+          }
+          ... on AutomaticBaseChangeFailedEvent { id createdAt actor { login } oldBase newBase }
+          ... on AutomaticBaseChangeSucceededEvent { id createdAt actor { login } oldBase newBase }
+          ... on AutoRebaseEnabledEvent { id createdAt actor { login } enabler { login } }
+          ... on AutoSquashEnabledEvent { id createdAt actor { login } enabler { login } }
           ... on AutoMergeEnabledEvent { id createdAt actor { login } }
           ... on AutoMergeDisabledEvent { id createdAt actor { login } reason }"#
         }
@@ -787,7 +846,21 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
         CROSS_REFERENCED_EVENT,
         RENAMED_TITLE_EVENT,
         MILESTONED_EVENT,
-        DEMILESTONED_EVENT{pr_timeline_items}
+        DEMILESTONED_EVENT,
+        CONVERTED_TO_DISCUSSION_EVENT,
+        ISSUE_COMMENT_PINNED_EVENT,
+        ISSUE_COMMENT_UNPINNED_EVENT,
+        ISSUE_TYPE_ADDED_EVENT,
+        ISSUE_TYPE_REMOVED_EVENT,
+        ISSUE_TYPE_CHANGED_EVENT,
+        SUB_ISSUE_ADDED_EVENT,
+        SUB_ISSUE_REMOVED_EVENT,
+        PARENT_ISSUE_ADDED_EVENT,
+        PARENT_ISSUE_REMOVED_EVENT,
+        BLOCKED_BY_ADDED_EVENT,
+        BLOCKED_BY_REMOVED_EVENT,
+        BLOCKING_ADDED_EVENT,
+        BLOCKING_REMOVED_EVENT{pr_timeline_items}
       ]) {{
         pageInfo {{
           hasNextPage
@@ -867,6 +940,91 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
           ... on RenamedTitleEvent {{ id createdAt actor {{ login }} previousTitle currentTitle }}
           ... on MilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
           ... on DemilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
+          ... on ConvertedToDiscussionEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            discussion {{ title url }}
+          }}
+          ... on IssueCommentPinnedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            issueComment {{ url }}
+          }}
+          ... on IssueCommentUnpinnedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            issueComment {{ url }}
+          }}
+          ... on IssueTypeAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            issueType {{ name }}
+          }}
+          ... on IssueTypeRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            issueType {{ name }}
+          }}
+          ... on IssueTypeChangedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            prevIssueType {{ name }}
+            issueType {{ name }}
+          }}
+          ... on SubIssueAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            subIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on SubIssueRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            subIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on ParentIssueAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            parent {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on ParentIssueRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            parent {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on BlockedByAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            blockingIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on BlockedByRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            blockingIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on BlockingAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            blockedIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
+          ... on BlockingRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            blockedIssue {{ number title url repository {{ nameWithOwner }} }}
+          }}
           {pr_timeline_fragments}
         }}
       }}
@@ -2727,10 +2885,57 @@ fn timeline_body(typename: &str, node: &Value) -> String {
             "removed milestone {}",
             string_field(node, "milestoneTitle").unwrap_or("unknown")
         ),
+        "ConvertedToDiscussionEvent" => format!(
+            "converted to discussion {}",
+            string_field_at(node, &["discussion", "title"]).unwrap_or("unknown")
+        ),
+        "IssueCommentPinnedEvent" => "pinned a comment".to_string(),
+        "IssueCommentUnpinnedEvent" => "unpinned a comment".to_string(),
+        "IssueTypeAddedEvent" => {
+            format!("added issue type {}", issue_type_name(node, "issueType"))
+        }
+        "IssueTypeRemovedEvent" => {
+            format!("removed issue type {}", issue_type_name(node, "issueType"))
+        }
+        "IssueTypeChangedEvent" => format!(
+            "changed issue type from {} to {}",
+            issue_type_name(node, "prevIssueType"),
+            issue_type_name(node, "issueType")
+        ),
+        "SubIssueAddedEvent" => format!(
+            "added sub-issue {}",
+            resource_reference_label(node.get("subIssue").unwrap_or(&Value::Null))
+        ),
+        "SubIssueRemovedEvent" => format!(
+            "removed sub-issue {}",
+            resource_reference_label(node.get("subIssue").unwrap_or(&Value::Null))
+        ),
+        "ParentIssueAddedEvent" => format!(
+            "added parent issue {}",
+            resource_reference_label(node.get("parent").unwrap_or(&Value::Null))
+        ),
+        "ParentIssueRemovedEvent" => format!(
+            "removed parent issue {}",
+            resource_reference_label(node.get("parent").unwrap_or(&Value::Null))
+        ),
+        "BlockedByAddedEvent" => format!(
+            "blocked by {}",
+            resource_reference_label(node.get("blockingIssue").unwrap_or(&Value::Null))
+        ),
+        "BlockedByRemovedEvent" => format!(
+            "removed blocking issue {}",
+            resource_reference_label(node.get("blockingIssue").unwrap_or(&Value::Null))
+        ),
+        "BlockingAddedEvent" => format!(
+            "blocking {}",
+            resource_reference_label(node.get("blockedIssue").unwrap_or(&Value::Null))
+        ),
+        "BlockingRemovedEvent" => format!(
+            "removed blocked issue {}",
+            resource_reference_label(node.get("blockedIssue").unwrap_or(&Value::Null))
+        ),
         "MergedEvent" => {
-            let commit = string_field_at(node, &["commit", "oid"])
-                .map(|oid| oid.chars().take(12).collect::<String>())
-                .unwrap_or_else(|| "unknown".to_string());
+            let commit = short_oid_at(node, &["commit", "oid"]);
             let branch = string_field(node, "mergeRefName").unwrap_or("base branch");
             format!("merged into {branch} at {commit}")
         }
@@ -2745,6 +2950,63 @@ fn timeline_body(typename: &str, node: &Value) -> String {
         }
         "ReadyForReviewEvent" => "marked ready for review".to_string(),
         "ConvertToDraftEvent" => "converted to draft".to_string(),
+        "BaseRefChangedEvent" => format!(
+            "changed base from {} to {}",
+            string_field(node, "previousRefName").unwrap_or("unknown"),
+            string_field(node, "currentRefName").unwrap_or("unknown")
+        ),
+        "BaseRefForcePushedEvent" => ref_force_push_body("force-pushed base", node),
+        "BaseRefDeletedEvent" => format!(
+            "deleted base branch {}",
+            string_field(node, "baseRefName").unwrap_or("unknown")
+        ),
+        "HeadRefForcePushedEvent" => ref_force_push_body("force-pushed head", node),
+        "HeadRefDeletedEvent" => format!(
+            "deleted head branch {}",
+            string_field(node, "headRefName").unwrap_or("unknown")
+        ),
+        "HeadRefRestoredEvent" => "restored head branch".to_string(),
+        "ReviewDismissedEvent" => format!(
+            "dismissed {} review{}",
+            format_github_state(string_field(node, "previousReviewState").unwrap_or("review")),
+            string_field(node, "dismissalMessage")
+                .filter(|message| !message.trim().is_empty())
+                .map(|message| format!(": {message}"))
+                .unwrap_or_default()
+        ),
+        "AddedToMergeQueueEvent" => format!(
+            "added to merge queue{}",
+            string_field_at(node, &["enqueuer", "login"])
+                .map(|login| format!(" by {login}"))
+                .unwrap_or_default()
+        ),
+        "RemovedFromMergeQueueEvent" => format!(
+            "removed from merge queue{}{}",
+            string_field_at(node, &["beforeCommit", "oid"])
+                .map(|_| format!(" at {}", short_oid_at(node, &["beforeCommit", "oid"])))
+                .unwrap_or_default(),
+            string_field(node, "reason")
+                .map(|reason| format!(": {reason}"))
+                .unwrap_or_default()
+        ),
+        "AutomaticBaseChangeFailedEvent" => {
+            automatic_base_change_body("failed to change base", node)
+        }
+        "AutomaticBaseChangeSucceededEvent" => {
+            automatic_base_change_body("automatically changed base", node)
+        }
+        "AutoRebaseEnabledEvent" => format!(
+            "enabled auto-rebase{}",
+            string_field_at(node, &["enabler", "login"])
+                .map(|login| format!(" by {login}"))
+                .unwrap_or_default()
+        ),
+        "AutoSquashEnabledEvent" => format!(
+            "enabled auto-squash{}",
+            string_field_at(node, &["enabler", "login"])
+                .map(|login| format!(" by {login}"))
+                .unwrap_or_default()
+        ),
         "AutoMergeEnabledEvent" => "enabled auto-merge".to_string(),
         "AutoMergeDisabledEvent" => format!(
             "disabled auto-merge{}",
@@ -2778,15 +3040,54 @@ fn resource_reference_label(value: &Value) -> String {
     }
 }
 
+fn issue_type_name(node: &Value, key: &str) -> String {
+    string_field_at(node, &[key, "name"])
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn ref_force_push_body(prefix: &str, node: &Value) -> String {
+    let ref_name = string_field_at(node, &["ref", "name"]).unwrap_or("branch");
+    let before = short_oid_at(node, &["beforeCommit", "oid"]);
+    let after = short_oid_at(node, &["afterCommit", "oid"]);
+    format!("{prefix} {ref_name} from {before} to {after}")
+}
+
+fn automatic_base_change_body(prefix: &str, node: &Value) -> String {
+    format!(
+        "{prefix} from {} to {}",
+        string_field(node, "oldBase").unwrap_or("unknown"),
+        string_field(node, "newBase").unwrap_or("unknown")
+    )
+}
+
+fn short_oid_at(node: &Value, path: &[&str]) -> String {
+    string_field_at(node, path)
+        .map(short_oid)
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn short_oid(oid: &str) -> String {
+    oid.chars().take(12).collect()
+}
+
 fn cross_reference_url(node: &Value) -> Option<String> {
-    [
-        ["source", "url"],
-        ["canonical", "url"],
-        ["duplicate", "url"],
-        ["subject", "url"],
-    ]
-    .iter()
-    .find_map(|path| string_field_at(node, path).map(str::to_string))
+    let paths: &[&[&str]] = &[
+        &["source", "url"],
+        &["canonical", "url"],
+        &["duplicate", "url"],
+        &["subject", "url"],
+        &["subIssue", "url"],
+        &["parent", "url"],
+        &["blockingIssue", "url"],
+        &["blockedIssue", "url"],
+        &["discussion", "url"],
+        &["issueComment", "url"],
+        &["url"],
+    ];
+    paths
+        .iter()
+        .find_map(|path| string_field_at(node, path).map(str::to_string))
 }
 
 fn actor_login(node: &Value) -> Option<String> {
@@ -3186,6 +3487,14 @@ mod tests {
         assert!(pr_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(pr_query.contains("MERGED_EVENT"));
         assert!(pr_query.contains("ReviewRequestedEvent"));
+        assert!(pr_query.contains("BASE_REF_CHANGED_EVENT"));
+        assert!(pr_query.contains("HEAD_REF_FORCE_PUSHED_EVENT"));
+        assert!(pr_query.contains("REVIEW_DISMISSED_EVENT"));
+        assert!(pr_query.contains("ADDED_TO_MERGE_QUEUE_EVENT"));
+        assert!(issue_query.contains("ISSUE_TYPE_CHANGED_EVENT"));
+        assert!(issue_query.contains("SUB_ISSUE_ADDED_EVENT"));
+        assert!(issue_query.contains("BLOCKED_BY_ADDED_EVENT"));
+        assert!(issue_query.contains("ConvertedToDiscussionEvent"));
     }
 
     #[test]
@@ -4433,6 +4742,71 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         "repository": {"nameWithOwner": "openclaw/openclaw"}
                                     }
                                 }),
+                                serde_json::json!({
+                                    "__typename": "BaseRefChangedEvent",
+                                    "id": "base-changed",
+                                    "createdAt": "2026-05-31T07:08:12Z",
+                                    "actor": {"login": "alice"},
+                                    "previousRefName": "develop",
+                                    "currentRefName": "main"
+                                }),
+                                serde_json::json!({
+                                    "__typename": "HeadRefForcePushedEvent",
+                                    "id": "head-force",
+                                    "createdAt": "2026-05-31T07:09:12Z",
+                                    "actor": {"login": "alice"},
+                                    "ref": {"name": "feature"},
+                                    "beforeCommit": {"oid": "111111111111aaaa"},
+                                    "afterCommit": {"oid": "222222222222bbbb"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "ReviewDismissedEvent",
+                                    "id": "review-dismissed",
+                                    "createdAt": "2026-05-31T07:10:12Z",
+                                    "actor": {"login": "alice"},
+                                    "previousReviewState": "APPROVED",
+                                    "dismissalMessage": "new commits",
+                                    "url": "https://github.com/openclaw/openclaw/pull/81834#event-1"
+                                }),
+                                serde_json::json!({
+                                    "__typename": "AddedToMergeQueueEvent",
+                                    "id": "merge-queue",
+                                    "createdAt": "2026-05-31T07:11:12Z",
+                                    "actor": {"login": "alice"},
+                                    "enqueuer": {"login": "maintainer"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "IssueTypeChangedEvent",
+                                    "id": "type-changed",
+                                    "createdAt": "2026-05-31T07:12:12Z",
+                                    "actor": {"login": "alice"},
+                                    "prevIssueType": {"name": "Bug"},
+                                    "issueType": {"name": "Task"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "SubIssueAddedEvent",
+                                    "id": "sub-issue",
+                                    "createdAt": "2026-05-31T07:13:12Z",
+                                    "actor": {"login": "alice"},
+                                    "subIssue": {
+                                        "number": 88538,
+                                        "title": "child issue",
+                                        "url": "https://github.com/openclaw/openclaw/issues/88538",
+                                        "repository": {"nameWithOwner": "openclaw/openclaw"}
+                                    }
+                                }),
+                                serde_json::json!({
+                                    "__typename": "BlockedByAddedEvent",
+                                    "id": "blocked-by",
+                                    "createdAt": "2026-05-31T07:14:12Z",
+                                    "actor": {"login": "alice"},
+                                    "blockingIssue": {
+                                        "number": 88499,
+                                        "title": "blocking issue",
+                                        "url": "https://github.com/openclaw/openclaw/issues/88499",
+                                        "repository": {"nameWithOwner": "openclaw/openclaw"}
+                                    }
+                                }),
                             ],
                         },
                     }),
@@ -4441,7 +4815,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             },
         });
 
-        assert_eq!(activity.len(), 8);
+        assert_eq!(activity.len(), 15);
         assert_eq!(activity[0].kind, ActivityKind::Timeline);
         assert_eq!(activity[0].author, "clawsweeper");
         assert_eq!(activity[0].body, "added label P2");
@@ -4469,6 +4843,24 @@ diff --git a/docs/two.md b/docs/two.md\n\
             activity[7].body,
             "connected openclaw/openclaw#88499 to openclaw/openclaw#81834"
         );
+        assert_eq!(activity[8].body, "changed base from develop to main");
+        assert_eq!(
+            activity[9].body,
+            "force-pushed head feature from 111111111111 to 222222222222"
+        );
+        assert_eq!(activity[10].body, "dismissed Approved review: new commits");
+        assert_eq!(
+            activity[10].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/pull/81834#event-1")
+        );
+        assert_eq!(activity[11].body, "added to merge queue by maintainer");
+        assert_eq!(activity[12].body, "changed issue type from Bug to Task");
+        assert_eq!(activity[13].body, "added sub-issue openclaw/openclaw#88538");
+        assert_eq!(
+            activity[13].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/issues/88538")
+        );
+        assert_eq!(activity[14].body, "blocked by openclaw/openclaw#88499");
     }
 
     #[test]
