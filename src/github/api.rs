@@ -14,7 +14,7 @@ use crate::domain::{
 use crate::github::queries::{
     base_issue_query, base_pr_query, changed_files_query, check_suites_query, comments_query,
     commit_deployments_query, commits_query, project_items_query, review_thread_comments_query,
-    review_threads_query, timeline_query,
+    review_threads_query, status_rollup_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -91,6 +91,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         match fetch_commit_deployments(id).await {
             Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
             Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
+        }
+        match fetch_status_rollup_checks(id).await {
+            Ok(checks) => pr.checks = checks,
+            Err(error) => warnings.push(format!("full status rollup unavailable: {error}")),
         }
         match fetch_check_suites(id).await {
             Ok(suites) => apply_check_suites(&mut pr.checks, suites),
@@ -244,6 +248,17 @@ async fn run_graphql_commit_deployments(id: &ResourceId) -> anyhow::Result<Vec<u
 async fn run_graphql_check_suites(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
     let query = check_suites_query();
     run_graphql_query(query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_status_rollup(
+    id: &ResourceId,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        status_rollup_query(),
+        owner_repo_number_variables(id, after),
+    )
+    .await
 }
 
 async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
@@ -773,6 +788,43 @@ struct CheckSuiteWorkflowDto {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct StatusRollupResponse {
+    data: StatusRollupData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusRollupData {
+    repository: Option<StatusRollupRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusRollupRepository {
+    pull_request: Option<StatusRollupPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusRollupPullRequest {
+    status_check_rollup: Option<StatusCheckRollupDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusCheckRollupDto {
+    contexts: StatusContextConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusContextConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CheckDto {
     name: Option<String>,
     context: Option<String>,
@@ -1098,16 +1150,8 @@ fn normalize_status_check_rollup(pr: &mut Value) {
             nodes
                 .iter_mut()
                 .map(|node| {
-                    let mut check = node.take();
-                    if let Some(workflow_name) = check
-                        .pointer("/checkSuite/workflowRun/workflow/name")
-                        .cloned()
-                    {
-                        if let Some(object) = check.as_object_mut() {
-                            object.insert("workflowName".to_string(), workflow_name);
-                        }
-                    }
-                    check
+                    let check = node.take();
+                    normalize_status_check_value(check)
                 })
                 .collect::<Vec<_>>()
         })
@@ -1115,6 +1159,18 @@ fn normalize_status_check_rollup(pr: &mut Value) {
     if let Some(object) = pr.as_object_mut() {
         object.insert("statusCheckRollup".to_string(), Value::Array(checks));
     }
+}
+
+fn normalize_status_check_value(mut check: Value) -> Value {
+    if let Some(workflow_name) = check
+        .pointer("/checkSuite/workflowRun/workflow/name")
+        .cloned()
+    {
+        if let Some(object) = check.as_object_mut() {
+            object.insert("workflowName".to_string(), workflow_name);
+        }
+    }
+    check
 }
 
 fn issue_metadata(issue: &IssueView) -> Vec<MetadataItem> {
@@ -1631,6 +1687,27 @@ async fn fetch_check_suites(id: &ResourceId) -> anyhow::Result<Vec<CheckRun>> {
     }
 }
 
+async fn fetch_status_rollup_checks(id: &ResourceId) -> anyhow::Result<Vec<CheckRun>> {
+    let mut checks = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_status_rollup(id, after.as_deref()).await?;
+        let response: StatusRollupResponse = serde_json::from_slice(&output)
+            .context("failed to parse status rollup GraphQL JSON")?;
+        let Some(page) = status_rollup_page(response)? else {
+            return Ok(checks);
+        };
+        checks.extend(page.checks);
+        if !page.has_next_page {
+            return Ok(checks);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("status rollup page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 async fn fetch_file_patches(id: &ResourceId) -> anyhow::Result<HashMap<String, String>> {
     let output = run_pr_diff(id).await?;
     let diff = String::from_utf8_lossy(&output);
@@ -1743,11 +1820,60 @@ struct CheckSuitesPage {
     end_cursor: Option<String>,
 }
 
+struct StatusRollupPage {
+    checks: Vec<CheckRun>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
 #[cfg(test)]
 fn check_suites_from_response(response: CheckSuitesResponse) -> Vec<CheckRun> {
     check_suites_page(response)
         .map(|page| deduped_check_suites(page.checks))
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn status_rollup_checks_from_response(response: StatusRollupResponse) -> Vec<CheckRun> {
+    status_rollup_page(response)
+        .ok()
+        .flatten()
+        .map(|page| page.checks)
+        .unwrap_or_default()
+}
+
+fn status_rollup_page(response: StatusRollupResponse) -> anyhow::Result<Option<StatusRollupPage>> {
+    let Some(repository) = response.data.repository else {
+        return Ok(None);
+    };
+    let Some(pull_request) = repository.pull_request else {
+        return Ok(None);
+    };
+    let Some(rollup) = pull_request.status_check_rollup else {
+        return Ok(Some(StatusRollupPage {
+            checks: Vec::new(),
+            has_next_page: false,
+            end_cursor: None,
+        }));
+    };
+    let page_info = rollup.contexts.page_info;
+    let checks = rollup
+        .contexts
+        .nodes
+        .into_iter()
+        .map(status_check_from_value)
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(Some(StatusRollupPage {
+        checks,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    }))
+}
+
+fn status_check_from_value(value: Value) -> anyhow::Result<CheckRun> {
+    serde_json::from_value(normalize_status_check_value(value))
+        .context("failed to parse status rollup context")
+        .map(check_from_dto)
 }
 
 fn check_suites_page(response: CheckSuitesResponse) -> Option<CheckSuitesPage> {
@@ -2855,6 +2981,23 @@ mod tests {
     }
 
     #[test]
+    fn status_rollup_query_requests_pagination_state_and_context_fields() {
+        let query = status_rollup_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("statusCheckRollup"));
+        assert!(query.contains("contexts(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("... on CheckRun"));
+        assert!(query.contains("detailsUrl"));
+        assert!(query.contains("checkSuite { workflowRun { workflow { name } } }"));
+        assert!(query.contains("... on StatusContext"));
+        assert!(query.contains("targetUrl"));
+    }
+
+    #[test]
     fn commits_query_requests_pagination_state_and_full_commit_fields() {
         let query = commits_query();
 
@@ -3500,6 +3643,81 @@ mod tests {
         assert_eq!(page.checks.len(), 1);
         assert_eq!(page.checks[0].name, "suite/CI");
         assert_eq!(page.checks[0].status, CheckStatus::Pending);
+    }
+
+    #[test]
+    fn status_rollup_page_preserves_pagination_state_and_context_types() {
+        let page = status_rollup_page(StatusRollupResponse {
+            data: StatusRollupData {
+                repository: Some(StatusRollupRepository {
+                    pull_request: Some(StatusRollupPullRequest {
+                        status_check_rollup: Some(StatusCheckRollupDto {
+                            contexts: StatusContextConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: true,
+                                    end_cursor: Some("status-cursor-2".into()),
+                                },
+                                nodes: vec![
+                                    json!({
+                                        "__typename": "CheckRun",
+                                        "name": "unit",
+                                        "status": "COMPLETED",
+                                        "conclusion": "SUCCESS",
+                                        "detailsUrl": "https://example.test/check",
+                                        "startedAt": "2026-05-30T03:18:51Z",
+                                        "completedAt": "2026-05-30T03:19:51Z",
+                                        "checkSuite": {
+                                            "workflowRun": {
+                                                "workflow": {"name": "CI"}
+                                            }
+                                        }
+                                    }),
+                                    json!({
+                                        "__typename": "StatusContext",
+                                        "context": "license/cla",
+                                        "state": "PENDING",
+                                        "targetUrl": "https://example.test/status"
+                                    }),
+                                ],
+                            },
+                        }),
+                    }),
+                }),
+            },
+        })
+        .expect("status rollup page result")
+        .expect("status rollup page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("status-cursor-2"));
+        assert_eq!(page.checks.len(), 2);
+        assert_eq!(page.checks[0].name, "CI/unit");
+        assert_eq!(page.checks[0].status, CheckStatus::Success);
+        assert_eq!(
+            page.checks[0].details_url.as_deref(),
+            Some("https://example.test/check")
+        );
+        assert_eq!(page.checks[1].name, "license/cla");
+        assert_eq!(page.checks[1].status, CheckStatus::Pending);
+        assert_eq!(
+            page.checks[1].details_url.as_deref(),
+            Some("https://example.test/status")
+        );
+    }
+
+    #[test]
+    fn status_rollup_checks_from_response_handles_null_rollup() {
+        let checks = status_rollup_checks_from_response(StatusRollupResponse {
+            data: StatusRollupData {
+                repository: Some(StatusRollupRepository {
+                    pull_request: Some(StatusRollupPullRequest {
+                        status_check_rollup: None,
+                    }),
+                }),
+            },
+        });
+
+        assert!(checks.is_empty());
     }
 
     #[test]
