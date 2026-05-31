@@ -1,13 +1,13 @@
-# ghzoom
+# ghzinga
 
-`ghzoom` is a standalone Rust terminal UI for monitoring one GitHub pull request
+`ghzinga` is a standalone Rust terminal UI for monitoring one GitHub pull request
 or issue.
 
 It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for PR,
 issue, and enrichment data. There is no separate login flow: if `GH_TOKEN` or
-`GITHUB_TOKEN` is set, `ghzoom` uses it; otherwise it can reuse the token from an
+`GITHUB_TOKEN` is set, `ghzinga` uses it; otherwise it can reuse the token from an
 existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
-fallback, not the data transport. If credentials are missing, `ghzoom` reports
+fallback, not the data transport. If credentials are missing, `ghzinga` reports
 the failed credential step and the `gh auth status` / `gh auth login` next step.
 The primary PR or issue view is fetched first; optional enrichment failures are
 shown as warnings instead of preventing the resource from rendering.
@@ -23,13 +23,13 @@ cargo build --release
 Run the debug build during development:
 
 ```sh
-cargo run -- openclaw/openclaw#81834
+cargo run --bin gzg -- openclaw/openclaw#81834
 ```
 
 Run the built binary:
 
 ```sh
-target/release/ghzoom openclaw/openclaw#81834
+target/release/gzg openclaw/openclaw#81834
 ```
 
 ## Usage
@@ -37,22 +37,22 @@ target/release/ghzoom openclaw/openclaw#81834
 Accepted resource forms:
 
 ```sh
-ghzoom https://github.com/openclaw/openclaw/pull/81834
-ghzoom https://github.com/openclaw/openclaw/issues/88499
-ghzoom openclaw/openclaw#81834
-ghzoom openclaw/openclaw 81834
+gzg https://github.com/openclaw/openclaw/pull/81834
+gzg https://github.com/openclaw/openclaw/issues/88499
+gzg openclaw/openclaw#81834
+gzg openclaw/openclaw 81834
 ```
 
 Useful options:
 
 ```sh
-ghzoom openclaw/openclaw#81834 --tab checks
-ghzoom openclaw/openclaw#81834 --refresh-seconds 30
-ghzoom openclaw/openclaw#81834 --no-mouse
-ghzoom openclaw/openclaw#81834 --theme solarized-dark
-ghzoom openclaw/openclaw#81834 --symbols emoji
-ghzoom openclaw/openclaw#81834 --once
-ghzoom openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
+gzg openclaw/openclaw#81834 --tab checks
+gzg openclaw/openclaw#81834 --refresh-seconds 30
+gzg openclaw/openclaw#81834 --no-mouse
+gzg openclaw/openclaw#81834 --theme solarized-dark
+gzg openclaw/openclaw#81834 --symbols emoji
+gzg openclaw/openclaw#81834 --once
+gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 ```
 
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
@@ -122,7 +122,7 @@ footer controls wrap into extra rows on narrow terminals instead of silently
 overlapping. Long content uses display-width-aware wrapping and truncation, so
 emoji and wide characters do not corrupt the layout.
 
-By default, ghzoom renders with plain ASCII symbols so it works in terminals
+By default, ghzinga renders with plain ASCII symbols so it works in terminals
 without special fonts or emoji support. Use `--symbols emoji` to opt into the
 richer emoji labels.
 
@@ -183,31 +183,31 @@ cannot silently drift behind the app rendering code.
 
 The repository includes tmux capture artifacts for PR and issue views:
 
-- `captures/ghzoom-pr-81834/`
-- `captures/ghzoom-issue-88499/`
+- `captures/ghzinga-pr-81834/`
+- `captures/ghzinga-issue-88499/`
 
 Reference docs:
 
-- `docs/2026-05-31-ghzoom-implementation-plan.md`
+- `docs/2026-05-31-ghzinga-implementation-plan.md`
 - `docs/2026-05-31-gh-cli-reference-notes.md`
 
 Regenerate PR captures:
 
 ```sh
-python3 captures/ghzoom-pr-81834/capture_ghzoom.py
+python3 captures/ghzinga-pr-81834/capture_ghzinga.py
 ```
 
 Validate saved PR captures:
 
 ```sh
-python3 captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only
+python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
 ```
 
 Regenerate issue captures:
 
 ```sh
-python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
-  --root captures/ghzoom-issue-88499 \
+python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
+  --root captures/ghzinga-issue-88499 \
   --target https://github.com/openclaw/openclaw/issues/88499 \
   --title 'openai-responses provider: 404 on previous_response_id when store=false (default)' \
   --load-needle openai-responses \
@@ -217,8 +217,8 @@ python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
 Validate saved issue captures:
 
 ```sh
-python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
-  --root captures/ghzoom-issue-88499 \
+python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
+  --root captures/ghzinga-issue-88499 \
   --mode issue \
   --validate-only
 ```

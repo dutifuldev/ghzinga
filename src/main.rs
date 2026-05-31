@@ -6,7 +6,7 @@ use std::{
 use anyhow::Context;
 use clap::Parser;
 use crossterm::event::{self, Event};
-use ghzoom::{
+use ghzinga::{
     app::{apply_event, AppEvent, AppIntent, AppState},
     cli::Cli,
     domain::{ResourceId, ResourceKind},
@@ -311,7 +311,7 @@ async fn refresh_resource<G: GithubGateway>(state: &mut AppState, gateway: &G) {
 
 async fn navigate_to_resource<G: GithubGateway>(
     state: &mut AppState,
-    id: ghzoom::domain::ResourceId,
+    id: ghzinga::domain::ResourceId,
     gateway: &G,
 ) {
     match gateway.fetch_resource(&id).await {
@@ -366,7 +366,7 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use ghzoom::{
+    use ghzinga::{
         app::AppState,
         domain::{ReactionCounts, Resource, ResourceId, ResourceKind},
         github::api::GithubGateway,

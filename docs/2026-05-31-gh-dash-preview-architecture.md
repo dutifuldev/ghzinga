@@ -372,7 +372,7 @@ Issue comments are simpler than PR activity:
 
 This means issue preview is architecturally closer to a document view, while PR preview is a tabbed inspection surface.
 
-That difference matters for a tool like `ghzoom`: if the goal is to display one individual issue/PR deeply, PR and issue should probably share a high-level "document viewport" shell but not force issue content into PR-style tabs. PRs naturally need tabs because they have checks, commits, files, reviewers, and review-thread activity. Issues mostly need body, comments, labels, assignees, and state transitions.
+That difference matters for a tool like `ghzinga`: if the goal is to display one individual issue/PR deeply, PR and issue should probably share a high-level "document viewport" shell but not force issue content into PR-style tabs. PRs naturally need tabs because they have checks, commits, files, reviewers, and review-thread activity. Issues mostly need body, comments, labels, assignees, and state transitions.
 
 ## Styling System
 
@@ -470,7 +470,7 @@ The preview also has constraints that matter for a dedicated individual issue/PR
 
 In `80x24`, the preview header, title block, branch/author lines, tab row, divider, footer, and scroll percentage leave only a few lines for actual content. Narrow captures make this obvious: the user often sees identity chrome instead of the body/comment content they are trying to inspect.
 
-For a dedicated `ghzoom`-style viewer, the header should probably compact after initial scroll or offer a dense mode.
+For a dedicated `ghzinga`-style viewer, the header should probably compact after initial scroll or offer a dense mode.
 
 ### Bottom preview is document-hostile
 
@@ -512,9 +512,9 @@ The aggregate check summary is excellent. The detailed list can become very long
 
 gh-dash already partially groups awaiting-approval and pending checks. A dedicated viewer could make this grouping first-class and collapsible.
 
-## Implications for ghzoom
+## Implications for ghzinga
 
-If `ghzoom` is meant to display one individual issue or PR, the gh-dash preview is the right reference point, but not the final shape.
+If `ghzinga` is meant to display one individual issue or PR, the gh-dash preview is the right reference point, but not the final shape.
 
 Recommended architecture:
 
@@ -560,7 +560,7 @@ Recommended UI differences from gh-dash:
 
 2. Separate primary and enriched data.
 
-   PR list data should be fast and cheap. Deep tabs can load later. For `ghzoom`, this should become explicit loading state per section rather than one resource-wide enrichment flag.
+   PR list data should be fast and cheap. Deep tabs can load later. For `ghzinga`, this should become explicit loading state per section rather than one resource-wide enrichment flag.
 
 3. Preserve a stable resource header.
 
@@ -586,4 +586,4 @@ Recommended UI differences from gh-dash:
 
 gh-dash implements PR/issue preview as a generic sidebar viewport fed by domain-specific renderers. PR preview is tabbed and enrichment-driven; issue preview is a simpler single-document render. Layout is controlled globally by preview position and terminal dimensions, with bottom split preferred when right split would starve the main table.
 
-The captures show that this is excellent for peeking from a dashboard, especially at medium/large sizes, but it becomes cramped for deep reading in narrow terminals. For a dedicated `ghzoom` tool, the winning approach is to reuse the conceptual split of generic viewport plus resource renderers, while switching the default experience from "dashboard preview" to "full-detail document inspector."
+The captures show that this is excellent for peeking from a dashboard, especially at medium/large sizes, but it becomes cramped for deep reading in narrow terminals. For a dedicated `ghzinga` tool, the winning approach is to reuse the conceptual split of generic viewport plus resource renderers, while switching the default experience from "dashboard preview" to "full-detail document inspector."

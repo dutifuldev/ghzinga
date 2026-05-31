@@ -37,6 +37,10 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.should_quit = true;
             AppIntent::Quit
         }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.should_quit = true;
+            AppIntent::Quit
+        }
         KeyCode::Char('r') => {
             state.refresh_requested = true;
             AppIntent::Refresh
@@ -220,6 +224,19 @@ mod tests {
         );
 
         assert_eq!(state.active_tab, Tab::Activity);
+    }
+
+    #[test]
+    fn ctrl_c_quits() {
+        let mut state = AppState::new(resource());
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        );
+
+        assert_eq!(intent, AppIntent::Quit);
+        assert!(state.should_quit);
     }
 
     #[test]

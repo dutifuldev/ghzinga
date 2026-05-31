@@ -1,0 +1,24 @@
+{
+  "target": "https://github.com/openclaw/openclaw/issues/88499",
+  "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
+  "mode": "issue",
+  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "git_commit": "50ed393e44919f7bc397ff7a9dbd7f6819ca6384",
+  "sizes": [
+    {
+      "label": "narrow",
+      "columns": 80,
+      "rows": 24
+    },
+    {
+      "label": "medium",
+      "columns": 120,
+      "rows": 36
+    },
+    {
+      "label": "large",
+      "columns": 160,
+      "rows": 50
+    }
+  ]
+}

@@ -3,7 +3,7 @@ use predicates::str::contains;
 
 #[test]
 fn once_renders_pr_fixture_through_binary() {
-    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -23,7 +23,7 @@ fn once_renders_pr_fixture_through_binary() {
 
 #[test]
 fn once_renders_issue_fixture_through_binary() {
-    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.args([
         "openclaw/openclaw#66943",
@@ -40,7 +40,7 @@ fn once_renders_issue_fixture_through_binary() {
 
 #[test]
 fn once_can_render_pr_checks_tab() {
-    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -59,7 +59,7 @@ fn once_can_render_pr_checks_tab() {
 
 #[test]
 fn once_can_render_pr_files_tab() {
-    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -78,7 +78,7 @@ fn once_can_render_pr_files_tab() {
 
 #[test]
 fn once_can_render_emoji_symbols_when_requested() {
-    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.args([
         "openclaw/openclaw#81834",

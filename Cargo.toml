@@ -1,7 +1,12 @@
 [package]
-name = "ghzoom"
+name = "ghzinga"
 version = "0.1.0"
 edition = "2021"
+autobins = false
+
+[[bin]]
+name = "gzg"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"

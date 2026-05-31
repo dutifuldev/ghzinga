@@ -1,0 +1,106 @@
+{
+  "label": "large",
+  "target": "https://github.com/openclaw/openclaw/issues/88499",
+  "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
+  "mode": "issue",
+  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "git_commit": "50ed393e44919f7bc397ff7a9dbd7f6819ca6384",
+  "requested_columns": 160,
+  "requested_rows": 50,
+  "captures": [
+    {
+      "name": "00_overview_top",
+      "txt": "00_overview_top.txt",
+      "ansi": "00_overview_top.ansi",
+      "png": "00_overview_top.png",
+      "history_txt": "00_overview_top.history.txt",
+      "history_ansi": "00_overview_top.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
+      "tab": "overview",
+      "keys": [],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "01_overview_expanded",
+      "txt": "01_overview_expanded.txt",
+      "ansi": "01_overview_expanded.ansi",
+      "png": "01_overview_expanded.png",
+      "history_txt": "01_overview_expanded.history.txt",
+      "history_ansi": "01_overview_expanded.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
+      "tab": "overview",
+      "keys": [
+        "e"
+      ],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "02_overview_pagedown",
+      "txt": "02_overview_pagedown.txt",
+      "ansi": "02_overview_pagedown.ansi",
+      "png": "02_overview_pagedown.png",
+      "history_txt": "02_overview_pagedown.history.txt",
+      "history_ansi": "02_overview_pagedown.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
+      "tab": "overview",
+      "keys": [
+        "e",
+        "PageDown"
+      ],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "10_activity_top",
+      "txt": "10_activity_top.txt",
+      "ansi": "10_activity_top.ansi",
+      "png": "10_activity_top.png",
+      "history_txt": "10_activity_top.history.txt",
+      "history_ansi": "10_activity_top.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --refresh-seconds 0",
+      "tab": "activity",
+      "keys": [],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "11_activity_pagedown",
+      "txt": "11_activity_pagedown.txt",
+      "ansi": "11_activity_pagedown.ansi",
+      "png": "11_activity_pagedown.png",
+      "history_txt": "11_activity_pagedown.history.txt",
+      "history_ansi": "11_activity_pagedown.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --refresh-seconds 0",
+      "tab": "activity",
+      "keys": [
+        "PageDown"
+      ],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "20_links_top",
+      "txt": "20_links_top.txt",
+      "ansi": "20_links_top.ansi",
+      "png": "20_links_top.png",
+      "history_txt": "20_links_top.history.txt",
+      "history_ansi": "20_links_top.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --refresh-seconds 0",
+      "tab": "links",
+      "keys": [],
+      "actual_tmux_size": "160x50"
+    },
+    {
+      "name": "30_help",
+      "txt": "30_help.txt",
+      "ansi": "30_help.ansi",
+      "png": "30_help.png",
+      "history_txt": "30_help.history.txt",
+      "history_ansi": "30_help.history.ansi",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --refresh-seconds 0",
+      "tab": "links",
+      "keys": [
+        "?"
+      ],
+      "actual_tmux_size": "160x50"
+    }
+  ],
+  "actual_tmux_size": "160x50"
+}

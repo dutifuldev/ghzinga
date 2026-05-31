@@ -3,8 +3,8 @@
   "requested_columns": 120,
   "requested_rows": 36,
   "actual_tmux_size": "120x36",
-  "session": "ghzoom-ghdash-medium",
-  "command": "gh dash --config /home/bob/repos/ghzoom/captures/gh-dash-pr-81834/config.yml",
+  "session": "ghzinga-ghdash-medium",
+  "command": "gh dash --config /home/bob/repos/ghzinga/captures/gh-dash-pr-81834/config.yml",
   "captures": [
     {
       "name": "00_initial",

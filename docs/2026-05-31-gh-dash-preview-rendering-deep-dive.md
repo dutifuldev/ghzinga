@@ -517,7 +517,7 @@ long paths manually when needed. There is no diff rendering and no file-level
 expansion. That is correct for a dashboard preview: the tab communicates change
 footprint, not implementation detail.
 
-For a `ghzoom`-style viewer, Files should become a real navigation surface:
+For a `ghzinga`-style viewer, Files should become a real navigation surface:
 
 - all changed files, not just a preview page
 - filtering and grouping
@@ -559,7 +559,7 @@ Issue comments are rendered as a chronological list with author/time headers and
 Markdown bodies. Architecturally, issue preview is a single rendered document;
 PR preview is a tabbed inspection surface.
 
-That difference should be preserved in ghzoom. PRs and issues should share a
+That difference should be preserved in ghzinga. PRs and issues should share a
 shell, but they should not be forced into the same information architecture.
 
 ## Styling System
@@ -678,7 +678,7 @@ after scroll.
 The aggregate Checks box is compact, semantic, and action-oriented. It captures
 review state, check state, and mergeability separately.
 
-This should be directly carried into ghzoom, with deeper interaction added
+This should be directly carried into ghzinga, with deeper interaction added
 below it.
 
 ### 7. Activity needs more structure for a deeper tool
@@ -692,11 +692,11 @@ The chronological Activity feed is readable but flat. It does not elevate:
 - comment anchors and jump targets
 
 For gh-dash, that is fine because the preview is not the main product. For
-ghzoom, those distinctions should become navigation and filtering axes.
+ghzinga, those distinctions should become navigation and filtering axes.
 
-## Implications For ghzoom
+## Implications For ghzinga
 
-gh-dash is a dashboard with a preview panel. ghzoom should be an individual
+gh-dash is a dashboard with a preview panel. ghzinga should be an individual
 resource viewer. That changes the default assumptions.
 
 Recommended architecture:
@@ -743,6 +743,6 @@ main table from becoming too narrow.
 
 The terminal captures show the design tradeoff clearly. The preview is strong
 when the task is "peek at a selected row without leaving the dashboard." It is
-weaker when the task is "deeply inspect one PR or issue." For ghzoom, the right
+weaker when the task is "deeply inspect one PR or issue." For ghzinga, the right
 move is to borrow the architectural separation and the strongest UI components,
 then shift the product shape from dashboard preview to full-detail inspector.
