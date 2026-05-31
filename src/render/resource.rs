@@ -112,6 +112,12 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, wide: bool
             &format!("Activity: {}", resource.activity.len()),
             width,
         )));
+        if !resource.warnings.is_empty() {
+            lines.push(Line::from(truncate_ascii(
+                &format!("Warnings: {}", resource.warnings.len()),
+                width,
+            )));
+        }
         for item in resource.metadata.iter().take(4) {
             lines.push(Line::from(truncate_ascii(
                 &format!("{}: {}", item.label, item.value),
@@ -176,6 +182,9 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, wide: bool
         }
         if resource.is_pull_request() {
             line.push_str(&format!(" | checks {}", checks_summary(resource)));
+        }
+        if !resource.warnings.is_empty() {
+            line.push_str(&format!(" | warnings {}", resource.warnings.len()));
         }
         if let Some(refresh) = refresh_summary(state) {
             line.push_str(&format!(" | {refresh}"));
@@ -302,6 +311,17 @@ fn overview_rows(state: &mut AppState, width: usize) -> Vec<ContentRow> {
             reaction_summary(&state.resource.reactions)
         )),
     ];
+    if !state.resource.warnings.is_empty() {
+        rows.push(ContentRow::plain(""));
+        rows.push(ContentRow::plain("Warnings"));
+        for warning in &state.resource.warnings {
+            rows.extend(
+                markdown::wrap_plain_text(&format!("- {warning}"), width)
+                    .into_iter()
+                    .map(ContentRow::plain),
+            );
+        }
+    }
     rows.push(ContentRow::plain(""));
     rows.push(ContentRow::plain("Body"));
     rows.extend(
@@ -1050,6 +1070,7 @@ mod tests {
                     value: "yes".into(),
                 },
             ],
+            warnings: vec![],
             pull_request: Some(PullRequest {
                 base_ref: "main".into(),
                 head_ref: "feat/senseaudio-tts".into(),
@@ -1159,6 +1180,24 @@ mod tests {
         assert!(content.contains("Draft: no"));
         assert!(content.contains("Cross repository: yes"));
         assert!(content.contains("Head ref OID: fb4165fe62f1d126ba8c4bde3abe10fd7e985778"));
+    }
+
+    #[test]
+    fn renders_enrichment_warnings() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.warnings = vec!["timeline unavailable: permission denied".into()];
+        let mut state = AppState::new(resource);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("Warnings: 1"));
+        assert!(content.contains("Warnings"));
+        assert!(content.contains("timeline unavailable"));
     }
 
     #[test]
