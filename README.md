@@ -49,12 +49,14 @@ Useful options:
 ghzoom openclaw/openclaw#81834 --tab checks
 ghzoom openclaw/openclaw#81834 --refresh-seconds 30
 ghzoom openclaw/openclaw#81834 --no-mouse
+ghzoom openclaw/openclaw#81834 --theme solarized-dark
 ghzoom openclaw/openclaw#81834 --once
 ghzoom openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 ```
 
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
-`links`. Issue views only show `overview`, `activity`, and `links`.
+`links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
+accepts `default` and `solarized-dark`.
 
 ## What It Shows
 
@@ -98,7 +100,7 @@ For issues:
 - detected issue/PR links, including GitHub relationship links
 
 Long body text, comments, checks, and files are truncated by default where
-needed. Use the visible `[more]` and `[less]` controls to expand or collapse
+needed. Use the visible `[➕ more]` and `[➖ less]` controls to expand or collapse
 content.
 
 ## Controls
@@ -106,10 +108,10 @@ content.
 Mouse:
 
 - click tabs to switch views
-- click `[more]` and `[less]` controls to expand or collapse content
+- click bold `[➕ more]` and `[➖ less]` controls to expand or collapse content
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
-- click `[refresh]`, `[open]`, `[help]`, and `[quit]`
+- click `[🔄 refresh]`, `[🌐 open]`, `[❔ help]`, and `[⏻ quit]`
 - use the mouse wheel to scroll
 
 Keyboard:
@@ -120,7 +122,7 @@ Keyboard:
 - `o`: open the current resource in the browser through `gh`
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
-- `Enter`: activate the first visible content action, such as a link or `[more]`
+- `Enter`: activate the first visible content action, such as a link or `[➕ more]`
 - `e`: expand or collapse the main body
 - `Backspace`: go back after following a linked issue or PR
 
@@ -131,14 +133,15 @@ fallbacks when a terminal or multiplexer encodes Tab unusually.
 
 Live GitHub mode refreshes automatically every 60 seconds by default. Change the
 interval with `--refresh-seconds`; use `0` to disable automatic refresh. Manual
-refresh is always available with `r` or the `[refresh]` footer control.
+refresh is always available with `r` or the `[🔄 refresh]` footer control.
 
-The status panel shows the last refresh time and whether the fetched resource
-changed. Change detection includes comment/review bodies and review-thread
-state, not just top-level PR or issue fields. When a refresh changes data, the
-status panel lists the changed surfaces, such as `activity`, `checks`, `files`,
-or `commits`. If an optional enrichment call fails, the status and overview
-areas show a warning while keeping the base resource visible.
+The horizontal status band shows the last refresh time and whether the fetched
+resource changed. Change detection includes comment/review bodies and
+review-thread state, not just top-level PR or issue fields. When a refresh
+changes data, the status band lists the changed surfaces, such as `activity`,
+`checks`, `files`, or `commits`. If an optional enrichment call fails, the
+status and overview areas show a warning while keeping the base resource
+visible.
 
 ## Verification
 

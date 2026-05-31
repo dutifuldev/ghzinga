@@ -29,7 +29,9 @@ read an existing credential with `gh auth token`.
 - Full Rust implementation.
 - Ratatui UI with Crossterm terminal setup and mouse capture.
 - Standalone binary, not a `gh dash` plugin.
-- No special fonts or Nerd Font characters required.
+- No Nerd Font characters required. The default UI may use common emoji symbols
+  as semantic markers, but controls must also include text labels so meaning is
+  not color- or symbol-only.
 - PR support: body, reactions, comments, review comments, commits, CI/check status, changed files, labels, author, branch/base metadata, mergeability/status.
 - Issue support: body, reactions, comments, labels, author, state, linked PR/issue navigation where available.
 - Mouse-first interaction:
@@ -82,7 +84,7 @@ Change for `ghzoom`:
 
 - full-screen detail view by default
 - compact sticky header instead of large repeated preview chrome
-- visible ASCII controls instead of icon-only controls
+- visible text controls with bold styling and emoji symbols instead of icon-only controls
 - full detail depth, not first-five-files preview only
 - stronger navigation by links and click targets
 
@@ -126,9 +128,10 @@ src/
   render/
     mod.rs                Ratatui rendering entrypoint
     layout.rs             ViewRects and responsive geometry
-    components.rs         ASCII buttons, tabs, badges, scrollbars
+    components.rs         buttons, tabs, badges, separators
     markdown.rs           plain terminal markdown simplifier/wrapper
     resource.rs           page renderers
+    theme.rs              small role-based color palette inspired by Herdr
   input/
     mod.rs                key/mouse mapping
     hit.rs                HitArea, HitTarget, hit testing
@@ -257,16 +260,14 @@ Desktop/medium-large:
 +----------------------------------------------------------------------------+
 | openclaw/openclaw #81834 [PR OPEN]  updated 1m ago  refreshed 12:40:10     |
 | feat(senseaudio): add SenseAudio TTS provider                              |
-| Tabs: [Overview] [Activity] [Commits] [Checks] [Files] [Links]              |
-+-------------------------------+--------------------------------------------+
-| Status                        | Content                                    |
-| State: Open                   | Scrollable selected tab                    |
-| Checks: Passed                |                                            |
-| Review: None requested        | visible [more] / [less] buttons            |
-| Comments: 7                   | clickable links to issues/PRs              |
-| Files: 5                      |                                            |
-+-------------------------------+--------------------------------------------+
-| q quit | r refresh | arrows scroll | tab next | enter activate | ? help     |
+| [Overview] [Activity] [Commits] [Checks] [Files] [Links]                    |
+| ✅ open  👤 author  💬 7  👍 3  ✅ checks passed  🧵 2  🔁 refreshed 12:40 |
++----------------------------------------------------------------------------+
+| Scrollable selected tab                                                     |
+| bold section headings, colored status words, clickable 🔗 links             |
+| visible [➕ more] / [➖ less] controls for expansion                         |
++----------------------------------------------------------------------------+
+| 🔄 [refresh]  🌐 [open]  ❔ [help]  ⏻ [quit]   tab next | arrows scroll     |
 +----------------------------------------------------------------------------+
 ```
 
@@ -276,20 +277,41 @@ Narrow:
 openclaw/openclaw #81834 [PR OPEN]
 feat(senseaudio): add SenseAudio TTS provider
 [Overview] [Activity] [Checks] [Files]
-----------------------------------------------------------------
-Status: Checks Passed | Comments 7 | Files 5
+✅ open | checks passed | 💬 7 | 👍 3 | files 5
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
-q quit | r refresh | ? help
+🔄 [refresh] | 🌐 [open] | ❔ [help] | ⏻ [quit]
 ```
 
-ASCII-only UI:
+Visual style:
 
-- Use `Block::bordered()` only if configured to plain ASCII borders.
-- Prefer text labels like `[more]`, `[less]`, `[open]`, `[refresh]`.
-- Status badges use words: `PASS`, `FAIL`, `PENDING`, `OPEN`, `CLOSED`, `MERGED`.
+- The status section is a horizontal band below the tabs, not a left sidebar.
+- Buttons and expandable controls use bold styling and text labels, for example
+  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[🌐 open]`.
+- Emoji symbols are semantic markers only; keep nearby text labels so the UI is
+  usable when emoji width/color rendering varies.
+- Status badges use both symbols and words: `✅ PASS`, `❌ FAIL`, `⏳ PENDING`,
+  `OPEN`, `CLOSED`, `MERGED`.
 - No Nerd Font icons.
+- Use color and bold to emphasize hierarchy:
+  - accent color for active tabs, buttons, and links
+  - green for success/open/passed
+  - red for failed/blocked/error
+  - yellow/peach for pending/warnings
+  - dim overlay colors for metadata and separators
+- Theme mechanism mirrors Herdr's role-based palette shape, but only exposes a
+  small set:
+  - `default`: dark, high-contrast developer dashboard palette
+  - `solarized-dark`: Solarized Dark colors from Herdr's palette
+- Line and separator rendering borrows Herdr's understated approach:
+  - fill the terminal background with the active palette's panel color
+  - use single-line separators such as `─` in dim surface colors instead of
+    boxed panels around every region
+  - use left guide markers such as `▏` for preformatted code or dense quoted
+    blocks when that helps scanning
+  - keep borders structural and quiet, with color and bold carrying most of the
+    emphasis
 
 ## Tabs
 
@@ -320,7 +342,7 @@ Keyboard:
 - `Up` / `Down`: scroll line
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom
-- `Enter`: activate the first visible content action, such as a link or `[more]`
+- `Enter`: activate the first visible content action, such as a link or `[➕ more]`
 - `Backspace`: navigate back after following a link
 - `o`: open current resource in browser through `gh`
 
@@ -345,8 +367,8 @@ Long text behavior:
 - Body starts collapsed to a configurable rendered-line limit.
 - Each long comment starts collapsed.
 - Visible controls:
-  - `[more]` expands one block
-  - `[less]` collapses it
+  - `[➕ more]` expands one block
+  - `[➖ less]` collapses it
   - `[expand all]` for tab-level expansion
 - Mouse and keyboard activation use the same `HitTarget::ToggleBlock`.
 - Truncation must be tested against line wrapping, terminal width, and Unicode width.
@@ -373,13 +395,15 @@ Rendering tests:
   - issue overview
   - loading state
   - error state
-- ASCII-only assertion: rendered buffers contain no non-ASCII UI chrome from our components.
+- Chrome assertion: rendered buffers contain no heavy box-drawing or Nerd Font
+  chrome from our components; common emoji markers and quiet `─`/`▏`
+  separators are allowed.
 
 Interaction tests:
 
 - simulated mouse click on tab changes active tab
 - simulated mouse wheel changes scroll offset
-- simulated click on `[more]` expands body/comment
+- simulated click on `[➕ more]` expands body/comment
 - simulated click on PR link navigates to new resource id
 - keyboard `Tab`, arrows, `PageDown`, `Backspace`, `r`, `q`
 
@@ -420,7 +444,7 @@ End-to-end/manual verification:
   - checks
   - files
   - click tab behavior
-  - click `[more]`
+  - click `[➕ more]`
   - refresh status
 
 ## Implementation Phases
@@ -447,7 +471,7 @@ End-to-end/manual verification:
 - Implement terminal guard.
 - Implement app state and pure update reducer.
 - Implement layout rectangles.
-- Render header, tabs, status panel, content panel, footer.
+- Render header, tabs, horizontal status band, content region, footer.
 - Render Overview/Activity/Commits/Checks/Files/Links from fixtures.
 - Add Ratatui render tests.
 
@@ -483,6 +507,6 @@ The first coherent build slice should produce:
 - `ghzoom --help`
 - `ghzoom openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json`
 - static Ratatui display with keyboard tab switching and scroll
-- mouse click on tabs and `[more]`
+- mouse click on tabs and `[➕ more]`
 
 This slice proves the architecture without depending on live GitHub availability. Live `gh` integration follows immediately after.
