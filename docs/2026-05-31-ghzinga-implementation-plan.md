@@ -393,7 +393,8 @@ PR tabs:
 
 - Overview: GitHub-style chronological conversation timeline first, with the
   opening body, comments, reviews, review comments, timeline events, and commits
-  interleaved by timestamp; compact metadata and change summary follow it
+  interleaved by timestamp; compact metadata, participants, and change summary
+  follow it
 - Activity: comments, reviews, review comments, bot comments
 - Commits: commit list with SHA, message, author, timestamp, status
 - Checks: aggregate status and grouped detailed checks
@@ -404,7 +405,7 @@ Issue tabs:
 
 - Overview: GitHub-style chronological conversation timeline first, with the
   opening body, comments, and timeline events interleaved by timestamp; compact
-  metadata follows it
+  metadata and participants follow it
 - Activity: comments and timeline entries
 - Links: detected issue/PR links from body/comments
 
@@ -427,6 +428,27 @@ Issue tabs:
   hit targets for visible rows after scroll clipping.
 - If a timestamp is relative or not parseable, preserve the adapter order and
   display the timestamp text as-is rather than hiding the item.
+
+## Participant Enrichment
+
+GitHub exposes issue and pull-request participants as a paginated `UserConnection`.
+`ghzinga` should fetch those pages with direct GraphQL calls, not via `gh`, and
+normalize them into the shared metadata list as `Participants`.
+
+Rules:
+
+- Fetch participants for both issues and pull requests after the base resource
+  loads, using the same optional-enrichment behavior as labels and assignees.
+- Page with `first: 100` and `after` until `hasNextPage` is false.
+- Treat missing repositories/resources as empty participant lists so deleted,
+  unavailable, or schema-filtered resources do not crash rendering.
+- If GitHub reports another page without an `endCursor`, fail that enrichment
+  with a warning instead of looping forever.
+- Display user login first, falling back to profile name when login is absent.
+- Deduplicate and trim participant names before writing metadata, replacing an
+  existing `Participants` row if one is already present.
+- Public unauthenticated REST fallback should continue to render the resource
+  and should explicitly warn that participant enrichment is GraphQL-only.
 
 ## Input Model
 

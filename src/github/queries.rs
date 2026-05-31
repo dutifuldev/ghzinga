@@ -241,6 +241,30 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn participants_query(kind: ResourceKind) -> String {
+    let selector = selector(kind);
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      participants(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          login
+          name
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
+}
+
 pub(crate) fn review_requests_query() -> &'static str {
     r#"
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
