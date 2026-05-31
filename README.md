@@ -62,7 +62,8 @@ For pull requests:
 - assignees and requested reviewers
 - GitHub metadata such as draft/cross-repository state, mergeability, changed-file count, milestones, projects, ref OIDs, and merge commits where available
 - comments, reviews, review comments, and timeline events such as labels,
-  references, assignments, title changes, and milestones
+  references, assignments, review requests, draft/ready state, merges, title
+  changes, and milestones
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
 - commits, with expandable commit bodies, authored/committed dates, coauthor
