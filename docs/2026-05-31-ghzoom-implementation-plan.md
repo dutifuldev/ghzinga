@@ -167,7 +167,8 @@ Data loaded for PR:
 - reactions counts
 - base/head branch names
 - changed files with additions/deletions/change type, paginated until complete or configured cap
-- patch context from `gh pr diff --patch`, shown when a file row is expanded
+- patch context from the direct REST pull-request diff media type, shown when a
+  file row is expanded
   with separate `[more patch]` / `[less patch]` controls for long patches
 - commits with SHA, headline, full body, primary author, coauthors,
   authored/committed timestamps, check state when available, and
