@@ -20,5 +20,5 @@ warn Warnings: 1
                                                                                 
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                  
                                                                                 
-[refresh] [open] [settings] [help] [quit]                                       
+[refresh] [open] [settings] [help] [quit] scroll 0/17 0%                        
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
