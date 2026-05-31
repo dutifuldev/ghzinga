@@ -6,7 +6,8 @@ openai-responses provider: 404 on previous_response_id when store=false (default
                                                                                                                                                                 
 [1m[38;2;122;162;247mActivity (4 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                            
 [38;2;86;95;137m----------------------------------------------------------------------------------------------------------------------------------------------------------------
-[38;2;192;202;245mComment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
+[38;2;192;202;245m                                                                                                                                                                
+Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
 meta: association CONTRIBUTOR, edited                                                                                                                           
 [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
 Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._            
@@ -46,5 +47,4 @@ inline-context mode and must not reference a prior response id. Tying the lifeti
 [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                        
                                                                                                                                                                 
 Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                                                          
-meta: association CONTRIBUTOR                                                                                                                                   
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                                                                   

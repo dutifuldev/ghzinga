@@ -4,15 +4,6 @@ openai-responses provider: 404 on previous_response_id when store=false (default
 [38;2;169;177;214m Overview [1m[38;2;26;27;38m[48;2;122;162;247m[Activity][0m[38;2;169;177;214m[48;2;26;27;38m Links [38;2;192;202;245m                                                                                                                                     
 [1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m  [38;2;125;207;255mcomments 4[38;2;192;202;245m  [38;2;224;175;104mreactions 1[38;2;192;202;245m  [1m[38;2;224;175;104mwarn Warnings: 1[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                  
                                                                                                                                                                 
-[1m[38;2;122;162;247mActivity (4 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                            
-[38;2;86;95;137m----------------------------------------------------------------------------------------------------------------------------------------------------------------
-[38;2;192;202;245mComment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
-meta: association CONTRIBUTOR, edited                                                                                                                           
-[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
-Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._            
-                                                                                                                                                                
-Summary                                                                                                                                                         
-Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers because generic Responses payloads can be     
 unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes have a newer store-aware wrapper, but the reported custom proxy route is not     
 covered by that direct-OpenAI-only path.                                                                                                                        
                                                                                                                                                                 
@@ -47,4 +38,13 @@ inline-context mode and must not reference a prior response id. Tying the lifeti
                                                                                                                                                                 
 Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                                                          
 meta: association CONTRIBUTOR                                                                                                                                   
+[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
+Follow-up after the local recovery investigation: the durable fix likely needs the transport/payload layer plus a reset/recovery cleanup layer.                 
+                                                                                                                                                                
+A later live Slack test showed that sessions.reset by itself was not enough in the already-poisoned channel case. The reset moved the Slack channel binding to a
+fresh session id, but the old in-memory embedded-run/lane state still appeared to own the queue. Three later Slack messages were accepted but did not get       
+replies; diagnostics showed:                                                                                                                                    
+                                                                                                                                                                
+text                                                                                                                                                            
+reason=active_work_without_progress                                                                                                                             
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                                                                   

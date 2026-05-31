@@ -6,6 +6,7 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
                                                                                                                         
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
 * @xneone opened 2026-05-31T02:21:19Z                                                                                   
 Bug Description                                                                                                         
                                                                                                                         
@@ -21,6 +22,7 @@ set to true, or remove this item from your input.
                                                                                                                         
 [+ more]                                                                                                                
 ------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
 comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                    
 meta: association CONTRIBUTOR, edited                                                                                   
 [details]                                                                                                               
@@ -31,6 +33,4 @@ Summary
 Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers       
 because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes
 have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.   
-                                                                                                                        
-[+ more]                                                                                                                
 [refresh] [open] [settings] [help] [quit] ...                                                                           

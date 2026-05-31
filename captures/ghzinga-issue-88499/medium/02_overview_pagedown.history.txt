@@ -6,6 +6,7 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
                                                                                                                         
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
 * @xneone opened 2026-05-31T02:21:19Z                                                                                   
 Bug Description                                                                                                         
                                                                                                                         
@@ -32,5 +33,4 @@ json
 "models": [{"id": "gpt-5.5"}]                                                                                           
 }                                                                                                                       
                                                                                                                         
-2. Set this as the default model for the main agent                                                                     
 [refresh] [open] [settings] [help] [quit] ...                                                                           

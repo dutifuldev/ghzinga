@@ -7,6 +7,7 @@ openai-responses provider: 404 on previous_response_id when store=false
                                                                                 
 [1m[38;2;122;162;247mConversation[0m[38;2;192;202;245m[48;2;26;27;38m                                                                    
 [38;2;86;95;137m--------------------------------------------------------------------------------
+[38;2;192;202;245m                                                                                
 [1m[38;2;122;162;247m* @xneone opened 2026-05-31T02:21:19Z[0m[38;2;192;202;245m[48;2;26;27;38m                                           
 Bug Description                                                                 
                                                                                 
@@ -19,6 +20,5 @@ Since that response was never persisted server-side, the API returns a 404:
                                                                                 
 HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store 
 is set to false. Try again with store set to true, or remove this item from your
-input.                                                                          
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m                                       
 [38;2;169;177;214mr refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |[38;2;192;202;245m      
