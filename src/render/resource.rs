@@ -17,6 +17,7 @@ use crate::{
 struct ContentRow {
     line: Line<'static>,
     target: Option<HitTarget>,
+    comfortable_gap_after: bool,
 }
 
 struct TimelineEntry<'a> {
@@ -57,6 +58,7 @@ impl ContentRow {
         Self {
             line: Line::from(text.into()),
             target: None,
+            comfortable_gap_after: false,
         }
     }
 
@@ -64,6 +66,7 @@ impl ContentRow {
         Self {
             line: Line::from(Span::styled(text.into(), style)),
             target: None,
+            comfortable_gap_after: false,
         }
     }
 
@@ -71,6 +74,7 @@ impl ContentRow {
         Self {
             line: Line::from(text.into()),
             target: Some(target),
+            comfortable_gap_after: false,
         }
     }
 
@@ -78,6 +82,7 @@ impl ContentRow {
         Self {
             line: Line::from(Span::styled(text.into(), style)),
             target: Some(target),
+            comfortable_gap_after: false,
         }
     }
 
@@ -85,7 +90,13 @@ impl ContentRow {
         Self {
             line,
             target: Some(target),
+            comfortable_gap_after: false,
         }
+    }
+
+    fn with_comfortable_gap_after(mut self) -> Self {
+        self.comfortable_gap_after = true;
+        self
     }
 }
 
@@ -700,7 +711,7 @@ fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow>
     let mut spaced = Vec::with_capacity(rows.len() + 8);
     let mut iter = rows.into_iter().peekable();
     while let Some(row) = iter.next() {
-        let insert_gap = is_section_rule(&row)
+        let insert_gap = (is_section_rule(&row) || row.comfortable_gap_after)
             && iter
                 .peek()
                 .is_some_and(|next| !line_text(&next.line).trim().is_empty());
@@ -875,7 +886,7 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
     rows.push(heading_row("Spacing", palette));
     rows.push(settings_option_row(
         "comfortable",
-        "More section breathing room, like gh-dash",
+        "gh-dash-like breathing room for long review sessions",
         state.spacing == SpacingMode::Comfortable,
         HitTarget::SetSpacing("comfortable".into()),
         palette,
@@ -1411,10 +1422,10 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             HitTarget::ToggleBlock(block.clone()),
             link_style(palette),
         ));
-        rows.push(ContentRow::plain(format!(
-            "@{} {}",
-            commit.author, commit.committed_at
-        )));
+        rows.push(
+            ContentRow::plain(format!("@{} {}", commit.author, commit.committed_at))
+                .with_comfortable_gap_after(),
+        );
         if expanded {
             push_expanded_commit_details(&mut rows, commit, width, resource);
             rows.push(ContentRow::target_styled(
@@ -1598,7 +1609,7 @@ fn push_check_group(
             check.status.label()
         );
         let reserved = UnicodeWidthStr::width(prefix.as_str()) + UnicodeWidthStr::width(marker) + 1;
-        rows.push(ContentRow::target_styled(
+        let check_row = ContentRow::target_styled(
             format!(
                 "{}{} {}",
                 prefix,
@@ -1607,7 +1618,12 @@ fn push_check_group(
             ),
             HitTarget::ToggleBlock(block.clone()),
             check_status_style(check.status, context.palette).add_modifier(Modifier::BOLD),
-        ));
+        );
+        rows.push(if expanded {
+            check_row
+        } else {
+            check_row.with_comfortable_gap_after()
+        });
         if expanded {
             rows.push(ContentRow::plain(format!("name: {}", check.name)));
             rows.push(ContentRow::plain(format!(
@@ -1698,7 +1714,7 @@ fn files_rows_for_pr(
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
         let marker = expand_label(expanded, symbols);
-        rows.push(ContentRow::target_line(
+        let file_row = ContentRow::target_line(
             file_summary_line(
                 file.additions,
                 file.deletions,
@@ -1709,7 +1725,12 @@ fn files_rows_for_pr(
                 palette,
             ),
             HitTarget::ToggleBlock(block.clone()),
-        ));
+        );
+        rows.push(if expanded {
+            file_row
+        } else {
+            file_row.with_comfortable_gap_after()
+        });
         if expanded {
             rows.push(ContentRow::plain(format!("path: {}", file.path)));
             rows.push(ContentRow::plain(format!(
@@ -1826,11 +1847,14 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
     let mut seen = std::collections::HashSet::new();
     for id in &resource.related_resources {
         if seen.insert(id.canonical_name()) {
-            rows.push(ContentRow::target_styled(
-                truncate_ascii(&id.canonical_name(), width),
-                HitTarget::Navigate(id.clone()),
-                link_style(palette),
-            ));
+            rows.push(
+                ContentRow::target_styled(
+                    truncate_ascii(&id.canonical_name(), width),
+                    HitTarget::Navigate(id.clone()),
+                    link_style(palette),
+                )
+                .with_comfortable_gap_after(),
+            );
         }
     }
     for token in linked_resource_tokens(resource) {
@@ -1841,11 +1865,14 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
                 _ => display.clone(),
             };
             if seen.insert(key) {
-                rows.push(ContentRow::target_styled(
-                    truncate_ascii(&display, width),
-                    target,
-                    link_style(palette),
-                ));
+                rows.push(
+                    ContentRow::target_styled(
+                        truncate_ascii(&display, width),
+                        target,
+                        link_style(palette),
+                    )
+                    .with_comfortable_gap_after(),
+                );
             }
         }
     }
@@ -2982,6 +3009,80 @@ mod tests {
 
         assert_eq!(comfortable.len(), 3);
         assert_eq!(line_text(&comfortable[2].line), "");
+    }
+
+    #[test]
+    fn comfortable_spacing_adds_single_gap_after_marked_rows() {
+        let rows = vec![
+            ContentRow::plain("first").with_comfortable_gap_after(),
+            ContentRow::plain("second").with_comfortable_gap_after(),
+            ContentRow::plain(""),
+            ContentRow::plain("third"),
+        ];
+
+        let comfortable = apply_spacing(rows, SpacingMode::Comfortable);
+
+        assert_eq!(comfortable.len(), 5);
+        assert_eq!(line_text(&comfortable[0].line), "first");
+        assert_eq!(line_text(&comfortable[1].line), "");
+        assert_eq!(line_text(&comfortable[2].line), "second");
+        assert_eq!(line_text(&comfortable[3].line), "");
+        assert_eq!(line_text(&comfortable[4].line), "third");
+    }
+
+    #[test]
+    fn compact_spacing_ignores_comfortable_gap_markers() {
+        let rows = vec![
+            ContentRow::plain("first").with_comfortable_gap_after(),
+            ContentRow::plain("second"),
+        ];
+
+        let compact = apply_spacing(rows, SpacingMode::Compact);
+
+        assert_eq!(compact.len(), 2);
+        assert_eq!(line_text(&compact[0].line), "first");
+        assert_eq!(line_text(&compact[1].line), "second");
+    }
+
+    #[test]
+    fn comfortable_spacing_separates_repeated_file_rows() {
+        let resource = pr_resource();
+        let mut pr = resource.pull_request.unwrap();
+        let mut second = pr.files[0].clone();
+        second.path = "docs/second-file.md".into();
+        pr.files.push(second);
+
+        let rows = files_rows_for_pr(
+            &pr,
+            120,
+            &std::collections::HashSet::new(),
+            &Palette::default_dark(),
+            &SymbolMode::Ascii.symbols(),
+        );
+        let compact = apply_spacing(rows, SpacingMode::Compact);
+        let comfortable = apply_spacing(
+            files_rows_for_pr(
+                &pr,
+                120,
+                &std::collections::HashSet::new(),
+                &Palette::default_dark(),
+                &SymbolMode::Ascii.symbols(),
+            ),
+            SpacingMode::Comfortable,
+        );
+
+        let first_compact = compact
+            .iter()
+            .position(|row| line_text(&row.line).contains("extensions/senseaudio/index.ts"))
+            .unwrap();
+        let first_comfortable = comfortable
+            .iter()
+            .position(|row| line_text(&row.line).contains("extensions/senseaudio/index.ts"))
+            .unwrap();
+
+        assert!(line_text(&compact[first_compact + 1].line).contains("docs/second-file.md"));
+        assert_eq!(line_text(&comfortable[first_comfortable + 1].line), "");
+        assert!(line_text(&comfortable[first_comfortable + 2].line).contains("docs/second-file.md"));
     }
 
     #[test]
