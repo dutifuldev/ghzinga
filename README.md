@@ -63,6 +63,10 @@ accepts `default` and `solarized-dark`.
 For pull requests:
 
 - body, labels, reactions, author, state, base/head branches
+- Overview starts with a GitHub-style chronological conversation timeline:
+  opening body, commits, reviews, review comments, regular comments, and
+  timeline events are interleaved by timestamp instead of split into separate
+  summary blocks first
 - assignees and requested reviewers
 - GitHub metadata such as draft/cross-repository state, mergeability,
   changed-file count, milestones, projects, ref OIDs, and merge commits where
@@ -101,7 +105,9 @@ For issues:
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[➕ more]` and `[➖ less]` controls to expand or collapse
-content.
+content. The rendered content window only registers hit targets for the visible
+rows, so long paginated GitHub histories remain scrollable without turning every
+off-screen row into an active terminal target.
 
 ## Controls
 

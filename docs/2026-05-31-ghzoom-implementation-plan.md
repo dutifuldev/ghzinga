@@ -88,6 +88,29 @@ Change for `ghzoom`:
 - full detail depth, not first-five-files preview only
 - stronger navigation by links and click targets
 
+### GitHub Web Pull Request Conversation
+
+The GitHub webapp's pull request conversation is a single timeline rooted under
+`pull-discussion-timeline` and repeated `TimelineItem` / `timeline-comment`
+elements. A public reference page inspected for this behavior was
+`rust-lang/rust#140000`.
+
+Observed ordering:
+
+- the opening PR body renders first as the first comment-like item
+- commit pushes render inline as timeline items
+- assignment, label, branch, merge, and other system events render inline
+- reviews render inline in the same chronological stream
+- regular comments and review comments render inline in the same chronological
+  stream
+- later referenced commits or external references appear later in the same
+  stream
+
+`ghzoom` should follow that model in the Overview tab. Separate tabs can still
+group commits, checks, files, and links for task-specific scanning, but Overview
+should begin with the full chronological conversation so it feels like the
+GitHub Conversation tab rather than a summary page.
+
 ### Slophammer
 
 Use these code-quality conventions:
@@ -317,7 +340,9 @@ Visual style:
 
 PR tabs:
 
-- Overview: body, labels, reaction counts, status summary, change summary
+- Overview: GitHub-style chronological conversation timeline first, with the
+  opening body, comments, reviews, review comments, timeline events, and commits
+  interleaved by timestamp; compact metadata and change summary follow it
 - Activity: comments, reviews, review comments, bot comments
 - Commits: commit list with SHA, message, author, timestamp, status
 - Checks: aggregate status and grouped detailed checks
@@ -326,9 +351,31 @@ PR tabs:
 
 Issue tabs:
 
-- Overview: body, labels, reaction counts, status summary
+- Overview: GitHub-style chronological conversation timeline first, with the
+  opening body, comments, and timeline events interleaved by timestamp; compact
+  metadata follows it
 - Activity: comments and timeline entries
 - Links: detected issue/PR links from body/comments
+
+## Chronological Overview Rules
+
+- The first Overview section is `Conversation`.
+- The opening body is rendered as an authored timeline card using the resource
+  author and created timestamp.
+- PR commits are inserted into the same stream using `committed_at`, or
+  `authored_at` when commit time is missing.
+- Activity entries use their existing `updated_at` value.
+- Items sort ascending by timestamp, with stable tie-breaking that keeps the
+  opening body first, then commits, then activity entries when timestamps match.
+- Each item starts with a bold colored heading and a quiet separator so it is
+  clear where one item ends and the next begins.
+- Expand/collapse controls stay per item. Long comments and the opening body
+  are truncated by default; expanded state reuses existing `BlockId`s.
+- GitHub API pagination remains an adapter concern. The renderer receives the
+  normalized full resource and virtualizes the terminal work by only registering
+  hit targets for visible rows after scroll clipping.
+- If a timestamp is relative or not parseable, preserve the adapter order and
+  display the timestamp text as-is rather than hiding the item.
 
 ## Input Model
 
