@@ -27,7 +27,7 @@ async loop, and the installed `gh` CLI for GitHub access.
 | PR body, labels, reactions, author, state, branches | Overview/status render tests and live `cargo run -- openclaw/openclaw#81834 --once` |
 | PR metadata such as draft/cross-repo/mergeability/milestone/projects/ref OIDs | `pr_view_preserves_extra_github_metadata`, `renders_resource_and_pr_metadata`, live overview smoke |
 | PR comments, reviews, review comments, timeline events | `pr_activity_includes_reviews_with_state`, `review_thread_activity_keeps_path_and_line`, `review_thread_activity_shows_thread_state`, `timeline_activity_maps_github_events`, PR activity captures; activity rows preserve author association, edit/minimized state, reactions, permalinks, labels, references, assignments, title changes, milestones, close, and reopen events |
-| PR commits | `commit_from_dto_preserves_body_dates_and_authors`, `commit_rows_are_click_expandable`, PR commits captures under `captures/ghzoom-pr-81834/*/20_commits_top.*`, live commits smoke |
+| PR commits | `commit_from_dto_preserves_body_dates_and_authors`, `commit_deployments_from_response_maps_environment_status_and_urls`, `applies_commit_deployments_to_matching_commits`, `commit_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, PR commits captures under `captures/ghzoom-pr-81834/*/20_commits_top.*`, live commits smoke |
 | PR checks/CI | `checks_are_grouped_by_status`, `check_from_dto_preserves_github_metadata`, `check_from_dto_handles_status_context_fields`, `check_rows_are_click_expandable`, live checks smoke, PR checks captures |
 | PR changed files and patch context | `changed_files_from_graphql_keep_change_type`, `parses_unified_diff_patches_by_file_path`, `expanded_file_rows_show_patch_context`, `long_patch_rows_are_click_expandable`, PR files captures |
 | Issue body, reactions, comments, timeline events, labels, author, state | issue fixture integration test and issue captures under `captures/ghzoom-issue-88499/`; comment and timeline metadata is normalized through the shared activity model |
@@ -118,9 +118,9 @@ mergeability, changed-file totals, ref OIDs, and merge-commit metadata.
 
 The phrase "all the info available from GitHub" is still broader than any
 practical first version. Current coverage includes the requested body/reactions/
-comments/review-comments/timeline/commits/CI/files/status/link surfaces,
-expanded-file patch context, and the metadata above. It does not attempt to
-render every possible GitHub timeline event or deployment.
+comments/review-comments/timeline/commits/deployments/CI/files/status/link
+surfaces, expanded-file patch context, and the metadata above. It does not
+attempt to render every possible GitHub timeline event.
 
 That is the main remaining product-scope risk if the bar is interpreted as
 literally every GitHub field rather than the requested monitoring dashboard

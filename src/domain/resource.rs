@@ -205,14 +205,31 @@ impl Resource {
                     .iter()
                     .map(|commit| {
                         format!(
-                            "{}:{}:{}:{}:{}:{:?}:{}",
+                            "{}:{}:{}:{}:{}:{:?}:{}:{}",
                             commit.oid,
                             commit.message,
                             commit.body,
                             commit.author,
                             commit.authors.join(","),
                             commit.authored_at,
-                            commit.committed_at
+                            commit.committed_at,
+                            commit
+                                .deployments
+                                .iter()
+                                .map(|deployment| {
+                                    format!(
+                                        "{}:{}:{:?}:{:?}:{:?}:{:?}:{}",
+                                        deployment.environment,
+                                        deployment.state,
+                                        deployment.description,
+                                        deployment.environment_url,
+                                        deployment.log_url,
+                                        deployment.created_at,
+                                        deployment.updated_at
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(",")
                         )
                     })
                     .collect::<Vec<_>>()
@@ -438,6 +455,24 @@ pub struct Commit {
     pub authored_at: Option<String>,
     pub committed_at: String,
     pub status: CheckStatus,
+    #[serde(default)]
+    pub deployments: Vec<Deployment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Deployment {
+    pub environment: String,
+    pub state: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub environment_url: Option<String>,
+    #[serde(default)]
+    pub log_url: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

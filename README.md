@@ -65,7 +65,8 @@ For pull requests:
   references, assignments, title changes, and milestones
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
-- commits, with expandable commit bodies, authored/committed dates, and coauthor lists where available
+- commits, with expandable commit bodies, authored/committed dates, coauthor
+  lists, and deployment/environment status where available
 - CI/check status grouped by state, including GitHub Actions check runs and legacy status contexts, with status/conclusion, timestamps, and details URLs on expanded check rows
 - changed files, with separately expandable patch context when a file row is expanded
 - detected issue/PR links, including GitHub relationship links
