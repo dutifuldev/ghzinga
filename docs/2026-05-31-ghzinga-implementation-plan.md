@@ -295,6 +295,10 @@ Refresh:
   navigation work is in flight
 - ignore duplicate refresh/navigation starts while one GitHub fetch is already
   running; the status band should explain that work is still in progress
+- when auto-refresh fires during an in-flight fetch, treat the attempt as
+  handled and wait until the next interval before trying again; this avoids
+  repeatedly touching status state every render frame while preserving the
+  single-flight guarantee
 - include activity bodies and review-thread state in the change fingerprint
 - show the changed surfaces after refresh, such as activity, checks, files, or
   commits
