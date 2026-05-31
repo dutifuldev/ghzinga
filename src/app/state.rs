@@ -168,6 +168,16 @@ impl AppState {
         }
     }
 
+    pub fn expand_blocks(&mut self, blocks: impl IntoIterator<Item = BlockId>) {
+        self.expanded_blocks.extend(blocks);
+    }
+
+    pub fn collapse_blocks(&mut self, blocks: impl IntoIterator<Item = BlockId>) {
+        for block in blocks {
+            self.expanded_blocks.remove(&block);
+        }
+    }
+
     pub fn block_expanded(&self, id: &BlockId) -> bool {
         self.expanded_blocks.contains(id)
     }
@@ -412,6 +422,22 @@ mod tests {
         assert!(state.block_expanded(&block));
         state.toggle_block(block.clone());
         assert!(!state.block_expanded(&block));
+    }
+
+    #[test]
+    fn expands_and_collapses_block_sets() {
+        let mut state = AppState::new(issue_resource());
+        let blocks = vec![BlockId::Body, BlockId::Activity("comment-1".into())];
+
+        state.expand_blocks(blocks.clone());
+
+        assert!(state.block_expanded(&BlockId::Body));
+        assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
+
+        state.collapse_blocks(blocks);
+
+        assert!(!state.block_expanded(&BlockId::Body));
+        assert!(!state.block_expanded(&BlockId::Activity("comment-1".into())));
     }
 
     #[test]

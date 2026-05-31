@@ -7,6 +7,8 @@ use crate::domain::ResourceId;
 pub enum HitTarget {
     Tab(Tab),
     ToggleBlock(BlockId),
+    ExpandBlocks(Vec<BlockId>),
+    CollapseBlocks(Vec<BlockId>),
     Navigate(ResourceId),
     OpenUrl(String),
     Refresh,
@@ -25,6 +27,8 @@ impl HitTarget {
         matches!(
             self,
             Self::ToggleBlock(_)
+                | Self::ExpandBlocks(_)
+                | Self::CollapseBlocks(_)
                 | Self::Navigate(_)
                 | Self::OpenUrl(_)
                 | Self::SetTheme(_)

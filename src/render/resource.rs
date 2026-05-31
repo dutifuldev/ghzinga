@@ -557,6 +557,87 @@ fn expand_label(expanded: bool, symbols: &Symbols) -> &'static str {
     }
 }
 
+fn expand_all_row(
+    blocks: Vec<BlockId>,
+    expanded_blocks: &std::collections::HashSet<BlockId>,
+    palette: &Palette,
+    symbols: &Symbols,
+) -> Option<ContentRow> {
+    if blocks.is_empty() {
+        return None;
+    }
+    let all_expanded = blocks.iter().all(|block| expanded_blocks.contains(block));
+    let (label, target) = if all_expanded {
+        (symbols.collapse_all, HitTarget::CollapseBlocks(blocks))
+    } else {
+        (symbols.expand_all, HitTarget::ExpandBlocks(blocks))
+    };
+    Some(ContentRow::target_styled(
+        label,
+        target,
+        button_style(palette),
+    ))
+}
+
+fn overview_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
+    let mut blocks = Vec::new();
+    if !resource.body.trim().is_empty() {
+        blocks.push(BlockId::Body);
+    }
+    if let Some(pr) = &resource.pull_request {
+        blocks.extend(commit_expandable_blocks(pr));
+    }
+    blocks.extend(activity_expandable_blocks(resource));
+    dedupe_blocks(blocks)
+}
+
+fn activity_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
+    dedupe_blocks(
+        resource
+            .activity
+            .iter()
+            .map(|entry| BlockId::Activity(entry.id.clone()))
+            .collect(),
+    )
+}
+
+fn commit_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
+    dedupe_blocks(
+        pr.commits
+            .iter()
+            .map(|commit| BlockId::Commit(commit.oid.clone()))
+            .collect(),
+    )
+}
+
+fn check_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
+    dedupe_blocks(
+        pr.checks
+            .iter()
+            .map(|check| BlockId::Check(format!("{}:{}", check.status.label(), check.name)))
+            .collect(),
+    )
+}
+
+fn file_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
+    let mut blocks = Vec::new();
+    for file in &pr.files {
+        blocks.push(BlockId::File(file.path.clone()));
+        if file.patch.is_some() {
+            blocks.push(BlockId::Patch(file.path.clone()));
+        }
+    }
+    dedupe_blocks(blocks)
+}
+
+fn dedupe_blocks(blocks: Vec<BlockId>) -> Vec<BlockId> {
+    let mut seen = std::collections::HashSet::new();
+    blocks
+        .into_iter()
+        .filter(|block| seen.insert(block.clone()))
+        .collect()
+}
+
 fn refresh_summary(state: &AppState) -> Option<String> {
     let refreshed_at = state.last_refreshed_at.as_deref()?;
     let refreshed_at = refreshed_at.trim_end_matches(" UTC");
@@ -701,8 +782,8 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
     rows.push(ContentRow::plain(""));
     rows.push(heading_row("Mouse", palette));
     let expand_help = format!(
-        "- Click {} or {} to expand or collapse long text, checks, and files.",
-        symbols.more, symbols.less
+        "- Click {} / {} or {} / {} to expand or collapse long text, checks, and files.",
+        symbols.more, symbols.less, symbols.expand_all, symbols.collapse_all
     );
     rows.extend(
         [
@@ -860,10 +941,20 @@ fn settings_option_row(
 }
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
+    let symbols = state.symbols.symbols();
     let mut rows = vec![
         heading_row("Conversation", palette),
         separator_row(width, palette),
     ];
+    if let Some(row) = expand_all_row(
+        overview_expandable_blocks(&state.resource),
+        &state.expanded_blocks,
+        palette,
+        &symbols,
+    ) {
+        rows.push(row);
+        rows.push(ContentRow::plain(""));
+    }
 
     push_conversation_rows(&mut rows, state, width, palette);
 
@@ -1223,6 +1314,15 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         rows.push(ContentRow::plain("No comments."));
         return rows;
     }
+    if let Some(row) = expand_all_row(
+        activity_expandable_blocks(&state.resource),
+        &state.expanded_blocks,
+        palette,
+        &symbols,
+    ) {
+        rows.push(row);
+        rows.push(ContentRow::plain(""));
+    }
     for entry in &state.resource.activity {
         rows.push(ContentRow::plain(format!(
             "{} by @{} {}",
@@ -1287,6 +1387,15 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
         ),
         separator_row(width, palette),
     ];
+    if let Some(row) = expand_all_row(
+        commit_expandable_blocks(pr),
+        &state.expanded_blocks,
+        palette,
+        &symbols,
+    ) {
+        rows.push(row);
+        rows.push(ContentRow::plain(""));
+    }
     for commit in &pr.commits {
         let block = BlockId::Commit(commit.oid.clone());
         let expanded = state.block_expanded(&block);
@@ -1397,6 +1506,15 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
         )),
         ContentRow::plain(""),
     ];
+    if let Some(row) = expand_all_row(
+        check_expandable_blocks(pr),
+        &state.expanded_blocks,
+        palette,
+        &symbols,
+    ) {
+        rows.push(row);
+        rows.push(ContentRow::plain(""));
+    }
     let context = CheckGroupRenderContext {
         expanded_blocks: &state.expanded_blocks,
         width,
@@ -1567,6 +1685,15 @@ fn files_rows_for_pr(
         ),
         separator_row(width, palette),
     ];
+    if let Some(row) = expand_all_row(
+        file_expandable_blocks(pr),
+        expanded_blocks,
+        palette,
+        symbols,
+    ) {
+        rows.push(row);
+        rows.push(ContentRow::plain(""));
+    }
     for file in &pr.files {
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
@@ -2911,6 +3038,50 @@ mod tests {
     }
 
     #[test]
+    fn rendered_expand_all_control_expands_current_tab_blocks() {
+        let mut state = AppState::new(pr_resource());
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("[expand all]"));
+
+        let intent = click_rendered_target(
+            &mut state,
+            |target| matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body)),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.block_expanded(&BlockId::Body));
+        assert!(state
+            .expanded_blocks
+            .iter()
+            .any(|block| matches!(block, BlockId::Activity(_))));
+
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("[collapse all]"));
+    }
+
+    #[test]
+    fn rendered_collapse_all_control_collapses_current_tab_blocks() {
+        let mut state = AppState::new(pr_resource());
+        draw(&mut state, 120, 36);
+        let _ = click_rendered_target(
+            &mut state,
+            |target| matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body)),
+        );
+        draw(&mut state, 120, 36);
+
+        let intent = click_rendered_target(
+            &mut state,
+            |target| matches!(target, HitTarget::CollapseBlocks(blocks) if blocks.contains(&BlockId::Body)),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(!state.block_expanded(&BlockId::Body));
+        assert!(state.expanded_blocks.is_empty());
+    }
+
+    #[test]
     fn rendered_body_more_hit_area_can_be_activated_with_enter() {
         let mut resource = pr_resource();
         resource.body = (0..30)
@@ -3325,6 +3496,30 @@ mod tests {
         assert!(content.contains("path: extensions/senseaudio/index.ts"));
         assert!(content.contains("change: MODIFIED, additions: 3, deletions: 1"));
         assert!(content.contains("[- less]"));
+    }
+
+    #[test]
+    fn files_expand_all_opens_files_and_patch_blocks() {
+        let mut state = AppState::new(pr_resource());
+        state.set_tab(Tab::Files);
+        let content = draw(&mut state, 120, 80);
+
+        assert!(content.contains("[expand all]"));
+
+        let intent = click_rendered_target(
+            &mut state,
+            |target| matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.iter().any(|block| matches!(block, BlockId::Patch(_)))),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state
+            .expanded_blocks
+            .iter()
+            .any(|block| matches!(block, BlockId::File(_))));
+        assert!(state
+            .expanded_blocks
+            .iter()
+            .any(|block| matches!(block, BlockId::Patch(_))));
     }
 
     #[test]
