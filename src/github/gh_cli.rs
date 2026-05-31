@@ -19,6 +19,7 @@ const PR_FIELDS: &str = "number,title,url,state,author,createdAt,updatedAt,label
 const ISSUE_FIELDS: &str =
     "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,closed,isPinned,stateReason,closedAt,milestone,projectItems,closedByPullRequestsReferences,comments";
 const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
+const GITHUB_REST_URL: &str = "https://api.github.com";
 
 pub trait GithubGateway {
     fn fetch_resource(
@@ -171,6 +172,31 @@ async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<
         if let Some(errors) = value.get("errors").filter(|errors| !errors.is_null()) {
             anyhow::bail!("GitHub GraphQL request returned errors: {errors}");
         }
+    }
+    Ok(body.to_vec())
+}
+
+async fn run_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
+    let token = github_token().await?;
+    let url = format!("{GITHUB_REST_URL}{path}");
+    let response = reqwest::Client::new()
+        .get(&url)
+        .bearer_auth(token)
+        .header(reqwest::header::USER_AGENT, "ghzoom")
+        .header(reqwest::header::ACCEPT, accept)
+        .send()
+        .await
+        .with_context(|| format!("failed to send GitHub REST request to {path}"))?;
+    let status = response.status();
+    let body = response
+        .bytes()
+        .await
+        .with_context(|| format!("failed to read GitHub REST response body from {path}"))?;
+    if !status.is_success() {
+        anyhow::bail!(
+            "GitHub REST request to {path} failed with HTTP {status}: {}",
+            String::from_utf8_lossy(&body)
+        );
     }
     Ok(body.to_vec())
 }
@@ -649,21 +675,11 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
 }
 
 async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
-    let repo = id.repo_name_with_owner();
-    let number = id.number.to_string();
-    let output = Command::new("gh")
-        .args(["pr", "diff", &number, "-R", &repo, "--patch"])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh pr diff", &error)))?;
+    run_rest_get(&pr_diff_rest_path(id), "application/vnd.github.v3.diff").await
+}
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh pr diff", &stderr));
-    }
-
-    Ok(output.stdout)
+fn pr_diff_rest_path(id: &ResourceId) -> String {
+    format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
 }
 
 fn view_command(kind: &str, id: &ResourceId, fields: &str) -> Vec<String> {
@@ -2481,6 +2497,16 @@ mod tests {
                 "--json",
                 PR_FIELDS,
             ]
+        );
+    }
+
+    #[test]
+    fn pr_diff_uses_rest_pull_diff_path() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+
+        assert_eq!(
+            pr_diff_rest_path(&id),
+            "/repos/openclaw/openclaw/pulls/81834"
         );
     }
 
