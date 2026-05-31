@@ -54,6 +54,17 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             AppIntent::None
         }
         KeyCode::Backspace => AppIntent::Back,
+        KeyCode::Enter => {
+            let Some(target) = state
+                .hit_areas
+                .iter()
+                .map(|area| area.target.clone())
+                .find(HitTarget::is_content_action)
+            else {
+                return AppIntent::None;
+            };
+            apply_target(state, target)
+        }
         KeyCode::BackTab | KeyCode::Left => {
             state.previous_tab();
             AppIntent::None
@@ -281,6 +292,45 @@ mod tests {
             intent,
             AppIntent::OpenResource(id) if id.canonical_name() == "owner/repo#1"
         ));
+    }
+
+    #[test]
+    fn keyboard_enter_activates_first_visible_content_action() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::Tab(Tab::Links),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 10, 1),
+            HitTarget::ToggleBlock(BlockId::Body),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.block_expanded(&BlockId::Body));
+        assert_eq!(state.active_tab, Tab::Overview);
+    }
+
+    #[test]
+    fn keyboard_enter_navigates_to_first_visible_content_link() {
+        let mut state = AppState::new(resource());
+        let id = ResourceId::from_owner_repo_number("owner/repo", "2").unwrap();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::Navigate(id.clone()),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::Navigate(id));
     }
 
     #[test]

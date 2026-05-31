@@ -103,6 +103,7 @@ Keyboard:
 - `o`: open the current resource in the browser through `gh`
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
+- `Enter`: activate the first visible content action, such as a link or `[more]`
 - `e`: expand or collapse the main body
 - `Backspace`: go back after following a linked issue or PR
 
