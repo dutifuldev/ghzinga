@@ -752,6 +752,42 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
 "#
 }
 
+pub(crate) fn status_rollup_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      statusCheckRollup {
+        contexts(first: 100, after: $after) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            __typename
+            ... on CheckRun {
+              name
+              status
+              conclusion
+              detailsUrl
+              startedAt
+              completedAt
+              checkSuite { workflowRun { workflow { name } } }
+            }
+            ... on StatusContext {
+              context
+              state
+              targetUrl
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 fn selector(kind: ResourceKind) -> &'static str {
     match kind {
         ResourceKind::PullRequest => "pullRequest",
