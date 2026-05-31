@@ -184,7 +184,8 @@ Data loaded for PR:
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and
   review-thread resolved/outdated state; review thread pages are fetched until
-  GitHub reports no next page
+  GitHub reports no next page, and threads with more than 100 comments fetch
+  their remaining comment pages through the thread node
 - timeline events for labels, references, assignments, pins, locks, duplicate
   markers, transfers, connected/disconnected references, review requests,
   draft/ready state, auto-merge changes, merges, title changes, milestones,

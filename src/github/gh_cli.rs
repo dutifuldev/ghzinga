@@ -183,6 +183,10 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
           path
           line
           comments(first: 100) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             nodes {
               id
               author { login }
@@ -202,6 +206,79 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
               line
             }
           }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
+async fn run_graphql_review_thread_comments(
+    thread_id: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = review_thread_comments_query();
+    let after = after.unwrap_or("null");
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("threadId={thread_id}"),
+            "-F",
+            &format!("after={after}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!(gh_execute_error(
+                "gh api graphql review thread comments",
+                &error
+            ))
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "{}",
+            gh_failure_message("gh api graphql review thread comments", &stderr)
+        );
+    }
+
+    Ok(output.stdout)
+}
+
+fn review_thread_comments_query() -> &'static str {
+    r#"
+query($threadId: ID!, $after: String) {
+  node(id: $threadId) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          createdAt
+          updatedAt
+          url
+          includesCreatedEdit
+          isMinimized
+          minimizedReason
+          reactionGroups {
+            content
+            users { totalCount }
+          }
+          path
+          line
         }
       }
     }
@@ -772,7 +849,26 @@ struct ReviewThreadDto {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReviewThreadCommentsConnection {
+    page_info: PageInfoDto,
     nodes: Vec<ReviewThreadCommentDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewThreadCommentsResponse {
+    data: ReviewThreadCommentsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewThreadCommentsData {
+    node: Option<ReviewThreadCommentsNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewThreadCommentsNode {
+    comments: ReviewThreadCommentsConnection,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1476,10 +1572,13 @@ async fn fetch_review_thread_activity(id: &ResourceId) -> anyhow::Result<Vec<Act
         let output = run_graphql_review_threads(id, after.as_deref()).await?;
         let response: ReviewThreadsResponse = serde_json::from_slice(&output)
             .context("failed to parse reviewThreads GraphQL JSON")?;
-        let Some(page) = review_thread_activity_page(response) else {
+        let Some(page) = review_thread_page(response) else {
             return Ok(activity);
         };
-        activity.extend(page.activity);
+        for mut thread in page.threads {
+            fetch_remaining_review_thread_comments(&mut thread).await?;
+            activity.extend(review_thread_to_activity(thread));
+        }
         if !page.has_next_page {
             return Ok(activity);
         }
@@ -1488,6 +1587,35 @@ async fn fetch_review_thread_activity(id: &ResourceId) -> anyhow::Result<Vec<Act
         };
         after = Some(cursor);
     }
+}
+
+async fn fetch_remaining_review_thread_comments(
+    thread: &mut ReviewThreadDto,
+) -> anyhow::Result<()> {
+    while thread.comments.page_info.has_next_page {
+        let thread_id = thread
+            .id
+            .as_deref()
+            .context("review thread comment page reported next page without a thread id")?;
+        let cursor = thread
+            .comments
+            .page_info
+            .end_cursor
+            .as_deref()
+            .context("review thread comment page reported next page without an end cursor")?;
+        let output = run_graphql_review_thread_comments(thread_id, Some(cursor)).await?;
+        let response: ReviewThreadCommentsResponse = serde_json::from_slice(&output)
+            .context("failed to parse review thread comments GraphQL JSON")?;
+        let Some(page) = review_thread_comments_page(response) else {
+            return Ok(());
+        };
+        thread.comments.nodes.extend(page.nodes);
+        thread.comments.page_info = PageInfoDto {
+            has_next_page: page.has_next_page,
+            end_cursor: page.end_cursor,
+        };
+    }
+    Ok(())
 }
 
 async fn fetch_timeline_activity(
@@ -1735,6 +1863,19 @@ fn changed_files_from_response(response: ChangedFilesResponse) -> Vec<ChangedFil
         .unwrap_or_default()
 }
 
+struct ReviewThreadPage {
+    threads: Vec<ReviewThreadDto>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct ReviewThreadCommentsPage {
+    nodes: Vec<ReviewThreadCommentDto>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
 struct ReviewThreadActivityPage {
     activity: Vec<ActivityEntry>,
     has_next_page: bool,
@@ -1748,49 +1889,78 @@ fn review_thread_activity(response: ReviewThreadsResponse) -> Vec<ActivityEntry>
         .unwrap_or_default()
 }
 
+#[cfg(test)]
 fn review_thread_activity_page(
     response: ReviewThreadsResponse,
 ) -> Option<ReviewThreadActivityPage> {
+    let page = review_thread_page(response)?;
+    let activity = page
+        .threads
+        .into_iter()
+        .flat_map(review_thread_to_activity)
+        .collect();
+    Some(ReviewThreadActivityPage {
+        activity,
+        has_next_page: page.has_next_page,
+        end_cursor: page.end_cursor,
+    })
+}
+
+fn review_thread_page(response: ReviewThreadsResponse) -> Option<ReviewThreadPage> {
     let repository = response.data.repository?;
     let pull_request = repository.pull_request?;
     let page_info = pull_request.review_threads.page_info;
-    let mut entries = Vec::new();
-    for thread in pull_request.review_threads.nodes {
-        for comment in thread.comments.nodes {
-            entries.push(ActivityEntry {
-                id: comment.id.unwrap_or_else(|| {
-                    format!(
-                        "review-comment-{}-{}",
-                        thread.path.as_deref().unwrap_or("unknown"),
-                        entries.len()
-                    )
-                }),
-                kind: ActivityKind::ReviewComment,
-                author: display_author(comment.author),
-                body: comment.body,
-                updated_at: comment
-                    .updated_at
-                    .or(comment.created_at)
-                    .unwrap_or_else(|| "unknown".to_string()),
-                path: comment.path.or_else(|| thread.path.clone()),
-                line: comment.line.or(thread.line),
-                url: comment.url,
-                author_association: comment.author_association,
-                reactions: reaction_counts(comment.reaction_groups),
-                includes_created_edit: comment.includes_created_edit.unwrap_or(false),
-                is_minimized: comment.is_minimized.unwrap_or(false),
-                minimized_reason: comment.minimized_reason.filter(|value| !value.is_empty()),
-                thread_id: thread.id.clone(),
-                thread_resolved: thread.is_resolved,
-                thread_outdated: thread.is_outdated,
-            });
-        }
-    }
-    Some(ReviewThreadActivityPage {
-        activity: entries,
+    Some(ReviewThreadPage {
+        threads: pull_request.review_threads.nodes,
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
+}
+
+fn review_thread_comments_page(
+    response: ReviewThreadCommentsResponse,
+) -> Option<ReviewThreadCommentsPage> {
+    let node = response.data.node?;
+    let page_info = node.comments.page_info;
+    Some(ReviewThreadCommentsPage {
+        nodes: node.comments.nodes,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn review_thread_to_activity(thread: ReviewThreadDto) -> Vec<ActivityEntry> {
+    let mut entries = Vec::new();
+    for comment in thread.comments.nodes {
+        entries.push(ActivityEntry {
+            id: comment.id.unwrap_or_else(|| {
+                format!(
+                    "review-comment-{}-{}",
+                    thread.path.as_deref().unwrap_or("unknown"),
+                    entries.len()
+                )
+            }),
+            kind: ActivityKind::ReviewComment,
+            author: display_author(comment.author),
+            body: comment.body,
+            updated_at: comment
+                .updated_at
+                .or(comment.created_at)
+                .unwrap_or_else(|| "unknown".to_string()),
+            path: comment.path.or_else(|| thread.path.clone()),
+            line: comment.line.or(thread.line),
+            url: comment.url,
+            author_association: comment.author_association,
+            reactions: reaction_counts(comment.reaction_groups),
+            includes_created_edit: comment.includes_created_edit.unwrap_or(false),
+            is_minimized: comment.is_minimized.unwrap_or(false),
+            minimized_reason: comment.minimized_reason.filter(|value| !value.is_empty()),
+            thread_id: thread.id.clone(),
+            thread_resolved: thread.is_resolved,
+            thread_outdated: thread.is_outdated,
+        });
+    }
+    entries
 }
 
 struct TimelineActivityPage {
@@ -2254,6 +2424,19 @@ mod tests {
 
         assert!(query.contains("$after: String"));
         assert!(query.contains("reviewThreads(first: 100, after: $after)"));
+        assert!(query.contains("comments(first: 100)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+    }
+
+    #[test]
+    fn review_thread_comments_query_requests_comment_pagination_state() {
+        let query = review_thread_comments_query();
+
+        assert!(query.contains("$threadId: ID!"));
+        assert!(query.contains("node(id: $threadId)"));
+        assert!(query.contains("comments(first: 100, after: $after)"));
         assert!(query.contains("pageInfo"));
         assert!(query.contains("hasNextPage"));
         assert!(query.contains("endCursor"));
@@ -2936,6 +3119,10 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                 path: Some("src/lib.rs".into()),
                                 line: Some(42),
                                 comments: ReviewThreadCommentsConnection {
+                                    page_info: PageInfoDto {
+                                        has_next_page: false,
+                                        end_cursor: None,
+                                    },
                                     nodes: vec![ReviewThreadCommentDto {
                                         id: Some("review-comment".into()),
                                         author: Some(UserDto {
@@ -2997,6 +3184,10 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                 path: Some("src/main.rs".into()),
                                 line: Some(7),
                                 comments: ReviewThreadCommentsConnection {
+                                    page_info: PageInfoDto {
+                                        has_next_page: false,
+                                        end_cursor: None,
+                                    },
                                     nodes: vec![ReviewThreadCommentDto {
                                         id: Some("review-comment-2".into()),
                                         author: Some(UserDto {
@@ -3031,6 +3222,46 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert_eq!(page.activity[0].thread_resolved, Some(true));
         assert_eq!(page.activity[0].path.as_deref(), Some("src/main.rs"));
         assert_eq!(page.activity[0].line, Some(8));
+    }
+
+    #[test]
+    fn review_thread_comments_page_preserves_pagination_state() {
+        let page = review_thread_comments_page(ReviewThreadCommentsResponse {
+            data: ReviewThreadCommentsData {
+                node: Some(ReviewThreadCommentsNode {
+                    comments: ReviewThreadCommentsConnection {
+                        page_info: PageInfoDto {
+                            has_next_page: true,
+                            end_cursor: Some("comment-cursor-2".into()),
+                        },
+                        nodes: vec![ReviewThreadCommentDto {
+                            id: Some("review-comment-3".into()),
+                            author: Some(UserDto {
+                                login: Some("reviewer".into()),
+                                name: None,
+                            }),
+                            author_association: Some("MEMBER".into()),
+                            body: "Another follow-up.".into(),
+                            created_at: Some("2026-01-05T00:00:00Z".into()),
+                            updated_at: Some("2026-01-06T00:00:00Z".into()),
+                            url: None,
+                            includes_created_edit: Some(false),
+                            is_minimized: Some(false),
+                            minimized_reason: None,
+                            reaction_groups: Vec::new(),
+                            path: Some("src/lib.rs".into()),
+                            line: Some(43),
+                        }],
+                    },
+                }),
+            },
+        })
+        .expect("review thread comments page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("comment-cursor-2"));
+        assert_eq!(page.nodes.len(), 1);
+        assert_eq!(page.nodes[0].id.as_deref(), Some("review-comment-3"));
     }
 
     #[test]
