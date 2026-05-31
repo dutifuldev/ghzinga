@@ -27,13 +27,13 @@ installed `gh` CLI is used only as a fallback credential source via
 | Mouse capture with opt-out | `TerminalGuard::enter(mouse_enabled)` enables `EnableMouseCapture`; CLI exposes `--no-mouse` |
 | Uses existing auth, no app login | Base PR/issue fetches, paginated GraphQL enrichment, and PR diff patch context use direct HTTPS requests with `GH_TOKEN` / `GITHUB_TOKEN` or the token from `gh auth token`; auth failures point to `gh auth status` / `gh auth login` |
 | PR body, labels, reactions, author, state, branches | Overview/status render tests and live `cargo run -- openclaw/openclaw#81834 --once` |
-| PR metadata such as draft/cross-repo/mergeability/milestone/ref OIDs | `pr_view_preserves_extra_github_metadata`, `renders_resource_and_pr_metadata`, live overview smoke |
+| PR metadata such as draft/cross-repo/mergeability/milestone/projects/ref OIDs | `pr_view_preserves_extra_github_metadata`, `project_items_query_uses_selector_and_pagination_state`, `project_items_page_preserves_pagination_state`, `apply_project_metadata_replaces_existing_value_and_dedupes`, `project_scope_errors_are_suppressed_for_optional_metadata`, `renders_resource_and_pr_metadata`, live overview smoke |
 | PR comments, reviews, review comments, timeline events | `pr_activity_includes_reviews_with_state`, `comments_query_uses_selector_and_pagination_state`, `comment_activity_page_preserves_pagination_state`, `replace_comment_activity_keeps_other_activity`, `review_threads_query_requests_pagination_state`, `review_thread_comments_query_requests_comment_pagination_state`, `review_thread_activity_keeps_path_and_line`, `review_thread_activity_page_preserves_pagination_state`, `review_thread_comments_page_preserves_pagination_state`, `review_thread_activity_shows_thread_state`, `review_threads_summary_counts_unique_unresolved_and_outdated_threads`, `renders_review_thread_summary_in_pr_status`, `timeline_activity_maps_github_events`, `timeline_activity_page_preserves_pagination_state`, PR activity captures; activity rows preserve author association, edit/minimized state, reactions, permalinks, labels, references, assignments, pins, locks, duplicate markers, transfers, connected/disconnected references, review requests, draft/ready state, auto-merge changes, merges, title changes, milestones, close, and reopen events; ordinary comment, review-thread, nested review-thread comment, and timeline GraphQL pages are fetched until `hasNextPage` is false |
 | PR commits | `commit_from_dto_preserves_body_dates_and_authors`, `commit_deployments_from_response_maps_environment_status_and_urls`, `applies_commit_deployments_to_matching_commits`, `commit_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, PR commits captures under `captures/ghzoom-pr-81834/*/20_commits_top.*`, live commits smoke |
 | PR checks/CI | `checks_are_grouped_by_status`, `check_from_dto_preserves_github_metadata`, `check_from_dto_handles_status_context_fields`, `check_suites_query_requests_pagination_state`, `check_suite_from_dto_maps_workflow_status_and_urls`, `check_suites_page_preserves_pagination_state`, `check_suites_from_response_keeps_latest_suite_by_name`, `apply_check_suites_dedupes_existing_names`, `check_rows_are_click_expandable`, live checks smoke, PR checks captures; latest-commit check suite GraphQL pages are fetched until `hasNextPage` is false |
 | PR changed files and patch context | `changed_files_from_graphql_keep_change_type`, `pr_diff_uses_rest_pull_diff_path`, `parses_unified_diff_patches_by_file_path`, `expanded_file_rows_show_patch_context`, `long_patch_rows_are_click_expandable`, PR files captures; patch context uses the direct REST pull-request diff media type |
 | Issue body, reactions, comments, timeline events, labels, author, state | issue fixture integration test and issue captures under `captures/ghzoom-issue-88499/`; comment and timeline metadata is normalized through the shared activity model, including pins, locks, duplicate markers, transfers, and connected/disconnected references; ordinary comment and timeline GraphQL pages are fetched until `hasNextPage` is false |
-| Issue metadata such as pinned/state reason/closed time/milestone | `issue_view_preserves_extra_github_metadata`, issue overview smoke |
+| Issue metadata such as pinned/state reason/closed time/milestone/projects | `issue_view_preserves_extra_github_metadata`, `project_items_query_uses_selector_and_pagination_state`, `project_items_page_preserves_pagination_state`, `apply_project_metadata_replaces_existing_value_and_dedupes`, `project_scope_errors_are_suppressed_for_optional_metadata`, issue overview smoke |
 | Linked issue/PR navigation targets | `render_registers_github_link_hit_area`, `render_registers_relative_issue_link_hit_area`, `rendered_visible_link_hit_area_can_be_clicked_to_navigate` |
 | Exact detail URL open targets | `render_registers_exact_comment_url_as_open_url`, `check_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, `keyboard_enter_opens_first_visible_url_action`, `mouse_click_on_url_target_requests_open_url`, `url_open_command_uses_browser_env_when_available` |
 | Explicit GitHub relationship links | `related_resource_ids_parse_urls_and_number_fallbacks`, `links_tab_renders_explicit_related_resources_once` |
@@ -117,9 +117,9 @@ accordingly.
 ## Remaining Risk
 
 The app now covers the requested core behavior, plus additional high-value
-GitHub metadata exposed by the current base fetch path: milestones, issue state
-reason, pinned state, PR draft/cross-repository flags, mergeability,
-changed-file totals, ref OIDs, and merge-commit metadata.
+GitHub metadata exposed by the current fetch path: milestones, optional project
+membership, issue state reason, pinned state, PR draft/cross-repository flags,
+mergeability, changed-file totals, ref OIDs, and merge-commit metadata.
 
 The phrase "all the info available from GitHub" is still broader than any
 practical first version. Current coverage includes the requested body/reactions/
@@ -132,7 +132,7 @@ That is the main remaining product-scope risk if the bar is interpreted as
 literally every GitHub field rather than the requested monitoring dashboard
 surfaces.
 
-Project metadata is intentionally not requested in live GraphQL calls because
+Project metadata is requested as optional paginated GraphQL enrichment because
 `projectItems.project.title` requires the broader `read:project` token scope.
-The model can still render project data from fixtures or future transports that
-already have that scope.
+If the token lacks that scope, ghzoom suppresses that optional enrichment error
+and keeps the PR or issue view usable.

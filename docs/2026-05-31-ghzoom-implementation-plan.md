@@ -180,7 +180,7 @@ Data loaded for PR:
 - number, title, body, state, author, created/updated timestamps
 - labels and assignees
 - metadata such as draft/cross-repository state, mergeability,
-  changed-file count, milestone, ref OIDs, and merge commits
+  changed-file count, milestone, project membership, ref OIDs, and merge commits
 - reactions counts
 - base/head branch names
 - changed files with additions/deletions/change type, paginated until complete or configured cap
@@ -208,13 +208,17 @@ Data loaded for PR:
   next page
 - reviews and review states
 - mergeability and review decision where exposed
+- project metadata through optional paginated enrichment when the token has the
+  GitHub `read:project` scope; missing project scope does not block the main
+  PR view
 
 Data loaded for issue:
 
 - repo/name/owner/URL
 - number, title, body, state, author, created/updated timestamps
 - labels and assignees
-- metadata such as pinned state, state reason, closed time, and milestone
+- metadata such as pinned state, state reason, closed time, milestone, and
+  project membership
 - reactions counts
 - comments and timeline events, including author association, comment
   reactions, edit/minimized metadata, permalinks, labels, references,
@@ -222,6 +226,9 @@ Data loaded for issue:
   connected/disconnected references, title changes, milestones, close, and
   reopen events; comment and timeline pages are fetched until GitHub reports no
   next page
+- project metadata through optional paginated enrichment when the token has the
+  GitHub `read:project` scope; missing project scope does not block the main
+  issue view
 - timeline-ish linked references when available
 
 Refresh:
