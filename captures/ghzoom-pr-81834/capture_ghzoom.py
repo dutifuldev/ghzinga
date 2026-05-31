@@ -18,6 +18,13 @@ TARGET = "openclaw/openclaw#81834"
 TITLE = "feat(senseaudio): add SenseAudio TTS provider"
 LOAD_NEEDLE = TITLE
 MODE = "pr"
+APP_FRESHNESS_PATHS = [
+    "Cargo.lock",
+    "Cargo.toml",
+    "src",
+    "tests",
+    "fixtures",
+]
 
 SIZES = [
     ("narrow", 80, 24),
@@ -69,6 +76,88 @@ def git_commit() -> str:
         check=False,
     )
     return result.stdout.strip() or "unknown"
+
+
+def app_freshness_paths() -> list[str]:
+    return [path for path in APP_FRESHNESS_PATHS if (REPO / path).exists()]
+
+
+def git_revision_exists(revision: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{revision}^{{commit}}"],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -> str | None:
+    if not captured_commit or captured_commit == "unknown":
+        return "manifest is missing a usable git_commit"
+    if captured_commit == current_commit:
+        return None
+    if current_commit == "unknown":
+        return "current git revision could not be resolved"
+    if not git_revision_exists(captured_commit):
+        return f"captured revision {captured_commit!r} is not available locally"
+    if not git_revision_exists(current_commit):
+        return f"current revision {current_commit!r} is not available locally"
+
+    paths = app_freshness_paths()
+    if not paths:
+        return "no app/rendering freshness paths are available"
+
+    committed_diff = subprocess.run(
+        ["git", "diff", "--quiet", f"{captured_commit}..{current_commit}", "--", *paths],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if committed_diff.returncode == 1:
+        return (
+            "app/rendering paths changed since captured revision "
+            f"{captured_commit[:12]}"
+        )
+    if committed_diff.returncode != 0:
+        detail = committed_diff.stderr.strip() or committed_diff.stdout.strip()
+        return f"could not compare app/rendering paths: {detail}"
+
+    worktree_status = subprocess.run(
+        ["git", "status", "--porcelain", "--", *paths],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if worktree_status.returncode != 0:
+        detail = worktree_status.stderr.strip() or worktree_status.stdout.strip()
+        return f"could not inspect app/rendering worktree status: {detail}"
+    if worktree_status.stdout.strip():
+        changed = ", ".join(line.strip() for line in worktree_status.stdout.splitlines()[:3])
+        return f"app/rendering paths have uncommitted changes: {changed}"
+
+    return None
+
+
+def validate_manifest_revision(
+    errors: list[str],
+    manifest_path: Path,
+    manifest: dict,
+    expected_git_commit: str,
+    allow_stale_revision: bool,
+):
+    if allow_stale_revision:
+        return
+    reason = app_tree_freshness_error(manifest.get("git_commit"), expected_git_commit)
+    if reason:
+        errors.append(
+            f"{manifest_path} git_commit {manifest.get('git_commit')!r} does not match "
+            f"the current app/rendering tree ({expected_git_commit!r}): {reason}; "
+            "pass --allow-stale-revision only for historical capture inspection"
+        )
 
 
 def tmux(*args, check=True):
@@ -334,10 +423,13 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         manifest = read_json(root_manifest)
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
-        if not allow_stale_revision and manifest.get("git_commit") != expected_git_commit:
-            errors.append(
-                f"{root_manifest} git_commit is {manifest.get('git_commit')!r}, expected current HEAD {expected_git_commit!r}"
-            )
+        validate_manifest_revision(
+            errors,
+            root_manifest,
+            manifest,
+            expected_git_commit,
+            allow_stale_revision,
+        )
 
     frames = expected_frames(mode)
     markers = expected_markers(mode) + ["[refresh]", "[open]", "[help]", "[quit]"]
@@ -348,10 +440,13 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(f"missing {manifest_path}")
             continue
         manifest = read_json(manifest_path)
-        if not allow_stale_revision and manifest.get("git_commit") != expected_git_commit:
-            errors.append(
-                f"{manifest_path} git_commit is {manifest.get('git_commit')!r}, expected current HEAD {expected_git_commit!r}"
-            )
+        validate_manifest_revision(
+            errors,
+            manifest_path,
+            manifest,
+            expected_git_commit,
+            allow_stale_revision,
+        )
         expected_size = f"{cols}x{rows}"
         if manifest.get("actual_tmux_size") != expected_size:
             errors.append(
