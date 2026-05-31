@@ -25,7 +25,6 @@ Allowed GitHub CLI use:
 
 - `gh auth token` as a credential fallback after `GH_TOKEN` and `GITHUB_TOKEN`
 - `gh auth status` / `gh auth login` in human-facing recovery text
-- browser opening behavior if that remains a deliberate convenience
 
 This keeps the app standalone, mockable, and independent from the output shape
 of another CLI.
@@ -106,8 +105,8 @@ This is already represented in `tests/architecture.rs`, which permits only the
 Reference: `/home/bob/repos/gh-cli/internal/browser/browser.go`
 
 GitHub CLI hides browser launching behind a tiny interface and tests callers
-with a stub. `ghzinga` should follow that pattern if browser opening grows beyond
-the current simple `o` / `[open]` behavior:
+with a stub. `ghzinga` follows the same boundary without shelling out to `gh` for
+browser opening:
 
 - route URL opening through a small adapter
 - keep render and input layers unaware of process spawning

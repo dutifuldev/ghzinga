@@ -76,6 +76,17 @@ impl ResourceId {
         format!("{}/{}#{}", self.owner, self.repo, self.number)
     }
 
+    pub fn web_url(&self) -> String {
+        let segment = match self.kind_hint {
+            Some(ResourceKind::PullRequest) => "pull",
+            Some(ResourceKind::Issue) | None => "issues",
+        };
+        format!(
+            "https://github.com/{}/{}/{}/{}",
+            self.owner, self.repo, segment, self.number
+        )
+    }
+
     pub fn relative_to_repo(
         owner: &str,
         repo: &str,
@@ -613,6 +624,41 @@ mod tests {
         let id = ResourceId::relative_to_repo("openclaw", "openclaw", "66943").unwrap();
 
         assert_eq!(id.canonical_name(), "openclaw/openclaw#66943");
+    }
+
+    #[test]
+    fn builds_kind_aware_web_urls() {
+        let pr = ResourceId {
+            owner: "openclaw".into(),
+            repo: "openclaw".into(),
+            number: 81834,
+            kind_hint: Some(ResourceKind::PullRequest),
+        };
+        let issue = ResourceId {
+            owner: "openclaw".into(),
+            repo: "openclaw".into(),
+            number: 88499,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let unknown = ResourceId {
+            owner: "openclaw".into(),
+            repo: "openclaw".into(),
+            number: 88499,
+            kind_hint: None,
+        };
+
+        assert_eq!(
+            pr.web_url(),
+            "https://github.com/openclaw/openclaw/pull/81834"
+        );
+        assert_eq!(
+            issue.web_url(),
+            "https://github.com/openclaw/openclaw/issues/88499"
+        );
+        assert_eq!(
+            unknown.web_url(),
+            "https://github.com/openclaw/openclaw/issues/88499"
+        );
     }
 
     #[test]

@@ -187,7 +187,7 @@ Keyboard:
 - `s`: open or close settings
 - `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
 - `r`: refresh now
-- `o`: open the current resource in the browser through `gh`
+- `o`: open the current resource URL in the browser
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible content action, such as a link or `[+ more]`
