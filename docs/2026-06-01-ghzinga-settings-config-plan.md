@@ -71,7 +71,9 @@ Initial controls:
 
 - Theme rows: `default`, `solarized-dark`
 - Symbol rows: `ascii`, `emoji`
-- Spacing rows: `comfortable`, `compact`
+- Spacing rows: `comfortable`, `compact`, presented like a Gmail-style density
+  choice where `comfortable` is the gh-dash-like reading mode and `compact` is
+  the dense small-terminal mode.
 - Current values are bold and accented.
 - Mouse click applies a row immediately.
 - Keyboard shortcuts while settings are open:
