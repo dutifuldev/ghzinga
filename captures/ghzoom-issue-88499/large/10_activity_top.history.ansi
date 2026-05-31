@@ -2,23 +2,11 @@
 openai-responses provider: 404 on previous_response_id when store=false (default)                                                                               
 [38;2;65;72;104m----------------------------------------------------------------------------------------------------------------------------------------------------------------
 [38;2;169;177;214m Overview [1m[38;2;26;27;38m[48;2;122;162;247m[Activity][0m[38;2;169;177;214m[48;2;26;27;38m Links [38;2;192;202;245m                                                                                                                                     
-[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m  [38;2;125;207;255mcomments 9[38;2;192;202;245m  [38;2;224;175;104mreactions 1[38;2;192;202;245m                                                                                                                    
+[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m  [38;2;125;207;255mcomments 4[38;2;192;202;245m  [38;2;224;175;104mreactions 1[38;2;192;202;245m  [1m[38;2;224;175;104mwarn Warnings: 1[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                  
                                                                                                                                                                 
-[1m[38;2;122;162;247mActivity (9 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                            
+[1m[38;2;122;162;247mActivity (4 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                            
 [38;2;86;95;137m----------------------------------------------------------------------------------------------------------------------------------------------------------------
-[38;2;192;202;245mTimeline by @clawsweeper 2026-05-31T02:28:11Z                                                                                                                   
-added label P2                                                                                                                                                  
-                                                                                                                                                                
-Timeline by @clawsweeper 2026-05-31T02:28:12Z                                                                                                                   
-added label impact:session-state                                                                                                                                
-                                                                                                                                                                
-Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                                                                   
-added label issue-rating: 🐚 platinum hermit                                                                                                                    
-                                                                                                                                                                
-Timeline by @clawsweeper 2026-05-31T02:28:15Z                                                                                                                   
-added label clawsweeper:needs-live-repro                                                                                                                        
-                                                                                                                                                                
-Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
+[38;2;192;202;245mComment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
 meta: association CONTRIBUTOR, edited                                                                                                                           
 [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
 Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._            
@@ -47,4 +35,16 @@ Environment:
 Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                                                    
 meta: association NONE                                                                                                                                          
 [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
+The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design. Server-side response chaining only works 
+when the response was persisted, which is exactly what store=false turns off. So previous_response_id should not be on the request at all when store is false.  
+                                                                                                                                                                
+There are two separate defects here and the fix needs both.                                                                                                     
+                                                                                                                                                                
+The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side with previous_response_id (requires       
+store=true), or resend the conversation context inline on each turn (works with store=false). With store defaulted to false the gateway has to use the          
+inline-context mode and must not reference a prior response id. Tying the lifetime of previous_response_id to the store flag, so it is only retained and sent   
+[1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                        
+                                                                                                                                                                
+Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                                                          
+meta: association CONTRIBUTOR                                                                                                                                   
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                                                                              

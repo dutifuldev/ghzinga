@@ -93,6 +93,10 @@ It checks that every size contains:
 - `[help]`
 - `[quit]`
 
+It also checks that the root and per-size manifests were captured from the
+current `HEAD`. Use `--allow-stale-revision` only when intentionally inspecting
+historical captures.
+
 The PR rendered frames also show:
 
 - status summary with PR state, author, reactions, review, merge, checks, files,
@@ -139,6 +143,8 @@ It checks that every size contains:
 - `[open]`
 - `[help]`
 - `[quit]`
+
+Like the PR validator, it rejects stale manifest revisions by default.
 
 The rendered frames also show:
 

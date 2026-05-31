@@ -2,13 +2,10 @@ openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z
 feat(senseaudio): add SenseAudio TTS provider                                                                           
 ------------------------------------------------------------------------------------------------------------------------
  Overview [Activity] Commits  Checks  Files  Links                                                                      
-OK OPEN  by @KLilyZ  comments 43  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22          
-                                                                                                                        
-Activity (43 entries)                                                                                                   
+OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
+warn Warnings: 1                                                                                                        
+Activity (7 entries)                                                                                                    
 ------------------------------------------------------------------------------------------------------------------------
-Timeline by @github-actions 2026-05-14T14:05:56Z                                                                        
-added label dependencies-changed                                                                                        
-                                                                                                                        
 Comment by @github-actions 2026-05-14T14:05:57Z                                                                         
 meta: association CONTRIBUTOR                                                                                           
 [details]                                                                                                               
@@ -22,15 +19,18 @@ Changed files:
 - extensions/senseaudio/package.json                                                                                    
 [+ more]                                                                                                                
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:07Z                                                                     
-added label extensions: senseaudio                                                                                      
+Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                 
+meta: association NONE                                                                                                  
+[details]                                                                                                               
+Codex review: needs changes before merge.                                                                               
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:10Z                                                                     
-added label triage: needs-real-behavior-proof                                                                           
+Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP    
+helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                        
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:11Z                                                                     
-added label size: L                                                                                                     
+Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The        
+remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider    
+<id>.                                                                                                                   
+[+ more]                                                                                                                
                                                                                                                         
-Timeline by @KLilyZ 2026-05-14T14:30:43Z                                                                                
-referenced commit 512296420fe0                                                                                          
+Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                 
 [refresh] [open] [help] [quit] ...                                                                                      
