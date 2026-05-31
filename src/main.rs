@@ -109,6 +109,9 @@ async fn run_tui(
                     AppIntent::OpenResource(id) => {
                         open_resource(state, &id).await;
                     }
+                    AppIntent::OpenUrl(url) => {
+                        open_url(state, &url).await;
+                    }
                     AppIntent::Back => {
                         if live_refresh {
                             navigate_back(state).await;
@@ -122,6 +125,63 @@ async fn run_tui(
                 }
             }
         }
+    }
+}
+
+async fn open_url(state: &mut AppState, url: &str) {
+    let (program, args) = url_open_command(url, std::env::var("BROWSER").ok().as_deref());
+    let mut command = Command::new(&program);
+    command.args(&args);
+
+    match command.stderr(Stdio::piped()).output().await {
+        Ok(output) if output.status.success() => {
+            state.last_error = None;
+            state.status_message = Some(format!("opened {url}"));
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let details = stderr.trim();
+            state.last_error = Some(if details.is_empty() {
+                format!("`{program}` failed to open URL without an error message")
+            } else {
+                format!("`{program}` failed to open URL: {details}")
+            });
+        }
+        Err(error) => {
+            state.last_error = Some(format!(
+                "failed to execute `{program}` for URL open: {error}"
+            ));
+        }
+    }
+}
+
+fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
+    if let Some(browser) = browser.map(str::trim).filter(|value| !value.is_empty()) {
+        let mut parts = browser
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let program = parts.remove(0);
+        parts.push(url.to_string());
+        return (program, parts);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        return ("open".into(), vec![url.into()]);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return (
+            "cmd".into(),
+            vec!["/C".into(), "start".into(), "".into(), url.into()],
+        );
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        ("xdg-open".into(), vec![url.into()])
     }
 }
 
@@ -238,7 +298,7 @@ async fn navigate_back(state: &mut AppState) {
 mod tests {
     use ghzoom::domain::{ResourceId, ResourceKind};
 
-    use super::open_command_args;
+    use super::{open_command_args, url_open_command};
 
     #[test]
     fn open_command_uses_pr_web_view_for_pull_requests() {
@@ -267,6 +327,37 @@ mod tests {
         assert_eq!(
             open_command_args(&id),
             ["issue", "view", "88499", "-R", "openclaw/openclaw", "--web"]
+        );
+    }
+
+    #[test]
+    fn url_open_command_uses_browser_env_when_available() {
+        assert_eq!(
+            url_open_command(
+                "https://github.com/openclaw/openclaw/actions/runs/1",
+                Some("echo")
+            ),
+            (
+                "echo".into(),
+                vec!["https://github.com/openclaw/openclaw/actions/runs/1".into()]
+            )
+        );
+    }
+
+    #[test]
+    fn url_open_command_preserves_browser_arguments() {
+        assert_eq!(
+            url_open_command(
+                "https://github.com/openclaw/openclaw/actions/runs/1",
+                Some("browser --new-window")
+            ),
+            (
+                "browser".into(),
+                vec![
+                    "--new-window".into(),
+                    "https://github.com/openclaw/openclaw/actions/runs/1".into()
+                ]
+            )
         );
     }
 }

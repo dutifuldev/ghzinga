@@ -33,6 +33,7 @@ async loop, and the installed `gh` CLI for GitHub access.
 | Issue body, reactions, comments, timeline events, labels, author, state | issue fixture integration test and issue captures under `captures/ghzoom-issue-88499/`; comment and timeline metadata is normalized through the shared activity model |
 | Issue metadata such as pinned/state reason/closed time/milestone/projects | `issue_view_preserves_extra_github_metadata`, issue overview smoke |
 | Linked issue/PR navigation targets | `render_registers_github_link_hit_area`, `render_registers_relative_issue_link_hit_area`, `rendered_visible_link_hit_area_can_be_clicked_to_navigate` |
+| Exact detail URL open targets | `render_registers_exact_comment_url_as_open_url`, `check_rows_are_click_expandable`, `expanded_commit_rows_show_deployments`, `keyboard_enter_opens_first_visible_url_action`, `mouse_click_on_url_target_requests_open_url`, `url_open_command_uses_browser_env_when_available` |
 | Explicit GitHub relationship links | `related_resource_ids_parse_urls_and_number_fallbacks`, `links_tab_renders_explicit_related_resources_once` |
 | Auto-refresh | `run_tui()` interval path plus `apply_refreshed_resource` tests preserving tab/scroll and recording changed/no-change state; `renders_last_refresh_changed_sections` verifies changed surfaces render in the status panel; `fingerprint_changes_when_activity_content_or_metadata_changes` verifies activity body and metadata changes are part of change detection |
 | Manual refresh | reducer tests for `r` and `[refresh]`, footer render-to-click tests |
@@ -82,6 +83,7 @@ Covered click targets:
 - check rows
 - file rows and long patch expansion controls
 - visible body/activity links
+- exact check run, deployment, and comment URLs
 - Links-tab navigation rows
 - Enter activation for the first visible content action
 - `[refresh]`
