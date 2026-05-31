@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -60,6 +61,146 @@ fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
             "GitHub data adapter contains forbidden gh transport text: {forbidden}"
         );
     }
+}
+
+#[test]
+fn timeline_query_accounts_for_current_github_schema_item_types() {
+    let source = fs::read_to_string("src/github/queries.rs").expect("read GitHub query source");
+    let issue_schema_types = BTreeSet::from([
+        "ISSUE_COMMENT",
+        "CROSS_REFERENCED_EVENT",
+        "ADDED_TO_PROJECT_EVENT",
+        "ADDED_TO_PROJECT_V2_EVENT",
+        "ASSIGNED_EVENT",
+        "CLOSED_EVENT",
+        "COMMENT_DELETED_EVENT",
+        "CONNECTED_EVENT",
+        "CONVERTED_FROM_DRAFT_EVENT",
+        "CONVERTED_NOTE_TO_ISSUE_EVENT",
+        "CONVERTED_TO_DISCUSSION_EVENT",
+        "DEMILESTONED_EVENT",
+        "DISCONNECTED_EVENT",
+        "LABELED_EVENT",
+        "LOCKED_EVENT",
+        "MARKED_AS_DUPLICATE_EVENT",
+        "MENTIONED_EVENT",
+        "MILESTONED_EVENT",
+        "MOVED_COLUMNS_IN_PROJECT_EVENT",
+        "PINNED_EVENT",
+        "PROJECT_V2_ITEM_STATUS_CHANGED_EVENT",
+        "REFERENCED_EVENT",
+        "REMOVED_FROM_PROJECT_EVENT",
+        "REMOVED_FROM_PROJECT_V2_EVENT",
+        "RENAMED_TITLE_EVENT",
+        "REOPENED_EVENT",
+        "SUBSCRIBED_EVENT",
+        "TRANSFERRED_EVENT",
+        "UNASSIGNED_EVENT",
+        "UNLABELED_EVENT",
+        "UNLOCKED_EVENT",
+        "USER_BLOCKED_EVENT",
+        "UNMARKED_AS_DUPLICATE_EVENT",
+        "UNPINNED_EVENT",
+        "UNSUBSCRIBED_EVENT",
+        "ISSUE_COMMENT_PINNED_EVENT",
+        "ISSUE_COMMENT_UNPINNED_EVENT",
+        "ISSUE_TYPE_ADDED_EVENT",
+        "ISSUE_TYPE_REMOVED_EVENT",
+        "ISSUE_TYPE_CHANGED_EVENT",
+        "ISSUE_FIELD_ADDED_EVENT",
+        "ISSUE_FIELD_REMOVED_EVENT",
+        "ISSUE_FIELD_CHANGED_EVENT",
+        "SUB_ISSUE_ADDED_EVENT",
+        "SUB_ISSUE_REMOVED_EVENT",
+        "PARENT_ISSUE_ADDED_EVENT",
+        "PARENT_ISSUE_REMOVED_EVENT",
+        "BLOCKED_BY_ADDED_EVENT",
+        "BLOCKING_ADDED_EVENT",
+        "BLOCKED_BY_REMOVED_EVENT",
+        "BLOCKING_REMOVED_EVENT",
+    ]);
+    let pr_schema_types = issue_schema_types
+        .iter()
+        .copied()
+        .chain([
+            "PULL_REQUEST_COMMIT",
+            "PULL_REQUEST_COMMIT_COMMENT_THREAD",
+            "PULL_REQUEST_REVIEW",
+            "PULL_REQUEST_REVIEW_THREAD",
+            "PULL_REQUEST_REVISION_MARKER",
+            "ADDED_TO_MERGE_QUEUE_EVENT",
+            "AUTOMATIC_BASE_CHANGE_FAILED_EVENT",
+            "AUTOMATIC_BASE_CHANGE_SUCCEEDED_EVENT",
+            "AUTO_MERGE_DISABLED_EVENT",
+            "AUTO_MERGE_ENABLED_EVENT",
+            "AUTO_REBASE_ENABLED_EVENT",
+            "AUTO_SQUASH_ENABLED_EVENT",
+            "BASE_REF_CHANGED_EVENT",
+            "BASE_REF_FORCE_PUSHED_EVENT",
+            "BASE_REF_DELETED_EVENT",
+            "CONVERT_TO_DRAFT_EVENT",
+            "DEPLOYED_EVENT",
+            "DEPLOYMENT_ENVIRONMENT_CHANGED_EVENT",
+            "HEAD_REF_DELETED_EVENT",
+            "HEAD_REF_FORCE_PUSHED_EVENT",
+            "HEAD_REF_RESTORED_EVENT",
+            "MERGED_EVENT",
+            "READY_FOR_REVIEW_EVENT",
+            "REMOVED_FROM_MERGE_QUEUE_EVENT",
+            "REVIEW_DISMISSED_EVENT",
+            "REVIEW_REQUESTED_EVENT",
+            "REVIEW_REQUEST_REMOVED_EVENT",
+        ])
+        .collect::<BTreeSet<_>>();
+
+    let issue_dedicated_queries = BTreeSet::from(["ISSUE_COMMENT"]);
+    let pr_dedicated_queries = BTreeSet::from([
+        "ISSUE_COMMENT",
+        "PULL_REQUEST_COMMIT",
+        "PULL_REQUEST_REVIEW",
+        "PULL_REQUEST_REVIEW_THREAD",
+    ]);
+    let mut pr_query_item_types = issue_query_item_types(&source);
+    pr_query_item_types.extend(pr_only_query_item_types(&source));
+
+    assert_eq!(
+        issue_query_item_types(&source),
+        issue_schema_types
+            .difference(&issue_dedicated_queries)
+            .copied()
+            .collect::<BTreeSet<_>>()
+    );
+    assert_eq!(
+        pr_query_item_types,
+        pr_schema_types
+            .difference(&pr_dedicated_queries)
+            .copied()
+            .collect::<BTreeSet<_>>()
+    );
+}
+
+fn issue_query_item_types(source: &str) -> BTreeSet<&str> {
+    source_item_types(source, "timelineItems(first: 100", "]) {{")
+}
+
+fn pr_only_query_item_types(source: &str) -> BTreeSet<&str> {
+    source_item_types(
+        source,
+        "let pr_timeline_items = match kind",
+        "let pr_timeline_fragments = match kind",
+    )
+}
+
+fn source_item_types<'a>(source: &'a str, start: &str, end: &str) -> BTreeSet<&'a str> {
+    let start = source.find(start).expect("timeline item type start");
+    let end = source[start..]
+        .find(end)
+        .map(|offset| start + offset)
+        .expect("timeline item type end");
+    source[start..end]
+        .split(|ch: char| !(ch.is_ascii_uppercase() || ch.is_ascii_digit() || ch == '_'))
+        .filter(|token| token.contains('_') && token.chars().any(|ch| ch.is_ascii_uppercase()))
+        .collect()
 }
 
 fn assert_no_forbidden_text(root: &str, forbidden: &[&str]) {

@@ -19,7 +19,6 @@ APP_FRESHNESS_PATHS = [
     "Cargo.lock",
     "Cargo.toml",
     "src",
-    "tests",
     "fixtures",
 ]
 
