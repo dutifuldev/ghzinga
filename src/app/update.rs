@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use crate::app::{AppState, BlockId};
 use crate::input::{hit_test, HitTarget};
-use crate::render::{SymbolMode, ThemeName};
+use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppIntent {
@@ -69,6 +69,13 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         }
         KeyCode::Char('y') if state.show_settings => {
             if state.cycle_symbols() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
+        KeyCode::Char('p') if state.show_settings => {
+            if state.cycle_spacing() {
                 AppIntent::SaveSettings
             } else {
                 AppIntent::None
@@ -189,6 +196,10 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         },
         HitTarget::SetSymbols(symbols) => match symbols.parse::<SymbolMode>() {
             Ok(symbols) if state.set_symbols(symbols) => AppIntent::SaveSettings,
+            _ => AppIntent::None,
+        },
+        HitTarget::SetSpacing(spacing) => match spacing.parse::<SpacingMode>() {
+            Ok(spacing) if state.set_spacing(spacing) => AppIntent::SaveSettings,
             _ => AppIntent::None,
         },
     }
@@ -595,6 +606,14 @@ mod tests {
 
         assert_eq!(symbols, AppIntent::SaveSettings);
         assert_eq!(state.symbols, SymbolMode::Emoji);
+
+        let spacing = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(spacing, AppIntent::SaveSettings);
+        assert_eq!(state.spacing, SpacingMode::Compact);
     }
 
     #[test]
@@ -634,6 +653,24 @@ mod tests {
 
         assert_eq!(theme, AppIntent::SaveSettings);
         assert_eq!(state.theme, ThemeName::SolarizedDark);
+
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 2, 20, 1),
+            HitTarget::SetSpacing("compact".into()),
+        ));
+        let spacing = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 2,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(spacing, AppIntent::SaveSettings);
+        assert_eq!(state.spacing, SpacingMode::Compact);
     }
 
     #[test]

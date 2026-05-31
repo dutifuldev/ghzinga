@@ -51,6 +51,7 @@ gzg openclaw/openclaw#81834 --refresh-seconds 30
 gzg openclaw/openclaw#81834 --no-mouse
 gzg openclaw/openclaw#81834 --theme solarized-dark
 gzg openclaw/openclaw#81834 --symbols emoji
+gzg openclaw/openclaw#81834 --spacing compact
 gzg openclaw/openclaw#81834 --once
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 ```
@@ -58,7 +59,8 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
 accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
-`emoji`. CLI theme and symbol flags override saved config for that run only.
+`emoji`. `--spacing` accepts `comfortable` and `compact`. CLI theme, symbol, and
+spacing flags override saved config for that run only.
 
 ## Configuration
 
@@ -78,6 +80,7 @@ Default config:
 [ui]
 theme = "default"
 symbols = "ascii"
+spacing = "comfortable"
 ```
 
 The app works without a config file. Invalid known values fall back to safe
@@ -85,8 +88,8 @@ defaults and show a warning in the status band. Unknown fields are ignored so
 future config additions do not break older files.
 
 Open settings inside the TUI with `s` or the footer `[settings]` control. Theme
-and symbol changes apply live and are saved back to `config.toml`; write errors
-are shown in the status band without crashing the app.
+symbol, and spacing changes apply live and are saved back to `config.toml`;
+write errors are shown in the status band without crashing the app.
 
 ## What It Shows
 
@@ -174,7 +177,7 @@ Keyboard:
 - `q`: quit
 - `?`: toggle help
 - `s`: open or close settings
-- `t` / `y` while settings are open: cycle theme / symbol style
+- `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
 - `r`: refresh now
 - `o`: open the current resource in the browser through `gh`
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs

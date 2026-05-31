@@ -17,6 +17,7 @@ pub enum HitTarget {
     CloseSettings,
     SetTheme(String),
     SetSymbols(String),
+    SetSpacing(String),
 }
 
 impl HitTarget {
@@ -28,6 +29,7 @@ impl HitTarget {
                 | Self::OpenUrl(_)
                 | Self::SetTheme(_)
                 | Self::SetSymbols(_)
+                | Self::SetSpacing(_)
         )
     }
 }

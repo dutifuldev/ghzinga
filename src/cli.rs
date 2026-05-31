@@ -4,7 +4,7 @@ use clap::Parser;
 
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
-use crate::render::{SymbolMode, ThemeName};
+use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -44,6 +44,10 @@ pub struct Cli {
     /// Override configured symbol style: ascii or emoji.
     #[arg(long, value_name = "SYMBOLS")]
     pub symbols: Option<SymbolMode>,
+
+    /// Override configured spacing: comfortable or compact.
+    #[arg(long, value_name = "SPACING")]
+    pub spacing: Option<SpacingMode>,
 }
 
 impl Cli {
@@ -121,5 +125,12 @@ mod tests {
         let cli = Cli::parse_from(["ghzinga", "--symbols", "emoji", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.symbols, Some(SymbolMode::Emoji));
+    }
+
+    #[test]
+    fn parses_spacing_mode() {
+        let cli = Cli::parse_from(["ghzinga", "--spacing", "compact", "openclaw/openclaw#81834"]);
+
+        assert_eq!(cli.spacing, Some(SpacingMode::Compact));
     }
 }

@@ -35,12 +35,14 @@ Default config:
 [ui]
 theme = "default"
 symbols = "ascii"
+spacing = "comfortable"
 ```
 
 Supported values:
 
 - `ui.theme`: `default`, `solarized-dark`
 - `ui.symbols`: `ascii`, `emoji`
+- `ui.spacing`: `comfortable`, `compact`
 
 Rules:
 
@@ -69,11 +71,13 @@ Initial controls:
 
 - Theme rows: `default`, `solarized-dark`
 - Symbol rows: `ascii`, `emoji`
+- Spacing rows: `comfortable`, `compact`
 - Current values are bold and accented.
 - Mouse click applies a row immediately.
 - Keyboard shortcuts while settings are open:
   - `t`: cycle theme
   - `y`: cycle symbol style
+  - `p`: cycle spacing mode
   - `s` or `Esc`: close settings
   - `?`: help remains available
 
@@ -95,6 +99,8 @@ Saving behavior:
 - Add settings state to `AppState`.
 - Add settings hit targets and reducer intents for save requests.
 - Render settings rows with existing Ratatui text, button, and wrapping helpers.
+- Apply comfortable spacing by inserting breathing room after section rules and
+  keeping compact mode equivalent to the previous dense layout.
 - Add unit tests for config parsing/path overrides, CLI override behavior,
   settings keyboard changes, settings mouse hit targets, and persistence intent.
 - Update capture evidence after source changes.

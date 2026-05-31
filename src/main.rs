@@ -39,6 +39,7 @@ async fn main() -> anyhow::Result<()> {
     state.config_path = loaded_config.path.clone();
     state.theme = loaded_config.config.ui.theme;
     state.symbols = loaded_config.config.ui.symbols;
+    state.spacing = loaded_config.config.ui.spacing;
     if !loaded_config.diagnostics.is_empty() {
         state.last_error = Some(loaded_config.diagnostics.join("; "));
     }
@@ -47,6 +48,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(symbols) = cli.symbols {
         state.symbols = symbols;
+    }
+    if let Some(spacing) = cli.spacing {
+        state.spacing = spacing;
     }
     if let Some(tab) = cli.tab {
         state.set_tab(tab);
@@ -185,7 +189,8 @@ async fn handle_intent<G: GithubGateway>(
 fn save_settings(state: &mut AppState) {
     let config = AppConfig::default()
         .with_theme(state.theme)
-        .with_symbols(state.symbols);
+        .with_symbols(state.symbols)
+        .with_spacing(state.spacing);
     match config::save_to_path(&state.config_path, config) {
         Ok(()) => {
             state.last_error = None;
