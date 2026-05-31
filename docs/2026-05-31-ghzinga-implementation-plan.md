@@ -271,6 +271,8 @@ Data loaded for issue:
 - labels and assignees
 - metadata such as pinned state, state reason, closed time, milestone, and
   project membership
+- current issue relationships: parent issue, sub-issues, tracked issues,
+  tracked-in issues, blocked-by issues, and blocking issues
 - reactions counts
 - comments and timeline events, including author association, comment
   reactions, edit/minimized metadata, permalinks, labels, references,
@@ -449,6 +451,30 @@ Rules:
   existing `Participants` row if one is already present.
 - Public unauthenticated REST fallback should continue to render the resource
   and should explicitly warn that participant enrichment is GraphQL-only.
+
+## Issue Relationship Enrichment
+
+GitHub issues can have current hierarchy and dependency relationships that are
+not fully represented by timeline history. `ghzinga` should make those current
+relationships visible and clickable because they are part of issue status.
+
+Rules:
+
+- Fetch issue parent with a direct GraphQL query and add it to the Links tab as
+  a navigable issue target when present.
+- Fetch `subIssues`, `trackedIssues`, `trackedInIssues`, `blockedBy`, and
+  `blocking` with paginated direct GraphQL queries.
+- Page each connection with `first: 100` and `after` until `hasNextPage` is
+  false.
+- Append relationship targets to `Resource.related_resources` without
+  duplicating closed-by PR links or links detected from text.
+- Add compact metadata rows for non-empty relationship groups so the Overview
+  can show the current dependency shape without forcing the user into Links.
+- Treat missing repositories/resources/connections as empty relationship lists.
+- If GitHub reports another page without an `endCursor`, fail that specific
+  relationship enrichment with a warning instead of looping forever.
+- Public unauthenticated REST fallback should continue to render the issue and
+  should explicitly warn that issue relationships are GraphQL-only.
 
 ## Input Model
 
