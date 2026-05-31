@@ -5,12 +5,12 @@ feat(senseaudio): add SenseAudio TTS provider
 OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
 OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
 warn Warnings: 1                                                                
-Links                                                                           
---------------------------------------------------------------------------------
+  Links                                                                         
+  ----------------------------------------------------------------------------  
                                                                                 
-openclaw/openclaw#66943                                                         
+  openclaw/openclaw#66943                                                       
                                                                                 
-https://github.com/openclaw/clawsweeper/actions/runs/25905071526                
+  https://github.com/openclaw/clawsweeper/actions/runs/25905071526              
                                                                                 
                                                                                 
                                                                                 

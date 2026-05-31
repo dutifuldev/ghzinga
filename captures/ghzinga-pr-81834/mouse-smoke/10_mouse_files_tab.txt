@@ -4,20 +4,20 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview  Activity  Commits  Checks [Files] Links                                                                      
 OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22             
                                                                                                                         
-Files changed (5)                                                                                                       
-------------------------------------------------------------------------------------------------------------------------
+  Files changed (5)                                                                                                     
+  --------------------------------------------------------------------------------------------------------------------  
                                                                                                                         
-[expand all]                                                                                                            
+  [expand all]                                                                                                          
                                                                                                                         
-+1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                          
+  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                        
                                                                                                                         
-+1    -1    MODIFIED docs/plugins/reference.md [+ more]                                                                 
+  +1    -1    MODIFIED docs/plugins/reference.md [+ more]                                                               
                                                                                                                         
-+3    -3    MODIFIED docs/plugins/reference/senseaudio.md [+ more]                                                      
+  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [+ more]                                                    
                                                                                                                         
-+74   -14   MODIFIED docs/providers/senseaudio.md [+ more]                                                              
+  +74   -14   MODIFIED docs/providers/senseaudio.md [+ more]                                                            
                                                                                                                         
-+3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                                                            
+  +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                                                          
                                                                                                                         
                                                                                                                         
                                                                                                                         

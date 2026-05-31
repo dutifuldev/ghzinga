@@ -2,7 +2,7 @@
   "target": "openclaw/openclaw#81834",
   "fixture": "fixtures/pr-81834.json",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "ddbb83b01681d0cce43e561822eaea90a1160893",
+  "git_commit": "24ed81bf8beb1409f2d8c45d97236e4e52d0ae5e",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/fixtures/pr-81834.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
@@ -11,11 +11,11 @@
       4
     ],
     "expand_all": [
-      2,
+      4,
       10
     ],
     "collapse_all": [
-      2,
+      4,
       10
     ]
   },

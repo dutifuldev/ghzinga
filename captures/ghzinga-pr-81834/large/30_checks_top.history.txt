@@ -4,47 +4,47 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview  Activity  Commits [Checks] Files  Links                                                                                                              
 OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
                                                                                                                                                                 
-Checks: PASS (97 pass, 0 pending, 0 fail)                                                                                                                       
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Checks: PASS (97 pass, 0 pending, 0 fail)                                                                                                                     
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------  
                                                                                                                                                                 
-142 total: 97 pass, 0 pending, 0 fail, 43 skipped, 2 neutral, 0 unknown                                                                                         
+  142 total: 97 pass, 0 pending, 0 fail, 43 skipped, 2 neutral, 0 unknown                                                                                       
                                                                                                                                                                 
-[expand all]                                                                                                                                                    
+  [expand all]                                                                                                                                                  
                                                                                                                                                                 
-Passing (97)                                                                                                                                                    
-[OK PASS] suite/Auto response [+ more]                                                                                                                          
+  Passing (97)                                                                                                                                                  
+  [OK PASS] suite/Auto response [+ more]                                                                                                                        
                                                                                                                                                                 
-[OK PASS] suite/CI [+ more]                                                                                                                                     
+  [OK PASS] suite/CI [+ more]                                                                                                                                   
                                                                                                                                                                 
-[OK PASS] suite/CodeQL [+ more]                                                                                                                                 
+  [OK PASS] suite/CodeQL [+ more]                                                                                                                               
                                                                                                                                                                 
-[OK PASS] suite/CodeQL Critical Quality [+ more]                                                                                                                
+  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                                                              
                                                                                                                                                                 
-[OK PASS] suite/Dependency Guard [+ more]                                                                                                                       
+  [OK PASS] suite/Dependency Guard [+ more]                                                                                                                     
                                                                                                                                                                 
-[OK PASS] suite/GitHub Advanced Security [+ more]                                                                                                               
+  [OK PASS] suite/GitHub Advanced Security [+ more]                                                                                                             
                                                                                                                                                                 
-[OK PASS] suite/Labeler [+ more]                                                                                                                                
+  [OK PASS] suite/Labeler [+ more]                                                                                                                              
                                                                                                                                                                 
-[OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                                                                     
+  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                                                                   
                                                                                                                                                                 
-[OK PASS] suite/Real behavior proof [+ more]                                                                                                                    
+  [OK PASS] suite/Real behavior proof [+ more]                                                                                                                  
                                                                                                                                                                 
-[OK PASS] suite/Socket Security [+ more]                                                                                                                        
+  [OK PASS] suite/Socket Security [+ more]                                                                                                                      
                                                                                                                                                                 
-[OK PASS] suite/Workflow Sanity [+ more]                                                                                                                        
+  [OK PASS] suite/Workflow Sanity [+ more]                                                                                                                      
                                                                                                                                                                 
-[OK PASS] Auto response/auto-response [+ more]                                                                                                                  
+  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-[OK PASS] Auto response/auto-response [+ more]                                                                                                                  
+  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-[OK PASS] Auto response/auto-response [+ more]                                                                                                                  
+  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-[OK PASS] CI/preflight [+ more]                                                                                                                                 
+  [OK PASS] CI/preflight [+ more]                                                                                                                               
                                                                                                                                                                 
-[OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                                                                
+  [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                                                              
                                                                                                                                                                 
-[OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                                                                     
+  [OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                                                                   
                                                                                                                                                                 
-[OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]                                                                                       
+  [OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]                                                                                     
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   
