@@ -69,7 +69,7 @@ For pull requests:
   opening body, commits, reviews, review comments, regular comments, and
   timeline events are interleaved by timestamp instead of split into separate
   summary blocks first
-- assignees and requested reviewers
+- paginated labels and assignees, plus requested reviewers
 - GitHub metadata such as draft/cross-repository state, mergeability,
   changed-file count, milestones, projects, ref OIDs, and merge commits where
   available
@@ -94,7 +94,7 @@ For pull requests:
 
 For issues:
 
-- body, labels, reactions, assignees, author, and state
+- body, paginated labels, reactions, paginated assignees, author, and state
 - GitHub metadata such as pinned state, state reason, closed time, milestones,
   and projects where available
 - comments and timeline events such as labels, references, assignments, title

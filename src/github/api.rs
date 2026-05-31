@@ -12,9 +12,10 @@ use crate::domain::{
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
 };
 use crate::github::queries::{
-    base_issue_query, base_pr_query, changed_files_query, check_suites_query, comments_query,
-    commit_deployments_query, commits_query, project_items_query, review_thread_comments_query,
-    review_threads_query, reviews_query, status_rollup_query, timeline_query,
+    assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
+    comments_query, commit_deployments_query, commits_query, labels_query, project_items_query,
+    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
+    timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -61,6 +62,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
+    enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -114,6 +116,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
+    enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -152,6 +155,17 @@ async fn enrich_project_metadata(resource: &mut Resource, id: &ResourceId, kind:
     }
 }
 
+async fn enrich_labels_and_assignees(resource: &mut Resource, id: &ResourceId, kind: ResourceKind) {
+    match fetch_labels(id, kind).await {
+        Ok(labels) => resource.labels = labels,
+        Err(error) => push_enrichment_warning(resource, "labels unavailable", &error),
+    }
+    match fetch_assignees(id, kind).await {
+        Ok(assignees) => resource.assignees = assignees,
+        Err(error) => push_enrichment_warning(resource, "assignees unavailable", &error),
+    }
+}
+
 fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
     json!({
         "owner": id.owner,
@@ -175,6 +189,24 @@ async fn run_graphql_project_items(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = project_items_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_labels(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = labels_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_assignees(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = assignees_query(kind);
     run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
@@ -302,6 +334,70 @@ impl UserDto {
 #[derive(Debug, Deserialize)]
 struct LabelDto {
     name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelsResponse {
+    data: LabelsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelsData {
+    repository: Option<LabelsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelsRepository {
+    issue: Option<LabelsResource>,
+    pull_request: Option<LabelsResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelsResource {
+    labels: LabelsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<LabelDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssigneesResponse {
+    data: AssigneesData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssigneesData {
+    repository: Option<AssigneesRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssigneesRepository {
+    issue: Option<AssigneesResource>,
+    pull_request: Option<AssigneesResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssigneesResource {
+    assignees: AssigneesConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AssigneesConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<UserDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1353,6 +1449,102 @@ fn deduped_nonempty_strings(values: Vec<String>) -> Vec<String> {
 fn is_project_scope_error(error: &anyhow::Error) -> bool {
     let message = error.to_string();
     message.contains("read:project") || message.contains("INSUFFICIENT_SCOPES")
+}
+
+async fn fetch_labels(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<String>> {
+    let mut labels = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_labels(id, kind, after.as_deref()).await?;
+        let response: LabelsResponse =
+            serde_json::from_slice(&output).context("failed to parse labels GraphQL JSON")?;
+        let Some(page) = labels_page(response) else {
+            return Ok(labels);
+        };
+        labels.extend(page.labels);
+        if !page.has_next_page {
+            return Ok(labels);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("labels page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+async fn fetch_assignees(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<String>> {
+    let mut assignees = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_assignees(id, kind, after.as_deref()).await?;
+        let response: AssigneesResponse =
+            serde_json::from_slice(&output).context("failed to parse assignees GraphQL JSON")?;
+        let Some(page) = assignees_page(response) else {
+            return Ok(assignees);
+        };
+        assignees.extend(page.assignees);
+        if !page.has_next_page {
+            return Ok(assignees);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("assignees page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+struct LabelsPage {
+    labels: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct AssigneesPage {
+    assignees: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
+fn labels_from_response(response: LabelsResponse) -> Vec<String> {
+    labels_page(response)
+        .map(|page| page.labels)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn assignees_from_response(response: AssigneesResponse) -> Vec<String> {
+    assignees_page(response)
+        .map(|page| page.assignees)
+        .unwrap_or_default()
+}
+
+fn labels_page(response: LabelsResponse) -> Option<LabelsPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.labels.page_info;
+    Some(LabelsPage {
+        labels: resource
+            .labels
+            .nodes
+            .into_iter()
+            .map(|label| label.name)
+            .filter(|name| !name.trim().is_empty())
+            .collect(),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn assignees_page(response: AssigneesResponse) -> Option<AssigneesPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.assignees.page_info;
+    Some(AssigneesPage {
+        assignees: names_from_users(resource.assignees.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
 }
 
 fn value_titles(values: &[Value]) -> Vec<String> {
@@ -2975,6 +3167,40 @@ mod tests {
     }
 
     #[test]
+    fn labels_query_uses_selector_and_pagination_state() {
+        let issue_query = labels_query(ResourceKind::Issue);
+        let pr_query = labels_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("labels(first: 100, after: $after)"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("name"));
+        }
+    }
+
+    #[test]
+    fn assignees_query_uses_selector_and_pagination_state() {
+        let issue_query = assignees_query(ResourceKind::Issue);
+        let pr_query = assignees_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("assignees(first: 100, after: $after)"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("login"));
+        }
+    }
+
+    #[test]
     fn reviews_query_requests_pagination_state_and_reaction_fields() {
         let query = reviews_query();
 
@@ -3043,6 +3269,93 @@ mod tests {
         assert!(page.has_next_page);
         assert_eq!(page.end_cursor.as_deref(), Some("project-cursor-2"));
         assert_eq!(page.projects, vec!["Roadmap"]);
+    }
+
+    #[test]
+    fn labels_page_preserves_pagination_state_and_filters_blank_values() {
+        let page = labels_page(LabelsResponse {
+            data: LabelsData {
+                repository: Some(LabelsRepository {
+                    issue: None,
+                    pull_request: Some(LabelsResource {
+                        labels: LabelsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("label-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                LabelDto { name: "P1".into() },
+                                LabelDto { name: " ".into() },
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("labels page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("label-cursor-2"));
+        assert_eq!(page.labels, vec!["P1"]);
+
+        let labels = labels_from_response(LabelsResponse {
+            data: LabelsData {
+                repository: Some(LabelsRepository {
+                    issue: Some(LabelsResource {
+                        labels: LabelsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
+                            nodes: Vec::new(),
+                        },
+                    }),
+                    pull_request: None,
+                }),
+            },
+        });
+
+        assert!(labels.is_empty());
+    }
+
+    #[test]
+    fn assignees_page_preserves_pagination_state_and_display_names() {
+        let page = assignees_page(AssigneesResponse {
+            data: AssigneesData {
+                repository: Some(AssigneesRepository {
+                    issue: None,
+                    pull_request: Some(AssigneesResource {
+                        assignees: AssigneesConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("assignee-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                UserDto {
+                                    login: Some("alice".into()),
+                                    name: None,
+                                },
+                                UserDto {
+                                    login: None,
+                                    name: Some("Display Name".into()),
+                                },
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("assignees page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("assignee-cursor-2"));
+        assert_eq!(page.assignees, vec!["alice", "Display Name"]);
+
+        let assignees = assignees_from_response(AssigneesResponse {
+            data: AssigneesData { repository: None },
+        });
+
+        assert!(assignees.is_empty());
     }
 
     #[test]
