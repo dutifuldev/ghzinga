@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 use crate::domain::{Resource, ResourceKind};
 use crate::input::HitArea;
-use crate::render::{SymbolMode, ThemeName};
+use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tab {
@@ -89,6 +89,7 @@ pub struct AppState {
     pub show_settings: bool,
     pub theme: ThemeName,
     pub symbols: SymbolMode,
+    pub spacing: SpacingMode,
     pub config_path: PathBuf,
 }
 
@@ -113,6 +114,7 @@ impl AppState {
             show_settings: false,
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
+            spacing: SpacingMode::Comfortable,
             config_path: crate::config::config_path(),
         }
     }
@@ -258,6 +260,16 @@ impl AppState {
         true
     }
 
+    pub fn set_spacing(&mut self, spacing: SpacingMode) -> bool {
+        if self.spacing == spacing {
+            return false;
+        }
+        self.spacing = spacing;
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+        true
+    }
+
     pub fn cycle_theme(&mut self) -> bool {
         let next = match self.theme {
             ThemeName::Default => ThemeName::SolarizedDark,
@@ -272,6 +284,14 @@ impl AppState {
             SymbolMode::Emoji => SymbolMode::Ascii,
         };
         self.set_symbols(next)
+    }
+
+    pub fn cycle_spacing(&mut self) -> bool {
+        let next = match self.spacing {
+            SpacingMode::Comfortable => SpacingMode::Compact,
+            SpacingMode::Compact => SpacingMode::Comfortable,
+        };
+        self.set_spacing(next)
     }
 
     pub fn set_scroll_limit(&mut self, limit: u16) {

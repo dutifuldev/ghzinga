@@ -11,7 +11,7 @@ use crate::{
     app::{AppState, BlockId, Tab},
     domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
-    render::{markdown, Palette, SymbolMode, Symbols, ThemeName, ViewRects},
+    render::{markdown, Palette, SpacingMode, SymbolMode, Symbols, ThemeName, ViewRects},
 };
 
 struct ContentRow {
@@ -568,10 +568,9 @@ fn refresh_changes_summary(state: &AppState) -> Option<String> {
 }
 
 fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let rows = wrap_content_rows(
-        content_rows(state, area.width as usize, palette),
-        area.width,
-    );
+    let rows = content_rows(state, area.width as usize, palette);
+    let rows = apply_spacing(rows, state.spacing);
+    let rows = wrap_content_rows(rows, area.width);
     let max_scroll = rows.len().saturating_sub(area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
@@ -598,6 +597,31 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow> {
+    if spacing == SpacingMode::Compact {
+        return rows;
+    }
+
+    let mut spaced = Vec::with_capacity(rows.len() + 8);
+    let mut iter = rows.into_iter().peekable();
+    while let Some(row) = iter.next() {
+        let insert_gap = is_section_rule(&row)
+            && iter
+                .peek()
+                .is_some_and(|next| !line_text(&next.line).trim().is_empty());
+        spaced.push(row);
+        if insert_gap {
+            spaced.push(ContentRow::plain(""));
+        }
+    }
+    spaced
+}
+
+fn is_section_rule(row: &ContentRow) -> bool {
+    let text = line_text(&row.line);
+    !text.is_empty() && text.chars().all(|ch| ch == '-')
 }
 
 fn wrap_content_rows(rows: Vec<ContentRow>, width: u16) -> Vec<ContentRow> {
@@ -687,7 +711,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- q: quit",
             "- ?: toggle this help",
             "- s: open or close settings",
-            "- t / y in settings: cycle theme / symbol style",
+            "- t / y / p in settings: cycle theme / symbol style / spacing",
             "- r: refresh now",
             "- o: open current resource in browser through gh",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
@@ -755,6 +779,22 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
         palette,
     ));
     rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Spacing", palette));
+    rows.push(settings_option_row(
+        "comfortable",
+        "More section breathing room, like gh-dash",
+        state.spacing == SpacingMode::Comfortable,
+        HitTarget::SetSpacing("comfortable".into()),
+        palette,
+    ));
+    rows.push(settings_option_row(
+        "compact",
+        "Dense rows for smaller terminals",
+        state.spacing == SpacingMode::Compact,
+        HitTarget::SetSpacing("compact".into()),
+        palette,
+    ));
+    rows.push(ContentRow::plain(""));
     rows.push(ContentRow::target_styled(
         "[close settings]",
         HitTarget::CloseSettings,
@@ -763,7 +803,7 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
     rows.extend(
         [
             "",
-            "Keyboard: t theme | y symbols | s or Esc close",
+            "Keyboard: t theme | y symbols | p spacing | s or Esc close",
             "Changes are applied live and saved immediately.",
         ]
         .into_iter()
@@ -2753,6 +2793,39 @@ mod tests {
     }
 
     #[test]
+    fn comfortable_spacing_adds_breathing_room_after_section_rules() {
+        fn rows() -> Vec<ContentRow> {
+            vec![
+                heading_row("Activity", &Palette::default_dark()),
+                separator_row(12, &Palette::default_dark()),
+                ContentRow::plain("Comment"),
+            ]
+        }
+
+        let comfortable = apply_spacing(rows(), SpacingMode::Comfortable);
+        let compact = apply_spacing(rows(), SpacingMode::Compact);
+
+        assert_eq!(compact.len(), 3);
+        assert_eq!(comfortable.len(), 4);
+        assert_eq!(line_text(&comfortable[2].line), "");
+        assert_eq!(line_text(&comfortable[3].line), "Comment");
+    }
+
+    #[test]
+    fn comfortable_spacing_skips_existing_blank_after_rule() {
+        let rows = vec![
+            heading_row("Activity", &Palette::default_dark()),
+            separator_row(12, &Palette::default_dark()),
+            ContentRow::plain(""),
+        ];
+
+        let comfortable = apply_spacing(rows, SpacingMode::Comfortable);
+
+        assert_eq!(comfortable.len(), 3);
+        assert_eq!(line_text(&comfortable[2].line), "");
+    }
+
+    #[test]
     fn narrow_content_wraps_metadata_without_clipping() {
         let mut resource = pr_resource();
         resource.pull_request = None;
@@ -2766,6 +2839,7 @@ mod tests {
             value: "https://github.com/openclaw/openclaw/pull/81834#issuecomment-very-long-responsive-url🙂tail".into(),
         }];
         let mut state = AppState::new(resource);
+        state.spacing = SpacingMode::Compact;
 
         let content = draw(&mut state, 32, 28);
 
@@ -3156,6 +3230,8 @@ mod tests {
         assert!(content.contains("Config:"));
         assert!(content.contains("solarized-dark"));
         assert!(content.contains("emoji"));
+        assert!(content.contains("comfortable"));
+        assert!(content.contains("compact"));
         assert!(state
             .hit_areas
             .iter()
@@ -3164,6 +3240,10 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::SetSymbols("emoji".into())));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetSpacing("compact".into())));
         assert!(state
             .hit_areas
             .iter()

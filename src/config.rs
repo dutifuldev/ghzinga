@@ -6,7 +6,7 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::render::{SymbolMode, ThemeName};
+use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AppConfig {
@@ -17,6 +17,7 @@ pub struct AppConfig {
 pub struct UiConfig {
     pub theme: ThemeName,
     pub symbols: SymbolMode,
+    pub spacing: SpacingMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +36,7 @@ struct RawConfig {
 struct RawUiConfig {
     theme: Option<String>,
     symbols: Option<String>,
+    spacing: Option<String>,
 }
 
 impl Default for UiConfig {
@@ -42,6 +44,7 @@ impl Default for UiConfig {
         Self {
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
+            spacing: SpacingMode::Comfortable,
         }
     }
 }
@@ -57,10 +60,15 @@ impl AppConfig {
         self
     }
 
+    pub fn with_spacing(mut self, spacing: SpacingMode) -> Self {
+        self.ui.spacing = spacing;
+        self
+    }
+
     pub fn to_toml(self) -> String {
         format!(
-            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\n",
-            self.ui.theme, self.ui.symbols
+            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\nspacing = \"{}\"\n",
+            self.ui.theme, self.ui.symbols, self.ui.spacing
         )
     }
 }
@@ -152,6 +160,14 @@ fn parse_config(contents: &str, diagnostics: &mut Vec<String>) -> AppConfig {
                 }
             }
         }
+        if let Some(spacing) = ui.spacing {
+            match SpacingMode::from_str(&spacing) {
+                Ok(spacing) => config.ui.spacing = spacing,
+                Err(error) => {
+                    diagnostics.push(format!("invalid ui.spacing `{spacing}`: {error}"));
+                }
+            }
+        }
     }
     config
 }
@@ -176,12 +192,13 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\n",
+            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n",
             &mut diagnostics,
         );
 
         assert_eq!(config.ui.theme, ThemeName::SolarizedDark);
         assert_eq!(config.ui.symbols, SymbolMode::Emoji);
+        assert_eq!(config.ui.spacing, SpacingMode::Compact);
         assert!(diagnostics.is_empty());
     }
 
@@ -190,14 +207,15 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\n",
+            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\nspacing = \"wide\"\n",
             &mut diagnostics,
         );
 
         assert_eq!(config, AppConfig::default());
-        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics.len(), 3);
         assert!(diagnostics[0].contains("invalid ui.theme"));
         assert!(diagnostics[1].contains("invalid ui.symbols"));
+        assert!(diagnostics[2].contains("invalid ui.spacing"));
     }
 
     #[test]
@@ -222,14 +240,15 @@ mod tests {
         let path = dir.path().join("nested/config.toml");
         let config = AppConfig::default()
             .with_theme(ThemeName::SolarizedDark)
-            .with_symbols(SymbolMode::Emoji);
+            .with_symbols(SymbolMode::Emoji)
+            .with_spacing(SpacingMode::Compact);
 
         save_to_path(&path, config).unwrap();
 
         let contents = fs::read_to_string(path).unwrap();
         assert_eq!(
             contents,
-            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\n"
+            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n"
         );
     }
 }
