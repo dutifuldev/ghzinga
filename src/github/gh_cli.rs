@@ -247,11 +247,82 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
 }
 
 async fn run_graphql_timeline(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<u8>> {
+    let query = timeline_query(kind);
+    let number = id.number.to_string();
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql timeline", &error)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("{}", gh_failure_message("gh api graphql timeline", &stderr));
+    }
+
+    Ok(output.stdout)
+}
+
+fn timeline_query(kind: ResourceKind) -> String {
     let selector = match kind {
         ResourceKind::PullRequest => "pullRequest",
         ResourceKind::Issue => "issue",
     };
-    let query = format!(
+    let pr_timeline_items = match kind {
+        ResourceKind::PullRequest => {
+            r#",
+        MERGED_EVENT,
+        REVIEW_REQUESTED_EVENT,
+        REVIEW_REQUEST_REMOVED_EVENT,
+        READY_FOR_REVIEW_EVENT,
+        CONVERT_TO_DRAFT_EVENT,
+        AUTO_MERGE_ENABLED_EVENT,
+        AUTO_MERGE_DISABLED_EVENT"#
+        }
+        ResourceKind::Issue => "",
+    };
+    let pr_timeline_fragments = match kind {
+        ResourceKind::PullRequest => {
+            r#"
+          ... on MergedEvent {
+            id
+            createdAt
+            actor { login }
+            mergeRefName
+            commit { oid }
+          }
+          ... on ReviewRequestedEvent {
+            id
+            createdAt
+            actor { login }
+            requestedReviewer { __typename ... on User { login } ... on Team { name slug } }
+          }
+          ... on ReviewRequestRemovedEvent {
+            id
+            createdAt
+            actor { login }
+            requestedReviewer { __typename ... on User { login } ... on Team { name slug } }
+          }
+          ... on ReadyForReviewEvent { id createdAt actor { login } }
+          ... on ConvertToDraftEvent { id createdAt actor { login } }
+          ... on AutoMergeEnabledEvent { id createdAt actor { login } }
+          ... on AutoMergeDisabledEvent { id createdAt actor { login } reason }"#
+        }
+        ResourceKind::Issue => "",
+    };
+    format!(
         r#"
 query($owner: String!, $name: String!, $number: Int!) {{
   repository(owner: $owner, name: $name) {{
@@ -267,14 +338,7 @@ query($owner: String!, $name: String!, $number: Int!) {{
         CROSS_REFERENCED_EVENT,
         RENAMED_TITLE_EVENT,
         MILESTONED_EVENT,
-        DEMILESTONED_EVENT,
-        MERGED_EVENT,
-        REVIEW_REQUESTED_EVENT,
-        REVIEW_REQUEST_REMOVED_EVENT,
-        READY_FOR_REVIEW_EVENT,
-        CONVERT_TO_DRAFT_EVENT,
-        AUTO_MERGE_ENABLED_EVENT,
-        AUTO_MERGE_DISABLED_EVENT
+        DEMILESTONED_EVENT{pr_timeline_items}
       ]) {{
         nodes {{
           __typename
@@ -308,61 +372,14 @@ query($owner: String!, $name: String!, $number: Int!) {{
           ... on RenamedTitleEvent {{ id createdAt actor {{ login }} previousTitle currentTitle }}
           ... on MilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
           ... on DemilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
-          ... on MergedEvent {{
-            id
-            createdAt
-            actor {{ login }}
-            mergeRefName
-            commit {{ oid }}
-          }}
-          ... on ReviewRequestedEvent {{
-            id
-            createdAt
-            actor {{ login }}
-            requestedReviewer {{ __typename ... on User {{ login }} ... on Team {{ name slug }} }}
-          }}
-          ... on ReviewRequestRemovedEvent {{
-            id
-            createdAt
-            actor {{ login }}
-            requestedReviewer {{ __typename ... on User {{ login }} ... on Team {{ name slug }} }}
-          }}
-          ... on ReadyForReviewEvent {{ id createdAt actor {{ login }} }}
-          ... on ConvertToDraftEvent {{ id createdAt actor {{ login }} }}
-          ... on AutoMergeEnabledEvent {{ id createdAt actor {{ login }} }}
-          ... on AutoMergeDisabledEvent {{ id createdAt actor {{ login }} reason }}
+          {pr_timeline_fragments}
         }}
       }}
     }}
   }}
 }}
 "#
-    );
-    let number = id.number.to_string();
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql timeline", &error)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh api graphql timeline", &stderr));
-    }
-
-    Ok(output.stdout)
+    )
 }
 
 async fn run_graphql_commit_deployments(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
@@ -1781,6 +1798,20 @@ mod tests {
                 PR_FIELDS,
             ]
         );
+    }
+
+    #[test]
+    fn timeline_query_keeps_pr_only_events_out_of_issue_queries() {
+        let issue_query = timeline_query(ResourceKind::Issue);
+        let pr_query = timeline_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(issue_query.contains("CLOSED_EVENT"));
+        assert!(!issue_query.contains("MERGED_EVENT"));
+        assert!(!issue_query.contains("ReviewRequestedEvent"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        assert!(pr_query.contains("MERGED_EVENT"));
+        assert!(pr_query.contains("ReviewRequestedEvent"));
     }
 
     #[test]
