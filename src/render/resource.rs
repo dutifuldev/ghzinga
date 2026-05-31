@@ -513,9 +513,7 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
         area.width,
     );
     let max_scroll = rows.len().saturating_sub(area.height as usize) as u16;
-    if state.scroll > max_scroll {
-        state.scroll = max_scroll;
-    }
+    state.set_scroll_limit(max_scroll);
     let visible_rows = rows
         .into_iter()
         .enumerate()
