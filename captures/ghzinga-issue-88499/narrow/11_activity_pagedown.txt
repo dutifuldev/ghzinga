@@ -5,20 +5,20 @@ feat(senseaudio): add SenseAudio TTS provider
 OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
 OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
 warn Warnings: 1                                                                
-Dependency Changes Detected                                                     
+  Dependency Changes Detected                                                   
                                                                                 
-This PR changes dependency-related files. Maintainers should confirm these      
-changes are intentional.                                                        
+  This PR changes dependency-related files. Maintainers should confirm these    
+  changes are intentional.                                                      
                                                                                 
-Changed files:                                                                  
-[+ more]                                                                        
+  Changed files:                                                                
+  [+ more]                                                                      
                                                                                 
-Comment by @KLilyZ 2026-05-15T07:05:52Z                                         
-meta: association NONE                                                          
-[details]                                                                       
-Codex review: needs changes before merge.                                       
+  Comment by @KLilyZ 2026-05-15T07:05:52Z                                       
+  meta: association NONE                                                        
+  [details]                                                                     
+  Codex review: needs changes before merge.                                     
                                                                                 
-Summary The PR adds a SenseAudio speech provider to the bundled senseaudio      
-plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding, 
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio    
+  plugin, including TTS and voice-list HTTP helpers, voice-note opus            
 [refresh] [open] [settings] [help] [quit]                                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

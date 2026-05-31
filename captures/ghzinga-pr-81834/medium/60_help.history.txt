@@ -4,30 +4,30 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview  Activity  Commits  Checks  Files [Links]                                                                     
 OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
 warn Warnings: 1                                                                                                        
-Help                                                                                                                    
+  Help                                                                                                                  
                                                                                                                         
-Mouse                                                                                                                   
-- Click tabs to switch sections.                                                                                        
-- Click [+ more] / [- less] or [expand all] / [collapse all] to expand or collapse long text, checks, and files.        
-- Click visible GitHub issue or PR references to navigate.                                                              
-- Click settings rows to apply theme and symbol preferences.                                                            
-- Use the mouse wheel to scroll the current view.                                                                       
+  Mouse                                                                                                                 
+  - Click tabs to switch sections.                                                                                      
+  - Click [+ more] / [- less] or [expand all] / [collapse all] to expand or collapse long text, checks, and files.      
+  - Click visible GitHub issue or PR references to navigate.                                                            
+  - Click settings rows to apply theme and symbol preferences.                                                          
+  - Use the mouse wheel to scroll the current view.                                                                     
                                                                                                                         
-Keyboard                                                                                                                
-- q: quit                                                                                                               
-- ?: toggle this help                                                                                                   
-- s: open or close settings                                                                                             
-- t / y / p in settings: cycle theme / symbol style / spacing                                                           
-- r: refresh now                                                                                                        
-- o: open current resource in browser through gh                                                                        
-- Tab / Shift-Tab / Left / Right: switch tabs                                                                           
-- Up / Down / PageUp / PageDown / Home / End: scroll                                                                    
-- e: expand or collapse the main body                                                                                   
-- Backspace: return after following a link                                                                              
+  Keyboard                                                                                                              
+  - q: quit                                                                                                             
+  - ?: toggle this help                                                                                                 
+  - s: open or close settings                                                                                           
+  - t / y / p in settings: cycle theme / symbol style / spacing                                                         
+  - r: refresh now                                                                                                      
+  - o: open current resource in browser                                                                                 
+  - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
+  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
+  - e: expand or collapse the main body                                                                                 
+  - Backspace: return after following a link                                                                            
                                                                                                                         
-Refresh                                                                                                                 
-- Live mode refreshes automatically on the configured interval.                                                         
-- The status band shows the last refresh time and whether content changed.                                              
+  Refresh                                                                                                               
+  - Live mode refreshes automatically on the configured interval.                                                       
+  - The status band shows the last refresh time and whether content changed.                                            
                                                                                                                         
                                                                                                                         
                                                                                                                         

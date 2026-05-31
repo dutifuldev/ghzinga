@@ -5,20 +5,20 @@ feat(senseaudio): add SenseAudio TTS provider
 OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
 OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
 warn Warnings: 1                                                                
-Conversation                                                                    
---------------------------------------------------------------------------------
+  Conversation                                                                  
+  ----------------------------------------------------------------------------  
                                                                                 
-[expand all]                                                                    
+  [expand all]                                                                  
                                                                                 
-* @KLilyZ opened 2026-05-14T14:05:46Z                                           
-Summary                                                                         
+  * @KLilyZ opened 2026-05-14T14:05:46Z                                         
+  Summary                                                                       
                                                                                 
-- Problem: senseaudio bundled plugin only has ASR; no TTS.                      
-- Why it matters: completes the round trip in the same plugin; SenseAudio's     
-/v1/t2a_v2 is solid TTS and pairs with the ASR added in #66943.                 
-- What changed: registers a speechProvider in extensions/senseaudio/.           
-Synthesizes via /v1/t2a_v2, lists system voices via /v1/get_voice, transcodes   
-MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code 
-/ missing-audio buckets.                                                        
+  - Problem: senseaudio bundled plugin only has ASR; no TTS.                    
+  - Why it matters: completes the round trip in the same plugin; SenseAudio's   
+  /v1/t2a_v2 is solid TTS and pairs with the ASR added in #66943.               
+  - What changed: registers a speechProvider in extensions/senseaudio/.         
+  Synthesizes via /v1/t2a_v2, lists system voices via /v1/get_voice,            
+  transcodes MP3→opus for voice-note targets. Errors split into HTTP /          
+  base_resp.status_code / missing-audio buckets.                                
 [refresh] [open] [settings] [help] [quit]                                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
