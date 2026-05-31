@@ -343,6 +343,19 @@ query($owner: String!, $name: String!, $number: Int!) {{
         UNLABELED_EVENT,
         ASSIGNED_EVENT,
         UNASSIGNED_EVENT,
+        PINNED_EVENT,
+        UNPINNED_EVENT,
+        LOCKED_EVENT,
+        UNLOCKED_EVENT,
+        SUBSCRIBED_EVENT,
+        UNSUBSCRIBED_EVENT,
+        MENTIONED_EVENT,
+        COMMENT_DELETED_EVENT,
+        TRANSFERRED_EVENT,
+        MARKED_AS_DUPLICATE_EVENT,
+        UNMARKED_AS_DUPLICATE_EVENT,
+        CONNECTED_EVENT,
+        DISCONNECTED_EVENT,
         REFERENCED_EVENT,
         CROSS_REFERENCED_EVENT,
         RENAMED_TITLE_EVENT,
@@ -366,6 +379,48 @@ query($owner: String!, $name: String!, $number: Int!) {{
             createdAt
             actor {{ login }}
             assignee {{ __typename ... on User {{ login }} }}
+          }}
+          ... on PinnedEvent {{ id createdAt actor {{ login }} }}
+          ... on UnpinnedEvent {{ id createdAt actor {{ login }} }}
+          ... on LockedEvent {{ id createdAt actor {{ login }} lockReason }}
+          ... on UnlockedEvent {{ id createdAt actor {{ login }} }}
+          ... on SubscribedEvent {{ id createdAt actor {{ login }} }}
+          ... on UnsubscribedEvent {{ id createdAt actor {{ login }} }}
+          ... on MentionedEvent {{ id createdAt actor {{ login }} }}
+          ... on CommentDeletedEvent {{ id createdAt actor {{ login }} }}
+          ... on TransferredEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            fromRepository {{ nameWithOwner }}
+          }}
+          ... on MarkedAsDuplicateEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            canonical {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+            duplicate {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+          }}
+          ... on UnmarkedAsDuplicateEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            canonical {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+            duplicate {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+          }}
+          ... on ConnectedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            source {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+            subject {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+          }}
+          ... on DisconnectedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            source {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
+            subject {{ __typename ... on Issue {{ number title url repository {{ nameWithOwner }} }} ... on PullRequest {{ number title url repository {{ nameWithOwner }} }} }}
           }}
           ... on ReferencedEvent {{ id createdAt actor {{ login }} commit {{ oid }} }}
           ... on CrossReferencedEvent {{
@@ -1728,6 +1783,41 @@ fn timeline_body(typename: &str, node: &Value) -> String {
         ),
         "AssignedEvent" => format!("assigned {}", assignee_name(node)),
         "UnassignedEvent" => format!("unassigned {}", assignee_name(node)),
+        "PinnedEvent" => "pinned".to_string(),
+        "UnpinnedEvent" => "unpinned".to_string(),
+        "LockedEvent" => format!(
+            "locked{}",
+            string_field(node, "lockReason")
+                .map(|reason| format!(": {}", format_github_state(reason)))
+                .unwrap_or_default()
+        ),
+        "UnlockedEvent" => "unlocked".to_string(),
+        "SubscribedEvent" => "subscribed".to_string(),
+        "UnsubscribedEvent" => "unsubscribed".to_string(),
+        "MentionedEvent" => "mentioned".to_string(),
+        "CommentDeletedEvent" => "deleted a comment".to_string(),
+        "TransferredEvent" => format!(
+            "transferred from {}",
+            string_field_at(node, &["fromRepository", "nameWithOwner"]).unwrap_or("unknown")
+        ),
+        "MarkedAsDuplicateEvent" => format!(
+            "marked duplicate of {}",
+            resource_reference_label(node.get("canonical").unwrap_or(&Value::Null))
+        ),
+        "UnmarkedAsDuplicateEvent" => format!(
+            "unmarked duplicate of {}",
+            resource_reference_label(node.get("canonical").unwrap_or(&Value::Null))
+        ),
+        "ConnectedEvent" => format!(
+            "connected {} to {}",
+            resource_reference_label(node.get("source").unwrap_or(&Value::Null)),
+            resource_reference_label(node.get("subject").unwrap_or(&Value::Null))
+        ),
+        "DisconnectedEvent" => format!(
+            "disconnected {} from {}",
+            resource_reference_label(node.get("source").unwrap_or(&Value::Null)),
+            resource_reference_label(node.get("subject").unwrap_or(&Value::Null))
+        ),
         "ReferencedEvent" => format!(
             "referenced commit {}",
             string_field_at(node, &["commit", "oid"])
@@ -1779,24 +1869,35 @@ fn timeline_body(typename: &str, node: &Value) -> String {
 
 fn cross_reference_body(node: &Value) -> String {
     let source = node.get("source").unwrap_or(&Value::Null);
-    let number = source.get("number").and_then(Value::as_u64);
+    let label = resource_reference_label(source);
     let title = string_field(source, "title").unwrap_or("untitled");
-    let repo = string_field_at(source, &["repository", "nameWithOwner"]);
     let url = string_field(source, "url");
-    match (repo, number, url) {
-        (Some(repo), Some(number), Some(url)) => {
-            format!("cross-referenced by {repo}#{number}: {title}\n{url}")
-        }
-        (Some(repo), Some(number), None) => {
-            format!("cross-referenced by {repo}#{number}: {title}")
-        }
-        (_, _, Some(url)) => format!("cross-referenced by {title}\n{url}"),
-        _ => format!("cross-referenced by {title}"),
+    match url {
+        Some(url) => format!("cross-referenced by {label}: {title}\n{url}"),
+        None => format!("cross-referenced by {label}: {title}"),
+    }
+}
+
+fn resource_reference_label(value: &Value) -> String {
+    let number = value.get("number").and_then(Value::as_u64);
+    let title = string_field(value, "title").unwrap_or("untitled");
+    let repo = string_field_at(value, &["repository", "nameWithOwner"]);
+    match (repo, number) {
+        (Some(repo), Some(number)) => format!("{repo}#{number}"),
+        (_, Some(number)) => format!("#{number}"),
+        _ => title.to_string(),
     }
 }
 
 fn cross_reference_url(node: &Value) -> Option<String> {
-    string_field_at(node, &["source", "url"]).map(str::to_string)
+    [
+        ["source", "url"],
+        ["canonical", "url"],
+        ["duplicate", "url"],
+        ["subject", "url"],
+    ]
+    .iter()
+    .find_map(|path| string_field_at(node, path).map(str::to_string))
 }
 
 fn actor_login(node: &Value) -> Option<String> {
@@ -1817,6 +1918,21 @@ fn requested_reviewer_name(node: &Value) -> String {
         .or_else(|| string_field_at(node, &["requestedReviewer", "__typename"]))
         .unwrap_or("unknown")
         .to_string()
+}
+
+fn format_github_state(value: &str) -> String {
+    value
+        .split('_')
+        .map(|part| {
+            let lower = part.to_ascii_lowercase();
+            let mut chars = lower.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn string_field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
@@ -2036,9 +2152,13 @@ mod tests {
 
         assert!(issue_query.contains("issue(number: $number)"));
         assert!(issue_query.contains("CLOSED_EVENT"));
+        assert!(issue_query.contains("LOCKED_EVENT"));
+        assert!(issue_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(!issue_query.contains("MERGED_EVENT"));
         assert!(!issue_query.contains("ReviewRequestedEvent"));
         assert!(pr_query.contains("pullRequest(number: $number)"));
+        assert!(pr_query.contains("LOCKED_EVENT"));
+        assert!(pr_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(pr_query.contains("MERGED_EVENT"));
         assert!(pr_query.contains("ReviewRequestedEvent"));
     }
@@ -2808,6 +2928,46 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                     "mergeRefName": "main",
                                     "commit": {"oid": "abcdef1234567890"}
                                 }),
+                                serde_json::json!({
+                                    "__typename": "LockedEvent",
+                                    "id": "locked",
+                                    "createdAt": "2026-05-31T07:05:12Z",
+                                    "actor": {"login": "alice"},
+                                    "lockReason": "RESOLVED"
+                                }),
+                                serde_json::json!({
+                                    "__typename": "MarkedAsDuplicateEvent",
+                                    "id": "duplicate",
+                                    "createdAt": "2026-05-31T07:06:12Z",
+                                    "actor": {"login": "alice"},
+                                    "canonical": {
+                                        "__typename": "Issue",
+                                        "number": 88499,
+                                        "title": "canonical issue",
+                                        "url": "https://github.com/openclaw/openclaw/issues/88499",
+                                        "repository": {"nameWithOwner": "openclaw/openclaw"}
+                                    }
+                                }),
+                                serde_json::json!({
+                                    "__typename": "ConnectedEvent",
+                                    "id": "connected",
+                                    "createdAt": "2026-05-31T07:07:12Z",
+                                    "actor": {"login": "alice"},
+                                    "source": {
+                                        "__typename": "Issue",
+                                        "number": 88499,
+                                        "title": "source issue",
+                                        "url": "https://github.com/openclaw/openclaw/issues/88499",
+                                        "repository": {"nameWithOwner": "openclaw/openclaw"}
+                                    },
+                                    "subject": {
+                                        "__typename": "PullRequest",
+                                        "number": 81834,
+                                        "title": "subject pr",
+                                        "url": "https://github.com/openclaw/openclaw/pull/81834",
+                                        "repository": {"nameWithOwner": "openclaw/openclaw"}
+                                    }
+                                }),
                             ],
                         },
                     }),
@@ -2816,7 +2976,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             },
         });
 
-        assert_eq!(activity.len(), 5);
+        assert_eq!(activity.len(), 8);
         assert_eq!(activity[0].kind, ActivityKind::Timeline);
         assert_eq!(activity[0].author, "clawsweeper");
         assert_eq!(activity[0].body, "added label P2");
@@ -2831,6 +2991,19 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert_eq!(activity[2].body, "requested review from maintainer");
         assert_eq!(activity[3].body, "marked ready for review");
         assert_eq!(activity[4].body, "merged into main at abcdef123456");
+        assert_eq!(activity[5].body, "locked: Resolved");
+        assert_eq!(
+            activity[6].body,
+            "marked duplicate of openclaw/openclaw#88499"
+        );
+        assert_eq!(
+            activity[6].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/issues/88499")
+        );
+        assert_eq!(
+            activity[7].body,
+            "connected openclaw/openclaw#88499 to openclaw/openclaw#81834"
+        );
     }
 
     #[test]
