@@ -38,7 +38,7 @@ async loop, and the installed `gh` CLI for GitHub access.
 | Manual refresh | reducer tests for `r` and `[refresh]`, footer render-to-click tests |
 | Visible truncation/expansion | `[more]` / `[less]` render tests for body, activity, checks, and files |
 | Mouse click routing | synthetic Crossterm `MouseEvent` tests in `src/app/update.rs` and render-to-click tests in `src/render/resource.rs` |
-| Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, `r`, `?`, `q`, `o`, Backspace; no Ctrl-b/Ctrl-a/Ctrl-d/Ctrl-u primary shortcuts |
+| Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, Enter for first visible content action, `r`, `?`, `q`, `o`, Backspace; no Ctrl-b/Ctrl-a/Ctrl-d/Ctrl-u primary shortcuts |
 | No special UI fonts required | renderer uses ASCII chrome: `[more]`, `[less]`, `[refresh]`, `[open]`, `[quit]`, `[help]`, `-` rules, text status labels |
 | Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories |
 | Current-resource browser open | reducer tests for `o` and `[open]`; smoke checks with `BROWSER=echo gh pr view ... --web` and `gh issue view ... --web` |
@@ -83,6 +83,7 @@ Covered click targets:
 - file rows and long patch expansion controls
 - visible body/activity links
 - Links-tab navigation rows
+- Enter activation for the first visible content action
 - `[refresh]`
 - `[open]`
 - `[quit]`
