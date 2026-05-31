@@ -74,6 +74,7 @@ pub struct AppState {
     pub resource: Resource,
     pub active_tab: Tab,
     pub scroll: u16,
+    pub scroll_limit: u16,
     pub expanded_blocks: HashSet<BlockId>,
     pub hit_areas: Vec<HitArea>,
     pub history: Vec<crate::domain::ResourceId>,
@@ -95,6 +96,7 @@ impl AppState {
             active_tab: Tab::Overview,
             resource,
             scroll: 0,
+            scroll_limit: u16::MAX,
             expanded_blocks: HashSet::new(),
             hit_areas: Vec::new(),
             history: Vec::new(),
@@ -119,6 +121,7 @@ impl AppState {
         if self.tabs().contains(&tab) {
             self.active_tab = tab;
             self.scroll = 0;
+            self.scroll_limit = u16::MAX;
         }
     }
 
@@ -159,6 +162,7 @@ impl AppState {
         self.resource = resource;
         self.active_tab = Tab::Overview;
         self.scroll = 0;
+        self.scroll_limit = u16::MAX;
         self.expanded_blocks.clear();
         self.hit_areas.clear();
         self.last_refreshed_at = None;
@@ -213,6 +217,30 @@ impl AppState {
     pub fn toggle_help(&mut self) {
         self.show_help = !self.show_help;
         self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+    }
+
+    pub fn set_scroll_limit(&mut self, limit: u16) {
+        self.scroll_limit = limit;
+        if self.scroll > self.scroll_limit {
+            self.scroll = self.scroll_limit;
+        }
+    }
+
+    pub fn scroll_down(&mut self, lines: u16) {
+        self.scroll = self.scroll.saturating_add(lines).min(self.scroll_limit);
+    }
+
+    pub fn scroll_up(&mut self, lines: u16) {
+        self.scroll = self.scroll.saturating_sub(lines);
+    }
+
+    pub fn scroll_to_top(&mut self) {
+        self.scroll = 0;
+    }
+
+    pub fn scroll_to_bottom(&mut self) {
+        self.scroll = self.scroll_limit;
     }
 }
 
@@ -367,10 +395,46 @@ mod tests {
     fn help_toggle_resets_scroll() {
         let mut state = AppState::new(issue_resource());
         state.scroll = 12;
+        state.scroll_limit = 20;
 
         state.toggle_help();
 
         assert!(state.show_help);
         assert_eq!(state.scroll, 0);
+        assert_eq!(state.scroll_limit, u16::MAX);
+    }
+
+    #[test]
+    fn scroll_down_clamps_to_rendered_scroll_limit() {
+        let mut state = AppState::new(issue_resource());
+        state.set_scroll_limit(7);
+
+        for _ in 0..20 {
+            state.scroll_down(3);
+        }
+
+        assert_eq!(state.scroll, 7);
+    }
+
+    #[test]
+    fn lowering_scroll_limit_clamps_existing_scroll() {
+        let mut state = AppState::new(issue_resource());
+        state.scroll = 40;
+
+        state.set_scroll_limit(8);
+
+        assert_eq!(state.scroll, 8);
+    }
+
+    #[test]
+    fn tab_change_resets_unknown_scroll_limit_until_next_render() {
+        let mut state = AppState::new(issue_resource());
+        state.set_scroll_limit(7);
+        state.scroll = 7;
+
+        state.next_tab();
+
+        assert_eq!(state.scroll, 0);
+        assert_eq!(state.scroll_limit, u16::MAX);
     }
 }

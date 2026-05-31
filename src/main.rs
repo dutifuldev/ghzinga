@@ -19,6 +19,9 @@ use ghzoom::{
 };
 use tokio::process::Command;
 
+const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
+const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -82,54 +85,84 @@ async fn run_tui(
             &gateway,
         )
         .await;
-        if event::poll(Duration::from_millis(250))? {
-            let app_event = match event::read()? {
-                Event::Key(key) => Some(AppEvent::Key(key)),
-                Event::Mouse(mouse) => Some(AppEvent::Mouse(mouse)),
-                _ => None,
-            };
-            if let Some(app_event) = app_event {
-                match apply_event(state, app_event) {
-                    AppIntent::Quit => return Ok(()),
-                    AppIntent::Refresh => {
-                        if live_refresh {
-                            refresh_resource(state, &gateway).await;
-                            last_refresh = Instant::now();
-                        } else {
-                            state.status_message =
-                                Some("offline fixture mode: refresh skipped".into());
-                        }
-                    }
-                    AppIntent::Navigate(id) => {
-                        if live_refresh {
-                            navigate_to_resource(state, id, &gateway).await;
-                            last_refresh = Instant::now();
-                        } else {
-                            state.last_error = Some(format!(
-                                "offline fixture mode: cannot navigate to {}",
-                                id.canonical_name()
-                            ));
-                        }
-                    }
-                    AppIntent::OpenResource(id) => {
-                        open_resource(state, &id).await;
-                    }
-                    AppIntent::OpenUrl(url) => {
-                        open_url(state, &url).await;
-                    }
-                    AppIntent::Back => {
-                        if live_refresh {
-                            navigate_back(state, &gateway).await;
-                            last_refresh = Instant::now();
-                        } else {
-                            state.status_message =
-                                Some("offline fixture mode: no live history".into());
-                        }
-                    }
-                    AppIntent::None => {}
-                }
+        for app_event in read_pending_app_events()? {
+            let intent = apply_event(state, app_event);
+            if handle_intent(state, intent, live_refresh, &mut last_refresh, &gateway).await {
+                return Ok(());
             }
         }
+    }
+}
+
+fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
+    if !event::poll(EVENT_POLL_TIMEOUT)? {
+        return Ok(Vec::new());
+    }
+
+    let mut events = Vec::with_capacity(MAX_PENDING_EVENTS_PER_FRAME);
+    events.push(event_to_app_event(event::read()?));
+    while events.len() < MAX_PENDING_EVENTS_PER_FRAME && event::poll(Duration::ZERO)? {
+        events.push(event_to_app_event(event::read()?));
+    }
+    Ok(events.into_iter().flatten().collect())
+}
+
+fn event_to_app_event(event: Event) -> Option<AppEvent> {
+    match event {
+        Event::Key(key) => Some(AppEvent::Key(key)),
+        Event::Mouse(mouse) => Some(AppEvent::Mouse(mouse)),
+        _ => None,
+    }
+}
+
+async fn handle_intent<G: GithubGateway>(
+    state: &mut AppState,
+    intent: AppIntent,
+    live_refresh: bool,
+    last_refresh: &mut Instant,
+    gateway: &G,
+) -> bool {
+    match intent {
+        AppIntent::Quit => true,
+        AppIntent::Refresh => {
+            if live_refresh {
+                refresh_resource(state, gateway).await;
+                *last_refresh = Instant::now();
+            } else {
+                state.status_message = Some("offline fixture mode: refresh skipped".into());
+            }
+            false
+        }
+        AppIntent::Navigate(id) => {
+            if live_refresh {
+                navigate_to_resource(state, id, gateway).await;
+                *last_refresh = Instant::now();
+            } else {
+                state.last_error = Some(format!(
+                    "offline fixture mode: cannot navigate to {}",
+                    id.canonical_name()
+                ));
+            }
+            false
+        }
+        AppIntent::OpenResource(id) => {
+            open_resource(state, &id).await;
+            false
+        }
+        AppIntent::OpenUrl(url) => {
+            open_url(state, &url).await;
+            false
+        }
+        AppIntent::Back => {
+            if live_refresh {
+                navigate_back(state, gateway).await;
+                *last_refresh = Instant::now();
+            } else {
+                state.status_message = Some("offline fixture mode: no live history".into());
+            }
+            false
+        }
+        AppIntent::None => false,
     }
 }
 

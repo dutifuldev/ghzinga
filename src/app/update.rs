@@ -71,27 +71,27 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             AppIntent::None
         }
         KeyCode::Down => {
-            state.scroll = state.scroll.saturating_add(1);
+            state.scroll_down(1);
             AppIntent::None
         }
         KeyCode::Up => {
-            state.scroll = state.scroll.saturating_sub(1);
+            state.scroll_up(1);
             AppIntent::None
         }
         KeyCode::PageDown => {
-            state.scroll = state.scroll.saturating_add(10);
+            state.scroll_down(10);
             AppIntent::None
         }
         KeyCode::PageUp => {
-            state.scroll = state.scroll.saturating_sub(10);
+            state.scroll_up(10);
             AppIntent::None
         }
         KeyCode::Home => {
-            state.scroll = 0;
+            state.scroll_to_top();
             AppIntent::None
         }
         KeyCode::End => {
-            state.scroll = u16::MAX;
+            state.scroll_to_bottom();
             AppIntent::None
         }
         KeyCode::Char('e') => {
@@ -105,11 +105,11 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
-            state.scroll = state.scroll.saturating_add(3);
+            state.scroll_down(3);
             AppIntent::None
         }
         MouseEventKind::ScrollUp => {
-            state.scroll = state.scroll.saturating_sub(3);
+            state.scroll_up(3);
             AppIntent::None
         }
         MouseEventKind::Down(MouseButton::Left) => {
@@ -258,6 +258,59 @@ mod tests {
         );
 
         assert_eq!(state.scroll, 3);
+    }
+
+    #[test]
+    fn repeated_scroll_down_at_bottom_is_idempotent() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(9);
+        state.scroll_to_bottom();
+
+        for _ in 0..20 {
+            apply_event(
+                &mut state,
+                AppEvent::Mouse(MouseEvent {
+                    kind: MouseEventKind::ScrollDown,
+                    column: 4,
+                    row: 4,
+                    modifiers: KeyModifiers::empty(),
+                }),
+            );
+        }
+
+        assert_eq!(state.scroll, 9);
+    }
+
+    #[test]
+    fn repeated_key_down_at_bottom_is_idempotent() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(4);
+        state.scroll_to_bottom();
+
+        for _ in 0..20 {
+            apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::empty())),
+            );
+        }
+
+        assert_eq!(state.scroll, 4);
+    }
+
+    #[test]
+    fn repeated_page_down_at_bottom_is_idempotent() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(12);
+        state.scroll_to_bottom();
+
+        for _ in 0..20 {
+            apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::empty())),
+            );
+        }
+
+        assert_eq!(state.scroll, 12);
     }
 
     #[test]
