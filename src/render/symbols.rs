@@ -76,6 +76,7 @@ pub struct Symbols {
     pub less_patch: &'static str,
     pub footer_refresh: &'static str,
     pub footer_open: &'static str,
+    pub footer_settings: &'static str,
     pub footer_help: &'static str,
     pub footer_quit: &'static str,
 }
@@ -120,6 +121,7 @@ impl Symbols {
             less_patch: "[- less patch]",
             footer_refresh: "[refresh]",
             footer_open: "[open]",
+            footer_settings: "[settings]",
             footer_help: "[help]",
             footer_quit: "[quit]",
         }
@@ -164,6 +166,7 @@ impl Symbols {
             less_patch: "[➖ less patch]",
             footer_refresh: "[🔄 refresh]",
             footer_open: "[🌐 open]",
+            footer_settings: "[⚙ settings]",
             footer_help: "[❔ help]",
             footer_quit: "[⏻ quit]",
         }

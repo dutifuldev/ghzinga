@@ -13,13 +13,21 @@ pub enum HitTarget {
     OpenCurrent,
     Quit,
     Help,
+    Settings,
+    CloseSettings,
+    SetTheme(String),
+    SetSymbols(String),
 }
 
 impl HitTarget {
     pub fn is_content_action(&self) -> bool {
         matches!(
             self,
-            Self::ToggleBlock(_) | Self::Navigate(_) | Self::OpenUrl(_)
+            Self::ToggleBlock(_)
+                | Self::Navigate(_)
+                | Self::OpenUrl(_)
+                | Self::SetTheme(_)
+                | Self::SetSymbols(_)
         )
     }
 }

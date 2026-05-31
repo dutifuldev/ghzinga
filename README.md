@@ -58,7 +58,35 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
 accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
-`emoji`; ASCII is the default.
+`emoji`. CLI theme and symbol flags override saved config for that run only.
+
+## Configuration
+
+Ghzinga reads a small TOML config file:
+
+```text
+~/.config/ghzinga/config.toml
+```
+
+When `XDG_CONFIG_HOME` is set, the path is
+`$XDG_CONFIG_HOME/ghzinga/config.toml`. `GZG_CONFIG_PATH` can point at a
+specific file for tests, scripts, or dotfile setups.
+
+Default config:
+
+```toml
+[ui]
+theme = "default"
+symbols = "ascii"
+```
+
+The app works without a config file. Invalid known values fall back to safe
+defaults and show a warning in the status band. Unknown fields are ignored so
+future config additions do not break older files.
+
+Open settings inside the TUI with `s` or the footer `[settings]` control. Theme
+and symbol changes apply live and are saved back to `config.toml`; write errors
+are shown in the status band without crashing the app.
 
 ## What It Shows
 
@@ -138,13 +166,15 @@ Mouse:
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
-- click `[refresh]`, `[open]`, `[help]`, and `[quit]`
+- click `[refresh]`, `[open]`, `[settings]`, `[help]`, and `[quit]`
 - use the mouse wheel to scroll
 
 Keyboard:
 
 - `q`: quit
 - `?`: toggle help
+- `s`: open or close settings
+- `t` / `y` while settings are open: cycle theme / symbol style
 - `r`: refresh now
 - `o`: open the current resource in the browser through `gh`
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs

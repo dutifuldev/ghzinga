@@ -37,13 +37,13 @@ pub struct Cli {
     #[arg(long, value_name = "TAB")]
     pub tab: Option<Tab>,
 
-    /// UI theme: default or solarized-dark.
-    #[arg(long, default_value_t = ThemeName::Default, value_name = "THEME")]
-    pub theme: ThemeName,
+    /// Override configured UI theme: default or solarized-dark.
+    #[arg(long, value_name = "THEME")]
+    pub theme: Option<ThemeName>,
 
-    /// Symbol style: ascii or emoji.
-    #[arg(long, default_value_t = SymbolMode::Ascii, value_name = "SYMBOLS")]
-    pub symbols: SymbolMode,
+    /// Override configured symbol style: ascii or emoji.
+    #[arg(long, value_name = "SYMBOLS")]
+    pub symbols: Option<SymbolMode>,
 }
 
 impl Cli {
@@ -113,13 +113,13 @@ mod tests {
             "openclaw/openclaw#81834",
         ]);
 
-        assert_eq!(cli.theme, ThemeName::SolarizedDark);
+        assert_eq!(cli.theme, Some(ThemeName::SolarizedDark));
     }
 
     #[test]
     fn parses_symbol_mode() {
         let cli = Cli::parse_from(["ghzinga", "--symbols", "emoji", "openclaw/openclaw#81834"]);
 
-        assert_eq!(cli.symbols, SymbolMode::Emoji);
+        assert_eq!(cli.symbols, Some(SymbolMode::Emoji));
     }
 }

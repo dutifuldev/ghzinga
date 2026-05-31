@@ -1,4 +1,4 @@
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 use crate::domain::{Resource, ResourceKind};
 use crate::input::HitArea;
@@ -86,8 +86,10 @@ pub struct AppState {
     pub last_error: Option<String>,
     pub status_message: Option<String>,
     pub show_help: bool,
+    pub show_settings: bool,
     pub theme: ThemeName,
     pub symbols: SymbolMode,
+    pub config_path: PathBuf,
 }
 
 impl AppState {
@@ -108,8 +110,10 @@ impl AppState {
             last_error: None,
             status_message: None,
             show_help: false,
+            show_settings: false,
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
+            config_path: crate::config::config_path(),
         }
     }
 
@@ -216,8 +220,58 @@ impl AppState {
 
     pub fn toggle_help(&mut self) {
         self.show_help = !self.show_help;
+        if self.show_help {
+            self.show_settings = false;
+        }
         self.scroll = 0;
         self.scroll_limit = u16::MAX;
+    }
+
+    pub fn toggle_settings(&mut self) {
+        self.show_settings = !self.show_settings;
+        if self.show_settings {
+            self.show_help = false;
+        }
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+    }
+
+    pub fn close_settings(&mut self) {
+        self.show_settings = false;
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+    }
+
+    pub fn set_theme(&mut self, theme: ThemeName) -> bool {
+        if self.theme == theme {
+            return false;
+        }
+        self.theme = theme;
+        true
+    }
+
+    pub fn set_symbols(&mut self, symbols: SymbolMode) -> bool {
+        if self.symbols == symbols {
+            return false;
+        }
+        self.symbols = symbols;
+        true
+    }
+
+    pub fn cycle_theme(&mut self) -> bool {
+        let next = match self.theme {
+            ThemeName::Default => ThemeName::SolarizedDark,
+            ThemeName::SolarizedDark => ThemeName::Default,
+        };
+        self.set_theme(next)
+    }
+
+    pub fn cycle_symbols(&mut self) -> bool {
+        let next = match self.symbols {
+            SymbolMode::Ascii => SymbolMode::Emoji,
+            SymbolMode::Emoji => SymbolMode::Ascii,
+        };
+        self.set_symbols(next)
     }
 
     pub fn set_scroll_limit(&mut self, limit: u16) {
