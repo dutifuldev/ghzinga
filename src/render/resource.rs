@@ -80,6 +80,13 @@ impl ContentRow {
             target: Some(target),
         }
     }
+
+    fn target_line(line: Line<'static>, target: HitTarget) -> Self {
+        Self {
+            line,
+            target: Some(target),
+        }
+    }
 }
 
 pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
@@ -1412,17 +1419,17 @@ fn files_rows_for_pr(
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
         let marker = expand_label(expanded, symbols);
-        rows.push(ContentRow::target_styled(
-            format!(
-                "+{:<4} -{:<4} {:<8} {} {}",
+        rows.push(ContentRow::target_line(
+            file_summary_line(
                 file.additions,
                 file.deletions,
-                file.change_type,
-                truncate_ascii(&file.path, width.saturating_sub(27)),
-                marker
+                &file.change_type,
+                &file.path,
+                marker,
+                width,
+                palette,
             ),
             HitTarget::ToggleBlock(block.clone()),
-            link_style(palette),
         ));
         if expanded {
             rows.push(ContentRow::plain(format!("path: {}", file.path)));
@@ -1434,12 +1441,10 @@ fn files_rows_for_pr(
                 rows.push(ContentRow::plain("patch"));
                 let patch_block = BlockId::Patch(file.path.clone());
                 let patch_expanded = expanded_blocks.contains(&patch_block);
-                let wrapped = patch
-                    .lines()
-                    .flat_map(|line| markdown::wrap_plain_text(line, width))
-                    .collect::<Vec<_>>();
-                let (visible, truncated) = markdown::visible_prefix(&wrapped, 18, patch_expanded);
-                rows.extend(visible.into_iter().map(ContentRow::plain));
+                let patch_rows = diff_patch_rows(patch, width, palette);
+                let truncated = !patch_expanded && patch_rows.len() > 18;
+                let visible_count = if patch_expanded { patch_rows.len() } else { 18 };
+                rows.extend(patch_rows.into_iter().take(visible_count));
                 if truncated || patch_expanded {
                     rows.push(ContentRow::target_styled(
                         if patch_expanded {
@@ -1463,6 +1468,78 @@ fn files_rows_for_pr(
         }
     }
     rows
+}
+
+fn file_summary_line(
+    additions: u64,
+    deletions: u64,
+    change_type: &str,
+    path: &str,
+    marker: &str,
+    width: usize,
+    palette: &Palette,
+) -> Line<'static> {
+    Line::from(vec![
+        Span::styled(
+            format!("+{additions:<4}"),
+            Style::default()
+                .fg(palette.green)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            format!("-{deletions:<4}"),
+            Style::default()
+                .fg(palette.red)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            format!("{change_type:<8}"),
+            Style::default().fg(palette.subtext0),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            truncate_ascii(path, width.saturating_sub(27)),
+            Style::default()
+                .fg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+        Span::styled(marker.to_string(), button_style(palette)),
+    ])
+}
+
+fn diff_patch_rows(patch: &str, width: usize, palette: &Palette) -> Vec<ContentRow> {
+    patch
+        .lines()
+        .flat_map(|line| {
+            let style = diff_line_style(line, palette);
+            markdown::wrap_plain_text(line, width)
+                .into_iter()
+                .map(move |line| ContentRow::styled(line, style))
+        })
+        .collect()
+}
+
+fn diff_line_style(line: &str, palette: &Palette) -> Style {
+    if line.starts_with('+') {
+        Style::default().fg(palette.green)
+    } else if line.starts_with('-') {
+        Style::default().fg(palette.red)
+    } else if line.starts_with("@@") {
+        Style::default()
+            .fg(palette.teal)
+            .add_modifier(Modifier::BOLD)
+    } else if line.starts_with("diff --git")
+        || line.starts_with("index ")
+        || line.starts_with("new file mode ")
+        || line.starts_with("deleted file mode ")
+    {
+        Style::default().fg(palette.overlay1)
+    } else {
+        Style::default().fg(palette.text)
+    }
 }
 
 fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -2760,6 +2837,78 @@ mod tests {
         assert!(content.contains("patch"));
         assert!(content.contains("diff --git"));
         assert!(content.contains("+import speech"));
+    }
+
+    #[test]
+    fn file_rows_style_diff_lines_by_change_kind() {
+        let mut resource = pr_resource();
+        let file = resource
+            .pull_request
+            .as_mut()
+            .unwrap()
+            .files
+            .first_mut()
+            .unwrap();
+        file.patch = Some(
+            "diff --git a/extensions/senseaudio/index.ts b/extensions/senseaudio/index.ts\n\
+@@ -1,2 +1,2 @@\n\
+-import old\n\
++import speech\n\
+ context line"
+                .into(),
+        );
+        let path = file.path.clone();
+        let mut expanded_blocks = std::collections::HashSet::new();
+        expanded_blocks.insert(BlockId::File(path.clone()));
+        let palette = Palette::default_dark();
+        let symbols = crate::render::symbols::SymbolMode::Ascii.symbols();
+        let rows = files_rows_for_pr(
+            resource.pull_request.as_ref().unwrap(),
+            120,
+            &expanded_blocks,
+            &palette,
+            &symbols,
+        );
+        let summary = rows
+            .iter()
+            .find(|row| line_text(&row.line).contains(&path))
+            .expect("file summary row");
+
+        assert_eq!(summary.line.spans[0].style.fg, Some(palette.green));
+        assert_eq!(summary.line.spans[2].style.fg, Some(palette.red));
+        assert_eq!(
+            row_primary_style(
+                &rows
+                    .iter()
+                    .find(|row| line_text(&row.line) == "-import old")
+                    .expect("deletion row")
+                    .line
+            )
+            .fg,
+            Some(palette.red)
+        );
+        assert_eq!(
+            row_primary_style(
+                &rows
+                    .iter()
+                    .find(|row| line_text(&row.line) == "+import speech")
+                    .expect("addition row")
+                    .line
+            )
+            .fg,
+            Some(palette.green)
+        );
+        assert_eq!(
+            row_primary_style(
+                &rows
+                    .iter()
+                    .find(|row| line_text(&row.line).starts_with("@@"))
+                    .expect("hunk row")
+                    .line
+            )
+            .fg,
+            Some(palette.teal)
+        );
     }
 
     #[test]
