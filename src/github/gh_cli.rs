@@ -71,6 +71,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     sort_activity(&mut resource.activity);
     let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
+        match fetch_commits(id).await {
+            Ok(commits) => pr.commits = commits,
+            Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
+        }
         match fetch_changed_files(id).await {
             Ok(files) => pr.files = files,
             Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
@@ -638,6 +642,71 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+async fn run_graphql_commits(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
+    let query = commits_query();
+    let number = id.number.to_string();
+    let after = after.unwrap_or("null");
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-F",
+            &format!("after={after}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql commits", &error)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("{}", gh_failure_message("gh api graphql commits", &stderr));
+    }
+
+    Ok(output.stdout)
+}
+
+fn commits_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          commit {
+            oid
+            messageHeadline
+            messageBody
+            committedDate
+            authoredDate
+            authors(first: 100) {
+              nodes {
+                name
+                email
+                user { login name }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 async fn run_graphql_commit_deployments(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
     let query = r#"
 query($owner: String!, $name: String!, $number: Int!) {
@@ -1102,6 +1171,67 @@ struct CommitDto {
     committed_date: Option<String>,
     authored_date: Option<String>,
     authors: Option<Vec<UserDto>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsResponse {
+    data: CommitsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsData {
+    repository: Option<CommitsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsRepository {
+    pull_request: Option<CommitsPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsPullRequest {
+    commits: PullRequestCommitConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PullRequestCommitConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<PullRequestCommitNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PullRequestCommitNode {
+    commit: GraphqlCommitDto,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GraphqlCommitDto {
+    oid: String,
+    message_headline: String,
+    message_body: Option<String>,
+    committed_date: Option<String>,
+    authored_date: Option<String>,
+    authors: Option<CommitAuthorConnection>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorConnection {
+    nodes: Vec<CommitAuthorDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorDto {
+    name: Option<String>,
+    user: Option<UserDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1842,6 +1972,27 @@ async fn fetch_changed_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>
     }
 }
 
+async fn fetch_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit>> {
+    let mut commits = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_commits(id, after.as_deref()).await?;
+        let response: CommitsResponse =
+            serde_json::from_slice(&output).context("failed to parse commits GraphQL JSON")?;
+        let Some(page) = commits_page(response) else {
+            return Ok(commits);
+        };
+        commits.extend(page.commits);
+        if !page.has_next_page {
+            return Ok(commits);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("commits page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 async fn fetch_commit_deployments(
     id: &ResourceId,
 ) -> anyhow::Result<HashMap<String, Vec<Deployment>>> {
@@ -2457,6 +2608,68 @@ fn sort_activity(activity: &mut [ActivityEntry]) {
     });
 }
 
+struct CommitsPage {
+    commits: Vec<Commit>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+fn commits_page(response: CommitsResponse) -> Option<CommitsPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let page_info = pull_request.commits.page_info;
+    Some(CommitsPage {
+        commits: pull_request
+            .commits
+            .nodes
+            .into_iter()
+            .map(|node| commit_from_graphql_dto(node.commit))
+            .collect(),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn commit_from_graphql_dto(commit: GraphqlCommitDto) -> Commit {
+    let authors = commit
+        .authors
+        .map(|authors| {
+            authors
+                .nodes
+                .into_iter()
+                .filter_map(commit_author_name)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let author = authors
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "unknown".to_string());
+    let authored_at = commit.authored_date.filter(|value| !value.is_empty());
+    Commit {
+        oid: commit.oid,
+        message: commit.message_headline,
+        body: commit.message_body.unwrap_or_default(),
+        author,
+        authors,
+        authored_at: authored_at.clone(),
+        committed_at: commit
+            .committed_date
+            .or(authored_at)
+            .unwrap_or_else(|| "unknown".to_string()),
+        status: CheckStatus::Unknown,
+        deployments: Vec::new(),
+    }
+}
+
+fn commit_author_name(author: CommitAuthorDto) -> Option<String> {
+    author
+        .user
+        .map(|user| user.display_name())
+        .or(author.name)
+        .filter(|name| !name.trim().is_empty() && name != "unknown")
+}
+
 fn commit_from_dto(commit: CommitDto) -> Commit {
     let authors = commit
         .authors
@@ -2655,6 +2868,20 @@ mod tests {
         assert!(query.contains("pageInfo"));
         assert!(query.contains("hasNextPage"));
         assert!(query.contains("endCursor"));
+    }
+
+    #[test]
+    fn commits_query_requests_pagination_state_and_author_fields() {
+        let query = commits_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("commits(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("messageHeadline"));
+        assert!(query.contains("authors(first: 100)"));
+        assert!(query.contains("user { login name }"));
     }
 
     #[test]
@@ -2948,6 +3175,63 @@ mod tests {
         assert_eq!(commit.authored_at.as_deref(), Some("2026-05-14T13:10:00Z"));
         assert_eq!(commit.committed_at, "2026-05-30T03:18:51Z");
         assert!(commit.deployments.is_empty());
+    }
+
+    #[test]
+    fn commits_page_preserves_pagination_state_and_authors() {
+        let page = commits_page(CommitsResponse {
+            data: CommitsData {
+                repository: Some(CommitsRepository {
+                    pull_request: Some(CommitsPullRequest {
+                        commits: PullRequestCommitConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("commit-cursor-2".into()),
+                            },
+                            nodes: vec![PullRequestCommitNode {
+                                commit: GraphqlCommitDto {
+                                    oid: "abcdef123".into(),
+                                    message_headline: "feat: add thing".into(),
+                                    message_body: Some("body".into()),
+                                    committed_date: Some("2026-05-30T03:18:51Z".into()),
+                                    authored_date: Some("2026-05-14T13:10:00Z".into()),
+                                    authors: Some(CommitAuthorConnection {
+                                        nodes: vec![
+                                            CommitAuthorDto {
+                                                name: Some("Alice Real".into()),
+                                                user: Some(UserDto {
+                                                    login: Some("alice".into()),
+                                                    name: None,
+                                                }),
+                                            },
+                                            CommitAuthorDto {
+                                                name: Some("Co Author".into()),
+                                                user: None,
+                                            },
+                                        ],
+                                    }),
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("commits page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("commit-cursor-2"));
+        assert_eq!(page.commits.len(), 1);
+        assert_eq!(page.commits[0].oid, "abcdef123");
+        assert_eq!(page.commits[0].message, "feat: add thing");
+        assert_eq!(page.commits[0].body, "body");
+        assert_eq!(page.commits[0].author, "alice");
+        assert_eq!(page.commits[0].authors, vec!["alice", "Co Author"]);
+        assert_eq!(
+            page.commits[0].authored_at.as_deref(),
+            Some("2026-05-14T13:10:00Z")
+        );
+        assert_eq!(page.commits[0].committed_at, "2026-05-30T03:18:51Z");
     }
 
     #[test]

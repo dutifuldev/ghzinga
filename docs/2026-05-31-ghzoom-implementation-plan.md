@@ -176,7 +176,8 @@ Data loaded for PR:
   with separate `[more patch]` / `[less patch]` controls for long patches
 - commits with SHA, headline, full body, primary author, coauthors,
   authored/committed timestamps, check state when available, and
-  deployment/environment status where GitHub exposes it
+  deployment/environment status where GitHub exposes it; commit pages are
+  fetched until GitHub reports no next page
 - status check rollup contexts and latest-commit check suites, including raw
   GitHub status/conclusion, started/completed timestamps, and details URLs
   where available; suite rows are prefixed with `suite/` and shown before
