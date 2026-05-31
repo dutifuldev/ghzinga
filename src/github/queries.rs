@@ -190,6 +190,53 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn labels_query(kind: ResourceKind) -> String {
+    let selector = selector(kind);
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      labels(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          name
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
+}
+
+pub(crate) fn assignees_query(kind: ResourceKind) -> String {
+    let selector = selector(kind);
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      assignees(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          login
+          name
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
+}
+
 pub(crate) fn comments_query(kind: ResourceKind) -> String {
     let selector = selector(kind);
     format!(
