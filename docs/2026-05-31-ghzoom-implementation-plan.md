@@ -175,7 +175,8 @@ Data loaded for PR:
 - patch context from `gh pr diff --patch`, shown when a file row is expanded
   with separate `[more patch]` / `[less patch]` controls for long patches
 - commits with SHA, headline, full body, primary author, coauthors,
-  authored/committed timestamps, and check state when available
+  authored/committed timestamps, check state when available, and
+  deployment/environment status where GitHub exposes it
 - status check rollup contexts and check suites, including raw GitHub
   status/conclusion, started/completed timestamps, and details URLs where
   available; both Actions `CheckRun` records and legacy commit status contexts
