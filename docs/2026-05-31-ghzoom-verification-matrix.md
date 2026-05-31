@@ -25,6 +25,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | Full Rust standalone app | `Cargo.toml`, `src/main.rs`, `src/lib.rs`, Rust-only app modules under `src/` |
 | Ratatui/Crossterm architecture | `src/render/`, `src/terminal/mod.rs`, `src/app/update.rs` |
 | Slophammer-style architecture guardrails | `tests/architecture.rs` verifies domain purity, GitHub adapter isolation from TUI layers, and no `gh pr view` / `gh issue view` / `gh api` data transport regressions |
+| Automated quality gate | `.github/workflows/ci.yml` runs `cargo fmt --check`, `cargo test`, `cargo clippy --all-targets --all-features -- -D warnings`, and `npx -y @simpledoc/simpledoc check` on pull requests and pushes to `main` |
 | Mouse capture with opt-out | `TerminalGuard::enter(mouse_enabled)` enables `EnableMouseCapture`; CLI exposes `--no-mouse` |
 | Uses existing auth, no app login | Base PR/issue fetches, paginated GraphQL enrichment, and PR diff patch context use direct HTTPS requests with `GH_TOKEN` / `GITHUB_TOKEN` or the token from `gh auth token`; `graphql_transport_receives_post_shape_and_returns_body`, `rest_transport_receives_get_shape_and_returns_body`, `graphql_transport_errors_on_graphql_errors_payload`, and `rest_transport_includes_status_and_body_on_http_failure` verify the mockable HTTP transport boundary; auth failures point to `gh auth status` / `gh auth login` |
 | PR body, labels, reactions, author, state, branches | Overview/status render tests and live `cargo run -- openclaw/openclaw#81834 --once` |

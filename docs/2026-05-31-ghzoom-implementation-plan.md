@@ -404,6 +404,8 @@ End-to-end/manual verification:
 - run `cargo test`
 - run `cargo fmt --check`
 - run `cargo clippy --all-targets --all-features -- -D warnings`
+- run `npx -y @simpledoc/simpledoc check`
+- keep `.github/workflows/ci.yml` aligned with these local gates
 - run `ghzoom openclaw/openclaw#81834` in tmux at:
   - `80x24`
   - `120x36`
