@@ -225,6 +225,15 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         ),
         style: resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
     });
+    if let Some(message) = state.loading_message() {
+        push_status_piece(
+            &mut pieces,
+            format!("{} Loading: {message}", symbols.refresh),
+            Style::default()
+                .fg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        );
+    }
     push_status_piece(
         &mut pieces,
         format!("{} @{}", symbols.author, resource.author),
@@ -368,6 +377,9 @@ fn push_status_piece(pieces: &mut Vec<StyledPiece>, text: String, style: Style) 
 fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
     if let Some(error) = &state.last_error {
         return Some(format!("{} {error}", symbols.error));
+    }
+    if let Some(message) = state.loading_message() {
+        return Some(format!("{} Loading: {message}", symbols.refresh));
     }
     if let Some(message) = &state.status_message {
         return Some(format!("{} {message}", symbols.info));
@@ -1840,6 +1852,8 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
+    } else if let Some(message) = state.loading_message() {
+        format!("Loading: {message}")
     } else if let Some(message) = &state.status_message {
         message.clone()
     } else {
@@ -2458,6 +2472,24 @@ mod tests {
 
         assert!(content.contains("Refresh: 12:34:56 changed"));
         assert!(content.contains("Changed: activity, checks"));
+    }
+
+    #[test]
+    fn renders_loading_state_in_status_and_footer() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.begin_loading(
+            state.resource.id.clone(),
+            "refreshing openclaw/openclaw#81834 from GitHub",
+        );
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("Loading: refreshing openclaw/openclaw#81834 from GitHub"));
     }
 
     #[test]

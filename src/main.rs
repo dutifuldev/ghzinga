@@ -19,9 +19,40 @@ use ghzinga::{
     terminal::TerminalGuard,
 };
 use tokio::process::Command;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
 const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
+
+#[derive(Debug, Clone)]
+enum FetchAction {
+    Refresh { id: ResourceId },
+    Navigate { from: ResourceId, to: ResourceId },
+    Back { to: ResourceId },
+}
+
+impl FetchAction {
+    fn target(&self) -> &ResourceId {
+        match self {
+            Self::Refresh { id } => id,
+            Self::Navigate { to, .. } | Self::Back { to } => to,
+        }
+    }
+
+    fn loading_message(&self) -> String {
+        match self {
+            Self::Refresh { id } => format!("refreshing {} from GitHub", id.canonical_name()),
+            Self::Navigate { to, .. } => format!("opening {} from GitHub", to.canonical_name()),
+            Self::Back { to } => format!("returning to {} from GitHub", to.canonical_name()),
+        }
+    }
+}
+
+struct FetchOutcome {
+    action: FetchAction,
+    result: anyhow::Result<ghzinga::domain::Resource>,
+    refreshed_at: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -85,9 +116,10 @@ async fn run_tui(
     refresh_interval: Duration,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
-    let gateway = GithubApiGateway;
+    let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
     let mut last_refresh = Instant::now();
     loop {
+        apply_completed_fetches(state, &mut fetch_rx);
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
             return Ok(());
@@ -98,12 +130,11 @@ async fn run_tui(
             refresh_interval,
             &mut last_refresh,
             Instant::now(),
-            &gateway,
-        )
-        .await;
+            &fetch_tx,
+        );
         for app_event in read_pending_app_events()? {
             let intent = apply_event(state, app_event);
-            if handle_intent(state, intent, live_refresh, &mut last_refresh, &gateway).await {
+            if handle_intent(state, intent, live_refresh, &mut last_refresh, &fetch_tx).await {
                 return Ok(());
             }
         }
@@ -131,19 +162,21 @@ fn event_to_app_event(event: Event) -> Option<AppEvent> {
     }
 }
 
-async fn handle_intent<G: GithubGateway>(
+async fn handle_intent(
     state: &mut AppState,
     intent: AppIntent,
     live_refresh: bool,
     last_refresh: &mut Instant,
-    gateway: &G,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
     match intent {
         AppIntent::Quit => true,
         AppIntent::Refresh => {
             if live_refresh {
-                refresh_resource(state, gateway).await;
-                *last_refresh = Instant::now();
+                let id = state.resource.id.clone();
+                if start_background_fetch(state, FetchAction::Refresh { id }, fetch_tx) {
+                    *last_refresh = Instant::now();
+                }
             } else {
                 state.status_message = Some("offline fixture mode: refresh skipped".into());
             }
@@ -151,8 +184,10 @@ async fn handle_intent<G: GithubGateway>(
         }
         AppIntent::Navigate(id) => {
             if live_refresh {
-                navigate_to_resource(state, id, gateway).await;
-                *last_refresh = Instant::now();
+                let from = state.resource.id.clone();
+                if start_background_fetch(state, FetchAction::Navigate { from, to: id }, fetch_tx) {
+                    *last_refresh = Instant::now();
+                }
             } else {
                 state.last_error = Some(format!(
                     "offline fixture mode: cannot navigate to {}",
@@ -171,8 +206,14 @@ async fn handle_intent<G: GithubGateway>(
         }
         AppIntent::Back => {
             if live_refresh {
-                navigate_back(state, gateway).await;
-                *last_refresh = Instant::now();
+                let Some(id) = state.history.last().cloned() else {
+                    state.status_message = Some("no previous resource".into());
+                    return false;
+                };
+                if start_background_fetch(state, FetchAction::Back { to: id }, fetch_tx) {
+                    let _ = state.pop_history();
+                    *last_refresh = Instant::now();
+                }
             } else {
                 state.status_message = Some("offline fixture mode: no live history".into());
             }
@@ -206,13 +247,31 @@ fn save_settings(state: &mut AppState) {
     }
 }
 
-async fn maybe_auto_refresh<G: GithubGateway>(
+fn maybe_auto_refresh(
     state: &mut AppState,
     live_refresh: bool,
     refresh_interval: Duration,
     last_refresh: &mut Instant,
     now: Instant,
-    gateway: &G,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> bool {
+    maybe_auto_refresh_with_start(
+        state,
+        live_refresh,
+        refresh_interval,
+        last_refresh,
+        now,
+        |state, action| start_background_fetch(state, action, fetch_tx),
+    )
+}
+
+fn maybe_auto_refresh_with_start(
+    state: &mut AppState,
+    live_refresh: bool,
+    refresh_interval: Duration,
+    last_refresh: &mut Instant,
+    now: Instant,
+    mut start: impl FnMut(&mut AppState, FetchAction) -> bool,
 ) -> bool {
     if !auto_refresh_due(
         live_refresh,
@@ -222,9 +281,13 @@ async fn maybe_auto_refresh<G: GithubGateway>(
         return false;
     }
 
-    refresh_resource(state, gateway).await;
-    *last_refresh = now;
-    true
+    let id = state.resource.id.clone();
+    if start(state, FetchAction::Refresh { id }) {
+        *last_refresh = now;
+        true
+    } else {
+        false
+    }
 }
 
 fn auto_refresh_due(live_refresh: bool, refresh_interval: Duration, elapsed: Duration) -> bool {
@@ -337,18 +400,68 @@ fn open_command_args(id: &ResourceId) -> Vec<String> {
     }
 }
 
-async fn refresh_resource<G: GithubGateway>(state: &mut AppState, gateway: &G) {
-    let id = state.resource.id.clone();
-    match gateway.fetch_resource(&id).await {
-        Ok(resource) => {
-            state.apply_refreshed_resource(resource, current_refresh_label());
+fn start_background_fetch(
+    state: &mut AppState,
+    action: FetchAction,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> bool {
+    if let Some(message) = state.loading_message() {
+        state.status_message = Some(format!("still loading: {message}"));
+        return false;
+    }
+
+    let target = action.target().clone();
+    let message = action.loading_message();
+    state.begin_loading(target.clone(), message);
+    let tx = fetch_tx.clone();
+    tokio::spawn(async move {
+        let gateway = GithubApiGateway;
+        let result = gateway.fetch_resource(&target).await;
+        let _ = tx.send(FetchOutcome {
+            action,
+            result,
+            refreshed_at: current_refresh_label(),
+        });
+    });
+    true
+}
+
+fn apply_completed_fetches(state: &mut AppState, fetch_rx: &mut UnboundedReceiver<FetchOutcome>) {
+    while let Ok(outcome) = fetch_rx.try_recv() {
+        apply_fetch_outcome(state, outcome);
+    }
+}
+
+fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
+    state.finish_loading();
+    match (outcome.action, outcome.result) {
+        (FetchAction::Refresh { .. }, Ok(resource)) => {
+            state.apply_refreshed_resource(resource, outcome.refreshed_at);
         }
-        Err(error) => {
+        (FetchAction::Navigate { from, .. }, Ok(resource)) => {
+            state.history.push(from);
+            let name = resource.id.canonical_name();
+            state.replace_resource(resource);
+            state.last_error = None;
+            state.status_message = Some(format!("opened {name}"));
+        }
+        (FetchAction::Back { .. }, Ok(resource)) => {
+            let name = resource.id.canonical_name();
+            state.replace_resource(resource);
+            state.last_error = None;
+            state.status_message = Some(format!("returned to {name}"));
+        }
+        (FetchAction::Back { to }, Err(error)) => {
+            state.history.push(to);
+            state.last_error = Some(error.to_string());
+        }
+        (_, Err(error)) => {
             state.last_error = Some(error.to_string());
         }
     }
 }
 
+#[cfg(test)]
 async fn navigate_to_resource<G: GithubGateway>(
     state: &mut AppState,
     id: ghzinga::domain::ResourceId,
@@ -380,6 +493,7 @@ fn current_refresh_label() -> String {
     format!("{hours:02}:{minutes:02}:{seconds:02} UTC")
 }
 
+#[cfg(test)]
 async fn navigate_back<G: GithubGateway>(state: &mut AppState, gateway: &G) {
     let Some(id) = state.pop_history() else {
         state.status_message = Some("no previous resource".into());
@@ -413,8 +527,8 @@ mod tests {
     };
 
     use super::{
-        auto_refresh_due, maybe_auto_refresh, navigate_back, navigate_to_resource,
-        open_command_args, url_open_command,
+        apply_fetch_outcome, auto_refresh_due, maybe_auto_refresh_with_start, navigate_back,
+        navigate_to_resource, open_command_args, url_open_command, FetchAction, FetchOutcome,
     };
 
     struct FakeGateway {
@@ -557,56 +671,98 @@ mod tests {
         ));
     }
 
-    #[tokio::test]
-    async fn automatic_refresh_fetches_resource_and_records_changes() {
+    #[test]
+    fn automatic_refresh_starts_background_fetch_and_records_completed_changes() {
         let initial = issue_resource(1, "Initial issue");
-        let mut refreshed = issue_resource(1, "Updated issue");
-        refreshed.body = "Updated body".into();
-        let gateway = FakeGateway::new(vec![refreshed]);
+        let mut refreshed_resource = issue_resource(1, "Updated issue");
+        refreshed_resource.body = "Updated body".into();
         let mut state = AppState::new(initial);
         let mut last_refresh = Instant::now();
         let now = last_refresh + Duration::from_secs(30);
+        let mut started = Vec::new();
 
-        let refreshed = maybe_auto_refresh(
+        let refreshed = maybe_auto_refresh_with_start(
             &mut state,
             true,
             Duration::from_secs(30),
             &mut last_refresh,
             now,
-            &gateway,
-        )
-        .await;
+            |state, action| {
+                state.begin_loading(action.target().clone(), action.loading_message());
+                started.push(action);
+                true
+            },
+        );
 
         assert!(refreshed);
         assert_eq!(last_refresh, now);
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#1 from GitHub")
+        );
+        assert_eq!(started.len(), 1);
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: started.pop().unwrap(),
+                result: Ok(refreshed_resource),
+                refreshed_at: "12:34:56 UTC".into(),
+            },
+        );
+
         assert_eq!(state.resource.title, "Updated issue");
         assert_eq!(state.resource.body, "Updated body");
         assert_eq!(state.last_refresh_had_changes, Some(true));
         assert_eq!(state.last_refresh_changed_sections, ["summary"]);
-        assert_eq!(gateway.requested(), [state.resource.id.clone()]);
+        assert!(state.loading.is_none());
     }
 
-    #[tokio::test]
-    async fn automatic_refresh_waits_until_interval_is_due() {
+    #[test]
+    fn automatic_refresh_waits_until_interval_is_due() {
         let initial = issue_resource(1, "Initial issue");
-        let gateway = FakeGateway::new(vec![issue_resource(1, "Unexpected issue")]);
         let mut state = AppState::new(initial.clone());
         let mut last_refresh = Instant::now();
         let now = last_refresh + Duration::from_secs(29);
+        let mut started = false;
 
-        let refreshed = maybe_auto_refresh(
+        let refreshed = maybe_auto_refresh_with_start(
             &mut state,
             true,
             Duration::from_secs(30),
             &mut last_refresh,
             now,
-            &gateway,
-        )
-        .await;
+            |_, _| {
+                started = true;
+                true
+            },
+        );
 
         assert!(!refreshed);
         assert_eq!(state.resource.title, initial.title);
-        assert!(gateway.requested().is_empty());
+        assert!(!started);
+    }
+
+    #[test]
+    fn failed_back_fetch_restores_history_target() {
+        let initial = issue_resource(1, "Initial issue");
+        let previous = issue_resource(2, "Previous issue");
+        let mut state = AppState::new(initial);
+        state.history.push(previous.id.clone());
+        let popped = state.pop_history().unwrap();
+        state.begin_loading(popped.clone(), "returning to owner/repo#2 from GitHub");
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::Back { to: popped },
+                result: Err(anyhow::anyhow!("network down")),
+                refreshed_at: "12:34:56 UTC".into(),
+            },
+        );
+
+        assert_eq!(state.history, [previous.id]);
+        assert_eq!(state.last_error.as_deref(), Some("network down"));
+        assert!(state.loading.is_none());
     }
 
     #[tokio::test]
