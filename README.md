@@ -3,10 +3,11 @@
 `ghzoom` is a standalone Rust terminal UI for monitoring one GitHub pull request
 or issue.
 
-It uses Ratatui and Crossterm for the TUI, and the GitHub CLI for GitHub access.
-There is no separate login flow: if `gh auth status` works, `ghzoom` can fetch
-the resource. If `gh` is missing or unauthenticated, `ghzoom` reports the `gh`
-command that failed and the `gh auth status` / `gh auth login` next step.
+It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for
+paginated enrichment data. There is no separate login flow: if `GH_TOKEN` or
+`GITHUB_TOKEN` is set, `ghzoom` uses it; otherwise it can reuse the token from an
+existing `gh` login. If credentials are missing, `ghzoom` reports the failed
+credential step and the `gh auth status` / `gh auth login` next step.
 The primary PR or issue view is fetched first; optional enrichment failures are
 shown as warnings instead of preventing the resource from rendering.
 

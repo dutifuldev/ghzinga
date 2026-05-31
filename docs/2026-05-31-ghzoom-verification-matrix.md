@@ -23,7 +23,7 @@ async loop, and the installed `gh` CLI for GitHub access.
 | Full Rust standalone app | `Cargo.toml`, `src/main.rs`, `src/lib.rs`, Rust-only app modules under `src/` |
 | Ratatui/Crossterm architecture | `src/render/`, `src/terminal/mod.rs`, `src/app/update.rs` |
 | Mouse capture with opt-out | `TerminalGuard::enter(mouse_enabled)` enables `EnableMouseCapture`; CLI exposes `--no-mouse` |
-| Uses existing `gh` auth, no app login | `GhCliGateway` shells out to `gh pr view`, `gh issue view`, and `gh api graphql`; auth failures point to `gh auth status` / `gh auth login` |
+| Uses existing auth, no app login | Paginated GraphQL enrichment uses direct HTTPS requests with `GH_TOKEN` / `GITHUB_TOKEN` or the token from `gh auth token`; base PR/issue view and patch context still need migration off `gh pr/issue view` and `gh pr diff`; auth failures point to `gh auth status` / `gh auth login` |
 | PR body, labels, reactions, author, state, branches | Overview/status render tests and live `cargo run -- openclaw/openclaw#81834 --once` |
 | PR metadata such as draft/cross-repo/mergeability/milestone/projects/ref OIDs | `pr_view_preserves_extra_github_metadata`, `renders_resource_and_pr_metadata`, live overview smoke |
 | PR comments, reviews, review comments, timeline events | `pr_activity_includes_reviews_with_state`, `comments_query_uses_selector_and_pagination_state`, `comment_activity_page_preserves_pagination_state`, `replace_comment_activity_keeps_other_activity`, `review_threads_query_requests_pagination_state`, `review_thread_comments_query_requests_comment_pagination_state`, `review_thread_activity_keeps_path_and_line`, `review_thread_activity_page_preserves_pagination_state`, `review_thread_comments_page_preserves_pagination_state`, `review_thread_activity_shows_thread_state`, `review_threads_summary_counts_unique_unresolved_and_outdated_threads`, `renders_review_thread_summary_in_pr_status`, `timeline_activity_maps_github_events`, `timeline_activity_page_preserves_pagination_state`, PR activity captures; activity rows preserve author association, edit/minimized state, reactions, permalinks, labels, references, assignments, pins, locks, duplicate markers, transfers, connected/disconnected references, review requests, draft/ready state, auto-merge changes, merges, title changes, milestones, close, and reopen events; ordinary comment, review-thread, nested review-thread comment, and timeline GraphQL pages are fetched until `hasNextPage` is false |
@@ -115,9 +115,9 @@ accordingly.
 ## Remaining Risk
 
 The app now covers the requested core behavior, plus additional high-value
-GitHub metadata exposed by `gh pr view` and `gh issue view`: milestones,
-projects, issue state reason, pinned state, PR draft/cross-repository flags,
-mergeability, changed-file totals, ref OIDs, and merge-commit metadata.
+GitHub metadata exposed by the current base fetch path: milestones, projects,
+issue state reason, pinned state, PR draft/cross-repository flags, mergeability,
+changed-file totals, ref OIDs, and merge-commit metadata.
 
 The phrase "all the info available from GitHub" is still broader than any
 practical first version. Current coverage includes the requested body/reactions/
@@ -129,3 +129,7 @@ to render every possible GitHub timeline event.
 That is the main remaining product-scope risk if the bar is interpreted as
 literally every GitHub field rather than the requested monitoring dashboard
 surfaces.
+
+The current architecture is also mid-migration from `gh`-backed data fetching to
+direct GitHub API calls. Paginated GraphQL enrichment is direct HTTPS, but the
+base PR/issue view and patch-context fetch still use `gh` and must move next.

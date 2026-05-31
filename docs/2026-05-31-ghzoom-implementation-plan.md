@@ -109,7 +109,7 @@ src/
     navigation.rs         link target and history handling
   github/
     mod.rs                GitHub gateway trait
-    gh_cli.rs             `gh api graphql` adapter
+    gh_cli.rs             current gateway; direct GraphQL enrichment plus legacy base fetches
     queries.rs            GraphQL query strings
     types.rs              API response DTOs
     normalize.rs          DTO -> domain model
@@ -147,21 +147,16 @@ domain -> no adapters, no terminal, no filesystem
 
 ## GitHub Data Strategy
 
-Use the `gh` CLI as the auth and transport adapter.
-
-Command shape:
-
-```sh
-gh api graphql -f query='<query>' -F owner=OWNER -F repo=REPO -F number=NUMBER
-```
+Use direct GitHub API calls for data transport. The app can still reuse an
+existing `gh` login as a credential source, but `gh` must not be the data API.
 
 Advantages:
 
 - no token storage
 - no login UI
-- respects the user's existing `gh` auth
-- works with enterprise host support later via `gh` config
-- easy to mock in tests by abstracting process execution
+- respects `GH_TOKEN`, `GITHUB_TOKEN`, or the user's existing `gh` auth token
+- keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
+- easy to mock in tests by abstracting HTTP transport
 
 Data loaded for PR:
 
@@ -359,8 +354,8 @@ Interaction tests:
 
 Adapter tests:
 
-- `GhCliGateway` builds the expected `gh api graphql` invocation
-- mocked process runner returns fixture JSON
+- GitHub gateway builds direct HTTP GraphQL requests with expected variables
+- mocked HTTP transport returns fixture JSON
 - auth failure maps to a friendly error
 - API rate-limit or network error is displayed but does not crash UI
 
@@ -397,7 +392,7 @@ End-to-end/manual verification:
 ### Phase 2: GitHub adapter
 
 - Implement `GithubGateway` trait.
-- Implement `GhCliGateway` with process runner abstraction.
+- Implement direct GitHub API transport with credential reuse.
 - Add GraphQL queries for PR and issue.
 - Normalize API JSON into domain models.
 - Add fixture-driven adapter tests.
