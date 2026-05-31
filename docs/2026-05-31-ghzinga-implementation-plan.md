@@ -331,6 +331,10 @@ Visual style:
 - The status section is a horizontal band below the tabs, not a left sidebar.
 - Buttons and expandable controls use bold styling and text labels, for example
   `[+ more]`, `[- less]`, `[refresh]`, `[open]`.
+- The footer keeps a gh-dash-style scroll position cue for the active tab,
+  rendered with plain ASCII as current row, maximum row, and percentage. Long
+  conversations, checks, and file diffs should always tell the user where they
+  are in the scrollable preview.
 - Default symbols are plain ASCII so no special terminal font, Nerd Font, or
   emoji support is required. `--symbols emoji` may opt into richer markers, but
   every marker must retain a nearby text label.

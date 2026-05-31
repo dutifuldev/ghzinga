@@ -162,6 +162,10 @@ footer controls wrap into extra rows on narrow terminals instead of silently
 overlapping. Long content uses display-width-aware wrapping and truncation, so
 emoji and wide characters do not corrupt the layout.
 
+The footer shows the active tab and scroll position as current row, maximum row,
+and percentage, so long PR conversations and diff views keep the same quick
+orientation cue as a gh-dash preview pane.
+
 By default, ghzinga renders with plain ASCII symbols so it works in terminals
 without special fonts or emoji support. Use `--symbols emoji` to opt into the
 richer emoji labels.
@@ -233,7 +237,7 @@ GitHub Actions runs these same checks for pull requests and pushes to `main`.
 It also runs the saved PR and issue capture validators so checked-in UX evidence
 cannot silently drift behind the app rendering code. A tmux mouse-smoke capture
 validator verifies that real terminal mouse clicks can switch to Files, expand
-all rows, and collapse them again.
+all rows, collapse them again, switch to Links, and activate a linked issue row.
 
 The repository includes tmux capture artifacts for PR and issue views:
 

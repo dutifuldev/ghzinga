@@ -22,6 +22,8 @@ string. The useful patterns for `ghzinga` are:
 - wrap pill-like labels onto new rows before they overflow
 - truncate only the one item that cannot fit on a row
 - keep the scrollable preview/content viewport independent from fixed chrome
+- show a compact scroll percentage so the reader can understand where the
+  current viewport sits inside a long preview
 - reserve extra rows for narrow terminals instead of letting controls overlap
 
 `ghzinga` should keep its Ratatui implementation simpler than `gh-dash`, but the
@@ -37,6 +39,10 @@ The remaining weak spot is oversized individual chips and control labels. For
 example, a long assignee list, long refresh status, or an extremely narrow
 terminal can still force truncation at the chip boundary. That avoids overlap,
 but it hides useful information too early and can make the chrome feel abrupt.
+
+The footer also needs a richer scroll cue. A raw offset is useful for debugging,
+but the gh-dash preview pattern is easier to read because it communicates both
+relative position and whether there is more content below.
 
 ## Plan
 
@@ -54,10 +60,13 @@ but it hides useful information too early and can make the chrome feel abrupt.
    - let the existing status-area height clipping show an ellipsis only when the
      whole status band runs out of reserved rows
 4. Wrap status detail messages instead of truncating them immediately.
-5. Add focused rendering tests for:
+5. Render the footer scroll cue as `scroll current/max percent%`, clamped to the
+   active tab's rendered scroll limit.
+6. Add focused rendering tests for:
    - oversized status chips staying within the terminal width without ellipsis
    - tab hit areas fitting extremely narrow terminals
    - footer controls fitting extremely narrow terminals
+   - scroll cue percentage at the top, middle, and bottom of a long viewport
 
 ## Non-Goals
 
