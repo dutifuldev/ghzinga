@@ -181,14 +181,17 @@ tests, and `Right` remains a documented fallback that works under tmux.
 
 ## Mouse Coverage
 
-The capture runs verify rendered views and keyboard-driven navigation evidence.
-Mouse click routing is covered through render-to-click integration tests that
-render the actual Ratatui UI, click the registered hit rectangles, and verify:
+The capture runs verify rendered views, keyboard-driven navigation evidence, and
+real tmux mouse-click evidence. The `mouse-smoke` capture starts the TUI in tmux,
+sends xterm SGR mouse events to the running process, and saves the resulting
+terminal frames for:
 
 - tab switching
-- body expansion
 - file expansion
-- issue/PR link navigation intent
-- refresh
-- help
-- quit
+- tab-level expand all
+- tab-level collapse all
+
+The broader mouse routing matrix is still covered through render-to-click
+integration tests that render the actual Ratatui UI, click the registered hit
+rectangles, and verify body expansion, file expansion, issue/PR link navigation
+intent, refresh, help, quit, exact URL opening, and footer controls.

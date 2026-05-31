@@ -1,0 +1,48 @@
+{
+  "target": "openclaw/openclaw#81834",
+  "fixture": "fixtures/pr-81834.json",
+  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "git_commit": "344314220b124c9108b543f9e9c309a2cd31d8ba",
+  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/fixtures/pr-81834.json --refresh-seconds 0",
+  "actual_tmux_size": "120x36",
+  "mouse_coordinates": {
+    "files_tab": [
+      40,
+      4
+    ],
+    "expand_all": [
+      2,
+      10
+    ],
+    "collapse_all": [
+      2,
+      10
+    ]
+  },
+  "frames": [
+    {
+      "name": "00_initial_overview",
+      "txt": "00_initial_overview.txt",
+      "ansi": "00_initial_overview.ansi",
+      "png": "00_initial_overview.png"
+    },
+    {
+      "name": "10_mouse_files_tab",
+      "txt": "10_mouse_files_tab.txt",
+      "ansi": "10_mouse_files_tab.ansi",
+      "png": "10_mouse_files_tab.png"
+    },
+    {
+      "name": "20_mouse_expand_all",
+      "txt": "20_mouse_expand_all.txt",
+      "ansi": "20_mouse_expand_all.ansi",
+      "png": "20_mouse_expand_all.png"
+    },
+    {
+      "name": "30_mouse_collapse_all",
+      "txt": "30_mouse_collapse_all.txt",
+      "ansi": "30_mouse_collapse_all.ansi",
+      "png": "30_mouse_collapse_all.png"
+    }
+  ]
+}
