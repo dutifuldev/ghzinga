@@ -13,10 +13,11 @@ use crate::domain::{
 };
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
-    comments_query, commit_authors_query, commit_deployment_items_query, commit_deployments_query,
-    commits_query, labels_query, linked_resources_query, project_items_query,
-    review_requests_query, review_thread_comments_query, review_threads_query, reviews_query,
-    status_rollup_query, timeline_query,
+    comments_query, commit_authors_query, commit_comment_thread_comments_query,
+    commit_deployment_items_query, commit_deployments_query, commits_query, labels_query,
+    linked_resources_query, project_items_query, review_requests_query,
+    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
+    timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -288,6 +289,21 @@ async fn run_graphql_review_thread_comments(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = review_thread_comments_query();
+    run_graphql_query(
+        query,
+        json!({
+            "threadId": thread_id,
+            "after": after,
+        }),
+    )
+    .await
+}
+
+async fn run_graphql_commit_comment_thread_comments(
+    thread_id: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = commit_comment_thread_comments_query();
     run_graphql_query(
         query,
         json!({
@@ -712,6 +728,31 @@ struct ReviewThreadCommentsData {
 #[serde(rename_all = "camelCase")]
 struct ReviewThreadCommentsNode {
     comments: ReviewThreadCommentsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitCommentThreadCommentsResponse {
+    data: CommitCommentThreadCommentsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitCommentThreadCommentsData {
+    node: Option<CommitCommentThreadCommentsNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitCommentThreadCommentsNode {
+    comments: CommitCommentThreadCommentsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitCommentThreadCommentsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1958,6 +1999,13 @@ fn reaction_counts(groups: Vec<ReactionGroupDto>) -> ReactionCounts {
     counts
 }
 
+fn reaction_counts_from_value(value: Option<&Value>) -> ReactionCounts {
+    value
+        .and_then(|value| serde_json::from_value::<Vec<ReactionGroupDto>>(value.clone()).ok())
+        .map(reaction_counts)
+        .unwrap_or_default()
+}
+
 fn comments_to_activity(comments: Vec<CommentDto>) -> Vec<ActivityEntry> {
     comments
         .into_iter()
@@ -2118,6 +2166,31 @@ async fn fetch_remaining_review_thread_comments(
     Ok(())
 }
 
+async fn fetch_remaining_commit_comment_thread_comments(node: &mut Value) -> anyhow::Result<()> {
+    loop {
+        let has_next_page = node
+            .pointer("/comments/pageInfo/hasNextPage")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if !has_next_page {
+            return Ok(());
+        }
+        let thread_id = string_field(node, "id")
+            .context("commit comment thread page reported next page without a thread id")?
+            .to_string();
+        let cursor = string_field_at(node, &["comments", "pageInfo", "endCursor"])
+            .context("commit comment thread page reported next page without an end cursor")?
+            .to_string();
+        let output = run_graphql_commit_comment_thread_comments(&thread_id, Some(&cursor)).await?;
+        let response: CommitCommentThreadCommentsResponse = serde_json::from_slice(&output)
+            .context("failed to parse commit comment thread comments GraphQL JSON")?;
+        let Some(page) = commit_comment_thread_comments_page(response) else {
+            return Ok(());
+        };
+        append_commit_comment_thread_page(node, page)?;
+    }
+}
+
 async fn fetch_timeline_activity(
     id: &ResourceId,
     kind: ResourceKind,
@@ -2128,7 +2201,7 @@ async fn fetch_timeline_activity(
         let output = run_graphql_timeline(id, kind, after.as_deref()).await?;
         let response: TimelineResponse =
             serde_json::from_slice(&output).context("failed to parse timeline GraphQL JSON")?;
-        let Some(page) = timeline_activity_page(response) else {
+        let Some(page) = timeline_activity_page_live(response).await? else {
             return Ok(activity);
         };
         activity.extend(page.activity);
@@ -2881,6 +2954,47 @@ fn review_thread_comments_page(
     })
 }
 
+struct CommitCommentThreadCommentsPage {
+    nodes: Vec<Value>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+fn commit_comment_thread_comments_page(
+    response: CommitCommentThreadCommentsResponse,
+) -> Option<CommitCommentThreadCommentsPage> {
+    let node = response.data.node?;
+    let page_info = node.comments.page_info;
+    Some(CommitCommentThreadCommentsPage {
+        nodes: node.comments.nodes,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn append_commit_comment_thread_page(
+    node: &mut Value,
+    page: CommitCommentThreadCommentsPage,
+) -> anyhow::Result<()> {
+    let comments = node
+        .get_mut("comments")
+        .and_then(Value::as_object_mut)
+        .context("commit comment thread is missing comments object")?;
+    let nodes = comments
+        .get_mut("nodes")
+        .and_then(Value::as_array_mut)
+        .context("commit comment thread is missing comments nodes")?;
+    nodes.extend(page.nodes);
+    comments.insert(
+        "pageInfo".to_string(),
+        json!({
+            "hasNextPage": page.has_next_page,
+            "endCursor": page.end_cursor,
+        }),
+    );
+    Ok(())
+}
+
 fn review_thread_to_activity(thread: ReviewThreadDto) -> Vec<ActivityEntry> {
     let mut entries = Vec::new();
     for comment in thread.comments.nodes {
@@ -2928,6 +3042,7 @@ fn timeline_activity(response: TimelineResponse) -> Vec<ActivityEntry> {
         .unwrap_or_default()
 }
 
+#[cfg(test)]
 fn timeline_activity_page(response: TimelineResponse) -> Option<TimelineActivityPage> {
     let repository = response.data.repository?;
     let resource = repository.pull_request.or(repository.issue)?;
@@ -2937,13 +3052,128 @@ fn timeline_activity_page(response: TimelineResponse) -> Option<TimelineActivity
         .nodes
         .into_iter()
         .enumerate()
-        .map(|(index, node)| timeline_node_to_activity(index, &node))
+        .flat_map(|(index, node)| timeline_node_to_activities(index, &node))
         .collect();
     Some(TimelineActivityPage {
         activity,
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
+}
+
+async fn timeline_activity_page_live(
+    response: TimelineResponse,
+) -> anyhow::Result<Option<TimelineActivityPage>> {
+    let Some(repository) = response.data.repository else {
+        return Ok(None);
+    };
+    let Some(resource) = repository.pull_request.or(repository.issue) else {
+        return Ok(None);
+    };
+    let page_info = resource.timeline_items.page_info;
+    let mut activity = Vec::new();
+    for (index, mut node) in resource.timeline_items.nodes.into_iter().enumerate() {
+        if string_field(&node, "__typename") == Some("PullRequestCommitCommentThread") {
+            fetch_remaining_commit_comment_thread_comments(&mut node).await?;
+        }
+        activity.extend(timeline_node_to_activities(index, &node));
+    }
+    Ok(Some(TimelineActivityPage {
+        activity,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    }))
+}
+
+fn timeline_node_to_activities(index: usize, node: &Value) -> Vec<ActivityEntry> {
+    match string_field(node, "__typename") {
+        Some("PullRequestCommitCommentThread") => commit_comment_thread_to_activity(index, node),
+        _ => vec![timeline_node_to_activity(index, node)],
+    }
+}
+
+fn commit_comment_thread_to_activity(index: usize, node: &Value) -> Vec<ActivityEntry> {
+    let thread_id = string_field(node, "id").map(str::to_string);
+    let thread_path = string_field(node, "path").map(str::to_string);
+    let thread_position = u64_field(node, "position");
+    let commit = short_oid_at(node, &["commit", "oid"]);
+    let Some(comments) = node
+        .get("comments")
+        .and_then(|comments| comments.get("nodes"))
+        .and_then(Value::as_array)
+    else {
+        return vec![empty_commit_comment_thread(index, node, &commit)];
+    };
+    if comments.is_empty() {
+        return vec![empty_commit_comment_thread(index, node, &commit)];
+    }
+
+    comments
+        .iter()
+        .enumerate()
+        .map(|(comment_index, comment)| {
+            let comment_path = string_field(comment, "path")
+                .map(str::to_string)
+                .or_else(|| thread_path.clone());
+            let position = u64_field(comment, "position").or(thread_position);
+            let comment_body = string_field(comment, "body").unwrap_or_default();
+            let body = if comment_body.trim().is_empty() {
+                format!("on commit {commit}")
+            } else {
+                format!("on commit {commit}\n{comment_body}")
+            };
+            ActivityEntry {
+                id: string_field(comment, "id")
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("commit-comment-{index}-{comment_index}")),
+                kind: ActivityKind::CommitComment,
+                author: string_field_at(comment, &["author", "login"])
+                    .unwrap_or("unknown")
+                    .to_string(),
+                body,
+                updated_at: string_field(comment, "updatedAt")
+                    .or_else(|| string_field(comment, "createdAt"))
+                    .unwrap_or("unknown")
+                    .to_string(),
+                path: comment_path,
+                line: position,
+                url: string_field(comment, "url").map(str::to_string),
+                author_association: string_field(comment, "authorAssociation").map(str::to_string),
+                reactions: reaction_counts_from_value(comment.get("reactionGroups")),
+                includes_created_edit: bool_field(comment, "includesCreatedEdit").unwrap_or(false),
+                is_minimized: bool_field(comment, "isMinimized").unwrap_or(false),
+                minimized_reason: string_field(comment, "minimizedReason")
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string),
+                thread_id: thread_id.clone(),
+                thread_resolved: None,
+                thread_outdated: None,
+            }
+        })
+        .collect()
+}
+
+fn empty_commit_comment_thread(index: usize, node: &Value, commit: &str) -> ActivityEntry {
+    ActivityEntry {
+        id: string_field(node, "id")
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("commit-comment-thread-{index}")),
+        kind: ActivityKind::CommitComment,
+        author: "github".to_string(),
+        body: format!("commit comment thread on {commit}"),
+        updated_at: "unknown".to_string(),
+        path: string_field(node, "path").map(str::to_string),
+        line: u64_field(node, "position"),
+        url: None,
+        author_association: None,
+        reactions: ReactionCounts::default(),
+        includes_created_edit: false,
+        is_minimized: false,
+        minimized_reason: None,
+        thread_id: string_field(node, "id").map(str::to_string),
+        thread_resolved: None,
+        thread_outdated: None,
+    }
 }
 
 fn timeline_node_to_activity(index: usize, node: &Value) -> ActivityEntry {
@@ -3406,6 +3636,14 @@ fn string_field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
     value.get(key).and_then(Value::as_str)
 }
 
+fn bool_field(value: &Value, key: &str) -> Option<bool> {
+    value.get(key).and_then(Value::as_bool)
+}
+
+fn u64_field(value: &Value, key: &str) -> Option<u64> {
+    value.get(key).and_then(Value::as_u64)
+}
+
 fn string_field_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     let mut current = value;
     for key in path {
@@ -3766,11 +4004,14 @@ mod tests {
         assert!(issue_query.contains("LOCKED_EVENT"));
         assert!(issue_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(!issue_query.contains("MERGED_EVENT"));
+        assert!(!issue_query.contains("PULL_REQUEST_COMMIT_COMMENT_THREAD"));
         assert!(!issue_query.contains("ReviewRequestedEvent"));
         assert!(pr_query.contains("pullRequest(number: $number)"));
         assert!(pr_query.contains("LOCKED_EVENT"));
         assert!(pr_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(pr_query.contains("MERGED_EVENT"));
+        assert!(pr_query.contains("PULL_REQUEST_COMMIT_COMMENT_THREAD"));
+        assert!(pr_query.contains("PullRequestCommitCommentThread"));
         assert!(pr_query.contains("ReviewRequestedEvent"));
         assert!(pr_query.contains("BASE_REF_CHANGED_EVENT"));
         assert!(pr_query.contains("HEAD_REF_FORCE_PUSHED_EVENT"));
@@ -5796,6 +6037,108 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert_eq!(page.end_cursor.as_deref(), Some("comment-cursor-2"));
         assert_eq!(page.nodes.len(), 1);
         assert_eq!(page.nodes[0].id.as_deref(), Some("review-comment-3"));
+    }
+
+    #[test]
+    fn commit_comment_thread_comments_page_preserves_pagination_state() {
+        let page = commit_comment_thread_comments_page(CommitCommentThreadCommentsResponse {
+            data: CommitCommentThreadCommentsData {
+                node: Some(CommitCommentThreadCommentsNode {
+                    comments: CommitCommentThreadCommentsConnection {
+                        page_info: PageInfoDto {
+                            has_next_page: true,
+                            end_cursor: Some("commit-comment-cursor-2".into()),
+                        },
+                        nodes: vec![serde_json::json!({
+                            "id": "commit-comment-2",
+                            "author": {"login": "reviewer"},
+                            "body": "Follow-up on the commit.",
+                            "createdAt": "2026-01-05T00:00:00Z",
+                            "updatedAt": "2026-01-06T00:00:00Z",
+                            "url": "https://github.com/openclaw/openclaw/pull/81834#commitcomment-2",
+                            "path": "src/lib.rs",
+                            "position": 9
+                        })],
+                    },
+                }),
+            },
+        })
+        .expect("commit comment thread comments page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("commit-comment-cursor-2"));
+        assert_eq!(page.nodes.len(), 1);
+        assert_eq!(string_field(&page.nodes[0], "id"), Some("commit-comment-2"));
+    }
+
+    #[test]
+    fn timeline_activity_maps_commit_comment_threads() {
+        let activity = timeline_activity(TimelineResponse {
+            data: TimelineData {
+                repository: Some(TimelineRepository {
+                    issue: None,
+                    pull_request: Some(TimelineResource {
+                        timeline_items: TimelineItemsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
+                            nodes: vec![serde_json::json!({
+                                "__typename": "PullRequestCommitCommentThread",
+                                "id": "commit-thread-1",
+                                "path": "src/lib.rs",
+                                "position": 42,
+                                "commit": {"oid": "abcdef1234567890"},
+                                "comments": {
+                                    "pageInfo": {
+                                        "hasNextPage": false,
+                                        "endCursor": null
+                                    },
+                                    "nodes": [{
+                                        "id": "commit-comment-1",
+                                        "author": {"login": "reviewer"},
+                                        "authorAssociation": "MEMBER",
+                                        "body": "Please explain this commit.",
+                                        "createdAt": "2026-01-05T00:00:00Z",
+                                        "updatedAt": "2026-01-06T00:00:00Z",
+                                        "url": "https://github.com/openclaw/openclaw/pull/81834#commitcomment-1",
+                                        "includesCreatedEdit": true,
+                                        "isMinimized": true,
+                                        "minimizedReason": "outdated",
+                                        "reactionGroups": [{
+                                            "content": "EYES",
+                                            "users": {"totalCount": 3}
+                                        }],
+                                        "path": null,
+                                        "position": 43
+                                    }]
+                                }
+                            })],
+                        },
+                    }),
+                }),
+            },
+        });
+
+        assert_eq!(activity.len(), 1);
+        assert_eq!(activity[0].kind, ActivityKind::CommitComment);
+        assert_eq!(activity[0].author, "reviewer");
+        assert_eq!(
+            activity[0].body,
+            "on commit abcdef123456\nPlease explain this commit."
+        );
+        assert_eq!(activity[0].path.as_deref(), Some("src/lib.rs"));
+        assert_eq!(activity[0].line, Some(43));
+        assert_eq!(activity[0].thread_id.as_deref(), Some("commit-thread-1"));
+        assert_eq!(activity[0].author_association.as_deref(), Some("MEMBER"));
+        assert_eq!(activity[0].reactions.eyes, 3);
+        assert!(activity[0].includes_created_edit);
+        assert!(activity[0].is_minimized);
+        assert_eq!(activity[0].minimized_reason.as_deref(), Some("outdated"));
+        assert_eq!(
+            activity[0].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/pull/81834#commitcomment-1")
+        );
     }
 
     #[test]

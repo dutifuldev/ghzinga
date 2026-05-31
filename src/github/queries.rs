@@ -502,6 +502,41 @@ query($threadId: ID!, $after: String) {
 "#
 }
 
+pub(crate) fn commit_comment_thread_comments_query() -> &'static str {
+    r#"
+query($threadId: ID!, $after: String) {
+  node(id: $threadId) {
+    ... on PullRequestCommitCommentThread {
+      comments(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          createdAt
+          updatedAt
+          url
+          includesCreatedEdit
+          isMinimized
+          minimizedReason
+          reactionGroups {
+            content
+            users { totalCount }
+          }
+          path
+          position
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn changed_files_query() -> &'static str {
     r#"
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
@@ -550,6 +585,7 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
         AUTO_SQUASH_ENABLED_EVENT,
         AUTO_MERGE_ENABLED_EVENT,
         AUTO_MERGE_DISABLED_EVENT,
+        PULL_REQUEST_COMMIT_COMMENT_THREAD,
         DEPLOYED_EVENT,
         DEPLOYMENT_ENVIRONMENT_CHANGED_EVENT"#
         }
@@ -627,6 +663,36 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
           ... on AutoSquashEnabledEvent { id createdAt actor { login } enabler { login } }
           ... on AutoMergeEnabledEvent { id createdAt actor { login } }
           ... on AutoMergeDisabledEvent { id createdAt actor { login } reason }
+          ... on PullRequestCommitCommentThread {
+            id
+            path
+            position
+            commit { oid }
+            comments(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                id
+                author { login }
+                authorAssociation
+                body
+                createdAt
+                updatedAt
+                url
+                includesCreatedEdit
+                isMinimized
+                minimizedReason
+                reactionGroups {
+                  content
+                  users { totalCount }
+                }
+                path
+                position
+              }
+            }
+          }
           ... on DeployedEvent {
             id
             createdAt

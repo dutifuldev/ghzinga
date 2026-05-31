@@ -946,6 +946,7 @@ fn activity_icon(entry: &ActivityEntry, symbols: &Symbols) -> &'static str {
         crate::domain::ActivityKind::Comment => symbols.activity_comment,
         crate::domain::ActivityKind::Review => symbols.activity_review,
         crate::domain::ActivityKind::ReviewComment => symbols.activity_review_comment,
+        crate::domain::ActivityKind::CommitComment => symbols.activity_commit_comment,
         crate::domain::ActivityKind::Timeline => symbols.activity_timeline,
     }
 }
@@ -962,6 +963,7 @@ fn activity_heading_style(entry: &ActivityEntry, palette: &Palette) -> Style {
         crate::domain::ActivityKind::Comment => palette.teal,
         crate::domain::ActivityKind::Review => palette.green,
         crate::domain::ActivityKind::ReviewComment => palette.peach,
+        crate::domain::ActivityKind::CommitComment => palette.yellow,
         crate::domain::ActivityKind::Timeline => palette.subtext0,
     };
     Style::default().fg(color).add_modifier(Modifier::BOLD)
