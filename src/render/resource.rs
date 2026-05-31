@@ -32,6 +32,12 @@ enum TimelineItem<'a> {
     Activity(&'a ActivityEntry),
 }
 
+#[derive(Clone)]
+struct StyledPiece {
+    text: String,
+    style: Style,
+}
+
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
         Self {
@@ -79,39 +85,71 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette: &Palette) {
     let kind = resource.kind();
-    let header = vec![
-        Line::from(vec![
-            Span::styled(
-                resource.id.canonical_name(),
-                Style::default()
-                    .fg(palette.accent)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" "),
-            Span::styled(
-                format!("[{} {}]", kind, resource.state),
-                resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" "),
-            Span::styled(
-                format!("updated {}", resource.updated_at),
-                dim_style(palette),
-            ),
-        ]),
-        Line::from(Span::styled(
-            resource.title.clone(),
-            Style::default().fg(palette.text),
-        )),
-        separator_line(area.width, palette),
+    let mut header = Vec::new();
+    let meta_width = area.width as usize;
+    let updated = format!("updated {}", resource.updated_at);
+    let state = format!("[{} {}]", kind, resource.state);
+    let compact = area.width < 56;
+    let used = UnicodeWidthStr::width(state.as_str())
+        + if compact {
+            1
+        } else {
+            UnicodeWidthStr::width(updated.as_str()) + 2
+        };
+    let id_width = meta_width.saturating_sub(used).max(1);
+    let mut meta_spans = vec![
+        Span::styled(
+            truncate_display(&resource.id.canonical_name(), id_width),
+            Style::default()
+                .fg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            state,
+            resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
+        ),
     ];
+    if !compact {
+        meta_spans.push(Span::raw(" "));
+        meta_spans.push(Span::styled(
+            truncate_display(&updated, meta_width),
+            dim_style(palette),
+        ));
+    }
+    header.push(Line::from(meta_spans));
+
+    let title_rows = area.height.saturating_sub(if compact { 3 } else { 2 }) as usize;
+    let mut title_lines = markdown::wrap_plain_text(&resource.title, area.width as usize);
+    title_lines.truncate(title_rows.max(1));
+    for title in title_lines {
+        header.push(Line::from(Span::styled(
+            title,
+            Style::default().fg(palette.text),
+        )));
+    }
+    if compact && header.len() + 1 < area.height as usize {
+        header.push(Line::from(Span::styled(
+            truncate_display(&updated, area.width as usize),
+            dim_style(palette),
+        )));
+    }
+    while header.len() + 1 < area.height as usize {
+        header.push(Line::from(""));
+    }
+    if area.height > 0 {
+        header.push(separator_line(area.width, palette));
+    }
     Paragraph::new(header)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
 }
 
 fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let mut spans = Vec::new();
+    let mut lines = Vec::<Line<'static>>::new();
+    let mut spans = Vec::<Span<'static>>::new();
     let mut x = area.x;
+    let mut y = area.y;
     for tab in state.tabs() {
         let label = if *tab == state.active_tab {
             format!("[{}]", tab.label())
@@ -119,8 +157,17 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
             format!(" {} ", tab.label())
         };
         let width = UnicodeWidthStr::width(label.as_str()) as u16;
+        if x > area.x && x.saturating_add(width) > area.x.saturating_add(area.width) {
+            lines.push(Line::from(spans));
+            spans = Vec::new();
+            x = area.x;
+            y = y.saturating_add(1);
+        }
+        if y >= area.y.saturating_add(area.height) {
+            break;
+        }
         state.hit_areas.push(HitArea::new(
-            Rect::new(x, area.y, width, 1),
+            Rect::new(x, y, width.min(area.width), 1),
             HitTarget::Tab(*tab),
         ));
         x = x.saturating_add(width);
@@ -134,43 +181,44 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
         };
         spans.push(Span::styled(label, style));
     }
-    Paragraph::new(Line::from(spans))
+    lines.push(Line::from(spans));
+    Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
 }
 
 fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
     let resource = &state.resource;
-    let mut spans = Vec::new();
-    spans.push(Span::styled(
-        format!("{} {}", resource_state_symbol(resource), resource.state),
-        resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
-    ));
+    let mut pieces = Vec::new();
+    pieces.push(StyledPiece {
+        text: format!("{} {}", resource_state_symbol(resource), resource.state),
+        style: resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
+    });
     push_status_piece(
-        &mut spans,
+        &mut pieces,
         format!("👤 @{}", resource.author),
         Style::default().fg(palette.subtext0),
     );
     push_status_piece(
-        &mut spans,
+        &mut pieces,
         format!("💬 {}", resource.activity.len()),
         Style::default().fg(palette.teal),
     );
     push_status_piece(
-        &mut spans,
+        &mut pieces,
         format!("👍 {}", resource.reactions.total()),
         Style::default().fg(palette.yellow),
     );
     if !resource.assignees.is_empty() {
         push_status_piece(
-            &mut spans,
+            &mut pieces,
             format!("🎯 {}", people_summary(&resource.assignees)),
             Style::default().fg(palette.blue),
         );
     }
     if resource.is_pull_request() {
         push_status_piece(
-            &mut spans,
+            &mut pieces,
             format!(
                 "{} checks {}",
                 checks_symbol(resource),
@@ -180,14 +228,14 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         );
         if let Some(threads) = review_threads_summary(resource) {
             push_status_piece(
-                &mut spans,
+                &mut pieces,
                 format!("🧵 {threads}"),
                 Style::default().fg(palette.peach),
             );
         }
         if let Some(pr) = &resource.pull_request {
             push_status_piece(
-                &mut spans,
+                &mut pieces,
                 format!(
                     "📄 {} files +{} -{}",
                     pr.files.len(),
@@ -200,7 +248,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     }
     if !resource.warnings.is_empty() {
         push_status_piece(
-            &mut spans,
+            &mut pieces,
             format!("⚠ Warnings: {}", resource.warnings.len()),
             Style::default()
                 .fg(palette.yellow)
@@ -209,14 +257,14 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     }
     if let Some(refresh) = refresh_summary(state) {
         push_status_piece(
-            &mut spans,
+            &mut pieces,
             format!("🔁 {refresh}"),
             Style::default().fg(palette.accent),
         );
     }
     if let Some(changes) = refresh_changes_summary(state) {
         push_status_piece(
-            &mut spans,
+            &mut pieces,
             format!("✦ {changes}"),
             Style::default()
                 .fg(palette.green)
@@ -224,55 +272,79 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         );
     }
 
-    let mut lines = vec![Line::from(spans)];
-    if area.height > 1 {
-        let second = if let Some(error) = &state.last_error {
-            Line::from(Span::styled(
-                truncate_ascii(&format!("❌ {error}"), area.width as usize),
-                Style::default()
-                    .fg(palette.red)
-                    .add_modifier(Modifier::BOLD),
-            ))
-        } else if let Some(message) = &state.status_message {
-            Line::from(Span::styled(
-                truncate_ascii(&format!("ⓘ {message}"), area.width as usize),
-                Style::default().fg(palette.subtext0),
-            ))
-        } else if refresh_summary(state).is_some() || refresh_changes_summary(state).is_some() {
-            let mut spans = Vec::new();
-            if let Some(refresh) = refresh_summary(state) {
-                spans.push(Span::styled(
-                    format!("🔁 {refresh}"),
-                    Style::default().fg(palette.accent),
-                ));
-            }
-            if let Some(changes) = refresh_changes_summary(state) {
-                if !spans.is_empty() {
-                    spans.push(Span::styled("  ", Style::default()));
-                }
-                spans.push(Span::styled(
-                    format!("✦ {changes}"),
-                    Style::default()
-                        .fg(palette.green)
-                        .add_modifier(Modifier::BOLD),
-                ));
-            }
-            Line::from(spans)
+    let mut lines = wrap_styled_pieces(&pieces, area.width as usize);
+    if let Some(message) = status_detail_line(state) {
+        let style = if state.last_error.is_some() {
+            Style::default()
+                .fg(palette.red)
+                .add_modifier(Modifier::BOLD)
         } else {
-            separator_line(area.width, palette)
+            Style::default().fg(palette.subtext0)
         };
-        lines.push(second);
+        lines.push(Line::from(Span::styled(
+            truncate_display(&message, area.width as usize),
+            style,
+        )));
+    }
+    if lines.is_empty() {
+        lines.push(separator_line(area.width, palette));
+    }
+    if lines.len() > area.height as usize {
+        lines.truncate(area.height as usize);
+        if let Some(last) = lines.last_mut() {
+            *last = Line::from(Span::styled(
+                truncate_display("…", area.width as usize),
+                Style::default()
+                    .fg(palette.overlay1)
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
     }
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
 }
 
-fn push_status_piece(spans: &mut Vec<Span<'static>>, text: String, style: Style) {
-    if !spans.is_empty() {
-        spans.push(Span::styled("  ", Style::default()));
+fn push_status_piece(pieces: &mut Vec<StyledPiece>, text: String, style: Style) {
+    pieces.push(StyledPiece { text, style });
+}
+
+fn status_detail_line(state: &AppState) -> Option<String> {
+    if let Some(error) = &state.last_error {
+        return Some(format!("❌ {error}"));
     }
-    spans.push(Span::styled(text, style));
+    if let Some(message) = &state.status_message {
+        return Some(format!("ⓘ {message}"));
+    }
+    None
+}
+
+fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>> {
+    let width = width.max(1);
+    let mut lines = Vec::new();
+    let mut spans = Vec::new();
+    let mut current_width = 0;
+    for piece in pieces {
+        let separator_width = usize::from(current_width > 0) * 2;
+        let piece_width = UnicodeWidthStr::width(piece.text.as_str());
+        if current_width > 0 && current_width + separator_width + piece_width > width {
+            lines.push(Line::from(spans));
+            spans = Vec::new();
+            current_width = 0;
+        }
+        if current_width > 0 {
+            spans.push(Span::raw("  "));
+            current_width += 2;
+        }
+        let remaining = width.saturating_sub(current_width).max(1);
+        let text = truncate_display(&piece.text, remaining);
+        current_width += UnicodeWidthStr::width(text.as_str());
+        spans.push(Span::styled(text, piece.style));
+    }
+    if !spans.is_empty() {
+        lines.push(Line::from(spans));
+    }
+    lines
 }
 
 fn resource_state_symbol(resource: &Resource) -> &'static str {
@@ -1363,12 +1435,32 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         ("[⏻ quit]", HitTarget::Quit),
     ];
     let mut x = area.x;
+    let mut y = area.y;
+    let mut control_spans = Vec::new();
+    let mut control_lines = Vec::<Line<'static>>::new();
     for (label, target) in controls.iter() {
         let width = UnicodeWidthStr::width(*label) as u16;
-        state
-            .hit_areas
-            .push(HitArea::new(Rect::new(x, area.y, width, 1), target.clone()));
+        if x > area.x && x.saturating_add(width) > area.x.saturating_add(area.width) {
+            control_lines.push(Line::from(control_spans));
+            control_spans = Vec::new();
+            x = area.x;
+            y = y.saturating_add(1);
+        }
+        if y >= area.y.saturating_add(area.height) {
+            break;
+        }
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x, y, width.min(area.width), 1),
+            target.clone(),
+        ));
+        if x > area.x {
+            control_spans.push(Span::raw(" "));
+        }
+        control_spans.push(Span::styled(*label, button_style(palette)));
         x = x.saturating_add(width + 1);
+    }
+    if !control_spans.is_empty() {
+        control_lines.push(Line::from(control_spans));
     }
 
     let default_message = format!(
@@ -1383,14 +1475,6 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     } else {
         default_message
     };
-    let mut spans = Vec::new();
-    for (index, (label, _target)) in controls.iter().enumerate() {
-        if index > 0 {
-            spans.push(Span::raw(" "));
-        }
-        spans.push(Span::styled(*label, button_style(palette)));
-    }
-    spans.push(Span::styled(" | ", dim_style(palette)));
     let message_style = if state.last_error.is_some() {
         Style::default()
             .fg(palette.red)
@@ -1398,14 +1482,19 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     } else {
         Style::default().fg(palette.subtext0)
     };
-    spans.push(Span::styled(
-        truncate_ascii(
-            &message,
-            area.width.saturating_sub(x.saturating_sub(area.x)) as usize,
-        ),
-        message_style,
-    ));
-    Paragraph::new(Line::from(spans))
+    let remaining = area.height.saturating_sub(control_lines.len() as u16) as usize;
+    let mut lines = control_lines;
+    if remaining > 0 {
+        for line in markdown::wrap_plain_text(&message, area.width as usize)
+            .into_iter()
+            .take(remaining)
+        {
+            lines.push(Line::from(Span::styled(line, message_style)));
+        }
+    } else if let Some(last) = lines.last_mut() {
+        last.spans.push(Span::styled(" …", dim_style(palette)));
+    }
+    Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
 }
@@ -1612,13 +1701,26 @@ fn horizontal_rule(width: u16) -> String {
 }
 
 fn truncate_ascii(input: &str, max_width: usize) -> String {
-    if input.chars().count() <= max_width {
+    truncate_display(input, max_width)
+}
+
+fn truncate_display(input: &str, max_width: usize) -> String {
+    if UnicodeWidthStr::width(input) <= max_width {
         return input.to_string();
     }
     if max_width <= 3 {
         return ".".repeat(max_width);
     }
-    let prefix = input.chars().take(max_width - 3).collect::<String>();
+    let mut prefix = String::new();
+    let mut width = 0;
+    for ch in input.chars() {
+        let ch_width = UnicodeWidthStr::width(ch.to_string().as_str()).max(1);
+        if width + ch_width > max_width.saturating_sub(3) {
+            break;
+        }
+        prefix.push(ch);
+        width += ch_width;
+    }
     format!("{prefix}...")
 }
 
@@ -2126,6 +2228,60 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Help));
+    }
+
+    #[test]
+    fn narrow_render_wraps_chrome_without_losing_click_targets() {
+        let mut resource = pr_resource();
+        resource.title =
+            "feat(senseaudio): add a provider with long metadata that needs wrapping".into();
+        let mut state = AppState::new(resource);
+        state.status_message =
+            Some("background refresh finished after collecting checks and comments".into());
+
+        let content = draw(&mut state, 36, 24);
+        let mut tab_rows = state
+            .hit_areas
+            .iter()
+            .filter_map(|area| matches!(area.target, HitTarget::Tab(_)).then_some(area.rect.y))
+            .collect::<Vec<_>>();
+        tab_rows.sort_unstable();
+        tab_rows.dedup();
+        let mut footer_rows = state
+            .hit_areas
+            .iter()
+            .filter_map(|area| {
+                matches!(
+                    area.target,
+                    HitTarget::Refresh | HitTarget::OpenCurrent | HitTarget::Help | HitTarget::Quit
+                )
+                .then_some(area.rect.y)
+            })
+            .collect::<Vec<_>>();
+        footer_rows.sort_unstable();
+        footer_rows.dedup();
+
+        assert!(content.contains("[Overview]"));
+        assert!(content.contains("[🔄 refresh]"));
+        assert!(content.contains("background refresh finished"));
+        assert!(tab_rows.len() > 1);
+        assert!(footer_rows.len() > 1);
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::Refresh));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::OpenCurrent));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::Help));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::Quit));
     }
 
     #[test]
@@ -2712,8 +2868,9 @@ mod tests {
     #[test]
     fn truncation_does_not_split_emoji_bytes() {
         assert_eq!(truncate_ascii("rating: shrimp", 10), "rating:...");
+        assert_eq!(truncate_ascii("rating: 🦐 gold shrimp", 12), "rating: ...");
         assert_eq!(
-            truncate_ascii("rating: 🦐 gold shrimp", 12),
+            truncate_ascii("rating: 🦐 gold shrimp", 13),
             "rating: 🦐..."
         );
     }
