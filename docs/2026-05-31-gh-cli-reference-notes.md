@@ -135,7 +135,6 @@ When documenting GitHub data access, use precise language:
 - say "`gh auth token` credential fallback" for GitHub CLI integration
 - avoid saying "gh CLI gateway" as if GitHub CLI owns data fetching
 
-The current file name `src/github/gh_cli.rs` is historical and should not be
-read as a transport claim. A later code cleanup can rename it to
-`github/api.rs` or split it into `auth`, `transport`, `graphql`, and `normalize`
-modules without changing the product behavior.
+The current direct transport lives in `src/github/api.rs`. A later code cleanup
+can split it into `auth`, `transport`, `graphql`, and `normalize` modules
+without changing the product behavior.

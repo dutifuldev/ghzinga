@@ -11,7 +11,7 @@ use ghzoom::{
     cli::Cli,
     domain::{ResourceId, ResourceKind},
     github::{
-        gh_cli::{GhCliGateway, GithubGateway},
+        api::{GithubApiGateway, GithubGateway},
         load_fixture,
     },
     render::render_app,
@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let resource = if let Some(path) = &cli.offline_fixture {
         load_fixture(path)?
     } else {
-        let gateway = GhCliGateway;
+        let gateway = GithubApiGateway;
         gateway.fetch_resource(&resource_id).await?
     };
 
@@ -236,7 +236,7 @@ fn open_command_args(id: &ResourceId) -> Vec<String> {
 
 async fn refresh_resource(state: &mut AppState) {
     let id = state.resource.id.clone();
-    let gateway = GhCliGateway;
+    let gateway = GithubApiGateway;
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             state.apply_refreshed_resource(resource, current_refresh_label());
@@ -248,7 +248,7 @@ async fn refresh_resource(state: &mut AppState) {
 }
 
 async fn navigate_to_resource(state: &mut AppState, id: ghzoom::domain::ResourceId) {
-    let gateway = GhCliGateway;
+    let gateway = GithubApiGateway;
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             state.push_current_to_history();
@@ -280,7 +280,7 @@ async fn navigate_back(state: &mut AppState) {
         state.status_message = Some("no previous resource".into());
         return;
     };
-    let gateway = GhCliGateway;
+    let gateway = GithubApiGateway;
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             let name = resource.id.canonical_name();
