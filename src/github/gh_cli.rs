@@ -705,34 +705,10 @@ query($owner: String!, $name: String!, $number: Int!) {
     Ok(output.stdout)
 }
 
-async fn run_graphql_check_suites(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
-    let query = r#"
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      commits(last: 1) {
-        nodes {
-          commit {
-            checkSuites(last: 100) {
-              nodes {
-                status
-                conclusion
-                url
-                app { name }
-                workflowRun {
-                  url
-                  workflow { name }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-"#;
+async fn run_graphql_check_suites(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
+    let query = check_suites_query();
     let number = id.number.to_string();
+    let after = after.unwrap_or("null");
     let output = Command::new("gh")
         .args([
             "api",
@@ -743,6 +719,8 @@ query($owner: String!, $name: String!, $number: Int!) {
             &format!("name={}", id.repo),
             "-F",
             &format!("number={number}"),
+            "-F",
+            &format!("after={after}"),
             "-f",
             &format!("query={query}"),
         ])
@@ -762,6 +740,39 @@ query($owner: String!, $name: String!, $number: Int!) {
     }
 
     Ok(output.stdout)
+}
+
+fn check_suites_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(last: 1) {
+        nodes {
+          commit {
+            checkSuites(first: 100, after: $after) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                status
+                conclusion
+                url
+                app { name }
+                workflowRun {
+                  url
+                  workflow { name }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
 }
 
 async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
@@ -1208,6 +1219,7 @@ struct CheckSuitesCommit {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CheckSuiteConnection {
+    page_info: PageInfoDto,
     nodes: Vec<CheckSuiteDto>,
 }
 
@@ -1840,10 +1852,24 @@ async fn fetch_commit_deployments(
 }
 
 async fn fetch_check_suites(id: &ResourceId) -> anyhow::Result<Vec<CheckRun>> {
-    let output = run_graphql_check_suites(id).await?;
-    let response: CheckSuitesResponse =
-        serde_json::from_slice(&output).context("failed to parse check suites GraphQL JSON")?;
-    Ok(check_suites_from_response(response))
+    let mut checks = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_check_suites(id, after.as_deref()).await?;
+        let response: CheckSuitesResponse =
+            serde_json::from_slice(&output).context("failed to parse check suites GraphQL JSON")?;
+        let Some(page) = check_suites_page(response) else {
+            return Ok(deduped_check_suites(checks));
+        };
+        checks.extend(page.checks);
+        if !page.has_next_page {
+            return Ok(deduped_check_suites(checks));
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("check suites page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
 }
 
 async fn fetch_file_patches(id: &ResourceId) -> anyhow::Result<HashMap<String, String>> {
@@ -1888,19 +1914,41 @@ fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String
     }
 }
 
+struct CheckSuitesPage {
+    checks: Vec<CheckRun>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
 fn check_suites_from_response(response: CheckSuitesResponse) -> Vec<CheckRun> {
-    let Some(repository) = response.data.repository else {
-        return Vec::new();
-    };
-    let Some(pull_request) = repository.pull_request else {
-        return Vec::new();
-    };
-    let Some(node) = pull_request.commits.nodes.into_iter().next() else {
-        return Vec::new();
-    };
+    check_suites_page(response)
+        .map(|page| deduped_check_suites(page.checks))
+        .unwrap_or_default()
+}
+
+fn check_suites_page(response: CheckSuitesResponse) -> Option<CheckSuitesPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let node = pull_request.commits.nodes.into_iter().next()?;
+    let page_info = node.commit.check_suites.page_info;
+    let checks = node
+        .commit
+        .check_suites
+        .nodes
+        .into_iter()
+        .map(check_suite_from_dto)
+        .collect();
+    Some(CheckSuitesPage {
+        checks,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn deduped_check_suites(checks: Vec<CheckRun>) -> Vec<CheckRun> {
     let mut by_name = HashMap::new();
-    for suite in node.commit.check_suites.nodes {
-        let check = check_suite_from_dto(suite);
+    for check in checks {
         by_name.insert(check.name.clone(), check);
     }
     let mut checks = by_name.into_values().collect::<Vec<_>>();
@@ -2599,6 +2647,17 @@ mod tests {
     }
 
     #[test]
+    fn check_suites_query_requests_pagination_state() {
+        let query = check_suites_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("checkSuites(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+    }
+
+    #[test]
     fn review_threads_query_requests_pagination_state() {
         let query = review_threads_query();
 
@@ -3018,6 +3077,10 @@ mod tests {
                             nodes: vec![CheckSuitesCommitNode {
                                 commit: CheckSuitesCommit {
                                     check_suites: CheckSuiteConnection {
+                                        page_info: PageInfoDto {
+                                            has_next_page: false,
+                                            end_cursor: None,
+                                        },
                                         nodes: vec![
                                             CheckSuiteDto {
                                                 status: Some("IN_PROGRESS".into()),
@@ -3070,6 +3133,51 @@ mod tests {
             suites[0].details_url.as_deref(),
             Some("https://example.test/run-new")
         );
+    }
+
+    #[test]
+    fn check_suites_page_preserves_pagination_state() {
+        let page = check_suites_page(CheckSuitesResponse {
+            data: CheckSuitesData {
+                repository: Some(CheckSuitesRepository {
+                    pull_request: Some(CheckSuitesPullRequest {
+                        commits: CheckSuitesCommitConnection {
+                            nodes: vec![CheckSuitesCommitNode {
+                                commit: CheckSuitesCommit {
+                                    check_suites: CheckSuiteConnection {
+                                        page_info: PageInfoDto {
+                                            has_next_page: true,
+                                            end_cursor: Some("suite-cursor-2".into()),
+                                        },
+                                        nodes: vec![CheckSuiteDto {
+                                            status: Some("IN_PROGRESS".into()),
+                                            conclusion: None,
+                                            url: Some("https://example.test/suite".into()),
+                                            app: Some(CheckSuiteAppDto {
+                                                name: Some("GitHub Actions".into()),
+                                            }),
+                                            workflow_run: Some(CheckSuiteWorkflowRunDto {
+                                                url: Some("https://example.test/run".into()),
+                                                workflow: Some(CheckSuiteWorkflowDto {
+                                                    name: Some("CI".into()),
+                                                }),
+                                            }),
+                                        }],
+                                    },
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("check suites page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("suite-cursor-2"));
+        assert_eq!(page.checks.len(), 1);
+        assert_eq!(page.checks[0].name, "suite/CI");
+        assert_eq!(page.checks[0].status, CheckStatus::Pending);
     }
 
     #[test]
