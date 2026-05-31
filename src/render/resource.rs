@@ -45,6 +45,13 @@ struct CheckGroupRenderContext<'a> {
     symbols: &'a Symbols,
 }
 
+#[derive(Default)]
+struct ActivityCounts {
+    comments: usize,
+    reviews: usize,
+    timeline: usize,
+}
+
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
         Self {
@@ -216,11 +223,32 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         format!("{} @{}", symbols.author, resource.author),
         Style::default().fg(palette.subtext0),
     );
+    let activity_counts = activity_counts(resource);
     push_status_piece(
         &mut pieces,
-        format!("{} {}", symbols.comments, resource.activity.len()),
+        format!("{} {}", symbols.comments, activity_counts.comments),
         Style::default().fg(palette.teal),
     );
+    if activity_counts.reviews > 0 {
+        push_status_piece(
+            &mut pieces,
+            format!(
+                "{} reviews {}",
+                symbols.activity_review, activity_counts.reviews
+            ),
+            Style::default().fg(palette.green),
+        );
+    }
+    if activity_counts.timeline > 0 {
+        push_status_piece(
+            &mut pieces,
+            format!(
+                "{} timeline {}",
+                symbols.activity_timeline, activity_counts.timeline
+            ),
+            Style::default().fg(palette.subtext0),
+        );
+    }
     push_status_piece(
         &mut pieces,
         format!("{} {}", symbols.reactions, resource.reactions.total()),
@@ -340,6 +368,25 @@ fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
         return Some(format!("{} {message}", symbols.info));
     }
     None
+}
+
+fn activity_counts(resource: &Resource) -> ActivityCounts {
+    let mut counts = ActivityCounts::default();
+    for entry in &resource.activity {
+        match entry.kind {
+            crate::domain::ActivityKind::Comment | crate::domain::ActivityKind::CommitComment => {
+                counts.comments += 1;
+            }
+            crate::domain::ActivityKind::Review => {
+                counts.reviews += 1;
+            }
+            crate::domain::ActivityKind::ReviewComment => {}
+            crate::domain::ActivityKind::Timeline => {
+                counts.timeline += 1;
+            }
+        }
+    }
+    counts
 }
 
 fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>> {
@@ -2118,6 +2165,43 @@ mod tests {
         let content = format!("{:?}", terminal.backend().buffer());
 
         assert!(content.contains("Reactions: +1:2 heart:2 eyes:1"));
+    }
+
+    #[test]
+    fn status_counts_comments_reviews_and_timeline_separately() {
+        let backend = TestBackend::new(140, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        let mut review = resource.activity[0].clone();
+        review.id = "review-1".into();
+        review.kind = ActivityKind::Review;
+        review.body = "Approved".into();
+        let mut review_comment = resource.activity[0].clone();
+        review_comment.id = "thread-1".into();
+        review_comment.kind = ActivityKind::ReviewComment;
+        review_comment.thread_id = Some("thread-1".into());
+        review_comment.thread_resolved = Some(false);
+        let mut commit_comment = resource.activity[0].clone();
+        commit_comment.id = "commit-comment-1".into();
+        commit_comment.kind = ActivityKind::CommitComment;
+        let mut timeline = resource.activity[0].clone();
+        timeline.id = "timeline-1".into();
+        timeline.kind = ActivityKind::Timeline;
+        resource
+            .activity
+            .extend([review, review_comment, commit_comment, timeline]);
+        let mut state = AppState::new(resource);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("comments 2"));
+        assert!(content.contains("review reviews 1"));
+        assert!(content.contains("- timeline 1"));
+        assert!(content.contains("1 unresolved / 1 thread"));
+        assert!(!content.contains("comments 5"));
     }
 
     #[test]
