@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
-use crate::domain::{Resource, ResourceKind};
+use crate::domain::{Resource, ResourceId, ResourceKind};
 use crate::input::HitArea;
 use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
@@ -69,6 +69,12 @@ pub enum BlockId {
     Patch(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadingState {
+    pub target: ResourceId,
+    pub message: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
@@ -85,6 +91,7 @@ pub struct AppState {
     pub last_refresh_changed_sections: Vec<String>,
     pub last_error: Option<String>,
     pub status_message: Option<String>,
+    pub loading: Option<LoadingState>,
     pub show_help: bool,
     pub show_settings: bool,
     pub theme: ThemeName,
@@ -110,6 +117,7 @@ impl AppState {
             last_refresh_changed_sections: Vec::new(),
             last_error: None,
             status_message: None,
+            loading: None,
             show_help: false,
             show_settings: false,
             theme: ThemeName::Default,
@@ -174,6 +182,7 @@ impl AppState {
         self.last_refreshed_at = None;
         self.last_refresh_had_changes = None;
         self.last_refresh_changed_sections.clear();
+        self.loading = None;
     }
 
     pub fn push_current_to_history(&mut self) {
@@ -203,6 +212,7 @@ impl AppState {
         self.resource = resource;
         self.refresh_requested = false;
         self.last_error = None;
+        self.loading = None;
         self.mark_refreshed(refreshed_at, changed);
         self.last_refresh_changed_sections = changed_sections;
         self.status_message = Some(if changed {
@@ -218,6 +228,25 @@ impl AppState {
             "refreshed from GitHub: no changes".into()
         });
         changed
+    }
+
+    pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) {
+        self.loading = Some(LoadingState {
+            target,
+            message: message.into(),
+        });
+        self.last_error = None;
+    }
+
+    pub fn finish_loading(&mut self) {
+        self.loading = None;
+        self.refresh_requested = false;
+    }
+
+    pub fn loading_message(&self) -> Option<&str> {
+        self.loading
+            .as_ref()
+            .map(|loading| loading.message.as_str())
     }
 
     pub fn toggle_help(&mut self) {

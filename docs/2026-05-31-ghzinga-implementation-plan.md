@@ -280,6 +280,12 @@ Refresh:
 - default interval: 60 seconds
 - manual refresh: `r`
 - display last refreshed time and whether content changed
+- show a visible loading state while refresh, link navigation, or back
+  navigation is waiting on GitHub
+- keep the previous rendered resource visible while background refresh or
+  navigation work is in flight
+- ignore duplicate refresh/navigation starts while one GitHub fetch is already
+  running; the status band should explain that work is still in progress
 - include activity bodies and review-thread state in the change fingerprint
 - show the changed surfaces after refresh, such as activity, checks, files, or
   commits
@@ -434,6 +440,30 @@ Avoid as primary shortcuts:
 - `Ctrl-b` and `Ctrl-a` because of tmux/screen
 - `Ctrl-d`/`Ctrl-u` because they are common in shells and gh-dash but conflict-prone inside nested TUIs
 - raw escape sequences that Herdr may use for pane routing
+
+## Background Loading
+
+GitHub fetches run as one background job at a time. This keeps the TUI loop
+simple and avoids unbounded request queues when users click repeatedly or when
+auto-refresh fires while a previous request is still running.
+
+Loading state rules:
+
+- Starting refresh sets `Loading: refreshing owner/repo#number from GitHub`.
+- Starting link navigation sets `Loading: opening owner/repo#number from GitHub`.
+- Starting back navigation sets `Loading: returning to owner/repo#number from GitHub`.
+- The status band and footer both show the loading message until the job
+  finishes.
+- Mouse wheel and keyboard scrolling remain available while a refresh is in
+  flight because the previous resource remains on screen.
+- Starting a second fetch while one is running does not enqueue another network
+  call; it updates the status message to say which fetch is already running.
+- Successful refresh applies normal change detection. Successful navigation
+  replaces the current resource and records history. Successful back navigation
+  replaces the current resource without adding a new history entry.
+- Failed refresh/navigation clears loading and shows the recoverable error in
+  the status band. Failed back navigation restores the popped history target so
+  the user can try again.
 
 ## Text Expansion
 
