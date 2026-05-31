@@ -2038,14 +2038,23 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         control_spans.push(Span::styled(label, button_style(palette)));
         x = x.saturating_add(width + 1);
     }
+    let scroll = scroll_summary(state);
+    let scroll_width = UnicodeWidthStr::width(scroll.as_str()) as u16;
+    let used_width = x.saturating_sub(area.x).saturating_sub(1);
+    if !control_spans.is_empty()
+        && y < area.y.saturating_add(area.height)
+        && used_width.saturating_add(1).saturating_add(scroll_width) <= area.width
+    {
+        control_spans.push(Span::raw(" "));
+        control_spans.push(Span::styled(scroll.clone(), dim_style(palette)));
+    }
     if !control_spans.is_empty() {
         control_lines.push(Line::from(control_spans));
     }
 
     let default_message = format!(
-        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab {} | scroll {}",
-        state.active_tab.label(),
-        state.scroll
+        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab {} | {}",
+        state.active_tab.label(), scroll
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
@@ -2078,6 +2087,17 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn scroll_summary(state: &AppState) -> String {
+    let limit = state.scroll_limit;
+    let current = state.scroll.min(limit);
+    let percent = if limit == 0 {
+        100
+    } else {
+        ((u32::from(current) * 100) / u32::from(limit)).min(100)
+    };
+    format!("scroll {current}/{limit} {percent}%")
 }
 
 fn checks_summary(resource: &Resource) -> String {
@@ -2894,6 +2914,32 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Help));
+    }
+
+    #[test]
+    fn footer_renders_scroll_position_cue_when_space_allows() {
+        let mut state = AppState::new(pr_resource());
+
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("scroll 0/"));
+        assert!(content.contains("0%"));
+    }
+
+    #[test]
+    fn scroll_summary_reports_current_limit_and_percent() {
+        let mut state = AppState::new(pr_resource());
+        state.scroll = 100;
+        state.scroll_limit = 200;
+
+        assert_eq!(scroll_summary(&state), "scroll 100/200 50%");
+
+        state.scroll = 300;
+        assert_eq!(scroll_summary(&state), "scroll 200/200 100%");
+
+        state.scroll = 0;
+        state.scroll_limit = 0;
+        assert_eq!(scroll_summary(&state), "scroll 0/0 100%");
     }
 
     #[test]
