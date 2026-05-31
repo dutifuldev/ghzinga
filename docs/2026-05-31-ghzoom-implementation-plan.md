@@ -184,7 +184,8 @@ Data loaded for PR:
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and
   review-thread resolved/outdated state
-- timeline events for labels, references, assignments, review requests,
+- timeline events for labels, references, assignments, pins, locks, duplicate
+  markers, transfers, connected/disconnected references, review requests,
   draft/ready state, auto-merge changes, merges, title changes, milestones,
   close, and reopen events
 - reviews and review states
@@ -199,7 +200,9 @@ Data loaded for issue:
 - reactions counts
 - comments and timeline events, including author association, comment
   reactions, edit/minimized metadata, permalinks, labels, references,
-  assignments, title changes, milestones, close, and reopen events
+  assignments, pins, locks, duplicate markers, transfers,
+  connected/disconnected references, title changes, milestones, close, and
+  reopen events
 - timeline-ish linked references when available
 
 Refresh:
