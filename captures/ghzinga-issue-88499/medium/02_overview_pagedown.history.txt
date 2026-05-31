@@ -1,36 +1,36 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                       
-openai-responses provider: 404 on previous_response_id when store=false (default)                                       
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
+feat(senseaudio): add SenseAudio TTS provider                                                                           
 ------------------------------------------------------------------------------------------------------------------------
-[Overview] Activity  Links                                                                                              
-OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                          
-                                                                                                                        
+[Overview] Activity  Commits  Checks  Files  Links                                                                      
+OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
+warn Warnings: 1                                                                                                        
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
                                                                                                                         
 [expand all]                                                                                                            
                                                                                                                         
-* @xneone opened 2026-05-31T02:21:19Z                                                                                   
-Bug Description                                                                                                         
+* @KLilyZ opened 2026-05-14T14:05:46Z                                                                                   
+Summary                                                                                                                 
                                                                                                                         
-When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false (or   
-omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same session,  
-the gateway includes previous_response_id referencing the previous response. Since that response was never persisted    
-server-side, the API returns a 404:                                                                                     
+- Problem: senseaudio bundled plugin only has ASR; no TTS.                                                              
+- Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with the  
+ASR added in #66943.                                                                                                    
+- What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices   
+via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code /         
+missing-audio buckets.                                                                                                  
+- What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of   
+scope.                                                                                                                  
                                                                                                                         
+Change Type (select all)                                                                                                
+[+ more]                                                                                                                
+------------------------------------------------------------------------------------------------------------------------
                                                                                                                         
-HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store   
-set to true, or remove this item from your input.                                                                       
+comment Comment by @github-actions 2026-05-14T14:05:57Z                                                                 
+meta: association CONTRIBUTOR                                                                                           
+[details]                                                                                                               
+<!-- openclaw:dependency-change-awareness -->                                                                           
                                                                                                                         
+Dependency Changes Detected                                                                                             
                                                                                                                         
-Once this happens, every subsequent request in the session fails with the same 404, because the stale                   
-previous_response_id is never cleared. The session is permanently broken until the user runs /new.                      
-                                                                                                                        
-Steps to Reproduce                                                                                                      
-                                                                                                                        
-1. Configure a provider with api: openai-responses pointing to an OpenAI-compatible endpoint (e.g. GPT-5.5 via a proxy):
-json                                                                                                                    
-"wlkgpt": {                                                                                                             
-"baseUrl": "https://api.example.com/v1",                                                                                
-"api": "openai-responses",                                                                                              
-"models": [{"id": "gpt-5.5"}]                                                                                           
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
 [refresh] [open] [settings] [help] [quit] ...                                                                           
