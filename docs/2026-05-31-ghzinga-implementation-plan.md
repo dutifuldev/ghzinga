@@ -474,8 +474,10 @@ Long text behavior:
 - Visible controls:
   - `[+ more]` expands one block
   - `[- less]` collapses it
-  - `[expand all]` for tab-level expansion
-- Mouse and keyboard activation use the same `HitTarget::ToggleBlock`.
+  - `[expand all]` / `[collapse all]` for tab-level expansion when a tab has
+    expandable body, comment, commit, check, file, or patch rows
+- Mouse and keyboard activation use shared hit targets for single-block and
+  all-block expansion.
 - Truncation must be tested against line wrapping, terminal width, and Unicode width.
 
 ## Testing Plan

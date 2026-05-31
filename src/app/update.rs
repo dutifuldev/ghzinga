@@ -167,6 +167,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.toggle_block(id);
             AppIntent::None
         }
+        HitTarget::ExpandBlocks(blocks) => {
+            state.expand_blocks(blocks);
+            AppIntent::None
+        }
+        HitTarget::CollapseBlocks(blocks) => {
+            state.collapse_blocks(blocks);
+            AppIntent::None
+        }
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::OpenCurrent => AppIntent::OpenResource(state.resource.id.clone()),
@@ -437,6 +445,48 @@ mod tests {
         assert_eq!(intent, AppIntent::None);
         assert!(state.block_expanded(&BlockId::Body));
         assert_eq!(state.active_tab, Tab::Overview);
+    }
+
+    #[test]
+    fn keyboard_enter_activates_visible_expand_all_action() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 12, 1),
+            HitTarget::ExpandBlocks(vec![BlockId::Body, BlockId::Activity("comment-1".into())]),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.block_expanded(&BlockId::Body));
+        assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
+    }
+
+    #[test]
+    fn mouse_click_on_collapse_all_action_collapses_blocks() {
+        let mut state = AppState::new(resource());
+        state.expand_blocks(vec![BlockId::Body, BlockId::Activity("comment-1".into())]);
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 14, 1),
+            HitTarget::CollapseBlocks(vec![BlockId::Body, BlockId::Activity("comment-1".into())]),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(!state.block_expanded(&BlockId::Body));
+        assert!(!state.block_expanded(&BlockId::Activity("comment-1".into())));
     }
 
     #[test]

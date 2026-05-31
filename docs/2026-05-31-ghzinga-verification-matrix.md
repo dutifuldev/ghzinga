@@ -41,7 +41,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | Explicit GitHub relationship links | `related_resource_ids_parse_urls_and_number_fallbacks`, `linked_resources_query_uses_selector_connection_and_pagination_state`, `linked_resources_page_preserves_pagination_state_and_kind_mapping`, `linked_resources_page_allows_valid_empty_pages`, `links_tab_renders_explicit_related_resources_once`; PR closing-issue and issue closed-by-PR relationship links are fetched until `hasNextPage` is false |
 | Auto-refresh | `auto_refresh_due_requires_live_mode_positive_interval_and_elapsed_time`, `automatic_refresh_fetches_resource_and_records_changes`, and `automatic_refresh_waits_until_interval_is_due` verify the event-loop interval predicate and the gateway-backed refresh path without live network calls; `apply_refreshed_resource` tests preserve tab/scroll and record changed/no-change state; `renders_last_refresh_changed_sections` verifies changed surfaces render in the status panel; `fingerprint_changes_when_activity_content_or_metadata_changes` verifies activity body and metadata changes are part of change detection |
 | Manual refresh | reducer tests for `r` and `[refresh]`, footer render-to-click tests |
-| Visible truncation/expansion | `[more]` / `[less]` render tests for body, activity, commits, checks, and files |
+| Visible truncation/expansion | `[more]` / `[less]` render tests for body, activity, commits, checks, and files; `[expand all]` / `[collapse all]` reducer and render-to-click tests verify tab-level expansion uses visible controls |
 | Mouse click routing | synthetic Crossterm `MouseEvent` tests in `src/app/update.rs` and render-to-click tests in `src/render/resource.rs` |
 | Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, Enter for first visible content action, `r`, `?`, `q`, `o`, Backspace; no Ctrl-b/Ctrl-a/Ctrl-d/Ctrl-u primary shortcuts |
 | Settings and config persistence | `docs/2026-06-01-ghzinga-settings-config-plan.md` documents `~/.config/ghzinga/config.toml`, `XDG_CONFIG_HOME`, `GZG_CONFIG_PATH`, CLI override precedence, and the in-app settings flow; config tests verify missing-file defaults, TOML parsing, invalid-value diagnostics, and save output; reducer/render tests verify `s`, footer `[settings]`, theme/symbol/spacing selection rows, and save intents |
@@ -91,6 +91,7 @@ Covered click targets:
 
 - tabs
 - body `[more]` / `[less]`
+- tab-level `[expand all]` / `[collapse all]`
 - activity/comment `[more]` / `[less]`
 - activity/comment `[details]` permalinks
 - check rows

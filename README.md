@@ -146,9 +146,10 @@ For issues:
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse
-content. The rendered content window only registers hit targets for the visible
-rows, so long paginated GitHub histories remain scrollable without turning every
-off-screen row into an active terminal target.
+content, or `[expand all]` and `[collapse all]` to open or fold every expandable
+row in the current tab. The rendered content window only registers hit targets
+for the visible rows, so long paginated GitHub histories remain scrollable
+without turning every off-screen row into an active terminal target.
 
 The TUI adapts to terminal width. Header metadata, tabs, the status band, and
 footer controls wrap into extra rows on narrow terminals instead of silently
@@ -165,6 +166,8 @@ Mouse:
 
 - click tabs to switch views
 - click bold `[+ more]` and `[- less]` controls to expand or collapse content
+- click bold `[expand all]` and `[collapse all]` controls to expand or collapse
+  the current tab
 - click file rows in the Files tab to expand or collapse per-file details, then
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
 - click GitHub issue/PR references to navigate
