@@ -317,6 +317,44 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn issue_parent_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      parent {
+        number
+        url
+      }
+    }
+  }
+}
+"#
+}
+
+pub(crate) fn issue_relationships_query(connection: &str) -> String {
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    issue(number: $number) {{
+      {connection}(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          number
+          url
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
+}
+
 pub(crate) fn comments_query(kind: ResourceKind) -> String {
     let selector = selector(kind);
     format!(

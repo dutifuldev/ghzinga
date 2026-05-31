@@ -14,10 +14,10 @@ use crate::domain::{
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
     comments_query, commit_authors_query, commit_comment_thread_comments_query,
-    commit_deployment_items_query, commit_deployments_query, commits_query, labels_query,
-    linked_resources_query, participants_query, project_items_query, review_requests_query,
-    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
-    timeline_query,
+    commit_deployment_items_query, commit_deployments_query, commits_query, issue_parent_query,
+    issue_relationships_query, labels_query, linked_resources_query, participants_query,
+    project_items_query, review_requests_query, review_thread_comments_query, review_threads_query,
+    reviews_query, status_rollup_query, timeline_query,
 };
 use crate::github::transport::{
     run_graphql_query, run_rest_get, run_rest_get_with, GithubHttpTransport,
@@ -50,6 +50,55 @@ impl GithubGateway for GithubApiGateway {
                     .await
                     .with_context(|| format!("failed as PR first: {pr_error}")),
             },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IssueRelationshipKind {
+    SubIssues,
+    TrackedIssues,
+    TrackedInIssues,
+    BlockedBy,
+    Blocking,
+}
+
+impl IssueRelationshipKind {
+    const ALL: [Self; 5] = [
+        Self::SubIssues,
+        Self::TrackedIssues,
+        Self::TrackedInIssues,
+        Self::BlockedBy,
+        Self::Blocking,
+    ];
+
+    fn connection(self) -> &'static str {
+        match self {
+            Self::SubIssues => "subIssues",
+            Self::TrackedIssues => "trackedIssues",
+            Self::TrackedInIssues => "trackedInIssues",
+            Self::BlockedBy => "blockedBy",
+            Self::Blocking => "blocking",
+        }
+    }
+
+    fn metadata_label(self) -> &'static str {
+        match self {
+            Self::SubIssues => "Sub-issues",
+            Self::TrackedIssues => "Tracked issues",
+            Self::TrackedInIssues => "Tracked in",
+            Self::BlockedBy => "Blocked by",
+            Self::Blocking => "Blocking",
+        }
+    }
+
+    fn warning_label(self) -> &'static str {
+        match self {
+            Self::SubIssues => "sub-issues unavailable",
+            Self::TrackedIssues => "tracked issues unavailable",
+            Self::TrackedInIssues => "tracked-in issues unavailable",
+            Self::BlockedBy => "blocked-by issues unavailable",
+            Self::Blocking => "blocking issues unavailable",
         }
     }
 }
@@ -139,6 +188,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
     enrich_participants(&mut resource, id, ResourceKind::Issue).await;
     enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
+    enrich_issue_relationships(&mut resource, id).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -252,7 +302,7 @@ async fn fetch_public_rest_issue(
     let mut resource = rest_issue_resource(issue, id, comments);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, relationship links, and review data".into(),
+        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, relationship links, and review data".into(),
     );
     Ok(resource)
 }
@@ -394,6 +444,48 @@ async fn enrich_linked_resources(resource: &mut Resource, id: &ResourceId, kind:
     }
 }
 
+async fn enrich_issue_relationships(resource: &mut Resource, id: &ResourceId) {
+    match fetch_issue_parent(id).await {
+        Ok(Some(parent)) => {
+            apply_issue_relationship_metadata(
+                &mut resource.metadata,
+                "Parent issue",
+                vec![parent.clone()],
+            );
+            append_related_resources(resource, vec![parent]);
+        }
+        Ok(None) => {}
+        Err(error) => push_enrichment_warning(resource, "parent issue unavailable", &error),
+    }
+
+    for kind in IssueRelationshipKind::ALL {
+        match fetch_issue_relationships(id, kind).await {
+            Ok(related) => {
+                apply_issue_relationship_metadata(
+                    &mut resource.metadata,
+                    kind.metadata_label(),
+                    related.clone(),
+                );
+                append_related_resources(resource, related);
+            }
+            Err(error) => push_enrichment_warning(resource, kind.warning_label(), &error),
+        }
+    }
+}
+
+fn append_related_resources(resource: &mut Resource, related: Vec<ResourceId>) {
+    let mut seen = resource
+        .related_resources
+        .iter()
+        .map(ResourceId::canonical_name)
+        .collect::<HashSet<_>>();
+    resource.related_resources.extend(
+        related
+            .into_iter()
+            .filter(|id| seen.insert(id.canonical_name())),
+    );
+}
+
 fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
     json!({
         "owner": id.owner,
@@ -464,6 +556,19 @@ async fn run_graphql_linked_resources(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = linked_resources_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_issue_parent(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(issue_parent_query(), owner_repo_number_variables(id, None)).await
+}
+
+async fn run_graphql_issue_relationships(
+    id: &ResourceId,
+    kind: IssueRelationshipKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = issue_relationships_query(kind.connection());
     run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
@@ -929,6 +1034,58 @@ struct LinkedResourcesResource {
 struct LinkedResourcesConnection {
     page_info: PageInfoDto,
     nodes: Vec<RelatedResourceDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueParentResponse {
+    data: IssueParentData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueParentData {
+    repository: Option<IssueParentRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueParentRepository {
+    issue: Option<IssueParentResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueParentResource {
+    parent: Option<RelatedResourceDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueRelationshipsResponse {
+    data: IssueRelationshipsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueRelationshipsData {
+    repository: Option<IssueRelationshipsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueRelationshipsRepository {
+    issue: Option<IssueRelationshipsResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueRelationshipsResource {
+    sub_issues: Option<LinkedResourcesConnection>,
+    tracked_issues: Option<LinkedResourcesConnection>,
+    tracked_in_issues: Option<LinkedResourcesConnection>,
+    blocked_by: Option<LinkedResourcesConnection>,
+    blocking: Option<LinkedResourcesConnection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2055,6 +2212,27 @@ fn apply_participant_metadata(items: &mut Vec<MetadataItem>, participants: Vec<S
     push_vec_metadata(items, "Participants", participants);
 }
 
+fn apply_issue_relationship_metadata(
+    items: &mut Vec<MetadataItem>,
+    label: &str,
+    related: Vec<ResourceId>,
+) {
+    let values = deduped_nonempty_strings(
+        related
+            .into_iter()
+            .map(|id| id.canonical_name())
+            .collect::<Vec<_>>(),
+    );
+    if values.is_empty() {
+        return;
+    }
+    if let Some(item) = items.iter_mut().find(|item| item.label == label) {
+        item.value = values.join(", ");
+        return;
+    }
+    push_vec_metadata(items, label, values);
+}
+
 fn deduped_nonempty_strings(values: Vec<String>) -> Vec<String> {
     let mut seen = HashSet::new();
     values
@@ -2178,6 +2356,40 @@ async fn fetch_linked_resources(
     }
 }
 
+async fn fetch_issue_parent(id: &ResourceId) -> anyhow::Result<Option<ResourceId>> {
+    let output = run_graphql_issue_parent(id).await?;
+    let response: IssueParentResponse =
+        serde_json::from_slice(&output).context("failed to parse issue parent GraphQL JSON")?;
+    Ok(issue_parent_from_response(response, id))
+}
+
+async fn fetch_issue_relationships(
+    id: &ResourceId,
+    kind: IssueRelationshipKind,
+) -> anyhow::Result<Vec<ResourceId>> {
+    let mut related_resources = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_issue_relationships(id, kind, after.as_deref()).await?;
+        let response: IssueRelationshipsResponse = serde_json::from_slice(&output)
+            .context("failed to parse issue relationships GraphQL JSON")?;
+        let Some(page) = issue_relationships_page(response, kind, id) else {
+            return Ok(related_resources);
+        };
+        related_resources.extend(page.related_resources);
+        if !page.has_next_page {
+            return Ok(related_resources);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!(
+                "{} page reported next page without an end cursor",
+                kind.connection()
+            );
+        };
+        after = Some(cursor);
+    }
+}
+
 struct LabelsPage {
     labels: Vec<String>,
     has_next_page: bool,
@@ -2207,6 +2419,8 @@ struct LinkedResourcesPage {
     has_next_page: bool,
     end_cursor: Option<String>,
 }
+
+type IssueRelationshipsPage = LinkedResourcesPage;
 
 #[cfg(test)]
 fn labels_from_response(response: LabelsResponse) -> Vec<String> {
@@ -2243,6 +2457,29 @@ fn linked_resources_from_response(
     requested: &ResourceId,
 ) -> Vec<ResourceId> {
     linked_resources_page(response, kind, requested)
+        .map(|page| page.related_resources)
+        .unwrap_or_default()
+}
+
+fn issue_parent_from_response(
+    response: IssueParentResponse,
+    requested: &ResourceId,
+) -> Option<ResourceId> {
+    response
+        .data
+        .repository?
+        .issue?
+        .parent
+        .and_then(|parent| related_resource_id(parent, ResourceKind::Issue, requested))
+}
+
+#[cfg(test)]
+fn issue_relationships_from_response(
+    response: IssueRelationshipsResponse,
+    kind: IssueRelationshipKind,
+    requested: &ResourceId,
+) -> Vec<ResourceId> {
+    issue_relationships_page(response, kind, requested)
         .map(|page| page.related_resources)
         .unwrap_or_default()
 }
@@ -2320,6 +2557,35 @@ fn linked_resources_page(
     })
 }
 
+fn issue_relationships_page(
+    response: IssueRelationshipsResponse,
+    kind: IssueRelationshipKind,
+    requested: &ResourceId,
+) -> Option<IssueRelationshipsPage> {
+    let repository = response.data.repository?;
+    let resource = repository.issue?;
+    let connection = issue_relationship_connection(resource, kind)?;
+    let page_info = connection.page_info;
+    Some(IssueRelationshipsPage {
+        related_resources: related_resource_ids(connection.nodes, ResourceKind::Issue, requested),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn issue_relationship_connection(
+    resource: IssueRelationshipsResource,
+    kind: IssueRelationshipKind,
+) -> Option<LinkedResourcesConnection> {
+    match kind {
+        IssueRelationshipKind::SubIssues => resource.sub_issues,
+        IssueRelationshipKind::TrackedIssues => resource.tracked_issues,
+        IssueRelationshipKind::TrackedInIssues => resource.tracked_in_issues,
+        IssueRelationshipKind::BlockedBy => resource.blocked_by,
+        IssueRelationshipKind::Blocking => resource.blocking,
+    }
+}
+
 fn value_titles(values: &[Value]) -> Vec<String> {
     values
         .iter()
@@ -2384,21 +2650,27 @@ fn related_resource_ids(
 ) -> Vec<ResourceId> {
     references
         .into_iter()
-        .filter_map(|reference| {
-            reference
-                .url
-                .as_deref()
-                .and_then(|url| ResourceId::parse(url).ok())
-                .or_else(|| {
-                    reference.number.map(|number| ResourceId {
-                        owner: requested.owner.clone(),
-                        repo: requested.repo.clone(),
-                        number,
-                        kind_hint: Some(fallback_kind),
-                    })
-                })
-        })
+        .filter_map(|reference| related_resource_id(reference, fallback_kind, requested))
         .collect()
+}
+
+fn related_resource_id(
+    reference: RelatedResourceDto,
+    fallback_kind: ResourceKind,
+    requested: &ResourceId,
+) -> Option<ResourceId> {
+    reference
+        .url
+        .as_deref()
+        .and_then(|url| ResourceId::parse(url).ok())
+        .or_else(|| {
+            reference.number.map(|number| ResourceId {
+                owner: requested.owner.clone(),
+                repo: requested.repo.clone(),
+                number,
+                kind_hint: Some(fallback_kind),
+            })
+        })
 }
 
 fn display_review_request(request: &Value) -> Option<String> {
@@ -5035,6 +5307,30 @@ mod tests {
     }
 
     #[test]
+    fn issue_parent_query_requests_parent_reference() {
+        let query = issue_parent_query();
+
+        assert!(query.contains("issue(number: $number)"));
+        assert!(query.contains("parent"));
+        assert!(query.contains("number"));
+        assert!(query.contains("url"));
+    }
+
+    #[test]
+    fn issue_relationships_query_requests_connection_and_pagination_state() {
+        let query = issue_relationships_query("blockedBy");
+
+        assert!(query.contains("issue(number: $number)"));
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("blockedBy(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("number"));
+        assert!(query.contains("url"));
+    }
+
+    #[test]
     fn reviews_query_requests_pagination_state_and_reaction_fields() {
         let query = reviews_query();
 
@@ -5421,6 +5717,131 @@ mod tests {
     }
 
     #[test]
+    fn issue_parent_from_response_maps_url_or_number() {
+        let requested = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let parent = issue_parent_from_response(
+            IssueParentResponse {
+                data: IssueParentData {
+                    repository: Some(IssueParentRepository {
+                        issue: Some(IssueParentResource {
+                            parent: Some(RelatedResourceDto {
+                                number: None,
+                                url: Some("https://github.com/other/repo/issues/12".into()),
+                            }),
+                        }),
+                    }),
+                },
+            },
+            &requested,
+        )
+        .expect("parent issue");
+
+        assert_eq!(parent.canonical_name(), "other/repo#12");
+        assert_eq!(parent.kind_hint, Some(ResourceKind::Issue));
+
+        let parent = issue_parent_from_response(
+            IssueParentResponse {
+                data: IssueParentData {
+                    repository: Some(IssueParentRepository {
+                        issue: Some(IssueParentResource {
+                            parent: Some(RelatedResourceDto {
+                                number: Some(90001),
+                                url: None,
+                            }),
+                        }),
+                    }),
+                },
+            },
+            &requested,
+        )
+        .expect("parent issue fallback number");
+
+        assert_eq!(parent.canonical_name(), "openclaw/openclaw#90001");
+        assert_eq!(parent.kind_hint, Some(ResourceKind::Issue));
+    }
+
+    #[test]
+    fn issue_relationships_page_preserves_pagination_state_and_kind_mapping() {
+        let requested = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let page = issue_relationships_page(
+            IssueRelationshipsResponse {
+                data: IssueRelationshipsData {
+                    repository: Some(IssueRelationshipsRepository {
+                        issue: Some(IssueRelationshipsResource {
+                            sub_issues: None,
+                            tracked_issues: None,
+                            tracked_in_issues: None,
+                            blocked_by: Some(LinkedResourcesConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: true,
+                                    end_cursor: Some("blocked-by-cursor-2".into()),
+                                },
+                                nodes: vec![
+                                    RelatedResourceDto {
+                                        number: None,
+                                        url: Some("https://github.com/other/repo/issues/12".into()),
+                                    },
+                                    RelatedResourceDto {
+                                        number: Some(90001),
+                                        url: None,
+                                    },
+                                ],
+                            }),
+                            blocking: None,
+                        }),
+                    }),
+                },
+            },
+            IssueRelationshipKind::BlockedBy,
+            &requested,
+        )
+        .expect("blocked-by page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("blocked-by-cursor-2"));
+        assert_eq!(page.related_resources.len(), 2);
+        assert_eq!(page.related_resources[0].canonical_name(), "other/repo#12");
+        assert_eq!(
+            page.related_resources[0].kind_hint,
+            Some(ResourceKind::Issue)
+        );
+        assert_eq!(
+            page.related_resources[1].canonical_name(),
+            "openclaw/openclaw#90001"
+        );
+        assert_eq!(
+            page.related_resources[1].kind_hint,
+            Some(ResourceKind::Issue)
+        );
+
+        let tracked = issue_relationships_from_response(
+            IssueRelationshipsResponse {
+                data: IssueRelationshipsData {
+                    repository: Some(IssueRelationshipsRepository {
+                        issue: Some(IssueRelationshipsResource {
+                            sub_issues: None,
+                            tracked_issues: Some(LinkedResourcesConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: false,
+                                    end_cursor: None,
+                                },
+                                nodes: Vec::new(),
+                            }),
+                            tracked_in_issues: None,
+                            blocked_by: None,
+                            blocking: None,
+                        }),
+                    }),
+                },
+            },
+            IssueRelationshipKind::TrackedIssues,
+            &requested,
+        );
+
+        assert!(tracked.is_empty());
+    }
+
+    #[test]
     fn apply_project_metadata_replaces_existing_value_and_dedupes() {
         let mut metadata = vec![
             MetadataItem {
@@ -5464,6 +5885,76 @@ mod tests {
         assert_eq!(metadata.len(), 2);
         assert_eq!(metadata[1].label, "Participants");
         assert_eq!(metadata[1].value, "alice, bob");
+    }
+
+    #[test]
+    fn apply_issue_relationship_metadata_replaces_existing_value_and_dedupes() {
+        let mut metadata = vec![
+            MetadataItem {
+                label: "Closed".into(),
+                value: "no".into(),
+            },
+            MetadataItem {
+                label: "Blocked by".into(),
+                value: "old".into(),
+            },
+        ];
+        let first = ResourceId::parse("https://github.com/openclaw/openclaw/issues/88499").unwrap();
+        let duplicate =
+            ResourceId::parse("https://github.com/openclaw/openclaw/issues/88499").unwrap();
+        let second = ResourceId::parse("https://github.com/other/repo/issues/12").unwrap();
+
+        apply_issue_relationship_metadata(
+            &mut metadata,
+            "Blocked by",
+            vec![first, duplicate, second],
+        );
+
+        assert_eq!(metadata.len(), 2);
+        assert_eq!(metadata[1].label, "Blocked by");
+        assert_eq!(metadata[1].value, "openclaw/openclaw#88499, other/repo#12");
+    }
+
+    #[test]
+    fn append_related_resources_dedupes_existing_targets() {
+        let mut resource = Resource {
+            id: ResourceId::parse("https://github.com/openclaw/openclaw/issues/1").unwrap(),
+            title: "Issue".into(),
+            url: "https://github.com/openclaw/openclaw/issues/1".into(),
+            state: "OPEN".into(),
+            author: "author".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: String::new(),
+            activity: Vec::new(),
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: None,
+        };
+        resource.related_resources =
+            vec![ResourceId::parse("https://github.com/openclaw/openclaw/issues/88499").unwrap()];
+
+        append_related_resources(
+            &mut resource,
+            vec![
+                ResourceId::parse("https://github.com/openclaw/openclaw/issues/88499").unwrap(),
+                ResourceId::parse("https://github.com/other/repo/issues/12").unwrap(),
+            ],
+        );
+
+        assert_eq!(resource.related_resources.len(), 2);
+        assert_eq!(
+            resource.related_resources[0].canonical_name(),
+            "openclaw/openclaw#88499"
+        );
+        assert_eq!(
+            resource.related_resources[1].canonical_name(),
+            "other/repo#12"
+        );
     }
 
     #[test]
