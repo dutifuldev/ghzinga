@@ -7,9 +7,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
-
-
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 BIN = REPO / "target" / "debug" / "ghzoom"
@@ -271,6 +268,8 @@ def strip_ansi(text: str) -> str:
 
 
 def render_ansi_png(ansi: str, path: Path):
+    from PIL import Image, ImageDraw, ImageFont
+
     lines = ansi.splitlines() or [""]
     font = ImageFont.truetype(FONT, 15)
     bbox = font.getbbox("M")
