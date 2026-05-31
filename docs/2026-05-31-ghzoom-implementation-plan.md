@@ -379,8 +379,11 @@ Interaction tests:
 
 Adapter tests:
 
-- GitHub gateway builds direct HTTP GraphQL requests with expected variables
-- mocked HTTP transport returns fixture JSON
+- GitHub gateway builds direct HTTP GraphQL and REST requests with expected
+  method, URL, headers, token, and body
+- mocked HTTP transport returns fixture JSON or diff bytes
+- GraphQL error payloads fail before normalization
+- HTTP failure status and body are preserved in errors
 - auth failure maps to a friendly error
 - API rate-limit or network error is displayed but does not crash UI
 

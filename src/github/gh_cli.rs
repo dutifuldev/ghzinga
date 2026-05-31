@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     future::Future,
     io,
+    pin::Pin,
     process::Stdio,
 };
 
@@ -17,6 +18,7 @@ use crate::domain::{
 
 const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const GITHUB_REST_URL: &str = "https://api.github.com";
+const GITHUB_JSON_ACCEPT: &str = "application/vnd.github+json";
 
 pub trait GithubGateway {
     fn fetch_resource(
@@ -128,25 +130,94 @@ async fn enrich_project_metadata(resource: &mut Resource, id: &ResourceId, kind:
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GithubHttpMethod {
+    Get,
+    Post,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GithubHttpRequest {
+    method: GithubHttpMethod,
+    url: String,
+    accept: String,
+    token: String,
+    body: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GithubHttpResponse {
+    status: reqwest::StatusCode,
+    body: Vec<u8>,
+}
+
+type GithubHttpFuture<'a> =
+    Pin<Box<dyn Future<Output = anyhow::Result<GithubHttpResponse>> + Send + 'a>>;
+
+trait GithubHttpTransport {
+    fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a>;
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct ReqwestGithubHttpTransport;
+
+impl GithubHttpTransport for ReqwestGithubHttpTransport {
+    fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
+        Box::pin(async move {
+            let client = reqwest::Client::new();
+            let builder = match request.method {
+                GithubHttpMethod::Get => client.get(&request.url),
+                GithubHttpMethod::Post => client.post(&request.url),
+            }
+            .bearer_auth(request.token)
+            .header(reqwest::header::USER_AGENT, "ghzoom")
+            .header(reqwest::header::ACCEPT, request.accept);
+            let builder = if let Some(body) = request.body {
+                builder.json(&body)
+            } else {
+                builder
+            };
+            let response = builder
+                .send()
+                .await
+                .with_context(|| format!("failed to send GitHub request to {}", request.url))?;
+            let status = response.status();
+            let body = response.bytes().await.with_context(|| {
+                format!("failed to read GitHub response body from {}", request.url)
+            })?;
+            Ok(GithubHttpResponse {
+                status,
+                body: body.to_vec(),
+            })
+        })
+    }
+}
+
 async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
     let token = github_token().await?;
-    let response = reqwest::Client::new()
-        .post(GITHUB_GRAPHQL_URL)
-        .bearer_auth(token)
-        .header(reqwest::header::USER_AGENT, "ghzoom")
-        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-        .json(&json!({
-            "query": query,
-            "variables": variables,
-        }))
-        .send()
-        .await
-        .context("failed to send GitHub GraphQL request")?;
-    let status = response.status();
-    let body = response
-        .bytes()
-        .await
-        .context("failed to read GitHub GraphQL response body")?;
+    run_graphql_query_with(&ReqwestGithubHttpTransport, &token, query, variables).await
+}
+
+async fn run_graphql_query_with(
+    transport: &impl GithubHttpTransport,
+    token: &str,
+    query: &str,
+    variables: Value,
+) -> anyhow::Result<Vec<u8>> {
+    let response = transport
+        .execute(GithubHttpRequest {
+            method: GithubHttpMethod::Post,
+            url: GITHUB_GRAPHQL_URL.to_string(),
+            accept: GITHUB_JSON_ACCEPT.to_string(),
+            token: token.to_string(),
+            body: Some(json!({
+                "query": query,
+                "variables": variables,
+            })),
+        })
+        .await?;
+    let status = response.status;
+    let body = response.body;
     if !status.is_success() {
         anyhow::bail!(
             "GitHub GraphQL request failed with HTTP {status}: {}",
@@ -163,20 +234,28 @@ async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<
 
 async fn run_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
     let token = github_token().await?;
+    run_rest_get_with(&ReqwestGithubHttpTransport, &token, path, accept).await
+}
+
+async fn run_rest_get_with(
+    transport: &impl GithubHttpTransport,
+    token: &str,
+    path: &str,
+    accept: &str,
+) -> anyhow::Result<Vec<u8>> {
     let url = format!("{GITHUB_REST_URL}{path}");
-    let response = reqwest::Client::new()
-        .get(&url)
-        .bearer_auth(token)
-        .header(reqwest::header::USER_AGENT, "ghzoom")
-        .header(reqwest::header::ACCEPT, accept)
-        .send()
+    let response = transport
+        .execute(GithubHttpRequest {
+            method: GithubHttpMethod::Get,
+            url,
+            accept: accept.to_string(),
+            token: token.to_string(),
+            body: None,
+        })
         .await
         .with_context(|| format!("failed to send GitHub REST request to {path}"))?;
-    let status = response.status();
-    let body = response
-        .bytes()
-        .await
-        .with_context(|| format!("failed to read GitHub REST response body from {path}"))?;
+    let status = response.status;
+    let body = response.body;
     if !status.is_success() {
         anyhow::bail!(
             "GitHub REST request to {path} failed with HTTP {status}: {}",
@@ -2934,7 +3013,41 @@ fn parse_diff_header_path(line: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
+
+    #[derive(Debug)]
+    struct FakeGithubHttpTransport {
+        requests: Mutex<Vec<GithubHttpRequest>>,
+        response: Mutex<Option<GithubHttpResponse>>,
+    }
+
+    impl FakeGithubHttpTransport {
+        fn new(response: GithubHttpResponse) -> Self {
+            Self {
+                requests: Mutex::new(Vec::new()),
+                response: Mutex::new(Some(response)),
+            }
+        }
+
+        fn requests(&self) -> Vec<GithubHttpRequest> {
+            self.requests.lock().expect("requests lock").clone()
+        }
+    }
+
+    impl GithubHttpTransport for FakeGithubHttpTransport {
+        fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
+            Box::pin(async move {
+                self.requests.lock().expect("requests lock").push(request);
+                self.response
+                    .lock()
+                    .expect("response lock")
+                    .take()
+                    .context("fake response already used")
+            })
+        }
+    }
 
     #[test]
     fn pr_command_preview_uses_direct_graphql_shape() {
@@ -2950,6 +3063,101 @@ mod tests {
                 "selector=pullRequest",
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn graphql_transport_receives_post_shape_and_returns_body() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: br#"{"data":{"ok":true}}"#.to_vec(),
+        });
+
+        let output = run_graphql_query_with(
+            &transport,
+            "token-1",
+            "query Example { viewer { login } }",
+            json!({"owner": "openclaw", "name": "openclaw"}),
+        )
+        .await
+        .expect("GraphQL response");
+
+        assert_eq!(output, br#"{"data":{"ok":true}}"#);
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        let request = &requests[0];
+        assert_eq!(request.method, GithubHttpMethod::Post);
+        assert_eq!(request.url, GITHUB_GRAPHQL_URL);
+        assert_eq!(request.accept, GITHUB_JSON_ACCEPT);
+        assert_eq!(request.token, "token-1");
+        assert_eq!(
+            request.body,
+            Some(json!({
+                "query": "query Example { viewer { login } }",
+                "variables": {"owner": "openclaw", "name": "openclaw"},
+            }))
+        );
+    }
+
+    #[tokio::test]
+    async fn graphql_transport_errors_on_graphql_errors_payload() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: br#"{"errors":[{"message":"bad query"}]}"#.to_vec(),
+        });
+
+        let error = run_graphql_query_with(&transport, "token-1", "query", json!({}))
+            .await
+            .expect_err("GraphQL errors should fail");
+
+        assert!(error
+            .to_string()
+            .contains("GitHub GraphQL request returned errors"));
+    }
+
+    #[tokio::test]
+    async fn rest_transport_receives_get_shape_and_returns_body() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: b"diff --git a/file b/file".to_vec(),
+        });
+
+        let output = run_rest_get_with(
+            &transport,
+            "token-1",
+            "/repos/openclaw/openclaw/pulls/81834",
+            "application/vnd.github.v3.diff",
+        )
+        .await
+        .expect("REST response");
+
+        assert_eq!(output, b"diff --git a/file b/file");
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        let request = &requests[0];
+        assert_eq!(request.method, GithubHttpMethod::Get);
+        assert_eq!(
+            request.url,
+            "https://api.github.com/repos/openclaw/openclaw/pulls/81834"
+        );
+        assert_eq!(request.accept, "application/vnd.github.v3.diff");
+        assert_eq!(request.token, "token-1");
+        assert_eq!(request.body, None);
+    }
+
+    #[tokio::test]
+    async fn rest_transport_includes_status_and_body_on_http_failure() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::NOT_FOUND,
+            body: br#"{"message":"Not Found"}"#.to_vec(),
+        });
+
+        let error = run_rest_get_with(&transport, "token-1", "/missing", GITHUB_JSON_ACCEPT)
+            .await
+            .expect_err("HTTP failure should fail");
+
+        let message = error.to_string();
+        assert!(message.contains("GitHub REST request to /missing failed with HTTP 404"));
+        assert!(message.contains("Not Found"));
     }
 
     #[test]
