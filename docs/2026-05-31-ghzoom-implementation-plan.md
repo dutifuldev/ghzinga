@@ -203,9 +203,11 @@ Data loaded for PR:
   their remaining comment pages through the thread node
 - timeline events for labels, references, assignments, pins, locks, duplicate
   markers, transfers, connected/disconnected references, review requests,
-  draft/ready state, auto-merge changes, merges, title changes, milestones,
-  close, and reopen events; timeline pages are fetched until GitHub reports no
-  next page
+  draft/ready state, branch changes, force-pushes, merge queue changes, review
+  dismissals, auto-merge/rebase/squash changes, automatic base changes, merges,
+  title changes, milestones, issue types, sub-issues, parent issues, blocking
+  relationships, converted discussions, close, and reopen events; timeline
+  pages are fetched until GitHub reports no next page
 - reviews and review states
 - mergeability and review decision where exposed
 - project metadata through optional paginated enrichment when the token has the
@@ -223,9 +225,10 @@ Data loaded for issue:
 - comments and timeline events, including author association, comment
   reactions, edit/minimized metadata, permalinks, labels, references,
   assignments, pins, locks, duplicate markers, transfers,
-  connected/disconnected references, title changes, milestones, close, and
-  reopen events; comment and timeline pages are fetched until GitHub reports no
-  next page
+  connected/disconnected references, title changes, milestones, issue types,
+  sub-issues, parent issues, blocking relationships, converted discussions,
+  close, and reopen events; comment and timeline pages are fetched until GitHub
+  reports no next page
 - project metadata through optional paginated enrichment when the token has the
   GitHub `read:project` scope; missing project scope does not block the main
   issue view
