@@ -180,7 +180,8 @@ Data loaded for PR:
 - status check rollup contexts and latest-commit check suites, including raw
   GitHub status/conclusion, started/completed timestamps, and details URLs
   where available; suite rows are prefixed with `suite/` and shown before
-  job/context rows so top-level workflow status is visible first
+  job/context rows so top-level workflow status is visible first, and suite
+  pages are fetched until GitHub reports no next page
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and ordinary
   comments paginated until GitHub reports no next page
