@@ -428,6 +428,7 @@ pub enum ActivityKind {
     Comment,
     Review,
     ReviewComment,
+    CommitComment,
     Timeline,
 }
 
@@ -437,6 +438,7 @@ impl ActivityKind {
             Self::Comment => "Comment",
             Self::Review => "Review",
             Self::ReviewComment => "Review comment",
+            Self::CommitComment => "Commit comment",
             Self::Timeline => "Timeline",
         }
     }

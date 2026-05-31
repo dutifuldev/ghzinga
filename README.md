@@ -66,9 +66,9 @@ For pull requests:
 
 - body, labels, reactions, author, state, base/head branches
 - Overview starts with a GitHub-style chronological conversation timeline:
-  opening body, commits, reviews, review comments, regular comments, and
-  timeline events are interleaved by timestamp instead of split into separate
-  summary blocks first
+  opening body, commits, reviews, review comments, commit comments, regular
+  comments, and timeline events are interleaved by timestamp instead of split
+  into separate summary blocks first
 - paginated labels, assignees, and requested reviewers
 - GitHub metadata such as draft/cross-repository state, mergeability,
   changed-file count, milestones, projects, ref OIDs, and merge commits where
@@ -81,10 +81,11 @@ For pull requests:
   issue types, issue fields, sub-issues, parent issues, blocking relationships,
   user blocks, converted project notes, converted draft items, converted
   discussions, and deployment events; comments, timeline events, reviews, review
-  threads, and review-thread comments are paginated so long histories are not
-  capped at the first page
+  threads, review-thread comments, commit comment threads, and nested commit
+  comments are paginated so long histories are not capped at the first page
 - comment/review author association, edit/minimized flags, reactions,
-  permalinks, and review-thread resolved/outdated state when GitHub exposes it
+  permalinks, commit-comment path/position, and review-thread resolved/outdated
+  state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
 - paginated commits, with expandable commit bodies, authored/committed dates,
   paginated coauthor lists, and paginated deployment/environment lists where
