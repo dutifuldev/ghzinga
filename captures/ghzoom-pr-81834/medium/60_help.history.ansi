@@ -18,7 +18,7 @@ Branches: main <- feat/sens... - o: open current resource in browser through gh
 Review: None requested         - Tab / Shift-Tab / Left / Right: switch tabs                                            
 Reviewers: none                - Up / Down / PageUp / PageDown / Home / End: scroll                                     
 Merge: Clean                   - e: expand or collapse the main body                                                    
-Checks: PASS (86 pass, 0 pe... - Backspace: return after following a link                                               
+Checks: PASS (97 pass, 0 pe... - Backspace: return after following a link                                               
 Files: 14                     
 Lines: +1057 -22               Refresh                      
 Base ref OID: a1c6882777ba6... - Live mode refreshes automatically on the configured interval.                          
