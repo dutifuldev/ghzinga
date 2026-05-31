@@ -4,7 +4,7 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview [Activity] Commits  Checks  Files  Links                              
 OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
 OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
-warn Warnings: 2                                                                
+warn Warnings: 1                                                                
 changes are intentional.                                                        
                                                                                 
 Changed files:                                                                  
@@ -20,5 +20,5 @@ plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding,
 registration metadata, docs, inventory updates, and tests.                      
                                                                                 
 Reproducibility: not applicable. for the requested feature because current main 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

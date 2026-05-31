@@ -20,5 +20,5 @@ changes are intentional.
 Changed files:                                                                  
 [+ more]                                                                        
                                                                                 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

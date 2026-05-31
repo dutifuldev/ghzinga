@@ -20,5 +20,5 @@ unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes
 have a newer store-aware wrapper, but the reported custom proxy route is not    
 [+ more]                                                                        
                                                                                 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

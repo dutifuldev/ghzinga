@@ -20,5 +20,5 @@ https://github.com/openclaw/clawsweeper/actions/runs/25905071526
                                                                                 
                                                                                 
                                                                                 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

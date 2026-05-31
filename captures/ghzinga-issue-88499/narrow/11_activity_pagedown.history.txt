@@ -20,5 +20,5 @@ Environment:
 - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                     
 - OS: macOS arm64                                                               
 - Channel: Slack, channel-scoped session                                        
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
