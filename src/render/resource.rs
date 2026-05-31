@@ -1029,7 +1029,9 @@ fn truncate_ascii(input: &str, max_width: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     use ratatui::{backend::TestBackend, Terminal};
 
     use super::*;
@@ -1485,6 +1487,25 @@ mod tests {
         let intent = click_rendered_target(&mut state, |target| {
             *target == HitTarget::ToggleBlock(BlockId::Body)
         });
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.block_expanded(&BlockId::Body));
+    }
+
+    #[test]
+    fn rendered_body_more_hit_area_can_be_activated_with_enter() {
+        let mut resource = pr_resource();
+        resource.body = (0..30)
+            .map(|index| format!("line {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut state = AppState::new(resource);
+        draw(&mut state, 120, 36);
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
 
         assert_eq!(intent, AppIntent::None);
         assert!(state.block_expanded(&BlockId::Body));

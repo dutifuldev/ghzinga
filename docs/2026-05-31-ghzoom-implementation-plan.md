@@ -285,7 +285,7 @@ Keyboard:
 - `Up` / `Down`: scroll line
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom
-- `Enter`: activate focused/clicked element
+- `Enter`: activate the first visible content action, such as a link or `[more]`
 - `Backspace`: navigate back after following a link
 - `o`: open current resource in browser through `gh`
 

@@ -14,6 +14,12 @@ pub enum HitTarget {
     Help,
 }
 
+impl HitTarget {
+    pub fn is_content_action(&self) -> bool {
+        matches!(self, Self::ToggleBlock(_) | Self::Navigate(_))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HitArea {
     pub rect: Rect,
