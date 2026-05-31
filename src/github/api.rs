@@ -13,10 +13,10 @@ use crate::domain::{
 };
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
-    comments_query, commit_authors_query, commit_deployments_query, commits_query, labels_query,
-    linked_resources_query, project_items_query, review_requests_query,
-    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
-    timeline_query,
+    comments_query, commit_authors_query, commit_deployment_items_query, commit_deployments_query,
+    commits_query, labels_query, linked_resources_query, project_items_query,
+    review_requests_query, review_thread_comments_query, review_threads_query, reviews_query,
+    status_rollup_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -346,6 +346,23 @@ async fn run_graphql_commit_deployments(
     run_graphql_query(
         commit_deployments_query(),
         owner_repo_number_variables(id, after),
+    )
+    .await
+}
+
+async fn run_graphql_commit_deployment_items(
+    id: &ResourceId,
+    oid: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        commit_deployment_items_query(),
+        json!({
+            "owner": id.owner,
+            "name": id.repo,
+            "oid": oid,
+            "after": after,
+        }),
     )
     .await
 }
@@ -974,6 +991,7 @@ struct CommitDeploymentCommit {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DeploymentConnection {
+    page_info: PageInfoDto,
     nodes: Vec<DeploymentDto>,
 }
 
@@ -996,6 +1014,30 @@ struct DeploymentStatusDto {
     environment_url: Option<String>,
     log_url: Option<String>,
     created_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentItemsResponse {
+    data: CommitDeploymentItemsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentItemsData {
+    repository: Option<CommitDeploymentItemsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentItemsRepository {
+    object: Option<CommitDeploymentItemsObject>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentItemsObject {
+    deployments: DeploymentConnection,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2255,6 +2297,56 @@ async fn fetch_commit_deployments(
             return Ok(deployments);
         };
         deployments.extend(page.deployments_by_commit);
+        enrich_remaining_commit_deployments(id, &mut deployments, page.deployment_continuations)
+            .await?;
+        if !page.has_next_page {
+            return Ok(deployments);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("commit deployments page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+async fn enrich_remaining_commit_deployments(
+    id: &ResourceId,
+    deployments_by_commit: &mut HashMap<String, Vec<Deployment>>,
+    continuations: Vec<CommitDeploymentContinuation>,
+) -> anyhow::Result<()> {
+    for continuation in continuations {
+        let deployments = fetch_remaining_commit_deployments(
+            id,
+            &continuation.commit_oid,
+            continuation.after.as_deref(),
+        )
+        .await?;
+        deployments_by_commit
+            .entry(continuation.commit_oid)
+            .or_default()
+            .extend(deployments);
+    }
+    Ok(())
+}
+
+async fn fetch_remaining_commit_deployments(
+    id: &ResourceId,
+    oid: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<Deployment>> {
+    let mut deployments = Vec::new();
+    let Some(initial_after) = after else {
+        anyhow::bail!("commit deployments page reported next page without an end cursor");
+    };
+    let mut after = Some(initial_after.to_string());
+    loop {
+        let output = run_graphql_commit_deployment_items(id, oid, after.as_deref()).await?;
+        let response: CommitDeploymentItemsResponse = serde_json::from_slice(&output)
+            .context("failed to parse commit deployment items GraphQL JSON")?;
+        let Some(page) = commit_deployment_items_page(response) else {
+            return Ok(deployments);
+        };
+        deployments.extend(page.deployments);
         if !page.has_next_page {
             return Ok(deployments);
         }
@@ -2375,6 +2467,18 @@ struct CommitAuthorsPage {
 
 struct CommitDeploymentsPage {
     deployments_by_commit: HashMap<String, Vec<Deployment>>,
+    deployment_continuations: Vec<CommitDeploymentContinuation>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct CommitDeploymentContinuation {
+    commit_oid: String,
+    after: Option<String>,
+}
+
+struct CommitDeploymentItemsPage {
+    deployments: Vec<Deployment>,
     has_next_page: bool,
     end_cursor: Option<String>,
 }
@@ -2606,24 +2710,56 @@ fn commit_deployments_page(response: CommitDeploymentsResponse) -> Option<Commit
     let repository = response.data.repository?;
     let pull_request = repository.pull_request?;
     let page_info = pull_request.commits.page_info;
-    let deployments_by_commit = pull_request
-        .commits
-        .nodes
-        .into_iter()
-        .map(|node| {
-            (
-                node.commit.oid,
-                node.commit
-                    .deployments
-                    .nodes
-                    .into_iter()
-                    .map(deployment_from_dto)
-                    .collect::<Vec<_>>(),
-            )
-        })
-        .collect::<HashMap<_, _>>();
+    let mut deployments_by_commit = HashMap::new();
+    let mut deployment_continuations = Vec::new();
+    for node in pull_request.commits.nodes {
+        let commit = node.commit;
+        if commit.deployments.page_info.has_next_page {
+            deployment_continuations.push(CommitDeploymentContinuation {
+                commit_oid: commit.oid.clone(),
+                after: commit.deployments.page_info.end_cursor.clone(),
+            });
+        }
+        deployments_by_commit.insert(
+            commit.oid,
+            commit
+                .deployments
+                .nodes
+                .into_iter()
+                .map(deployment_from_dto)
+                .collect::<Vec<_>>(),
+        );
+    }
     Some(CommitDeploymentsPage {
         deployments_by_commit,
+        deployment_continuations,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+#[cfg(test)]
+fn commit_deployment_items_from_response(
+    response: CommitDeploymentItemsResponse,
+) -> Vec<Deployment> {
+    commit_deployment_items_page(response)
+        .map(|page| page.deployments)
+        .unwrap_or_default()
+}
+
+fn commit_deployment_items_page(
+    response: CommitDeploymentItemsResponse,
+) -> Option<CommitDeploymentItemsPage> {
+    let repository = response.data.repository?;
+    let object = repository.object?;
+    let page_info = object.deployments.page_info;
+    Some(CommitDeploymentItemsPage {
+        deployments: object
+            .deployments
+            .nodes
+            .into_iter()
+            .map(deployment_from_dto)
+            .collect(),
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
@@ -4043,7 +4179,24 @@ mod tests {
         assert!(query.contains("pageInfo"));
         assert!(query.contains("hasNextPage"));
         assert!(query.contains("endCursor"));
-        assert!(query.contains("deployments(last: 10)"));
+        assert!(query.contains("deployments(first: 100)"));
+        assert!(query.contains("deployments(first: 100) {\n              pageInfo"));
+        assert!(query.contains("latestStatus"));
+        assert!(query.contains("environmentUrl"));
+        assert!(query.contains("logUrl"));
+    }
+
+    #[test]
+    fn commit_deployment_items_query_requests_commit_object_and_pagination_state() {
+        let query = commit_deployment_items_query();
+
+        assert!(query.contains("$oid: GitObjectID!"));
+        assert!(query.contains("object(oid: $oid)"));
+        assert!(query.contains("... on Commit"));
+        assert!(query.contains("deployments(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
         assert!(query.contains("latestStatus"));
         assert!(query.contains("environmentUrl"));
         assert!(query.contains("logUrl"));
@@ -4588,6 +4741,10 @@ mod tests {
                                 commit: CommitDeploymentCommit {
                                     oid: "abcdef123".into(),
                                     deployments: DeploymentConnection {
+                                        page_info: PageInfoDto {
+                                            has_next_page: false,
+                                            end_cursor: None,
+                                        },
                                         nodes: vec![DeploymentDto {
                                             environment: Some("preview".into()),
                                             task: Some("deploy".into()),
@@ -4645,7 +4802,13 @@ mod tests {
                             nodes: vec![CommitDeploymentNode {
                                 commit: CommitDeploymentCommit {
                                     oid: "commit-with-no-deployments".into(),
-                                    deployments: DeploymentConnection { nodes: Vec::new() },
+                                    deployments: DeploymentConnection {
+                                        page_info: PageInfoDto {
+                                            has_next_page: true,
+                                            end_cursor: Some("deployment-item-cursor-2".into()),
+                                        },
+                                        nodes: Vec::new(),
+                                    },
                                 },
                             }],
                         },
@@ -4661,9 +4824,66 @@ mod tests {
             Some("deployment-commit-cursor-2")
         );
         assert!(page.deployments_by_commit["commit-with-no-deployments"].is_empty());
+        assert_eq!(page.deployment_continuations.len(), 1);
+        assert_eq!(
+            page.deployment_continuations[0].commit_oid,
+            "commit-with-no-deployments"
+        );
+        assert_eq!(
+            page.deployment_continuations[0].after.as_deref(),
+            Some("deployment-item-cursor-2")
+        );
 
         let deployments = commit_deployments_from_response(CommitDeploymentsResponse {
             data: CommitDeploymentsData { repository: None },
+        });
+
+        assert!(deployments.is_empty());
+    }
+
+    #[test]
+    fn commit_deployment_items_page_preserves_pagination_state_and_status_mapping() {
+        let page = commit_deployment_items_page(CommitDeploymentItemsResponse {
+            data: CommitDeploymentItemsData {
+                repository: Some(CommitDeploymentItemsRepository {
+                    object: Some(CommitDeploymentItemsObject {
+                        deployments: DeploymentConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("deployment-item-cursor-3".into()),
+                            },
+                            nodes: vec![DeploymentDto {
+                                environment: Some("production".into()),
+                                task: None,
+                                description: Some("queued".into()),
+                                created_at: Some("2026-05-30T03:20:00Z".into()),
+                                updated_at: None,
+                                latest_status: Some(DeploymentStatusDto {
+                                    state: Some("IN_PROGRESS".into()),
+                                    description: Some("Deploying".into()),
+                                    environment_url: Some("https://example.test/prod".into()),
+                                    log_url: Some("https://example.test/prod/logs".into()),
+                                    created_at: Some("2026-05-30T03:21:00Z".into()),
+                                }),
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("commit deployment items page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("deployment-item-cursor-3"));
+        assert_eq!(page.deployments[0].environment, "production");
+        assert_eq!(page.deployments[0].state, "IN_PROGRESS");
+        assert_eq!(
+            page.deployments[0].description.as_deref(),
+            Some("Deploying")
+        );
+
+        let deployments = commit_deployment_items_from_response(CommitDeploymentItemsResponse {
+            data: CommitDeploymentItemsData { repository: None },
         });
 
         assert!(deployments.is_empty());

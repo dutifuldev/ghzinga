@@ -859,7 +859,11 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
         nodes {
           commit {
             oid
-            deployments(last: 10) {
+            deployments(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 environment
                 task
@@ -874,6 +878,39 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
                   createdAt
                 }
               }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
+pub(crate) fn commit_deployment_items_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $oid: GitObjectID!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    object(oid: $oid) {
+      ... on Commit {
+        deployments(first: 100, after: $after) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            environment
+            task
+            description
+            createdAt
+            updatedAt
+            latestStatus {
+              state
+              description
+              environmentUrl
+              logUrl
+              createdAt
             }
           }
         }
