@@ -135,6 +135,8 @@ When documenting GitHub data access, use precise language:
 - say "`gh auth token` credential fallback" for GitHub CLI integration
 - avoid saying "gh CLI gateway" as if GitHub CLI owns data fetching
 
-The current direct transport lives in `src/github/api.rs`. A later code cleanup
-can split it into `auth`, `transport`, `graphql`, and `normalize` modules
-without changing the product behavior.
+The direct GitHub adapter now keeps token resolution in `src/github/auth.rs`,
+HTTP request execution in `src/github/transport.rs`, and resource orchestration
+and normalization in `src/github/api.rs`. A later code cleanup can split the
+remaining query and normalization code further without changing the product
+behavior.

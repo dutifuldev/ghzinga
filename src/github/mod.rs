@@ -5,6 +5,8 @@ use anyhow::Context;
 use crate::domain::Resource;
 
 pub mod api;
+mod auth;
+mod transport;
 
 pub fn load_fixture(path: &Path) -> anyhow::Result<Resource> {
     let raw = fs::read_to_string(path)

@@ -112,6 +112,8 @@ src/
   github/
     mod.rs                GitHub gateway trait
     api.rs                direct GraphQL/REST data transport
+    auth.rs               token resolution from env or `gh auth token`
+    transport.rs          mockable reqwest-backed GraphQL/REST transport
     queries.rs            GraphQL query strings
     types.rs              API response DTOs
     normalize.rs          DTO -> domain model
