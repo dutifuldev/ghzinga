@@ -38,3 +38,11 @@ jobs:
 
       - name: Check SimpleDoc
         run: npx -y @simpledoc/simpledoc check
+
+      - name: Validate captured UX evidence
+        run: |
+          python3 captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only
+          python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
+            --root captures/ghzoom-issue-88499 \
+            --mode issue \
+            --validate-only

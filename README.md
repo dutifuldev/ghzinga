@@ -178,6 +178,8 @@ npx -y @simpledoc/simpledoc check
 ```
 
 GitHub Actions runs these same checks for pull requests and pushes to `main`.
+It also runs the saved PR and issue capture validators so checked-in UX evidence
+cannot silently drift behind the app rendering code.
 
 The repository includes tmux capture artifacts for PR and issue views:
 
