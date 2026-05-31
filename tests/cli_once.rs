@@ -54,7 +54,7 @@ fn once_can_render_pr_checks_tab() {
     .success()
     .stdout(contains("[Checks]"))
     .stdout(contains("Passing (1)"))
-    .stdout(contains("[➕ more]"));
+    .stdout(contains("[+ more]"));
 }
 
 #[test]
@@ -73,5 +73,24 @@ fn once_can_render_pr_files_tab() {
     .success()
     .stdout(contains("[Files]"))
     .stdout(contains("Files changed (5)"))
+    .stdout(contains("[+ more]"));
+}
+
+#[test]
+fn once_can_render_emoji_symbols_when_requested() {
+    let mut cmd = Command::cargo_bin("ghzoom").unwrap();
+
+    cmd.args([
+        "openclaw/openclaw#81834",
+        "--offline-fixture",
+        "fixtures/pr-81834.json",
+        "--symbols",
+        "emoji",
+        "--tab",
+        "checks",
+        "--once",
+    ])
+    .assert()
+    .success()
     .stdout(contains("[➕ more]"));
 }

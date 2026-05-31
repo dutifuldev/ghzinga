@@ -296,13 +296,13 @@ Desktop/medium-large:
 | openclaw/openclaw #81834 [PR OPEN]  updated 1m ago  refreshed 12:40:10     |
 | feat(senseaudio): add SenseAudio TTS provider                              |
 | [Overview] [Activity] [Commits] [Checks] [Files] [Links]                    |
-| ✅ open  👤 author  💬 7  👍 3  ✅ checks passed  🧵 2  🔁 refreshed 12:40 |
+| OK open  by author  comments 7  reactions 3  OK checks passed  threads 2 |
 +----------------------------------------------------------------------------+
 | Scrollable selected tab                                                     |
-| bold section headings, colored status words, clickable 🔗 links             |
-| visible [➕ more] / [➖ less] controls for expansion                         |
+| bold section headings, colored status words, clickable links                |
+| visible [+ more] / [- less] controls for expansion                          |
 +----------------------------------------------------------------------------+
-| 🔄 [refresh]  🌐 [open]  ❔ [help]  ⏻ [quit]   tab next | arrows scroll     |
+| [refresh]  [open]  [help]  [quit]   tab next | arrows scroll               |
 +----------------------------------------------------------------------------+
 ```
 
@@ -312,21 +312,22 @@ Narrow:
 openclaw/openclaw #81834 [PR OPEN]
 feat(senseaudio): add SenseAudio TTS provider
 [Overview] [Activity] [Checks] [Files]
-✅ open | checks passed | 💬 7 | 👍 3 | files 5
+OK open | checks passed | comments 7 | reactions 3 | files 5
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
-🔄 [refresh] | 🌐 [open] | ❔ [help] | ⏻ [quit]
+[refresh] | [open] | [help] | [quit]
 ```
 
 Visual style:
 
 - The status section is a horizontal band below the tabs, not a left sidebar.
 - Buttons and expandable controls use bold styling and text labels, for example
-  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[🌐 open]`.
-- Emoji symbols are semantic markers only; keep nearby text labels so the UI is
-  usable when emoji width/color rendering varies.
-- Status badges use both symbols and words: `✅ PASS`, `❌ FAIL`, `⏳ PENDING`,
+  `[+ more]`, `[- less]`, `[refresh]`, `[open]`.
+- Default symbols are plain ASCII so no special terminal font, Nerd Font, or
+  emoji support is required. `--symbols emoji` may opt into richer markers, but
+  every marker must retain a nearby text label.
+- Status badges use both symbols and words: `OK PASS`, `!! FAIL`, `.. PENDING`,
   `OPEN`, `CLOSED`, `MERGED`.
 - No Nerd Font icons.
 - Use color and bold to emphasize hierarchy:
@@ -341,10 +342,10 @@ Visual style:
   - `solarized-dark`: Solarized Dark colors from Herdr's palette
 - Line and separator rendering borrows Herdr's understated approach:
   - fill the terminal background with the active palette's panel color
-  - use single-line separators such as `─` in dim surface colors instead of
+  - use ASCII separators such as `-` in dim surface colors instead of
     boxed panels around every region
-  - use left guide markers such as `▏` for preformatted code or dense quoted
-    blocks when that helps scanning
+  - use plain left guide markers such as `|` for preformatted code or dense
+    quoted blocks when that helps scanning
   - keep borders structural and quiet, with color and bold carrying most of the
     emphasis
 
@@ -416,7 +417,7 @@ Keyboard:
 - `Up` / `Down`: scroll line
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom
-- `Enter`: activate the first visible content action, such as a link or `[➕ more]`
+- `Enter`: activate the first visible content action, such as a link or `[+ more]`
 - `Backspace`: navigate back after following a link
 - `o`: open current resource in browser through `gh`
 
@@ -441,8 +442,8 @@ Long text behavior:
 - Body starts collapsed to a configurable rendered-line limit.
 - Each long comment starts collapsed.
 - Visible controls:
-  - `[➕ more]` expands one block
-  - `[➖ less]` collapses it
+  - `[+ more]` expands one block
+  - `[- less]` collapses it
   - `[expand all]` for tab-level expansion
 - Mouse and keyboard activation use the same `HitTarget::ToggleBlock`.
 - Truncation must be tested against line wrapping, terminal width, and Unicode width.
@@ -469,15 +470,15 @@ Rendering tests:
   - issue overview
   - loading state
   - error state
-- Chrome assertion: rendered buffers contain no heavy box-drawing or Nerd Font
-  chrome from our components; common emoji markers and quiet `─`/`▏`
-  separators are allowed.
+- Chrome assertion: default rendered buffers contain no heavy box-drawing,
+  Nerd Font chrome, or non-ASCII separator glyphs from our components. Emoji
+  markers are allowed only when `--symbols emoji` is explicitly selected.
 
 Interaction tests:
 
 - simulated mouse click on tab changes active tab
 - simulated mouse wheel changes scroll offset
-- simulated click on `[➕ more]` expands body/comment
+- simulated click on `[+ more]` expands body/comment
 - simulated click on PR link navigates to new resource id
 - keyboard `Tab`, arrows, `PageDown`, `Backspace`, `r`, `q`
 
@@ -518,7 +519,7 @@ End-to-end/manual verification:
   - checks
   - files
   - click tab behavior
-  - click `[➕ more]`
+  - click `[+ more]`
   - refresh status
 
 ## Implementation Phases
@@ -581,6 +582,6 @@ The first coherent build slice should produce:
 - `ghzoom --help`
 - `ghzoom openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json`
 - static Ratatui display with keyboard tab switching and scroll
-- mouse click on tabs and `[➕ more]`
+- mouse click on tabs and `[+ more]`
 
 This slice proves the architecture without depending on live GitHub availability. Live `gh` integration follows immediately after.

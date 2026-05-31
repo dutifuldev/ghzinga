@@ -4,7 +4,7 @@ use clap::Parser;
 
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
-use crate::render::ThemeName;
+use crate::render::{SymbolMode, ThemeName};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -40,6 +40,10 @@ pub struct Cli {
     /// UI theme: default or solarized-dark.
     #[arg(long, default_value_t = ThemeName::Default, value_name = "THEME")]
     pub theme: ThemeName,
+
+    /// Symbol style: ascii or emoji.
+    #[arg(long, default_value_t = SymbolMode::Ascii, value_name = "SYMBOLS")]
+    pub symbols: SymbolMode,
 }
 
 impl Cli {
@@ -110,5 +114,12 @@ mod tests {
         ]);
 
         assert_eq!(cli.theme, ThemeName::SolarizedDark);
+    }
+
+    #[test]
+    fn parses_symbol_mode() {
+        let cli = Cli::parse_from(["ghzoom", "--symbols", "emoji", "openclaw/openclaw#81834"]);
+
+        assert_eq!(cli.symbols, SymbolMode::Emoji);
     }
 }
