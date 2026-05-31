@@ -237,6 +237,30 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn review_requests_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewRequests(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          requestedReviewer {
+            __typename
+            ... on User { login name }
+            ... on Team { name slug }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn comments_query(kind: ResourceKind) -> String {
     let selector = selector(kind);
     format!(
