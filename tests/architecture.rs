@@ -38,6 +38,64 @@ fn github_adapter_does_not_depend_on_tui_layers() {
 }
 
 #[test]
+fn render_layer_does_not_depend_on_external_adapters() {
+    let forbidden = [
+        "crate::github",
+        "crate::terminal",
+        "reqwest",
+        "tokio",
+        "std::fs",
+        "std::process",
+    ];
+
+    assert_no_forbidden_text("src/render", &forbidden);
+}
+
+#[test]
+fn input_layer_stays_small_and_adapter_free() {
+    let forbidden = [
+        "crate::github",
+        "crate::render",
+        "crate::terminal",
+        "crossterm",
+        "reqwest",
+        "tokio",
+        "std::fs",
+        "std::process",
+    ];
+
+    assert_no_forbidden_text("src/input", &forbidden);
+}
+
+#[test]
+fn app_reducer_does_not_call_concrete_io_adapters() {
+    let forbidden = [
+        "crate::github",
+        "crate::terminal",
+        "reqwest",
+        "tokio::process",
+    ];
+
+    assert_no_forbidden_text("src/app", &forbidden);
+}
+
+#[test]
+fn terminal_adapter_stays_out_of_domain_and_data_layers() {
+    let forbidden = [
+        "crate::app",
+        "crate::domain",
+        "crate::github",
+        "crate::input",
+        "crate::render",
+        "reqwest",
+        "tokio",
+        "std::process",
+    ];
+
+    assert_no_forbidden_text("src/terminal", &forbidden);
+}
+
+#[test]
 fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
     let source = rust_files(Path::new("src/github"))
         .into_iter()
