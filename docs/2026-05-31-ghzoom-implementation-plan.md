@@ -20,7 +20,9 @@ ghzoom openclaw/openclaw#81834
 ghzoom openclaw/openclaw 81834
 ```
 
-The app must not implement its own login flow. It should use the installed `gh` CLI and work whenever `gh auth status` is already valid.
+The app must not implement its own login flow. It should use `GH_TOKEN` or
+`GITHUB_TOKEN` when present, and may fall back to the installed `gh` CLI only to
+read an existing credential with `gh auth token`.
 
 ## Requirements
 
@@ -109,7 +111,7 @@ src/
     navigation.rs         link target and history handling
   github/
     mod.rs                GitHub gateway trait
-    gh_cli.rs             current gateway; direct GraphQL enrichment plus legacy base fetches
+    gh_cli.rs             current gateway; direct GraphQL/REST data transport
     queries.rs            GraphQL query strings
     types.rs              API response DTOs
     normalize.rs          DTO -> domain model
@@ -158,12 +160,27 @@ Advantages:
 - keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
 - easy to mock in tests by abstracting HTTP transport
 
+GitHub CLI reference notes:
+
+- A local reference checkout was created at `/home/bob/repos/cli`.
+- `api/http_client.go` is the relevant transport pattern: construct an HTTP
+  client, set GitHub API headers, and let an auth-aware transport attach the
+  token to API requests.
+- `internal/config/config.go` is the relevant credential pattern: prefer
+  explicit environment tokens before falling back to configured/keyring-backed
+  credentials. `ghzoom` mirrors that at a smaller scale with `GH_TOKEN`,
+  `GITHUB_TOKEN`, then `gh auth token`.
+- `pkg/httpmock/stub.go` is the relevant test pattern for direct data access:
+  tests should assert HTTP method/path/query shape instead of shell command
+  arguments for GitHub data fetches.
+
 Data loaded for PR:
 
 - repo/name/owner/URL
 - number, title, body, state, author, created/updated timestamps
 - labels and assignees
-- metadata such as draft/cross-repository state, mergeability, changed-file count, milestone, project items, ref OIDs, and merge commits
+- metadata such as draft/cross-repository state, mergeability,
+  changed-file count, milestone, ref OIDs, and merge commits
 - reactions counts
 - base/head branch names
 - changed files with additions/deletions/change type, paginated until complete or configured cap
@@ -197,7 +214,7 @@ Data loaded for issue:
 - repo/name/owner/URL
 - number, title, body, state, author, created/updated timestamps
 - labels and assignees
-- metadata such as pinned state, state reason, closed time, milestone, and project items
+- metadata such as pinned state, state reason, closed time, and milestone
 - reactions counts
 - comments and timeline events, including author association, comment
   reactions, edit/minimized metadata, permalinks, labels, references,
@@ -427,7 +444,7 @@ End-to-end/manual verification:
 
 - Run unit, render, adapter, and interaction tests.
 - Run fmt/clippy.
-- Run live GitHub checks through `gh`.
+- Run live GitHub checks through direct API requests.
 - Run tmux capture verification at narrow/medium/large sizes.
 - Fix UX issues discovered by captures.
 

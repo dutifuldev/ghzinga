@@ -15,9 +15,6 @@ use crate::domain::{
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
 };
 
-const PR_FIELDS: &str = "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,baseRefName,headRefName,baseRefOid,headRefOid,headRepository,headRepositoryOwner,reviewDecision,reviewRequests,closingIssuesReferences,mergeStateStatus,mergeable,isDraft,isCrossRepository,maintainerCanModify,changedFiles,closed,closedAt,mergedAt,mergedBy,milestone,projectItems,autoMergeRequest,mergeCommit,potentialMergeCommit,additions,deletions,commits,statusCheckRollup,files,comments,reviews";
-const ISSUE_FIELDS: &str =
-    "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,closed,isPinned,stateReason,closedAt,milestone,projectItems,closedByPullRequestsReferences,comments";
 const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const GITHUB_REST_URL: &str = "https://api.github.com";
 
@@ -47,16 +44,16 @@ impl GithubGateway for GhCliGateway {
 }
 
 pub fn command_preview_for_pr(id: &ResourceId) -> Vec<String> {
-    view_command("pr", id, PR_FIELDS)
+    graphql_preview("pullRequest", id)
 }
 
 pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
-    view_command("issue", id, ISSUE_FIELDS)
+    graphql_preview("issue", id)
 }
 
 async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
-    let output = run_view_command("pr", id, PR_FIELDS).await?;
-    let dto: PrView = serde_json::from_slice(&output).context("failed to parse gh pr view JSON")?;
+    let output = run_graphql_base_pr(id).await?;
+    let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
@@ -95,9 +92,8 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
 }
 
 async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
-    let output = run_view_command("issue", id, ISSUE_FIELDS).await?;
-    let dto: IssueView =
-        serde_json::from_slice(&output).context("failed to parse gh issue view JSON")?;
+    let output = run_graphql_base_issue(id).await?;
+    let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
@@ -120,27 +116,6 @@ fn replace_comment_activity(resource: &mut Resource, comments: Vec<ActivityEntry
         .activity
         .retain(|entry| entry.kind != ActivityKind::Comment);
     resource.activity.extend(comments);
-}
-
-async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::Result<Vec<u8>> {
-    let repo = id.repo_name_with_owner();
-    let number = id.number.to_string();
-    let output = Command::new("gh")
-        .args([kind, "view", &number, "-R", &repo, "--json", fields])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error(&format!("gh {kind} view"), &error)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message(&format!("gh {kind} view"), &stderr)
-        );
-    }
-
-    Ok(output.stdout)
 }
 
 async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
@@ -235,6 +210,189 @@ fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
         "number": id.number,
         "after": after,
     })
+}
+
+async fn run_graphql_base_pr(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(base_pr_query(), owner_repo_number_variables(id, None)).await
+}
+
+async fn run_graphql_base_issue(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(base_issue_query(), owner_repo_number_variables(id, None)).await
+}
+
+fn graphql_preview(selector: &str, id: &ResourceId) -> Vec<String> {
+    vec![
+        "POST".into(),
+        GITHUB_GRAPHQL_URL.into(),
+        format!("repository={}", id.repo_name_with_owner()),
+        format!("number={}", id.number),
+        format!("selector={selector}"),
+    ]
+}
+
+fn base_pr_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      number
+      title
+      url
+      state
+      author { login }
+      createdAt
+      updatedAt
+      labels(first: 100) { nodes { name } }
+      assignees(first: 100) { nodes { login name } }
+      reactionGroups { content users { totalCount } }
+      body
+      baseRefName
+      headRefName
+      baseRefOid
+      headRefOid
+      headRepository { name nameWithOwner }
+      headRepositoryOwner { login }
+      reviewDecision
+      reviewRequests(first: 100) {
+        nodes {
+          requestedReviewer {
+            __typename
+            ... on User { login name }
+            ... on Team { name slug }
+          }
+        }
+      }
+      closingIssuesReferences(first: 100) { nodes { number url } }
+      mergeStateStatus
+      mergeable
+      isDraft
+      isCrossRepository
+      maintainerCanModify
+      changedFiles
+      closed
+      closedAt
+      mergedAt
+      mergedBy { login }
+      milestone { title }
+      autoMergeRequest { enabledAt }
+      mergeCommit { oid }
+      potentialMergeCommit { oid }
+      additions
+      deletions
+      commits(first: 100) {
+        nodes {
+          commit {
+            oid
+            messageHeadline
+            messageBody
+            committedDate
+            authoredDate
+            authors(first: 100) {
+              nodes {
+                name
+                user { login name }
+              }
+            }
+          }
+        }
+      }
+      statusCheckRollup {
+        contexts(first: 100) {
+          nodes {
+            __typename
+            ... on CheckRun {
+              name
+              status
+              conclusion
+              detailsUrl
+              startedAt
+              completedAt
+              checkSuite { workflowRun { workflow { name } } }
+            }
+            ... on StatusContext {
+              context
+              state
+              targetUrl
+            }
+          }
+        }
+      }
+      files(first: 100) { nodes { path additions deletions changeType } }
+      comments(first: 100) {
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          createdAt
+          updatedAt
+          url
+          includesCreatedEdit
+          isMinimized
+          minimizedReason
+          reactionGroups { content users { totalCount } }
+        }
+      }
+      reviews(first: 100) {
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          state
+          submittedAt
+          updatedAt
+          url
+          reactionGroups { content users { totalCount } }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
+fn base_issue_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      number
+      title
+      url
+      state
+      author { login }
+      createdAt
+      updatedAt
+      labels(first: 100) { nodes { name } }
+      assignees(first: 100) { nodes { login name } }
+      reactionGroups { content users { totalCount } }
+      body
+      closed
+      isPinned
+      stateReason
+      closedAt
+      milestone { title }
+      closedByPullRequestsReferences(first: 100) { nodes { number url } }
+      comments(first: 100) {
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          createdAt
+          updatedAt
+          url
+          includesCreatedEdit
+          isMinimized
+          minimizedReason
+          reactionGroups { content users { totalCount } }
+        }
+      }
+    }
+  }
+}
+"#
 }
 
 async fn run_graphql_comments(
@@ -680,19 +838,6 @@ async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
 
 fn pr_diff_rest_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
-}
-
-fn view_command(kind: &str, id: &ResourceId, fields: &str) -> Vec<String> {
-    vec![
-        "gh".into(),
-        kind.into(),
-        "view".into(),
-        id.number.to_string(),
-        "-R".into(),
-        id.repo_name_with_owner(),
-        "--json".into(),
-        fields.into(),
-    ]
 }
 
 fn gh_execute_error(command: &str, error: &io::Error) -> String {
@@ -1336,6 +1481,154 @@ impl IssueView {
             warnings: Vec::new(),
             pull_request: None,
         }
+    }
+}
+
+fn pr_view_from_graphql(raw: &[u8]) -> anyhow::Result<PrView> {
+    let mut value: Value =
+        serde_json::from_slice(raw).context("failed to parse base PR GraphQL JSON")?;
+    let mut pr = value
+        .pointer_mut("/data/repository/pullRequest")
+        .and_then(Value::take_non_null)
+        .context("base PR GraphQL response did not include a pull request")?;
+    normalize_base_pr_value(&mut pr);
+    serde_json::from_value(pr).context("failed to normalize base PR GraphQL JSON")
+}
+
+fn issue_view_from_graphql(raw: &[u8]) -> anyhow::Result<IssueView> {
+    let mut value: Value =
+        serde_json::from_slice(raw).context("failed to parse base issue GraphQL JSON")?;
+    let mut issue = value
+        .pointer_mut("/data/repository/issue")
+        .and_then(Value::take_non_null)
+        .context("base issue GraphQL response did not include an issue")?;
+    normalize_base_issue_value(&mut issue);
+    serde_json::from_value(issue).context("failed to normalize base issue GraphQL JSON")
+}
+
+trait TakeNonNull {
+    fn take_non_null(&mut self) -> Option<Value>;
+}
+
+impl TakeNonNull for Value {
+    fn take_non_null(&mut self) -> Option<Value> {
+        if self.is_null() {
+            return None;
+        }
+        Some(self.take())
+    }
+}
+
+fn normalize_base_pr_value(pr: &mut Value) {
+    for key in [
+        "labels",
+        "assignees",
+        "reviewRequests",
+        "closingIssuesReferences",
+        "projectItems",
+        "files",
+        "comments",
+        "reviews",
+    ] {
+        replace_connection_with_nodes(pr, key);
+    }
+    normalize_commits_connection(pr);
+    normalize_status_check_rollup(pr);
+}
+
+fn normalize_base_issue_value(issue: &mut Value) {
+    for key in [
+        "labels",
+        "assignees",
+        "projectItems",
+        "closedByPullRequestsReferences",
+        "comments",
+    ] {
+        replace_connection_with_nodes(issue, key);
+    }
+}
+
+fn replace_connection_with_nodes(value: &mut Value, key: &str) {
+    let nodes = value
+        .get_mut(key)
+        .and_then(|connection| connection.get_mut("nodes"))
+        .map(Value::take)
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    if let Some(object) = value.as_object_mut() {
+        object.insert(key.to_string(), nodes);
+    }
+}
+
+fn normalize_commits_connection(pr: &mut Value) {
+    let commits = pr
+        .get_mut("commits")
+        .and_then(|connection| connection.get_mut("nodes"))
+        .and_then(Value::as_array_mut)
+        .map(|nodes| {
+            nodes
+                .iter_mut()
+                .filter_map(|node| {
+                    let mut commit = node.get_mut("commit")?.take();
+                    normalize_commit_authors(&mut commit);
+                    Some(commit)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if let Some(object) = pr.as_object_mut() {
+        object.insert("commits".to_string(), Value::Array(commits));
+    }
+}
+
+fn normalize_commit_authors(commit: &mut Value) {
+    let authors = commit
+        .get_mut("authors")
+        .and_then(|connection| connection.get_mut("nodes"))
+        .and_then(Value::as_array_mut)
+        .map(|nodes| {
+            nodes
+                .iter_mut()
+                .filter_map(|author| {
+                    if let Some(user) = author.get_mut("user").filter(|user| !user.is_null()) {
+                        return Some(user.take());
+                    }
+                    let name = author.get("name").and_then(Value::as_str)?;
+                    Some(json!({ "login": name, "name": name }))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if let Some(object) = commit.as_object_mut() {
+        object.insert("authors".to_string(), Value::Array(authors));
+    }
+}
+
+fn normalize_status_check_rollup(pr: &mut Value) {
+    let checks = pr
+        .get_mut("statusCheckRollup")
+        .and_then(|rollup| rollup.get_mut("contexts"))
+        .and_then(|contexts| contexts.get_mut("nodes"))
+        .and_then(Value::as_array_mut)
+        .map(|nodes| {
+            nodes
+                .iter_mut()
+                .map(|node| {
+                    let mut check = node.take();
+                    if let Some(workflow_name) = check
+                        .pointer("/checkSuite/workflowRun/workflow/name")
+                        .cloned()
+                    {
+                        if let Some(object) = check.as_object_mut() {
+                            object.insert("workflowName".to_string(), workflow_name);
+                        }
+                    }
+                    check
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if let Some(object) = pr.as_object_mut() {
+        object.insert("statusCheckRollup".to_string(), Value::Array(checks));
     }
 }
 
@@ -2482,20 +2775,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pr_command_uses_gh_view_and_repo_scope() {
+    fn pr_command_preview_uses_direct_graphql_shape() {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
 
         assert_eq!(
             command_preview_for_pr(&id),
             vec![
-                "gh",
-                "pr",
-                "view",
-                "81834",
-                "-R",
-                "openclaw/openclaw",
-                "--json",
-                PR_FIELDS,
+                "POST",
+                "https://api.github.com/graphql",
+                "repository=openclaw/openclaw",
+                "number=81834",
+                "selector=pullRequest",
             ]
         );
     }
@@ -3325,7 +3615,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     #[test]
     fn missing_gh_error_mentions_install_and_auth_status() {
         let message = gh_execute_error(
-            "gh pr view",
+            "gh auth token",
             &io::Error::new(io::ErrorKind::NotFound, "no gh in path"),
         );
 
@@ -3336,7 +3626,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     #[test]
     fn auth_failure_mentions_auth_status_and_login() {
         let message = gh_failure_message(
-            "gh issue view",
+            "gh auth token",
             "To get started with GitHub CLI, please run: gh auth login",
         );
 
@@ -3347,13 +3637,9 @@ diff --git a/docs/two.md b/docs/two.md\n\
 
     #[test]
     fn non_auth_failure_keeps_command_and_stderr() {
-        let message =
-            gh_failure_message("gh pr view", "GraphQL: Could not resolve to a PullRequest");
+        let message = gh_failure_message("gh auth token", "token retrieval failed");
 
-        assert_eq!(
-            message,
-            "`gh pr view` failed: GraphQL: Could not resolve to a PullRequest"
-        );
+        assert_eq!(message, "`gh auth token` failed: token retrieval failed");
     }
 
     #[test]
