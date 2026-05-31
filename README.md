@@ -158,6 +158,11 @@ The repository includes tmux capture artifacts for PR and issue views:
 - `captures/ghzoom-pr-81834/`
 - `captures/ghzoom-issue-88499/`
 
+Reference docs:
+
+- `docs/2026-05-31-ghzoom-implementation-plan.md`
+- `docs/2026-05-31-gh-cli-reference-notes.md`
+
 Regenerate PR captures:
 
 ```sh

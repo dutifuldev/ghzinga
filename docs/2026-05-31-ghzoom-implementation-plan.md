@@ -111,7 +111,7 @@ src/
     navigation.rs         link target and history handling
   github/
     mod.rs                GitHub gateway trait
-    gh_cli.rs             current gateway; direct GraphQL/REST data transport
+    gh_cli.rs             historical filename; direct GraphQL/REST data transport
     queries.rs            GraphQL query strings
     types.rs              API response DTOs
     normalize.rs          DTO -> domain model
@@ -162,7 +162,8 @@ Advantages:
 
 GitHub CLI reference notes:
 
-- A local reference checkout was created at `/home/bob/repos/cli`.
+- A local reference checkout was created at `/home/bob/repos/gh-cli`.
+- Detailed notes live in `docs/2026-05-31-gh-cli-reference-notes.md`.
 - `api/http_client.go` is the relevant transport pattern: construct an HTTP
   client, set GitHub API headers, and let an auth-aware transport attach the
   token to API requests.
