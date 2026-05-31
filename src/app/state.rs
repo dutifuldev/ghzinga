@@ -73,6 +73,7 @@ pub enum BlockId {
 pub struct LoadingState {
     pub target: ResourceId,
     pub message: String,
+    frame: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -244,6 +245,7 @@ impl AppState {
         self.loading = Some(LoadingState {
             target,
             message: message.into(),
+            frame: 0,
         });
         self.last_error = None;
     }
@@ -257,6 +259,19 @@ impl AppState {
         self.loading
             .as_ref()
             .map(|loading| loading.message.as_str())
+    }
+
+    pub fn loading_indicator(&self) -> Option<&'static str> {
+        const FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
+        self.loading
+            .as_ref()
+            .map(|loading| FRAMES[loading.frame as usize % FRAMES.len()])
+    }
+
+    pub fn advance_loading_frame(&mut self) {
+        if let Some(loading) = &mut self.loading {
+            loading.frame = loading.frame.wrapping_add(1);
+        }
     }
 
     pub fn toggle_help(&mut self) {
@@ -448,6 +463,25 @@ mod tests {
 
         assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
         assert_eq!(state.last_refresh_had_changes, Some(true));
+    }
+
+    #[test]
+    fn loading_indicator_advances_through_ascii_frames() {
+        let mut state = AppState::new(issue_resource());
+        state.begin_loading(
+            state.resource.id.clone(),
+            "refreshing owner/repo#1 from GitHub",
+        );
+
+        assert_eq!(state.loading_indicator(), Some("|"));
+        state.advance_loading_frame();
+        assert_eq!(state.loading_indicator(), Some("/"));
+        state.advance_loading_frame();
+        assert_eq!(state.loading_indicator(), Some("-"));
+        state.advance_loading_frame();
+        assert_eq!(state.loading_indicator(), Some("\\"));
+        state.advance_loading_frame();
+        assert_eq!(state.loading_indicator(), Some("|"));
     }
 
     #[test]
