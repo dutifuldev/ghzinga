@@ -64,7 +64,8 @@ For pull requests:
 - comments, reviews, review comments, and timeline events such as labels,
   references, assignments, locks, pins, duplicate markers, transfers, review
   requests, draft/ready state, merges, title changes, and milestones; timeline
-  events are paginated so long histories are not capped at the first page
+  events and review threads are paginated so long histories are not capped at
+  the first page
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary

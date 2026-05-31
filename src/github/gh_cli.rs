@@ -126,12 +126,56 @@ async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::
     Ok(output.stdout)
 }
 
-async fn run_graphql_review_threads(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
-    let query = r#"
-query($owner: String!, $name: String!, $number: Int!) {
+async fn run_graphql_review_threads(
+    id: &ResourceId,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = review_threads_query();
+    let number = id.number.to_string();
+    let after = after.unwrap_or("null");
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-F",
+            &format!("after={after}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!(gh_execute_error("gh api graphql reviewThreads", &error))
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "{}",
+            gh_failure_message("gh api graphql reviewThreads", &stderr)
+        );
+    }
+
+    Ok(output.stdout)
+}
+
+fn review_threads_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           id
           isResolved
@@ -163,37 +207,7 @@ query($owner: String!, $name: String!, $number: Int!) {
     }
   }
 }
-"#;
-    let number = id.number.to_string();
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error("gh api graphql reviewThreads", &error))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql reviewThreads", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+"#
 }
 
 async fn run_graphql_changed_files(
@@ -740,6 +754,7 @@ struct ReviewThreadsPullRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReviewThreadsConnection {
+    page_info: PageInfoDto,
     nodes: Vec<ReviewThreadDto>,
 }
 
@@ -1455,10 +1470,24 @@ fn comments_to_activity(comments: Vec<CommentDto>) -> Vec<ActivityEntry> {
 }
 
 async fn fetch_review_thread_activity(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
-    let output = run_graphql_review_threads(id).await?;
-    let response: ReviewThreadsResponse =
-        serde_json::from_slice(&output).context("failed to parse reviewThreads GraphQL JSON")?;
-    Ok(review_thread_activity(response))
+    let mut activity = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_review_threads(id, after.as_deref()).await?;
+        let response: ReviewThreadsResponse = serde_json::from_slice(&output)
+            .context("failed to parse reviewThreads GraphQL JSON")?;
+        let Some(page) = review_thread_activity_page(response) else {
+            return Ok(activity);
+        };
+        activity.extend(page.activity);
+        if !page.has_next_page {
+            return Ok(activity);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("review threads page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
 }
 
 async fn fetch_timeline_activity(
@@ -1706,13 +1735,25 @@ fn changed_files_from_response(response: ChangedFilesResponse) -> Vec<ChangedFil
         .unwrap_or_default()
 }
 
+struct ReviewThreadActivityPage {
+    activity: Vec<ActivityEntry>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
 fn review_thread_activity(response: ReviewThreadsResponse) -> Vec<ActivityEntry> {
-    let Some(repository) = response.data.repository else {
-        return Vec::new();
-    };
-    let Some(pull_request) = repository.pull_request else {
-        return Vec::new();
-    };
+    review_thread_activity_page(response)
+        .map(|page| page.activity)
+        .unwrap_or_default()
+}
+
+fn review_thread_activity_page(
+    response: ReviewThreadsResponse,
+) -> Option<ReviewThreadActivityPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let page_info = pull_request.review_threads.page_info;
     let mut entries = Vec::new();
     for thread in pull_request.review_threads.nodes {
         for comment in thread.comments.nodes {
@@ -1745,7 +1786,11 @@ fn review_thread_activity(response: ReviewThreadsResponse) -> Vec<ActivityEntry>
             });
         }
     }
-    entries
+    Some(ReviewThreadActivityPage {
+        activity: entries,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
 }
 
 struct TimelineActivityPage {
@@ -2201,6 +2246,17 @@ mod tests {
         assert!(pr_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(pr_query.contains("MERGED_EVENT"));
         assert!(pr_query.contains("ReviewRequestedEvent"));
+    }
+
+    #[test]
+    fn review_threads_query_requests_pagination_state() {
+        let query = review_threads_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("reviewThreads(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
     }
 
     #[test]
@@ -2869,6 +2925,10 @@ diff --git a/docs/two.md b/docs/two.md\n\
                 repository: Some(ReviewThreadsRepository {
                     pull_request: Some(ReviewThreadsPullRequest {
                         review_threads: ReviewThreadsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
                             nodes: vec![ReviewThreadDto {
                                 id: Some("thread-1".into()),
                                 is_resolved: Some(false),
@@ -2917,6 +2977,60 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert!(activity[0].is_minimized);
         assert_eq!(activity[0].minimized_reason.as_deref(), Some("resolved"));
         assert_eq!(activity[0].author, "reviewer");
+    }
+
+    #[test]
+    fn review_thread_activity_page_preserves_pagination_state() {
+        let page = review_thread_activity_page(ReviewThreadsResponse {
+            data: ReviewThreadsData {
+                repository: Some(ReviewThreadsRepository {
+                    pull_request: Some(ReviewThreadsPullRequest {
+                        review_threads: ReviewThreadsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("cursor-2".into()),
+                            },
+                            nodes: vec![ReviewThreadDto {
+                                id: Some("thread-2".into()),
+                                is_resolved: Some(true),
+                                is_outdated: Some(false),
+                                path: Some("src/main.rs".into()),
+                                line: Some(7),
+                                comments: ReviewThreadCommentsConnection {
+                                    nodes: vec![ReviewThreadCommentDto {
+                                        id: Some("review-comment-2".into()),
+                                        author: Some(UserDto {
+                                            login: Some("maintainer".into()),
+                                            name: None,
+                                        }),
+                                        author_association: Some("MEMBER".into()),
+                                        body: "Follow-up.".into(),
+                                        created_at: Some("2026-01-03T00:00:00Z".into()),
+                                        updated_at: Some("2026-01-04T00:00:00Z".into()),
+                                        url: None,
+                                        includes_created_edit: Some(false),
+                                        is_minimized: Some(false),
+                                        minimized_reason: None,
+                                        reaction_groups: Vec::new(),
+                                        path: Some("src/main.rs".into()),
+                                        line: Some(8),
+                                    }],
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("review thread page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("cursor-2"));
+        assert_eq!(page.activity.len(), 1);
+        assert_eq!(page.activity[0].thread_id.as_deref(), Some("thread-2"));
+        assert_eq!(page.activity[0].thread_resolved, Some(true));
+        assert_eq!(page.activity[0].path.as_deref(), Some("src/main.rs"));
+        assert_eq!(page.activity[0].line, Some(8));
     }
 
     #[test]
