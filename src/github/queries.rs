@@ -817,10 +817,14 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
 
 pub(crate) fn commit_deployments_query() -> &'static str {
     r#"
-query($owner: String!, $name: String!, $number: Int!) {
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      commits(last: 100) {
+      commits(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           commit {
             oid
