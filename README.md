@@ -109,6 +109,11 @@ content. The rendered content window only registers hit targets for the visible
 rows, so long paginated GitHub histories remain scrollable without turning every
 off-screen row into an active terminal target.
 
+The TUI adapts to terminal width. Header metadata, tabs, the status band, and
+footer controls wrap into extra rows on narrow terminals instead of silently
+overlapping. Long content uses display-width-aware wrapping and truncation, so
+emoji and wide characters do not corrupt the layout.
+
 ## Controls
 
 Mouse:
