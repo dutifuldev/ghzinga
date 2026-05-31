@@ -151,6 +151,8 @@ cargo clippy --all-targets --all-features -- -D warnings
 npx -y @simpledoc/simpledoc check
 ```
 
+GitHub Actions runs these same checks for pull requests and pushes to `main`.
+
 The repository includes tmux capture artifacts for PR and issue views:
 
 - `captures/ghzoom-pr-81834/`
