@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Context;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio::process::Command;
 
 use crate::domain::{
@@ -18,6 +18,7 @@ use crate::domain::{
 const PR_FIELDS: &str = "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,baseRefName,headRefName,baseRefOid,headRefOid,headRepository,headRepositoryOwner,reviewDecision,reviewRequests,closingIssuesReferences,mergeStateStatus,mergeable,isDraft,isCrossRepository,maintainerCanModify,changedFiles,closed,closedAt,mergedAt,mergedBy,milestone,projectItems,autoMergeRequest,mergeCommit,potentialMergeCommit,additions,deletions,commits,statusCheckRollup,files,comments,reviews";
 const ISSUE_FIELDS: &str =
     "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,closed,isPinned,stateReason,closedAt,milestone,projectItems,closedByPullRequestsReferences,comments";
+const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 
 pub trait GithubGateway {
     fn fetch_resource(
@@ -141,40 +142,82 @@ async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::
     Ok(output.stdout)
 }
 
+async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
+    let token = github_token().await?;
+    let response = reqwest::Client::new()
+        .post(GITHUB_GRAPHQL_URL)
+        .bearer_auth(token)
+        .header(reqwest::header::USER_AGENT, "ghzoom")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .json(&json!({
+            "query": query,
+            "variables": variables,
+        }))
+        .send()
+        .await
+        .context("failed to send GitHub GraphQL request")?;
+    let status = response.status();
+    let body = response
+        .bytes()
+        .await
+        .context("failed to read GitHub GraphQL response body")?;
+    if !status.is_success() {
+        anyhow::bail!(
+            "GitHub GraphQL request failed with HTTP {status}: {}",
+            String::from_utf8_lossy(&body)
+        );
+    }
+    if let Ok(value) = serde_json::from_slice::<Value>(&body) {
+        if let Some(errors) = value.get("errors").filter(|errors| !errors.is_null()) {
+            anyhow::bail!("GitHub GraphQL request returned errors: {errors}");
+        }
+    }
+    Ok(body.to_vec())
+}
+
+async fn github_token() -> anyhow::Result<String> {
+    if let Some(token) = std::env::var("GH_TOKEN")
+        .ok()
+        .or_else(|| std::env::var("GITHUB_TOKEN").ok())
+        .map(|token| token.trim().to_string())
+        .filter(|token| !token.is_empty())
+    {
+        return Ok(token);
+    }
+
+    let output = Command::new("gh")
+        .args(["auth", "token"])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh auth token", &error)))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("{}", gh_failure_message("gh auth token", &stderr));
+    }
+    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if token.is_empty() {
+        anyhow::bail!("`gh auth token` returned an empty token");
+    }
+    Ok(token)
+}
+
+fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
+    json!({
+        "owner": id.owner,
+        "name": id.repo,
+        "number": id.number,
+        "after": after,
+    })
+}
+
 async fn run_graphql_comments(
     id: &ResourceId,
     kind: ResourceKind,
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = comments_query(kind);
-    let number = id.number.to_string();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql comments", &error)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh api graphql comments", &stderr));
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
 fn comments_query(kind: ResourceKind) -> String {
@@ -221,39 +264,7 @@ async fn run_graphql_review_threads(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = review_threads_query();
-    let number = id.number.to_string();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error("gh api graphql reviewThreads", &error))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql reviewThreads", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(query, owner_repo_number_variables(id, after)).await
 }
 
 fn review_threads_query() -> &'static str {
@@ -309,37 +320,14 @@ async fn run_graphql_review_thread_comments(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = review_thread_comments_query();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("threadId={thread_id}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error(
-                "gh api graphql review thread comments",
-                &error
-            ))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql review thread comments", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(
+        query,
+        json!({
+            "threadId": thread_id,
+            "after": after,
+        }),
+    )
+    .await
 }
 
 fn review_thread_comments_query() -> &'static str {
@@ -401,39 +389,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
   }
 }
 "#;
-    let number = id.number.to_string();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error("gh api graphql changed files", &error))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql changed files", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(query, owner_repo_number_variables(id, after)).await
 }
 
 async fn run_graphql_timeline(
@@ -442,34 +398,7 @@ async fn run_graphql_timeline(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = timeline_query(kind);
-    let number = id.number.to_string();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql timeline", &error)))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh api graphql timeline", &stderr));
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
 fn timeline_query(kind: ResourceKind) -> String {
@@ -670,76 +599,20 @@ query($owner: String!, $name: String!, $number: Int!) {
   }
 }
 "#;
-    let number = id.number.to_string();
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error(
-                "gh api graphql commit deployments",
-                &error
-            ))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql commit deployments", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(
+        query,
+        json!({
+            "owner": id.owner,
+            "name": id.repo,
+            "number": id.number,
+        }),
+    )
+    .await
 }
 
 async fn run_graphql_check_suites(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
     let query = check_suites_query();
-    let number = id.number.to_string();
-    let after = after.unwrap_or("null");
-    let output = Command::new("gh")
-        .args([
-            "api",
-            "graphql",
-            "-f",
-            &format!("owner={}", id.owner),
-            "-f",
-            &format!("name={}", id.repo),
-            "-F",
-            &format!("number={number}"),
-            "-F",
-            &format!("after={after}"),
-            "-f",
-            &format!("query={query}"),
-        ])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| {
-            anyhow::anyhow!(gh_execute_error("gh api graphql check suites", &error))
-        })?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!(
-            "{}",
-            gh_failure_message("gh api graphql check suites", &stderr)
-        );
-    }
-
-    Ok(output.stdout)
+    run_graphql_query(query, owner_repo_number_variables(id, after)).await
 }
 
 fn check_suites_query() -> &'static str {
