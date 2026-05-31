@@ -384,6 +384,15 @@ Adapter tests:
 - auth failure maps to a friendly error
 - API rate-limit or network error is displayed but does not crash UI
 
+Architecture tests:
+
+- domain modules do not import app, GitHub, terminal, render, TUI, network, or
+  process APIs
+- GitHub adapter modules do not import app, input, render, terminal, Ratatui, or
+  Crossterm
+- GitHub data fetching does not regress to `gh pr view`, `gh issue view`, or
+  `gh api`; the only `gh` shell-out in the data adapter is `gh auth token`
+
 End-to-end/manual verification:
 
 - run `cargo test`

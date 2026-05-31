@@ -24,6 +24,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | --- | --- |
 | Full Rust standalone app | `Cargo.toml`, `src/main.rs`, `src/lib.rs`, Rust-only app modules under `src/` |
 | Ratatui/Crossterm architecture | `src/render/`, `src/terminal/mod.rs`, `src/app/update.rs` |
+| Slophammer-style architecture guardrails | `tests/architecture.rs` verifies domain purity, GitHub adapter isolation from TUI layers, and no `gh pr view` / `gh issue view` / `gh api` data transport regressions |
 | Mouse capture with opt-out | `TerminalGuard::enter(mouse_enabled)` enables `EnableMouseCapture`; CLI exposes `--no-mouse` |
 | Uses existing auth, no app login | Base PR/issue fetches, paginated GraphQL enrichment, and PR diff patch context use direct HTTPS requests with `GH_TOKEN` / `GITHUB_TOKEN` or the token from `gh auth token`; auth failures point to `gh auth status` / `gh auth login` |
 | PR body, labels, reactions, author, state, branches | Overview/status render tests and live `cargo run -- openclaw/openclaw#81834 --once` |
