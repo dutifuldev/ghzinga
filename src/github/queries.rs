@@ -226,6 +226,38 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn commits_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          commit {
+            oid
+            messageHeadline
+            messageBody
+            committedDate
+            authoredDate
+            authors(first: 100) {
+              nodes {
+                name
+                user { login name }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn review_threads_query() -> &'static str {
     r#"
 query($owner: String!, $name: String!, $number: Int!, $after: String) {

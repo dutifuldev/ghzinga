@@ -13,7 +13,7 @@ use crate::domain::{
 };
 use crate::github::queries::{
     base_issue_query, base_pr_query, changed_files_query, check_suites_query, comments_query,
-    commit_deployments_query, project_items_query, review_thread_comments_query,
+    commit_deployments_query, commits_query, project_items_query, review_thread_comments_query,
     review_threads_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
@@ -83,6 +83,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         match fetch_file_patches(id).await {
             Ok(patches) => apply_file_patches(&mut pr.files, patches),
             Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
+        }
+        match fetch_commits(id).await {
+            Ok(commits) => replace_pr_commits(pr, commits),
+            Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
         }
         match fetch_commit_deployments(id).await {
             Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
@@ -210,6 +214,10 @@ async fn run_graphql_changed_files(
         owner_repo_number_variables(id, after),
     )
     .await
+}
+
+async fn run_graphql_commits(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(commits_query(), owner_repo_number_variables(id, after)).await
 }
 
 async fn run_graphql_timeline(
@@ -552,6 +560,67 @@ struct CommitDto {
     committed_date: Option<String>,
     authored_date: Option<String>,
     authors: Option<Vec<UserDto>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsResponse {
+    data: CommitsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsData {
+    repository: Option<CommitsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsRepository {
+    pull_request: Option<CommitsPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsPullRequest {
+    commits: CommitsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<CommitNodeDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitNodeDto {
+    commit: CommitWithAuthorsConnectionDto,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitWithAuthorsConnectionDto {
+    oid: String,
+    message_headline: String,
+    message_body: Option<String>,
+    committed_date: Option<String>,
+    authored_date: Option<String>,
+    authors: Option<CommitAuthorsConnection>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorsConnection {
+    nodes: Vec<CommitAuthorDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorDto {
+    name: Option<String>,
+    user: Option<UserDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1511,6 +1580,27 @@ async fn fetch_changed_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>
     }
 }
 
+async fn fetch_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit>> {
+    let mut commits = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_commits(id, after.as_deref()).await?;
+        let response: CommitsResponse =
+            serde_json::from_slice(&output).context("failed to parse commits GraphQL JSON")?;
+        let Some(page) = commits_page(response) else {
+            return Ok(commits);
+        };
+        commits.extend(page.commits);
+        if !page.has_next_page {
+            return Ok(commits);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("commits page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 async fn fetch_commit_deployments(
     id: &ResourceId,
 ) -> anyhow::Result<HashMap<String, Vec<Deployment>>> {
@@ -1580,6 +1670,70 @@ fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String
         if let Some(patch) = patches.get(&file.path) {
             file.patch = Some(patch.clone());
         }
+    }
+}
+
+fn replace_pr_commits(pr: &mut PullRequest, commits: Vec<Commit>) {
+    if !commits.is_empty() {
+        pr.commits = commits;
+    }
+}
+
+struct CommitsPage {
+    commits: Vec<Commit>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
+fn commits_from_response(response: CommitsResponse) -> Vec<Commit> {
+    commits_page(response)
+        .map(|page| page.commits)
+        .unwrap_or_default()
+}
+
+fn commits_page(response: CommitsResponse) -> Option<CommitsPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let page_info = pull_request.commits.page_info;
+    let commits = pull_request
+        .commits
+        .nodes
+        .into_iter()
+        .map(|node| commit_from_dto(commit_dto_from_connection(node.commit)))
+        .collect();
+    Some(CommitsPage {
+        commits,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn commit_dto_from_connection(commit: CommitWithAuthorsConnectionDto) -> CommitDto {
+    CommitDto {
+        oid: commit.oid,
+        message_headline: commit.message_headline,
+        message_body: commit.message_body,
+        committed_date: commit.committed_date,
+        authored_date: commit.authored_date,
+        authors: commit.authors.map(|authors| {
+            authors
+                .nodes
+                .into_iter()
+                .map(author_from_commit_author)
+                .collect()
+        }),
+    }
+}
+
+fn author_from_commit_author(author: CommitAuthorDto) -> UserDto {
+    if let Some(user) = author.user {
+        return user;
+    }
+    let name = author.name.unwrap_or_else(|| "unknown".to_string());
+    UserDto {
+        login: Some(name.clone()),
+        name: Some(name),
     }
 }
 
@@ -2701,6 +2855,22 @@ mod tests {
     }
 
     #[test]
+    fn commits_query_requests_pagination_state_and_full_commit_fields() {
+        let query = commits_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("commits(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("messageHeadline"));
+        assert!(query.contains("messageBody"));
+        assert!(query.contains("committedDate"));
+        assert!(query.contains("authoredDate"));
+        assert!(query.contains("authors(first: 100)"));
+    }
+
+    #[test]
     fn review_threads_query_requests_pagination_state() {
         let query = review_threads_query();
 
@@ -2994,6 +3164,65 @@ mod tests {
     }
 
     #[test]
+    fn commits_page_preserves_pagination_state_and_author_fallbacks() {
+        let page = commits_page(CommitsResponse {
+            data: CommitsData {
+                repository: Some(CommitsRepository {
+                    pull_request: Some(CommitsPullRequest {
+                        commits: CommitsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("commit-cursor-2".into()),
+                            },
+                            nodes: vec![CommitNodeDto {
+                                commit: CommitWithAuthorsConnectionDto {
+                                    oid: "abcdef123".into(),
+                                    message_headline: "feat: add thing".into(),
+                                    message_body: Some("body".into()),
+                                    committed_date: Some("2026-05-30T03:18:51Z".into()),
+                                    authored_date: Some("2026-05-14T13:10:00Z".into()),
+                                    authors: Some(CommitAuthorsConnection {
+                                        nodes: vec![
+                                            CommitAuthorDto {
+                                                name: Some("fallback-name".into()),
+                                                user: None,
+                                            },
+                                            CommitAuthorDto {
+                                                name: None,
+                                                user: Some(UserDto {
+                                                    login: Some("alice".into()),
+                                                    name: None,
+                                                }),
+                                            },
+                                        ],
+                                    }),
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("commits page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("commit-cursor-2"));
+        assert_eq!(page.commits.len(), 1);
+        assert_eq!(page.commits[0].oid, "abcdef123");
+        assert_eq!(page.commits[0].body, "body");
+        assert_eq!(page.commits[0].authors, vec!["fallback-name", "alice"]);
+    }
+
+    #[test]
+    fn commits_from_response_returns_empty_for_missing_pr() {
+        let commits = commits_from_response(CommitsResponse {
+            data: CommitsData { repository: None },
+        });
+
+        assert!(commits.is_empty());
+    }
+
+    #[test]
     fn commit_deployments_from_response_maps_environment_status_and_urls() {
         let response = CommitDeploymentsResponse {
             data: CommitDeploymentsData {
@@ -3077,6 +3306,56 @@ mod tests {
         apply_commit_deployments(&mut commits, deployments);
 
         assert_eq!(commits[0].deployments[0].environment, "preview");
+    }
+
+    #[test]
+    fn replace_pr_commits_keeps_base_commits_when_paginated_list_is_empty() {
+        let mut pr = PullRequest {
+            base_ref: "main".into(),
+            head_ref: "feature".into(),
+            requested_reviewers: Vec::new(),
+            review_decision: None,
+            merge_state: None,
+            additions: 0,
+            deletions: 0,
+            commits: vec![Commit {
+                oid: "base".into(),
+                message: "base commit".into(),
+                body: String::new(),
+                author: "alice".into(),
+                authors: vec!["alice".into()],
+                authored_at: None,
+                committed_at: "2026-05-30T03:18:51Z".into(),
+                status: CheckStatus::Unknown,
+                deployments: Vec::new(),
+            }],
+            checks: Vec::new(),
+            files: Vec::new(),
+            metadata: Vec::new(),
+        };
+
+        replace_pr_commits(&mut pr, Vec::new());
+
+        assert_eq!(pr.commits.len(), 1);
+        assert_eq!(pr.commits[0].oid, "base");
+
+        replace_pr_commits(
+            &mut pr,
+            vec![Commit {
+                oid: "full".into(),
+                message: "full commit".into(),
+                body: String::new(),
+                author: "bob".into(),
+                authors: vec!["bob".into()],
+                authored_at: None,
+                committed_at: "2026-05-30T03:19:51Z".into(),
+                status: CheckStatus::Unknown,
+                deployments: Vec::new(),
+            }],
+        );
+
+        assert_eq!(pr.commits.len(), 1);
+        assert_eq!(pr.commits[0].oid, "full");
     }
 
     #[test]

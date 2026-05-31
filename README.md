@@ -84,8 +84,8 @@ For pull requests:
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
-- commits, with expandable commit bodies, authored/committed dates, coauthor
-  lists, and deployment/environment status where available
+- paginated commits, with expandable commit bodies, authored/committed dates,
+  coauthor lists, and deployment/environment status where available
 - CI/check status grouped by state, including paginated suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
   status/conclusion, timestamps, and details URLs on expanded check rows
