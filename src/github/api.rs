@@ -3179,16 +3179,18 @@ fn empty_commit_comment_thread(index: usize, node: &Value, commit: &str) -> Acti
 fn timeline_node_to_activity(index: usize, node: &Value) -> ActivityEntry {
     let typename = string_field(node, "__typename").unwrap_or("TimelineEvent");
     let body = timeline_body(typename, node);
+    let author = actor_login(node).unwrap_or_else(|| "github".to_string());
+    let updated_at = string_field(node, "createdAt")
+        .map(str::to_string)
+        .unwrap_or_else(|| "unknown".to_string());
     ActivityEntry {
         id: string_field(node, "id")
             .map(str::to_string)
-            .unwrap_or_else(|| format!("timeline-{index}")),
+            .unwrap_or_else(|| synthetic_timeline_id(index, typename, &updated_at, &author, &body)),
         kind: ActivityKind::Timeline,
-        author: actor_login(node).unwrap_or_else(|| "github".to_string()),
+        author,
         body,
-        updated_at: string_field(node, "createdAt")
-            .map(str::to_string)
-            .unwrap_or_else(|| "unknown".to_string()),
+        updated_at,
         path: None,
         line: None,
         url: cross_reference_url(node),
@@ -3200,6 +3202,45 @@ fn timeline_node_to_activity(index: usize, node: &Value) -> ActivityEntry {
         thread_id: None,
         thread_resolved: None,
         thread_outdated: None,
+    }
+}
+
+fn synthetic_timeline_id(
+    index: usize,
+    typename: &str,
+    updated_at: &str,
+    author: &str,
+    body: &str,
+) -> String {
+    format!(
+        "timeline-{}-{}-{}-{}-{index}",
+        timeline_id_component(typename),
+        timeline_id_component(updated_at),
+        timeline_id_component(author),
+        timeline_id_component(body)
+    )
+}
+
+fn timeline_id_component(value: &str) -> String {
+    let mut component = String::new();
+    let mut previous_dash = false;
+    for ch in value.chars().flat_map(char::to_lowercase) {
+        if ch.is_ascii_alphanumeric() {
+            component.push(ch);
+            previous_dash = false;
+        } else if !previous_dash && !component.is_empty() {
+            component.push('-');
+            previous_dash = true;
+        }
+        if component.len() >= 64 {
+            break;
+        }
+    }
+    let component = component.trim_matches('-');
+    if component.is_empty() {
+        "unknown".to_string()
+    } else {
+        component.to_string()
     }
 }
 
@@ -3940,6 +3981,24 @@ mod tests {
         assert!(error
             .to_string()
             .contains("GitHub GraphQL request returned errors"));
+        assert!(error.to_string().contains("GraphQL error: bad query"));
+    }
+
+    #[tokio::test]
+    async fn graphql_transport_summarizes_scope_errors() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: br#"{"errors":[{"locations":[{"line":120,"column":44}],"message":"Your token has not been granted the required scopes to execute this query. The 'id' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes. Please modify your token's scopes at: https://github.com/settings/tokens.","type":"INSUFFICIENT_SCOPES"},{"message":"same scope issue","type":"INSUFFICIENT_SCOPES"}]}"#.to_vec(),
+        });
+
+        let error = run_graphql_query_with(&transport, "token-1", "query", json!({}))
+            .await
+            .expect_err("GraphQL scope errors should fail");
+        let message = error.to_string();
+
+        assert!(message.contains("INSUFFICIENT_SCOPES: token lacks read:project"));
+        assert!(message.contains("https://github.com/settings/tokens"));
+        assert!(!message.contains("\"locations\""));
     }
 
     #[tokio::test]
@@ -4029,6 +4088,16 @@ mod tests {
         assert!(issue_query.contains("ADDED_TO_PROJECT_V2_EVENT"));
         assert!(issue_query.contains("PROJECT_V2_ITEM_STATUS_CHANGED_EVENT"));
         assert!(issue_query.contains("CONVERTED_NOTE_TO_ISSUE_EVENT"));
+        assert!(!issue_query.contains("... on AddedToProjectEvent {{ id"));
+        assert!(!issue_query.contains("... on AddedToProjectV2Event {{ id"));
+        assert!(!issue_query.contains("... on MovedColumnsInProjectEvent {{ id"));
+        assert!(!issue_query.contains("... on RemovedFromProjectEvent {{ id"));
+        assert!(!issue_query.contains("... on RemovedFromProjectV2Event {{ id"));
+        assert!(!issue_query.contains("... on ProjectV2ItemStatusChangedEvent {{\n            id"));
+        assert!(!issue_query.contains("... on ConvertedNoteToIssueEvent {{ id"));
+        assert!(!issue_query.contains("... on IssueFieldAddedEvent {{\n            id"));
+        assert!(!issue_query.contains("... on IssueFieldRemovedEvent {{\n            id"));
+        assert!(!issue_query.contains("... on IssueFieldChangedEvent {{\n            id"));
         assert!(issue_query.contains("USER_BLOCKED_EVENT"));
         assert!(issue_query.contains("ISSUE_TYPE_CHANGED_EVENT"));
         assert!(issue_query.contains("ISSUE_FIELD_CHANGED_EVENT"));
@@ -6415,14 +6484,12 @@ diff --git a/docs/two.md b/docs/two.md\n\
                             nodes: vec![
                                 serde_json::json!({
                                     "__typename": "AddedToProjectV2Event",
-                                    "id": "project-add",
                                     "createdAt": "2026-05-31T08:00:00Z",
                                     "actor": {"login": "alice"},
                                     "wasAutomated": true
                                 }),
                                 serde_json::json!({
                                     "__typename": "ProjectV2ItemStatusChangedEvent",
-                                    "id": "project-status",
                                     "createdAt": "2026-05-31T08:01:00Z",
                                     "actor": {"login": "alice"},
                                     "previousStatus": "TODO",
@@ -6431,7 +6498,6 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                 }),
                                 serde_json::json!({
                                     "__typename": "ConvertedNoteToIssueEvent",
-                                    "id": "note-converted",
                                     "createdAt": "2026-05-31T08:02:00Z",
                                     "actor": {"login": "alice"},
                                     "projectColumnName": "Backlog"
@@ -6446,7 +6512,6 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                 }),
                                 serde_json::json!({
                                     "__typename": "IssueFieldAddedEvent",
-                                    "id": "field-added",
                                     "createdAt": "2026-05-31T08:04:00Z",
                                     "actor": {"login": "alice"},
                                     "value": "High",
@@ -6454,7 +6519,6 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                 }),
                                 serde_json::json!({
                                     "__typename": "IssueFieldChangedEvent",
-                                    "id": "field-changed",
                                     "createdAt": "2026-05-31T08:05:00Z",
                                     "actor": {"login": "alice"},
                                     "previousValue": "High",
@@ -6502,6 +6566,15 @@ diff --git a/docs/two.md b/docs/two.md\n\
         });
 
         assert_eq!(activity.len(), 8);
+        assert!(activity[0]
+            .id
+            .starts_with("timeline-addedtoprojectv2event-2026-05-31t08-00-00z-alice"));
+        assert!(activity[1]
+            .id
+            .starts_with("timeline-projectv2itemstatuschangedevent-2026-05-31t08-01-00z"));
+        assert!(activity[2]
+            .id
+            .starts_with("timeline-convertednotetoissueevent-2026-05-31t08-02-00z"));
         assert_eq!(activity[0].body, "added to project automatically");
         assert_eq!(
             activity[1].body,

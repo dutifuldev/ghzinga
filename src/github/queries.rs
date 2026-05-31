@@ -815,13 +815,12 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
           ... on UnpinnedEvent {{ id createdAt actor {{ login }} }}
           ... on LockedEvent {{ id createdAt actor {{ login }} lockReason }}
           ... on UnlockedEvent {{ id createdAt actor {{ login }} }}
-          ... on AddedToProjectEvent {{ id createdAt actor {{ login }} }}
-          ... on AddedToProjectV2Event {{ id createdAt actor {{ login }} wasAutomated }}
-          ... on MovedColumnsInProjectEvent {{ id createdAt actor {{ login }} }}
-          ... on RemovedFromProjectEvent {{ id createdAt actor {{ login }} }}
-          ... on RemovedFromProjectV2Event {{ id createdAt actor {{ login }} wasAutomated }}
+          ... on AddedToProjectEvent {{ createdAt actor {{ login }} }}
+          ... on AddedToProjectV2Event {{ createdAt actor {{ login }} wasAutomated }}
+          ... on MovedColumnsInProjectEvent {{ createdAt actor {{ login }} }}
+          ... on RemovedFromProjectEvent {{ createdAt actor {{ login }} }}
+          ... on RemovedFromProjectV2Event {{ createdAt actor {{ login }} wasAutomated }}
           ... on ProjectV2ItemStatusChangedEvent {{
-            id
             createdAt
             actor {{ login }}
             previousStatus
@@ -829,7 +828,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
             wasAutomated
           }}
           ... on ConvertedFromDraftEvent {{ id createdAt actor {{ login }} wasAutomated }}
-          ... on ConvertedNoteToIssueEvent {{ id createdAt actor {{ login }} projectColumnName }}
+          ... on ConvertedNoteToIssueEvent {{ createdAt actor {{ login }} projectColumnName }}
           ... on UserBlockedEvent {{
             id
             createdAt
@@ -927,7 +926,6 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
             issueType {{ name }}
           }}
           ... on IssueFieldAddedEvent {{
-            id
             createdAt
             actor {{ login }}
             value
@@ -941,7 +939,6 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
             }}
           }}
           ... on IssueFieldRemovedEvent {{
-            id
             createdAt
             actor {{ login }}
             issueField {{
@@ -953,7 +950,6 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
             }}
           }}
           ... on IssueFieldChangedEvent {{
-            id
             createdAt
             actor {{ login }}
             previousValue
