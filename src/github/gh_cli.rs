@@ -1,4 +1,9 @@
-use std::{collections::HashMap, future::Future, io, process::Stdio};
+use std::{
+    collections::{HashMap, HashSet},
+    future::Future,
+    io,
+    process::Stdio,
+};
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -73,6 +78,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         match fetch_commit_deployments(id).await {
             Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
             Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
+        }
+        match fetch_check_suites(id).await {
+            Ok(suites) => apply_check_suites(&mut pr.checks, suites),
+            Err(error) => warnings.push(format!("check suites unavailable: {error}")),
         }
     }
     resource.warnings.extend(warnings);
@@ -449,6 +458,65 @@ query($owner: String!, $name: String!, $number: Int!) {
     Ok(output.stdout)
 }
 
+async fn run_graphql_check_suites(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    let query = r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(last: 1) {
+        nodes {
+          commit {
+            checkSuites(last: 100) {
+              nodes {
+                status
+                conclusion
+                url
+                app { name }
+                workflowRun {
+                  url
+                  workflow { name }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#;
+    let number = id.number.to_string();
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!(gh_execute_error("gh api graphql check suites", &error))
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "{}",
+            gh_failure_message("gh api graphql check suites", &stderr)
+        );
+    }
+
+    Ok(output.stdout)
+}
+
 async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
     let repo = id.repo_name_with_owner();
     let number = id.number.to_string();
@@ -793,6 +861,83 @@ struct DeploymentStatusDto {
     environment_url: Option<String>,
     log_url: Option<String>,
     created_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesResponse {
+    data: CheckSuitesData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesData {
+    repository: Option<CheckSuitesRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesRepository {
+    pull_request: Option<CheckSuitesPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesPullRequest {
+    commits: CheckSuitesCommitConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesCommitConnection {
+    nodes: Vec<CheckSuitesCommitNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesCommitNode {
+    commit: CheckSuitesCommit,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuitesCommit {
+    check_suites: CheckSuiteConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuiteConnection {
+    nodes: Vec<CheckSuiteDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuiteDto {
+    status: Option<String>,
+    conclusion: Option<String>,
+    url: Option<String>,
+    app: Option<CheckSuiteAppDto>,
+    workflow_run: Option<CheckSuiteWorkflowRunDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuiteAppDto {
+    name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuiteWorkflowRunDto {
+    url: Option<String>,
+    workflow: Option<CheckSuiteWorkflowDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckSuiteWorkflowDto {
+    name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1293,6 +1438,13 @@ async fn fetch_commit_deployments(
     Ok(commit_deployments_from_response(response))
 }
 
+async fn fetch_check_suites(id: &ResourceId) -> anyhow::Result<Vec<CheckRun>> {
+    let output = run_graphql_check_suites(id).await?;
+    let response: CheckSuitesResponse =
+        serde_json::from_slice(&output).context("failed to parse check suites GraphQL JSON")?;
+    Ok(check_suites_from_response(response))
+}
+
 async fn fetch_file_patches(id: &ResourceId) -> anyhow::Result<HashMap<String, String>> {
     let output = run_pr_diff(id).await?;
     let diff = String::from_utf8_lossy(&output);
@@ -1310,11 +1462,88 @@ fn apply_commit_deployments(
     }
 }
 
+fn apply_check_suites(checks: &mut Vec<CheckRun>, suites: Vec<CheckRun>) {
+    let mut names = checks
+        .iter()
+        .map(|check| check.name.clone())
+        .collect::<HashSet<_>>();
+    let additions = suites
+        .into_iter()
+        .filter(|suite| names.insert(suite.name.clone()))
+        .collect::<Vec<_>>();
+    if additions.is_empty() {
+        return;
+    }
+    let mut merged = additions;
+    merged.append(checks);
+    *checks = merged;
+}
+
 fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String>) {
     for file in files {
         if let Some(patch) = patches.get(&file.path) {
             file.patch = Some(patch.clone());
         }
+    }
+}
+
+fn check_suites_from_response(response: CheckSuitesResponse) -> Vec<CheckRun> {
+    let Some(repository) = response.data.repository else {
+        return Vec::new();
+    };
+    let Some(pull_request) = repository.pull_request else {
+        return Vec::new();
+    };
+    let Some(node) = pull_request.commits.nodes.into_iter().next() else {
+        return Vec::new();
+    };
+    let mut by_name = HashMap::new();
+    for suite in node.commit.check_suites.nodes {
+        let check = check_suite_from_dto(suite);
+        by_name.insert(check.name.clone(), check);
+    }
+    let mut checks = by_name.into_values().collect::<Vec<_>>();
+    checks.sort_by(|left, right| left.name.cmp(&right.name));
+    checks
+}
+
+fn check_suite_from_dto(suite: CheckSuiteDto) -> CheckRun {
+    let raw_status = suite.status.filter(|value| !value.is_empty());
+    let raw_conclusion = suite.conclusion.filter(|value| !value.is_empty());
+    let workflow_name = suite
+        .workflow_run
+        .as_ref()
+        .and_then(|run| run.workflow.as_ref())
+        .and_then(|workflow| workflow.name.as_ref())
+        .filter(|value| !value.is_empty())
+        .cloned();
+    let app_name = suite
+        .app
+        .as_ref()
+        .and_then(|app| app.name.as_ref())
+        .filter(|value| !value.is_empty())
+        .cloned();
+    let name = workflow_name
+        .as_ref()
+        .or(app_name.as_ref())
+        .map(|name| format!("suite/{name}"))
+        .unwrap_or_else(|| "suite/check suite".to_string());
+    let details_url = suite
+        .workflow_run
+        .and_then(|run| run.url)
+        .or(suite.url)
+        .filter(|value| !value.is_empty());
+    let summary = app_name.map(|app| format!("check suite from {app}"));
+
+    CheckRun {
+        name,
+        status: classify_check(raw_status.as_deref(), raw_conclusion.as_deref()),
+        summary,
+        details_url,
+        started_at: None,
+        completed_at: None,
+        raw_status,
+        raw_conclusion,
     }
 }
 
@@ -1710,10 +1939,10 @@ fn check_from_dto(check: CheckDto) -> CheckRun {
 fn classify_check(status: Option<&str>, conclusion: Option<&str>) -> CheckStatus {
     match (status, conclusion) {
         (Some("COMPLETED"), Some("SUCCESS")) | (Some("SUCCESS"), _) => CheckStatus::Success,
-        (
-            Some("COMPLETED"),
-            Some("FAILURE" | "TIMED_OUT" | "ACTION_REQUIRED" | "STARTUP_FAILURE"),
-        ) => CheckStatus::Failure,
+        (Some("COMPLETED"), Some("FAILURE" | "TIMED_OUT" | "STARTUP_FAILURE")) => {
+            CheckStatus::Failure
+        }
+        (Some("COMPLETED"), Some("ACTION_REQUIRED")) => CheckStatus::Pending,
         (Some("COMPLETED"), Some("SKIPPED" | "CANCELLED" | "STALE")) => CheckStatus::Skipped,
         (Some("COMPLETED"), Some("NEUTRAL")) => CheckStatus::Neutral,
         (Some("COMPLETED"), _) => CheckStatus::Unknown,
@@ -1849,6 +2078,10 @@ mod tests {
         assert_eq!(
             classify_check(Some("COMPLETED"), Some("CANCELLED")),
             CheckStatus::Skipped
+        );
+        assert_eq!(
+            classify_check(Some("COMPLETED"), Some("ACTION_REQUIRED")),
+            CheckStatus::Pending
         );
     }
 
@@ -2017,6 +2250,144 @@ mod tests {
         apply_commit_deployments(&mut commits, deployments);
 
         assert_eq!(commits[0].deployments[0].environment, "preview");
+    }
+
+    #[test]
+    fn check_suite_from_dto_maps_workflow_status_and_urls() {
+        let check = check_suite_from_dto(CheckSuiteDto {
+            status: Some("COMPLETED".into()),
+            conclusion: Some("ACTION_REQUIRED".into()),
+            url: Some("https://github.com/openclaw/openclaw/commit/abc/checks".into()),
+            app: Some(CheckSuiteAppDto {
+                name: Some("GitHub Actions".into()),
+            }),
+            workflow_run: Some(CheckSuiteWorkflowRunDto {
+                url: Some("https://github.com/openclaw/openclaw/actions/runs/1".into()),
+                workflow: Some(CheckSuiteWorkflowDto {
+                    name: Some("CI".into()),
+                }),
+            }),
+        });
+
+        assert_eq!(check.name, "suite/CI");
+        assert_eq!(check.status, CheckStatus::Pending);
+        assert_eq!(check.raw_status.as_deref(), Some("COMPLETED"));
+        assert_eq!(check.raw_conclusion.as_deref(), Some("ACTION_REQUIRED"));
+        assert_eq!(
+            check.details_url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/actions/runs/1")
+        );
+        assert_eq!(
+            check.summary.as_deref(),
+            Some("check suite from GitHub Actions")
+        );
+    }
+
+    #[test]
+    fn check_suites_from_response_keeps_latest_suite_by_name() {
+        let response = CheckSuitesResponse {
+            data: CheckSuitesData {
+                repository: Some(CheckSuitesRepository {
+                    pull_request: Some(CheckSuitesPullRequest {
+                        commits: CheckSuitesCommitConnection {
+                            nodes: vec![CheckSuitesCommitNode {
+                                commit: CheckSuitesCommit {
+                                    check_suites: CheckSuiteConnection {
+                                        nodes: vec![
+                                            CheckSuiteDto {
+                                                status: Some("IN_PROGRESS".into()),
+                                                conclusion: None,
+                                                url: Some("https://example.test/old".into()),
+                                                app: Some(CheckSuiteAppDto {
+                                                    name: Some("GitHub Actions".into()),
+                                                }),
+                                                workflow_run: Some(CheckSuiteWorkflowRunDto {
+                                                    url: Some(
+                                                        "https://example.test/run-old".into(),
+                                                    ),
+                                                    workflow: Some(CheckSuiteWorkflowDto {
+                                                        name: Some("CI".into()),
+                                                    }),
+                                                }),
+                                            },
+                                            CheckSuiteDto {
+                                                status: Some("COMPLETED".into()),
+                                                conclusion: Some("SUCCESS".into()),
+                                                url: Some("https://example.test/new".into()),
+                                                app: Some(CheckSuiteAppDto {
+                                                    name: Some("GitHub Actions".into()),
+                                                }),
+                                                workflow_run: Some(CheckSuiteWorkflowRunDto {
+                                                    url: Some(
+                                                        "https://example.test/run-new".into(),
+                                                    ),
+                                                    workflow: Some(CheckSuiteWorkflowDto {
+                                                        name: Some("CI".into()),
+                                                    }),
+                                                }),
+                                            },
+                                        ],
+                                    },
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        };
+
+        let suites = check_suites_from_response(response);
+
+        assert_eq!(suites.len(), 1);
+        assert_eq!(suites[0].name, "suite/CI");
+        assert_eq!(suites[0].status, CheckStatus::Success);
+        assert_eq!(
+            suites[0].details_url.as_deref(),
+            Some("https://example.test/run-new")
+        );
+    }
+
+    #[test]
+    fn apply_check_suites_dedupes_existing_names() {
+        let mut checks = vec![CheckRun {
+            name: "suite/CI".into(),
+            status: CheckStatus::Success,
+            summary: None,
+            details_url: None,
+            started_at: None,
+            completed_at: None,
+            raw_status: None,
+            raw_conclusion: None,
+        }];
+        let suites = vec![
+            CheckRun {
+                name: "suite/CI".into(),
+                status: CheckStatus::Pending,
+                summary: None,
+                details_url: None,
+                started_at: None,
+                completed_at: None,
+                raw_status: Some("IN_PROGRESS".into()),
+                raw_conclusion: None,
+            },
+            CheckRun {
+                name: "suite/CodeQL".into(),
+                status: CheckStatus::Success,
+                summary: None,
+                details_url: None,
+                started_at: None,
+                completed_at: None,
+                raw_status: Some("COMPLETED".into()),
+                raw_conclusion: Some("SUCCESS".into()),
+            },
+        ];
+
+        apply_check_suites(&mut checks, suites);
+
+        assert_eq!(checks.len(), 2);
+        assert_eq!(checks[0].name, "suite/CodeQL");
+        assert_eq!(checks[1].name, "suite/CI");
+        assert_eq!(checks[1].status, CheckStatus::Success);
     }
 
     #[test]
