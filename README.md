@@ -79,7 +79,7 @@ For pull requests:
   changes, review dismissals, auto-merge/rebase/squash changes, automatic base
   changes, merges, title changes, milestones, issue types, sub-issues, parent
   issues, blocking relationships, and converted discussions; comments, timeline
-  events, review threads, and review-thread comments are paginated so long
+  events, reviews, review threads, and review-thread comments are paginated so long
   histories are not capped at the first page
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
