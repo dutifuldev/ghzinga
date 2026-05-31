@@ -13,6 +13,18 @@ pub fn wrap_plain_text(input: &str, width: usize) -> Vec<String> {
     lines
 }
 
+pub fn wrap_display_text(input: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut lines = Vec::new();
+    for raw_line in input.lines() {
+        wrap_line(raw_line, width, &mut lines);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
 pub fn visible_prefix(lines: &[String], max_lines: usize, expanded: bool) -> (Vec<String>, bool) {
     if expanded || lines.len() <= max_lines {
         return (lines.to_vec(), false);
@@ -111,6 +123,14 @@ mod tests {
         assert_eq!(
             wrap_plain_text("abcdef emoji🙂word", 5),
             vec!["abcde", "f", "emoji", "🙂wor", "d"]
+        );
+    }
+
+    #[test]
+    fn display_wrap_preserves_markup_characters() {
+        assert_eq!(
+            wrap_display_text("**bold** `code`", 8),
+            vec!["**bold**", "`code`"]
         );
     }
 

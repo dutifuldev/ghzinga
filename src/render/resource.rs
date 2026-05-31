@@ -493,7 +493,10 @@ fn refresh_changes_summary(state: &AppState) -> Option<String> {
 }
 
 fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let rows = content_rows(state, area.width as usize, palette);
+    let rows = wrap_content_rows(
+        content_rows(state, area.width as usize, palette),
+        area.width,
+    );
     let max_scroll = rows.len().saturating_sub(area.height as usize) as u16;
     if state.scroll > max_scroll {
         state.scroll = max_scroll;
@@ -522,6 +525,47 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn wrap_content_rows(rows: Vec<ContentRow>, width: u16) -> Vec<ContentRow> {
+    let width = usize::from(width).max(1);
+    rows.into_iter()
+        .flat_map(|row| wrap_content_row(row, width))
+        .collect()
+}
+
+fn wrap_content_row(row: ContentRow, width: usize) -> Vec<ContentRow> {
+    let text = line_text(&row.line);
+    if UnicodeWidthStr::width(text.as_str()) <= width {
+        return vec![row];
+    }
+    let style = row_primary_style(&row.line);
+    markdown::wrap_display_text(&text, width)
+        .into_iter()
+        .map(|line| match &row.target {
+            Some(target) if style != Style::default() => {
+                ContentRow::target_styled(line, target.clone(), style)
+            }
+            Some(target) => ContentRow::target(line, target.clone()),
+            None if style != Style::default() => ContentRow::styled(line, style),
+            None => ContentRow::plain(line),
+        })
+        .collect()
+}
+
+fn line_text(line: &Line<'static>) -> String {
+    line.spans
+        .iter()
+        .map(|span| span.content.as_ref())
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn row_primary_style(line: &Line<'static>) -> Style {
+    line.spans
+        .iter()
+        .find_map(|span| (span.style != Style::default()).then_some(span.style))
+        .unwrap_or(line.style)
 }
 
 fn content_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -860,6 +904,9 @@ fn push_activity_timeline_rows(
     }
     let block = BlockId::Activity(entry.id.clone());
     let expanded = state.block_expanded(&block);
+    if let Some(url) = &entry.url {
+        rows.push(activity_detail_row(url, resource, palette));
+    }
     if expanded {
         if let Some(url) = &entry.url {
             rows.push(linkable_text_row(format!("url: {url}"), resource));
@@ -888,6 +935,13 @@ fn activity_icon(entry: &ActivityEntry, symbols: &Symbols) -> &'static str {
         crate::domain::ActivityKind::ReviewComment => symbols.activity_review_comment,
         crate::domain::ActivityKind::Timeline => symbols.activity_timeline,
     }
+}
+
+fn activity_detail_row(url: &str, resource: &Resource, palette: &Palette) -> ContentRow {
+    let target = parse_link_token(url, resource)
+        .map(|(_display, target)| target)
+        .unwrap_or_else(|| HitTarget::OpenUrl(url.to_string()));
+    ContentRow::target_styled("[details]", target, link_style(palette))
 }
 
 fn activity_heading_style(entry: &ActivityEntry, palette: &Palette) -> Style {
@@ -921,10 +975,11 @@ fn push_metadata_rows(
     rows.push(ContentRow::plain(""));
     rows.push(heading_row(heading, palette));
     for item in metadata {
-        rows.push(ContentRow::plain(truncate_ascii(
-            &format!("{}: {}", item.label, item.value),
-            width,
-        )));
+        rows.extend(
+            markdown::wrap_display_text(&format!("{}: {}", item.label, item.value), width)
+                .into_iter()
+                .map(ContentRow::plain),
+        );
     }
 }
 
@@ -963,6 +1018,9 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         }
         let block = BlockId::Activity(entry.id.clone());
         let expanded = state.block_expanded(&block);
+        if let Some(url) = &entry.url {
+            rows.push(activity_detail_row(url, &state.resource, palette));
+        }
         if expanded {
             if let Some(url) = &entry.url {
                 rows.push(linkable_text_row(format!("url: {url}"), &state.resource));
@@ -2308,6 +2366,53 @@ mod tests {
     }
 
     #[test]
+    fn content_rows_wrap_long_text_and_preserve_click_targets() {
+        let rows = wrap_content_rows(
+            vec![ContentRow::target_styled(
+                "details: https://github.com/openclaw/openclaw/pull/81834#discussion_r1234567890🙂tail",
+                HitTarget::OpenUrl(
+                    "https://github.com/openclaw/openclaw/pull/81834#discussion_r1234567890🙂tail"
+                        .into(),
+                ),
+                link_style(&Palette::default_dark()),
+            )],
+            24,
+        );
+
+        assert!(rows.len() > 1);
+        assert!(rows
+            .iter()
+            .all(|row| UnicodeWidthStr::width(line_text(&row.line).as_str()) <= 24));
+        assert!(rows.iter().all(|row| matches!(
+            &row.target,
+            Some(HitTarget::OpenUrl(url))
+                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1234567890🙂tail"
+        )));
+    }
+
+    #[test]
+    fn narrow_content_wraps_metadata_without_clipping() {
+        let mut resource = pr_resource();
+        resource.pull_request = None;
+        resource.activity.clear();
+        resource.body.clear();
+        resource.related_resources.clear();
+        resource.labels.clear();
+        resource.assignees.clear();
+        resource.metadata = vec![MetadataItem {
+            label: "Very long metadata label".into(),
+            value: "https://github.com/openclaw/openclaw/pull/81834#issuecomment-very-long-responsive-url🙂tail".into(),
+        }];
+        let mut state = AppState::new(resource);
+
+        let content = draw(&mut state, 32, 28);
+
+        assert!(content.contains("Very long metadata label"));
+        assert!(content.contains("https://github.com/openclaw"));
+        assert!(state.hit_areas.iter().all(|area| area.rect.width <= 32));
+    }
+
+    #[test]
     fn rendered_tab_hit_area_can_be_clicked() {
         let mut state = AppState::new(pr_resource());
         draw(&mut state, 120, 36);
@@ -2661,6 +2766,40 @@ mod tests {
             &area.target,
             HitTarget::ToggleBlock(BlockId::Activity(id)) if id == "c1"
         )));
+    }
+
+    #[test]
+    fn activity_permalink_details_are_clickable_without_expansion() {
+        let mut resource = pr_resource();
+        resource.activity[0].body = "short comment".into();
+        resource.activity[0].url =
+            Some("https://github.com/openclaw/openclaw/pull/81834#issuecomment-1".into());
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Activity);
+
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("[details]"));
+        assert!(!content.contains("[+ more]"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
+        )));
+        let intent = click_rendered_target(&mut state, |target| {
+            matches!(
+                target,
+                HitTarget::OpenUrl(url)
+                    if url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
+            )
+        });
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl(
+                "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1".into()
+            )
+        );
     }
 
     #[test]
