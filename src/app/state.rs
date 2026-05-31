@@ -2,6 +2,7 @@ use std::{collections::HashSet, str::FromStr};
 
 use crate::domain::{Resource, ResourceKind};
 use crate::input::HitArea;
+use crate::render::ThemeName;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tab {
@@ -84,6 +85,7 @@ pub struct AppState {
     pub last_error: Option<String>,
     pub status_message: Option<String>,
     pub show_help: bool,
+    pub theme: ThemeName,
 }
 
 impl AppState {
@@ -103,6 +105,7 @@ impl AppState {
             last_error: None,
             status_message: None,
             show_help: false,
+            theme: ThemeName::Default,
         }
     }
 
