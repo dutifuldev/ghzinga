@@ -80,6 +80,18 @@ Use these UI ideas:
 - scroll percentage and clear loading/error states
 - bottom/right adaptive preview lessons from captured sizes
 
+Responsive implementation details observed in gh-dash:
+
+- `tea.WindowSizeMsg` updates shared screen width/height and then resynchronizes
+  child component dimensions.
+- Preview placement uses an `auto` mode: right-side preview is used only when
+  the remaining main table width stays above a minimum threshold, otherwise the
+  preview moves below the list.
+- Child components receive explicit widths through `SetWidth` / `SetHeight`.
+- Rows use display-width measurement before joining horizontal segments.
+- Wide horizontal rows truncate less important segments, and list-like rows
+  wrap groups onto new lines when the next item would exceed the current width.
+
 Change for `ghzoom`:
 
 - full-screen detail view by default
@@ -335,6 +347,21 @@ Visual style:
     blocks when that helps scanning
   - keep borders structural and quiet, with color and bold carrying most of the
     emphasis
+
+Responsive behavior:
+
+- Recompute all rectangles from the terminal width and height on every render.
+- Let the header, tabs, horizontal status band, and footer reserve extra rows on
+  narrow terminals instead of clipping into each other.
+- Keep the status band horizontal, but wrap status chips across multiple rows
+  when the terminal is narrow.
+- Wrap tab labels and footer controls using display width; click hit areas must
+  follow the wrapped visual position.
+- Truncate only low-priority metadata when a fixed-height region cannot grow
+  further.
+- Use display-width-aware wrapping for long words, emoji, and wide characters.
+- Preserve at least one content row whenever the terminal is tall enough to show
+  app chrome plus content.
 
 ## Tabs
 
