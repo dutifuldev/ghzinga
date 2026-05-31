@@ -29,8 +29,8 @@ json
 "wlkgpt": {                                                                                                             
 "baseUrl": "https://api.example.com/v1",                                                                                
 "api": "openai-responses",                                                                                              
-because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes
-have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.   
+"models": [{"id": "gpt-5.5"}]                                                                                           
+}                                                                                                                       
                                                                                                                         
-[+ more]                                                                                                                
+2. Set this as the default model for the main agent                                                                     
 [refresh] [open] [help] [quit] ...                                                                                      
