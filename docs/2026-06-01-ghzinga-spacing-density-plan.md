@@ -23,6 +23,10 @@ count.
 - `comfortable` remains the default config and CLI mode.
 - `compact` keeps the old dense row output except for explicit blanks already
   required by a view.
+- Comfortable content gets a small horizontal gutter when the terminal is wide
+  enough. The gutter follows the gh-dash preview pattern of not starting every
+  readable line at column zero, while compact preserves full-width output for
+  smaller terminals and maximum density.
 - Section rules get a blank row after them when the next line has content.
 - Repeated content groups get one blank row between groups:
   - chronological overview entries
@@ -34,13 +38,15 @@ count.
 - Existing blank rows are reused; the renderer must not stack multiple blank
   rows just because a builder already included one.
 - Click targets stay on the visible control row. Blank spacing rows are never
-  clickable.
+  clickable. Comfortable gutters shift the hit rectangles with the visible
+  content so the clickable target still matches what the user sees.
 
 ## Settings Copy
 
 The settings view should explain the tradeoff directly:
 
-- `comfortable`: gh-dash-like breathing room for long review sessions
+- `comfortable`: gh-dash-like row spacing and content gutter for long review
+  sessions
 - `compact`: dense rows for smaller terminals
 
 ## Verification

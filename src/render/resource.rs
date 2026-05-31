@@ -672,25 +672,26 @@ fn refresh_changes_summary(state: &AppState) -> Option<String> {
 }
 
 fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let rows = content_rows(state, area.width as usize, palette);
+    let content_area = content_area_for_spacing(area, state.spacing);
+    let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
-    let rows = wrap_content_rows(rows, area.width);
-    let max_scroll = rows.len().saturating_sub(area.height as usize) as u16;
+    let rows = wrap_content_rows(rows, content_area.width);
+    let max_scroll = rows.len().saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
         .into_iter()
         .enumerate()
         .skip(state.scroll as usize)
-        .take(area.height as usize)
+        .take(content_area.height as usize)
         .collect::<Vec<_>>();
     let mut visible = Vec::new();
     for (visible_index, (_row_index, row)) in visible_rows.into_iter().enumerate() {
         if let Some(target) = row.target {
             state.hit_areas.push(HitArea::new(
                 Rect::new(
-                    area.x,
-                    area.y.saturating_add(visible_index as u16),
-                    area.width,
+                    content_area.x,
+                    content_area.y.saturating_add(visible_index as u16),
+                    content_area.width,
                     1,
                 ),
                 target,
@@ -700,7 +701,21 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     }
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
-        .render(area, frame.buffer_mut());
+        .render(content_area, frame.buffer_mut());
+}
+
+fn content_area_for_spacing(area: Rect, spacing: SpacingMode) -> Rect {
+    if spacing == SpacingMode::Compact || area.width < 48 {
+        return area;
+    }
+
+    let gutter = 2;
+    Rect::new(
+        area.x.saturating_add(gutter),
+        area.y,
+        area.width.saturating_sub(gutter * 2),
+        area.height,
+    )
 }
 
 fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow> {
@@ -817,7 +832,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- s: open or close settings",
             "- t / y / p in settings: cycle theme / symbol style / spacing",
             "- r: refresh now",
-            "- o: open current resource in browser through gh",
+            "- o: open current resource in browser",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
             "- Up / Down / PageUp / PageDown / Home / End: scroll",
             "- e: expand or collapse the main body",
@@ -886,7 +901,7 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
     rows.push(heading_row("Spacing", palette));
     rows.push(settings_option_row(
         "comfortable",
-        "gh-dash-like breathing room for long review sessions",
+        "gh-dash-like row spacing and content gutter",
         state.spacing == SpacingMode::Comfortable,
         HitTarget::SetSpacing("comfortable".into()),
         palette,
@@ -2396,6 +2411,14 @@ mod tests {
         format!("{:?}", terminal.backend().buffer())
     }
 
+    fn rendered_target_rect(state: &AppState, target: impl Fn(&HitTarget) -> bool) -> Option<Rect> {
+        state
+            .hit_areas
+            .iter()
+            .find(|area| target(&area.target))
+            .map(|area| area.rect)
+    }
+
     fn click_rendered_target(
         state: &mut AppState,
         target: impl Fn(&HitTarget) -> bool,
@@ -2976,6 +2999,52 @@ mod tests {
             Some(HitTarget::OpenUrl(url))
                 if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1234567890🙂tail"
         )));
+    }
+
+    #[test]
+    fn comfortable_spacing_adds_content_gutter_when_width_allows() {
+        let area = Rect::new(0, 4, 120, 20);
+
+        let comfortable = content_area_for_spacing(area, SpacingMode::Comfortable);
+        let compact = content_area_for_spacing(area, SpacingMode::Compact);
+
+        assert_eq!(comfortable.x, 2);
+        assert_eq!(comfortable.width, 116);
+        assert_eq!(compact, area);
+    }
+
+    #[test]
+    fn comfortable_spacing_keeps_extremely_narrow_content_full_width() {
+        let area = Rect::new(0, 4, 40, 20);
+
+        assert_eq!(
+            content_area_for_spacing(area, SpacingMode::Comfortable),
+            area
+        );
+    }
+
+    #[test]
+    fn comfortable_content_gutter_moves_click_targets_with_visible_rows() {
+        let mut comfortable_state = AppState::new(pr_resource());
+        let mut compact_state = AppState::new(pr_resource());
+        compact_state.spacing = SpacingMode::Compact;
+
+        draw(&mut comfortable_state, 120, 36);
+        draw(&mut compact_state, 120, 36);
+
+        let comfortable_rect = rendered_target_rect(&comfortable_state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(_))
+        })
+        .expect("comfortable expand-all target");
+        let compact_rect = rendered_target_rect(&compact_state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(_))
+        })
+        .expect("compact expand-all target");
+
+        assert_eq!(comfortable_rect.x, 2);
+        assert_eq!(comfortable_rect.width, 116);
+        assert_eq!(compact_rect.x, 0);
+        assert_eq!(compact_rect.width, 120);
     }
 
     #[test]
