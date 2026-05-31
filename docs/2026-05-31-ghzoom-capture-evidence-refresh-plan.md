@@ -42,8 +42,8 @@ show previous footer/status wrapping behavior.
    - verify current marker text in each frame set
    - verify the footer action surface is present
    - verify each size manifest records actual tmux dimensions
-   - verify manifests were captured from current `HEAD` unless
-     `--allow-stale-revision` is explicitly passed
+   - verify no app/rendering source paths changed since the recorded capture
+     revision unless `--allow-stale-revision` is explicitly passed
 3. Regenerate PR captures for `openclaw/openclaw#81834`.
 4. Regenerate issue captures for `openclaw/openclaw#88499`.
 5. Run validation against both capture roots.
@@ -61,5 +61,6 @@ show previous footer/status wrapping behavior.
 The capture directories should become reproducible evidence for the current UI:
 an auditor can inspect frame text/PNG output, see exactly how each frame was
 created, and rerun the marker validation without manually reading every file.
-By default, validation should fail when capture manifests are from an older git
-revision, so UX evidence cannot silently drift behind the code under review.
+By default, validation should fail when app/rendering code changed after the
+recorded capture revision, so UX evidence cannot silently drift behind the code
+under review while still allowing capture artifact commits to sit on top.

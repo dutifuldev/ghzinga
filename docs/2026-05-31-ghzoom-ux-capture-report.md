@@ -93,8 +93,8 @@ It checks that every size contains:
 - `[help]`
 - `[quit]`
 
-It also checks that the root and per-size manifests were captured from the
-current `HEAD`. Use `--allow-stale-revision` only when intentionally inspecting
+It also checks that no app/rendering source paths changed since the manifest
+revision. Use `--allow-stale-revision` only when intentionally inspecting
 historical captures.
 
 The PR rendered frames also show:
@@ -144,7 +144,8 @@ It checks that every size contains:
 - `[help]`
 - `[quit]`
 
-Like the PR validator, it rejects stale manifest revisions by default.
+Like the PR validator, it rejects captures when app/rendering code has changed
+since the recorded manifest revision.
 
 The rendered frames also show:
 
