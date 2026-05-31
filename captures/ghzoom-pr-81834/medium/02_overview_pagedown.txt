@@ -18,7 +18,7 @@ Branches: main <- feat/sens... - What changed: registers a speechProvider in ext
 Review: None requested         /v1/t2a_v2, lists system voices via /v1/get_voice, transcodes MP3→opus for voice-note    
 Reviewers: none                targets. Errors split into HTTP / base_resp.status_code / missing-audio buckets.         
 Merge: Clean                   - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, 
-Checks: PASS (86 pass, 0 pe... text-generated voices out of scope.                                                      
+Checks: PASS (97 pass, 0 pe... text-generated voices out of scope.                                                      
 Files: 14                     
 Lines: +1057 -22               Change Type (select all)     
 Base ref OID: a1c6882777ba6... [more]                       
@@ -28,7 +28,7 @@ Head repository: openclaw      Change summary
                                Reviewers: none              
                                Merge: Clean                 
                                14 files, 5 commits, +1057 -22                                                           
-                               Checks: PASS (86 pass, 0 pending, 0 fail)                                                
+                               Checks: PASS (97 pass, 0 pending, 0 fail)                                                
 
                                PR metadata                  
                                Base ref OID: a1c6882777ba6921d634be88d03c6cb7dda7c0fc                                   
