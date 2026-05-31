@@ -19,11 +19,13 @@ use crate::github::queries::{
     review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
     timeline_query,
 };
-use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
+use crate::github::transport::{
+    run_graphql_query, run_public_rest_get, run_rest_get, GITHUB_GRAPHQL_URL, GITHUB_JSON_ACCEPT,
+};
 #[cfg(test)]
 use crate::github::transport::{
     run_graphql_query_with, run_rest_get_with, GithubHttpFuture, GithubHttpMethod,
-    GithubHttpRequest, GithubHttpResponse, GithubHttpTransport, GITHUB_JSON_ACCEPT,
+    GithubHttpRequest, GithubHttpResponse, GithubHttpTransport,
 };
 
 pub trait GithubGateway {
@@ -60,7 +62,13 @@ pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
 }
 
 async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
-    let output = run_graphql_base_pr(id).await?;
+    let output = match run_graphql_base_pr(id).await {
+        Ok(output) => output,
+        Err(error) if crate::github::auth::is_auth_unavailable(&error) => {
+            return fetch_public_rest_pr(id, error).await;
+        }
+        Err(error) => return Err(error),
+    };
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
@@ -116,7 +124,13 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
 }
 
 async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
-    let output = run_graphql_base_issue(id).await?;
+    let output = match run_graphql_base_issue(id).await {
+        Ok(output) => output,
+        Err(error) if crate::github::auth::is_auth_unavailable(&error) => {
+            return fetch_public_rest_issue(id, error).await;
+        }
+        Err(error) => return Err(error),
+    };
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
@@ -132,6 +146,149 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     }
     sort_activity(&mut resource.activity);
     Ok(resource)
+}
+
+async fn fetch_public_rest_pr(
+    id: &ResourceId,
+    auth_error: anyhow::Error,
+) -> anyhow::Result<Resource> {
+    let pull: RestPullDto = run_public_rest_json(&rest_pull_path(id))
+        .await
+        .context("public REST fallback could not load pull request")?;
+    let issue: RestIssueDto = run_public_rest_json(&rest_issue_path(id))
+        .await
+        .context("public REST fallback could not load pull request issue metadata")?;
+    let mut warnings = vec![format!(
+        "using public REST fallback because no GitHub token is available: {auth_error}"
+    )];
+    let comments = match fetch_public_rest_comments(id).await {
+        Ok(comments) => comments,
+        Err(error) => {
+            warnings.push(format!("public comments unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let commits = match fetch_public_rest_commits(id).await {
+        Ok(commits) => commits,
+        Err(error) => {
+            warnings.push(format!("public commit list unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let files = match fetch_public_rest_files(id).await {
+        Ok(files) => files,
+        Err(error) => {
+            warnings.push(format!("public file list unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let pr_metadata = rest_pr_metadata(&pull);
+
+    let mut resource = rest_issue_resource(issue, id, comments);
+    resource.id.kind_hint = Some(ResourceKind::PullRequest);
+    resource.url = pull.html_url;
+    resource.title = pull.title;
+    resource.state = pull.state.to_ascii_uppercase();
+    resource.author = display_rest_author(pull.user);
+    resource.created_at = pull.created_at;
+    resource.updated_at = pull.updated_at;
+    resource.pull_request = Some(PullRequest {
+        base_ref: pull
+            .base
+            .map(|reference| reference.reference)
+            .unwrap_or_default(),
+        head_ref: pull
+            .head
+            .map(|reference| reference.reference)
+            .unwrap_or_default(),
+        requested_reviewers: pull
+            .requested_reviewers
+            .into_iter()
+            .map(|user| display_rest_author(Some(user)))
+            .filter(|name| name != "unknown")
+            .collect(),
+        review_decision: None,
+        merge_state: pull.mergeable.map(|mergeable| {
+            if mergeable {
+                "MERGEABLE".to_string()
+            } else {
+                "CONFLICTING".to_string()
+            }
+        }),
+        additions: pull.additions.unwrap_or_default(),
+        deletions: pull.deletions.unwrap_or_default(),
+        commits,
+        checks: Vec::new(),
+        files,
+        metadata: pr_metadata,
+    });
+    resource.warnings.extend(warnings);
+    resource.warnings.push(
+        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, relationship links, and check suites".into(),
+    );
+    Ok(resource)
+}
+
+async fn fetch_public_rest_issue(
+    id: &ResourceId,
+    auth_error: anyhow::Error,
+) -> anyhow::Result<Resource> {
+    let issue: RestIssueDto = run_public_rest_json(&rest_issue_path(id))
+        .await
+        .context("public REST fallback could not load issue")?;
+    let mut warnings = vec![format!(
+        "using public REST fallback because no GitHub token is available: {auth_error}"
+    )];
+    let comments = match fetch_public_rest_comments(id).await {
+        Ok(comments) => comments,
+        Err(error) => {
+            warnings.push(format!("public comments unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let mut resource = rest_issue_resource(issue, id, comments);
+    resource.warnings.extend(warnings);
+    resource.warnings.push(
+        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, relationship links, and review data".into(),
+    );
+    Ok(resource)
+}
+
+async fn run_public_rest_json<T: serde::de::DeserializeOwned>(path: &str) -> anyhow::Result<T> {
+    let output = run_public_rest_get(path, GITHUB_JSON_ACCEPT).await?;
+    serde_json::from_slice(&output)
+        .with_context(|| format!("failed to parse public REST JSON from {path}"))
+}
+
+async fn fetch_public_rest_comments(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
+    let comments = run_public_rest_json::<Vec<RestCommentDto>>(&format!(
+        "/repos/{}/{}/issues/{}/comments?per_page=100",
+        id.owner, id.repo, id.number
+    ))
+    .await?;
+    Ok(comments
+        .into_iter()
+        .enumerate()
+        .map(rest_comment_activity)
+        .collect())
+}
+
+async fn fetch_public_rest_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit>> {
+    let commits = run_public_rest_json::<Vec<RestCommitDto>>(&format!(
+        "/repos/{}/{}/pulls/{}/commits?per_page=100",
+        id.owner, id.repo, id.number
+    ))
+    .await?;
+    Ok(commits.into_iter().map(rest_commit).collect())
+}
+
+async fn fetch_public_rest_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>> {
+    let files = run_public_rest_json::<Vec<RestFileDto>>(&format!(
+        "/repos/{}/{}/pulls/{}/files?per_page=100",
+        id.owner, id.repo, id.number
+    ))
+    .await?;
+    Ok(files.into_iter().map(rest_file).collect())
 }
 
 fn push_enrichment_warning(resource: &mut Resource, label: &str, error: &anyhow::Error) {
@@ -407,6 +564,14 @@ fn pr_diff_rest_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
 }
 
+fn rest_pull_path(id: &ResourceId) -> String {
+    format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
+}
+
+fn rest_issue_path(id: &ResourceId) -> String {
+    format!("/repos/{}/{}/issues/{}", id.owner, id.repo, id.number)
+}
+
 #[derive(Debug, Deserialize)]
 struct UserDto {
     login: Option<String>,
@@ -420,6 +585,128 @@ impl UserDto {
             .or_else(|| self.name.clone())
             .unwrap_or_else(|| "unknown".to_string())
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct RestUserDto {
+    login: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestLabelDto {
+    name: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RestReactionsDto {
+    #[serde(rename = "+1", default)]
+    thumbs_up: u64,
+    #[serde(rename = "-1", default)]
+    thumbs_down: u64,
+    #[serde(default)]
+    laugh: u64,
+    #[serde(default)]
+    hooray: u64,
+    #[serde(default)]
+    confused: u64,
+    #[serde(default)]
+    heart: u64,
+    #[serde(default)]
+    rocket: u64,
+    #[serde(default)]
+    eyes: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestIssueDto {
+    number: u64,
+    title: String,
+    html_url: String,
+    state: String,
+    user: Option<RestUserDto>,
+    created_at: String,
+    updated_at: String,
+    #[serde(default)]
+    labels: Vec<RestLabelDto>,
+    #[serde(default)]
+    assignees: Vec<RestUserDto>,
+    #[serde(default)]
+    reactions: RestReactionsDto,
+    body: Option<String>,
+    closed_at: Option<String>,
+    state_reason: Option<String>,
+    milestone: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestPullDto {
+    title: String,
+    html_url: String,
+    state: String,
+    user: Option<RestUserDto>,
+    created_at: String,
+    updated_at: String,
+    base: Option<RestRefDto>,
+    head: Option<RestRefDto>,
+    #[serde(default)]
+    requested_reviewers: Vec<RestUserDto>,
+    mergeable: Option<bool>,
+    additions: Option<u64>,
+    deletions: Option<u64>,
+    changed_files: Option<u64>,
+    #[serde(default)]
+    draft: bool,
+    merged_at: Option<String>,
+    merge_commit_sha: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RestRefDto {
+    #[serde(rename = "ref")]
+    reference: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCommentDto {
+    id: u64,
+    user: Option<RestUserDto>,
+    body: Option<String>,
+    created_at: String,
+    updated_at: String,
+    html_url: Option<String>,
+    author_association: Option<String>,
+    #[serde(default)]
+    reactions: RestReactionsDto,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCommitDto {
+    sha: String,
+    commit: RestCommitInnerDto,
+    author: Option<RestUserDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCommitInnerDto {
+    message: String,
+    author: Option<RestCommitPersonDto>,
+    committer: Option<RestCommitPersonDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCommitPersonDto {
+    name: Option<String>,
+    date: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestFileDto {
+    filename: String,
+    additions: u64,
+    deletions: u64,
+    status: String,
+    patch: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2004,6 +2291,177 @@ fn reaction_counts_from_value(value: Option<&Value>) -> ReactionCounts {
         .and_then(|value| serde_json::from_value::<Vec<ReactionGroupDto>>(value.clone()).ok())
         .map(reaction_counts)
         .unwrap_or_default()
+}
+
+fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
+    ReactionCounts {
+        thumbs_up: reactions.thumbs_up,
+        thumbs_down: reactions.thumbs_down,
+        laugh: reactions.laugh,
+        hooray: reactions.hooray,
+        confused: reactions.confused,
+        heart: reactions.heart,
+        rocket: reactions.rocket,
+        eyes: reactions.eyes,
+    }
+}
+
+fn rest_issue_resource(
+    issue: RestIssueDto,
+    requested: &ResourceId,
+    activity: Vec<ActivityEntry>,
+) -> Resource {
+    let metadata = rest_issue_metadata(&issue);
+    Resource {
+        id: ResourceId {
+            owner: requested.owner.clone(),
+            repo: requested.repo.clone(),
+            number: issue.number,
+            kind_hint: Some(ResourceKind::Issue),
+        },
+        title: issue.title,
+        url: issue.html_url,
+        state: issue.state.to_ascii_uppercase(),
+        author: display_rest_author(issue.user),
+        created_at: issue.created_at,
+        updated_at: issue.updated_at,
+        labels: issue.labels.into_iter().map(|label| label.name).collect(),
+        assignees: issue
+            .assignees
+            .into_iter()
+            .map(|user| display_rest_author(Some(user)))
+            .filter(|name| name != "unknown")
+            .collect(),
+        reactions: rest_reaction_counts(issue.reactions),
+        body: issue.body.unwrap_or_default(),
+        activity,
+        related_resources: Vec::new(),
+        metadata,
+        warnings: Vec::new(),
+        pull_request: None,
+    }
+}
+
+fn display_rest_author(author: Option<RestUserDto>) -> String {
+    author
+        .and_then(|author| author.login)
+        .filter(|login| !login.is_empty())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn rest_issue_metadata(issue: &RestIssueDto) -> Vec<MetadataItem> {
+    let mut items = Vec::new();
+    push_nonempty_metadata(&mut items, "State reason", issue.state_reason.as_deref());
+    push_nonempty_metadata(&mut items, "Closed at", issue.closed_at.as_deref());
+    push_nonempty_metadata(
+        &mut items,
+        "Milestone",
+        value_title(issue.milestone.as_ref()).as_deref(),
+    );
+    items
+}
+
+fn rest_pr_metadata(pr: &RestPullDto) -> Vec<MetadataItem> {
+    let mut items = Vec::new();
+    push_bool_metadata(&mut items, "Draft", pr.draft);
+    push_nonempty_metadata(
+        &mut items,
+        "Changed files",
+        pr.changed_files.map(|count| count.to_string()).as_deref(),
+    );
+    push_nonempty_metadata(&mut items, "Merged at", pr.merged_at.as_deref());
+    push_nonempty_metadata(&mut items, "Merge commit", pr.merge_commit_sha.as_deref());
+    items
+}
+
+fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -> ActivityEntry {
+    let includes_created_edit = comment.updated_at != comment.created_at;
+    ActivityEntry {
+        id: format!("rest-comment-{}", comment.id),
+        kind: ActivityKind::Comment,
+        author: display_rest_author(comment.user),
+        body: comment.body.unwrap_or_default(),
+        updated_at: comment.updated_at,
+        path: None,
+        line: None,
+        url: comment.html_url,
+        author_association: comment.author_association,
+        reactions: rest_reaction_counts(comment.reactions),
+        includes_created_edit,
+        is_minimized: false,
+        minimized_reason: None,
+        thread_id: Some(format!("public-rest-comment-{index}")),
+        thread_resolved: None,
+        thread_outdated: None,
+    }
+}
+
+fn rest_commit(commit: RestCommitDto) -> Commit {
+    let headline = commit
+        .commit
+        .message
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .to_string();
+    let body = commit
+        .commit
+        .message
+        .lines()
+        .skip(1)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string();
+    let author = {
+        let login = display_rest_author(commit.author);
+        if login == "unknown" {
+            commit
+                .commit
+                .author
+                .as_ref()
+                .and_then(|author| author.name.clone())
+                .unwrap_or_else(|| "unknown".to_string())
+        } else {
+            login
+        }
+    };
+    let authored_at = commit
+        .commit
+        .author
+        .as_ref()
+        .and_then(|author| author.date.clone());
+    let committed_at = commit
+        .commit
+        .committer
+        .and_then(|committer| committer.date)
+        .or_else(|| authored_at.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    Commit {
+        oid: commit.sha,
+        message: headline,
+        body,
+        author: author.clone(),
+        authors: if author == "unknown" {
+            Vec::new()
+        } else {
+            vec![author]
+        },
+        authored_at,
+        committed_at,
+        status: CheckStatus::Unknown,
+        deployments: Vec::new(),
+    }
+}
+
+fn rest_file(file: RestFileDto) -> ChangedFile {
+    ChangedFile {
+        path: file.filename,
+        additions: file.additions,
+        deletions: file.deletions,
+        change_type: file.status.to_ascii_uppercase(),
+        patch: file.patch,
+    }
 }
 
 fn comments_to_activity(comments: Vec<CommentDto>) -> Vec<ActivityEntry> {
@@ -3943,7 +4401,7 @@ mod tests {
 
         let output = run_graphql_query_with(
             &transport,
-            "token-1",
+            Some("token-1"),
             "query Example { viewer { login } }",
             json!({"owner": "openclaw", "name": "openclaw"}),
         )
@@ -3957,7 +4415,7 @@ mod tests {
         assert_eq!(request.method, GithubHttpMethod::Post);
         assert_eq!(request.url, GITHUB_GRAPHQL_URL);
         assert_eq!(request.accept, GITHUB_JSON_ACCEPT);
-        assert_eq!(request.token, "token-1");
+        assert_eq!(request.token.as_deref(), Some("token-1"));
         assert_eq!(
             request.body,
             Some(json!({
@@ -3974,7 +4432,7 @@ mod tests {
             body: br#"{"errors":[{"message":"bad query"}]}"#.to_vec(),
         });
 
-        let error = run_graphql_query_with(&transport, "token-1", "query", json!({}))
+        let error = run_graphql_query_with(&transport, Some("token-1"), "query", json!({}))
             .await
             .expect_err("GraphQL errors should fail");
 
@@ -3991,7 +4449,7 @@ mod tests {
             body: br#"{"errors":[{"locations":[{"line":120,"column":44}],"message":"Your token has not been granted the required scopes to execute this query. The 'id' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes. Please modify your token's scopes at: https://github.com/settings/tokens.","type":"INSUFFICIENT_SCOPES"},{"message":"same scope issue","type":"INSUFFICIENT_SCOPES"}]}"#.to_vec(),
         });
 
-        let error = run_graphql_query_with(&transport, "token-1", "query", json!({}))
+        let error = run_graphql_query_with(&transport, Some("token-1"), "query", json!({}))
             .await
             .expect_err("GraphQL scope errors should fail");
         let message = error.to_string();
@@ -4010,7 +4468,7 @@ mod tests {
 
         let output = run_rest_get_with(
             &transport,
-            "token-1",
+            Some("token-1"),
             "/repos/openclaw/openclaw/pulls/81834",
             "application/vnd.github.v3.diff",
         )
@@ -4027,8 +4485,169 @@ mod tests {
             "https://api.github.com/repos/openclaw/openclaw/pulls/81834"
         );
         assert_eq!(request.accept, "application/vnd.github.v3.diff");
-        assert_eq!(request.token, "token-1");
+        assert_eq!(request.token.as_deref(), Some("token-1"));
         assert_eq!(request.body, None);
+    }
+
+    #[tokio::test]
+    async fn rest_transport_can_omit_authorization_for_public_requests() {
+        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: br#"{"ok":true}"#.to_vec(),
+        });
+
+        let output = run_rest_get_with(
+            &transport,
+            None,
+            "/repos/openclaw/openclaw/issues/88499",
+            GITHUB_JSON_ACCEPT,
+        )
+        .await
+        .expect("REST response");
+
+        assert_eq!(output, br#"{"ok":true}"#);
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[test]
+    fn public_rest_issue_fallback_renders_core_monitoring_surfaces() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let issue = RestIssueDto {
+            number: 88499,
+            title: "Public issue".into(),
+            html_url: "https://github.com/openclaw/openclaw/issues/88499".into(),
+            state: "open".into(),
+            user: Some(RestUserDto {
+                login: Some("alice".into()),
+            }),
+            created_at: "2026-05-30T00:00:00Z".into(),
+            updated_at: "2026-05-31T00:00:00Z".into(),
+            labels: vec![RestLabelDto { name: "bug".into() }],
+            assignees: vec![RestUserDto {
+                login: Some("bob".into()),
+            }],
+            reactions: RestReactionsDto {
+                thumbs_up: 2,
+                eyes: 1,
+                ..RestReactionsDto::default()
+            },
+            body: Some("Issue body".into()),
+            closed_at: None,
+            state_reason: Some("REOPENED".into()),
+            milestone: Some(json!({"title": "v1"})),
+        };
+        let activity = vec![rest_comment_activity((
+            0,
+            RestCommentDto {
+                id: 1,
+                user: Some(RestUserDto {
+                    login: Some("carol".into()),
+                }),
+                body: Some("Public comment".into()),
+                created_at: "2026-05-31T00:00:00Z".into(),
+                updated_at: "2026-05-31T00:00:00Z".into(),
+                html_url: Some(
+                    "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1".into(),
+                ),
+                author_association: Some("MEMBER".into()),
+                reactions: RestReactionsDto::default(),
+            },
+        ))];
+
+        let resource = rest_issue_resource(issue, &id, activity);
+
+        assert_eq!(resource.kind(), ResourceKind::Issue);
+        assert_eq!(resource.state, "OPEN");
+        assert_eq!(resource.author, "alice");
+        assert_eq!(resource.labels, ["bug"]);
+        assert_eq!(resource.assignees, ["bob"]);
+        assert_eq!(resource.reactions.total(), 3);
+        assert_eq!(resource.activity[0].body, "Public comment");
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Milestone" && item.value == "v1"));
+    }
+
+    #[test]
+    fn public_rest_pr_fallback_renders_core_monitoring_surfaces() {
+        let pull = RestPullDto {
+            title: "Public PR".into(),
+            html_url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "open".into(),
+            user: Some(RestUserDto {
+                login: Some("alice".into()),
+            }),
+            created_at: "2026-05-30T00:00:00Z".into(),
+            updated_at: "2026-05-31T00:00:00Z".into(),
+            base: Some(RestRefDto {
+                reference: "main".into(),
+            }),
+            head: Some(RestRefDto {
+                reference: "feature".into(),
+            }),
+            requested_reviewers: vec![RestUserDto {
+                login: Some("reviewer".into()),
+            }],
+            mergeable: Some(true),
+            additions: Some(10),
+            deletions: Some(2),
+            changed_files: Some(1),
+            draft: false,
+            merged_at: None,
+            merge_commit_sha: Some("abc123".into()),
+        };
+        let commits = vec![rest_commit(RestCommitDto {
+            sha: "abcdef123456".into(),
+            commit: RestCommitInnerDto {
+                message: "feat: public fallback\n\nbody".into(),
+                author: Some(RestCommitPersonDto {
+                    name: Some("Fallback Author".into()),
+                    date: Some("2026-05-30T00:00:00Z".into()),
+                }),
+                committer: None,
+            },
+            author: None,
+        })];
+        let files = vec![rest_file(RestFileDto {
+            filename: "src/lib.rs".into(),
+            additions: 10,
+            deletions: 2,
+            status: "modified".into(),
+            patch: Some("@@ -1 +1 @@\n-old\n+new".into()),
+        })];
+
+        let pr = PullRequest {
+            base_ref: pull.base.as_ref().unwrap().reference.clone(),
+            head_ref: pull.head.as_ref().unwrap().reference.clone(),
+            requested_reviewers: pull
+                .requested_reviewers
+                .iter()
+                .map(|user| user.login.clone().unwrap())
+                .collect(),
+            review_decision: None,
+            merge_state: Some("MERGEABLE".into()),
+            additions: pull.additions.unwrap(),
+            deletions: pull.deletions.unwrap(),
+            commits,
+            checks: Vec::new(),
+            files,
+            metadata: rest_pr_metadata(&pull),
+        };
+
+        assert_eq!(pr.base_ref, "main");
+        assert_eq!(pr.head_ref, "feature");
+        assert_eq!(pr.requested_reviewers, ["reviewer"]);
+        assert_eq!(pr.commits[0].message, "feat: public fallback");
+        assert_eq!(pr.commits[0].body, "body");
+        assert_eq!(pr.files[0].path, "src/lib.rs");
+        assert_eq!(pr.files[0].change_type, "MODIFIED");
+        assert!(pr
+            .metadata
+            .iter()
+            .any(|item| item.label == "Merge commit" && item.value == "abc123"));
     }
 
     #[tokio::test]
@@ -4038,7 +4657,7 @@ mod tests {
             body: br#"{"message":"Not Found"}"#.to_vec(),
         });
 
-        let error = run_rest_get_with(&transport, "token-1", "/missing", GITHUB_JSON_ACCEPT)
+        let error = run_rest_get_with(&transport, Some("token-1"), "/missing", GITHUB_JSON_ACCEPT)
             .await
             .expect_err("HTTP failure should fail");
 
