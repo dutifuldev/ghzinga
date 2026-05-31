@@ -20,5 +20,5 @@ warn Warnings: 1
   Synthesizes via /v1/t2a_v2, lists system voices via /v1/get_voice,            
   transcodes MP3→opus for voice-note targets. Errors split into HTTP /          
   base_resp.status_code / missing-audio buckets.                                
-[refresh] [open] [settings] [help] [quit] scroll 0/153 0%                       
+[refresh] [open] [settings] [help] [quit] scroll 0/154 0%                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
