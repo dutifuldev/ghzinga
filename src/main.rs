@@ -10,7 +10,7 @@ use ghzinga::{
     app::{apply_event, AppEvent, AppIntent, AppState},
     cli::Cli,
     config::{self, AppConfig},
-    domain::{ResourceId, ResourceKind},
+    domain::ResourceId,
     github::{
         api::{GithubApiGateway, GithubGateway},
         load_fixture,
@@ -352,52 +352,7 @@ fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
 }
 
 async fn open_resource(state: &mut AppState, id: &ResourceId) {
-    let args = open_command_args(id);
-    let mut command = Command::new("gh");
-    command.args(&args);
-
-    match command.stderr(Stdio::piped()).output().await {
-        Ok(output) if output.status.success() => {
-            state.last_error = None;
-            state.status_message = Some(format!("opened {}", id.canonical_name()));
-        }
-        Ok(output) => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let details = stderr.trim();
-            state.last_error = Some(if details.is_empty() {
-                "`gh` web open failed without an error message".into()
-            } else {
-                format!("`gh` web open failed: {details}")
-            });
-        }
-        Err(error) => {
-            state.last_error = Some(format!("failed to execute `gh` web open: {error}"));
-        }
-    }
-}
-
-fn open_command_args(id: &ResourceId) -> Vec<String> {
-    let repo = id.repo_name_with_owner();
-    let number = id.number.to_string();
-    match id.kind_hint {
-        Some(ResourceKind::PullRequest) => vec![
-            "pr".into(),
-            "view".into(),
-            number,
-            "-R".into(),
-            repo,
-            "--web".into(),
-        ],
-        Some(ResourceKind::Issue) => vec![
-            "issue".into(),
-            "view".into(),
-            number,
-            "-R".into(),
-            repo,
-            "--web".into(),
-        ],
-        None => vec!["browse".into(), number, "-R".into(), repo],
-    }
+    open_url(state, &id.web_url()).await;
 }
 
 fn start_background_fetch(
@@ -528,7 +483,7 @@ mod tests {
 
     use super::{
         apply_fetch_outcome, auto_refresh_due, maybe_auto_refresh_with_start, navigate_back,
-        navigate_to_resource, open_command_args, url_open_command, FetchAction, FetchOutcome,
+        navigate_to_resource, url_open_command, FetchAction, FetchOutcome,
     };
 
     struct FakeGateway {
@@ -584,36 +539,6 @@ mod tests {
             warnings: vec![],
             pull_request: None,
         }
-    }
-
-    #[test]
-    fn open_command_uses_pr_web_view_for_pull_requests() {
-        let id = ResourceId {
-            owner: "openclaw".into(),
-            repo: "openclaw".into(),
-            number: 81834,
-            kind_hint: Some(ResourceKind::PullRequest),
-        };
-
-        assert_eq!(
-            open_command_args(&id),
-            ["pr", "view", "81834", "-R", "openclaw/openclaw", "--web"]
-        );
-    }
-
-    #[test]
-    fn open_command_uses_issue_web_view_for_issues() {
-        let id = ResourceId {
-            owner: "openclaw".into(),
-            repo: "openclaw".into(),
-            number: 88499,
-            kind_hint: Some(ResourceKind::Issue),
-        };
-
-        assert_eq!(
-            open_command_args(&id),
-            ["issue", "view", "88499", "-R", "openclaw/openclaw", "--web"]
-        );
     }
 
     #[test]

@@ -122,6 +122,21 @@ fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
 }
 
 #[test]
+fn gh_cli_shell_out_is_only_for_auth_token_fallback() {
+    let matches = rust_files(Path::new("src"))
+        .into_iter()
+        .filter_map(|path| {
+            let source = fs::read_to_string(&path).expect("read source file");
+            source
+                .contains("Command::new(\"gh\")")
+                .then_some(path.display().to_string())
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(matches, ["src/github/auth.rs"]);
+}
+
+#[test]
 fn timeline_query_accounts_for_current_github_schema_item_types() {
     let source = fs::read_to_string("src/github/queries.rs").expect("read GitHub query source");
     let issue_schema_types = BTreeSet::from([
