@@ -177,10 +177,10 @@ Data loaded for PR:
 - commits with SHA, headline, full body, primary author, coauthors,
   authored/committed timestamps, check state when available, and
   deployment/environment status where GitHub exposes it
-- status check rollup contexts and check suites, including raw GitHub
-  status/conclusion, started/completed timestamps, and details URLs where
-  available; both Actions `CheckRun` records and legacy commit status contexts
-  should normalize into the Checks tab
+- status check rollup contexts and latest-commit check suites, including raw
+  GitHub status/conclusion, started/completed timestamps, and details URLs
+  where available; suite rows are prefixed with `suite/` and shown before
+  job/context rows so top-level workflow status is visible first
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and
   review-thread resolved/outdated state
