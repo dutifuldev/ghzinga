@@ -94,7 +94,9 @@ For pull requests:
 - paginated CI/check status grouped by state, including suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
   status/conclusion, timestamps, and details URLs on expanded check rows
-- changed files, with separately expandable patch context when a file row is expanded
+- changed files, with gh-dash-style file summary rows and separately expandable
+  in-TUI patch context when a file row is expanded; patch additions render green,
+  deletions render red, and hunk headers use an accent color by default
 - detected issue/PR links, including paginated GitHub relationship links
 
 For issues:
@@ -132,6 +134,8 @@ Mouse:
 
 - click tabs to switch views
 - click bold `[+ more]` and `[- less]` controls to expand or collapse content
+- click file rows in the Files tab to expand or collapse per-file details, then
+  click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
 - click `[refresh]`, `[open]`, `[help]`, and `[quit]`
