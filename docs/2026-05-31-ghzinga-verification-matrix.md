@@ -76,8 +76,9 @@ each frame. The current marker and content check verifies:
   review activity, commits, aggregate checks, changed files, and detected links
 - Issue captures include the issue body, activity comments, and detected
   issue/comment links
-- Mouse smoke captures include a real tmux click on the Files tab, then real
-  clicks on `[expand all]` and `[collapse all]`
+- Mouse smoke captures include real tmux clicks on the Files and Links tabs,
+  real clicks on `[expand all]` and `[collapse all]`, and a real click on a
+  linked issue row that reaches the navigation path
 
 ## Click Coverage
 
@@ -101,8 +102,8 @@ Covered click targets:
 - check rows
 - file rows and long patch expansion controls
 - visible body/activity links
-- exact check run, deployment, and comment URLs
 - Links-tab navigation rows
+- exact check run, deployment, and comment URLs
 - Enter activation for the first visible content action
 - `[refresh]`
 - `[open]`

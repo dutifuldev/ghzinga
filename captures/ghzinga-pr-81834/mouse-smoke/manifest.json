@@ -1,9 +1,9 @@
 {
   "target": "openclaw/openclaw#81834",
-  "fixture": "fixtures/pr-81834.json",
+  "fixture": "captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "24ed81bf8beb1409f2d8c45d97236e4e52d0ae5e",
-  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/fixtures/pr-81834.json --refresh-seconds 0",
+  "git_commit": "5b7cee3e567a150b66762b2f91d6579b71b79505",
+  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
     "files_tab": [
@@ -15,6 +15,14 @@
       10
     ],
     "collapse_all": [
+      4,
+      10
+    ],
+    "links_tab": [
+      47,
+      4
+    ],
+    "linked_issue": [
       4,
       10
     ]
@@ -43,6 +51,18 @@
       "txt": "30_mouse_collapse_all.txt",
       "ansi": "30_mouse_collapse_all.ansi",
       "png": "30_mouse_collapse_all.png"
+    },
+    {
+      "name": "40_mouse_links_tab",
+      "txt": "40_mouse_links_tab.txt",
+      "ansi": "40_mouse_links_tab.ansi",
+      "png": "40_mouse_links_tab.png"
+    },
+    {
+      "name": "50_mouse_navigation_row",
+      "txt": "50_mouse_navigation_row.txt",
+      "ansi": "50_mouse_navigation_row.ansi",
+      "png": "50_mouse_navigation_row.png"
     }
   ]
 }

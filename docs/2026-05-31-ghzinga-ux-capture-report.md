@@ -190,6 +190,7 @@ terminal frames for:
 - file expansion
 - tab-level expand all
 - tab-level collapse all
+- Links-tab navigation target clicks
 
 The broader mouse routing matrix is still covered through render-to-click
 integration tests that render the actual Ratatui UI, click the registered hit
