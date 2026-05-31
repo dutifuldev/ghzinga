@@ -6,6 +6,7 @@ use crate::domain::Resource;
 
 pub mod api;
 mod auth;
+mod queries;
 mod transport;
 
 pub fn load_fixture(path: &Path) -> anyhow::Result<Resource> {
