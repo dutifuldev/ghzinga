@@ -409,6 +409,69 @@ def expected_markers(mode: str) -> list[str]:
     return ["[Activity]", "[Commits]", "[Checks]", "[Files]", "[Links]", "Help"]
 
 
+def expected_content_markers(mode: str, target: str | None) -> dict[str, list[str]]:
+    if mode == "pr" and target == "openclaw/openclaw#81834":
+        return {
+            "00_overview_top": [
+                "Conversation",
+                "Problem: senseaudio bundled plugin only has ASR; no TTS.",
+            ],
+            "10_activity_top": [
+                "Activity (7 entries)",
+                "Comment by @github-actions",
+                "Dependency Changes Detected",
+            ],
+            "11_activity_pagedown": [
+                "Comment by @KLilyZ",
+                "Codex review: needs changes before merge.",
+            ],
+            "20_commits_top": [
+                "Commits (5)",
+                "feat(senseaudio): add SenseAudio TTS provider",
+                "fix(senseaudio): address TTS review feedback",
+            ],
+            "30_checks_top": [
+                "Checks: PASS",
+                "142 total:",
+                "Passing (97)",
+                "suite/CI",
+            ],
+            "40_files_top": [
+                "Files changed (14)",
+                "extensions/senseaudio/speech-provider.ts",
+                "extensions/senseaudio/tts.ts",
+            ],
+            "50_links_top": [
+                "Links",
+                "openclaw/openclaw#66943",
+                "actions/runs",
+            ],
+        }
+    if mode == "issue" and target == "https://github.com/openclaw/openclaw/issues/88499":
+        return {
+            "00_overview_top": [
+                "Conversation",
+                "Bug Description",
+                "previous_response_id",
+            ],
+            "10_activity_top": [
+                "Activity (4 entries)",
+                "Comment by @clawsweeper",
+            ],
+            "11_activity_pagedown": [
+                "Comment by @tianxiaochannel-oss88",
+                "Adding a fresh macOS/Slack data point",
+            ],
+            "20_links_top": [
+                "Links",
+                "openclaw/openclaw#84904",
+                "openclaw/openclaw#87310",
+                "issuecomment-4585747111",
+            ],
+        }
+    return {}
+
+
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
@@ -416,11 +479,13 @@ def read_json(path: Path) -> dict:
 def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = False):
     errors = []
     expected_git_commit = git_commit()
+    target = None
     root_manifest = root / "manifest.json"
     if not root_manifest.exists():
         errors.append(f"missing {root_manifest}")
     else:
         manifest = read_json(root_manifest)
+        target = manifest.get("target")
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
         validate_manifest_revision(
@@ -433,6 +498,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
 
     frames = expected_frames(mode)
     markers = expected_markers(mode) + ["[refresh]", "[open]", "[help]", "[quit]"]
+    content_markers = expected_content_markers(mode, target)
     for label, cols, rows in SIZES:
         size_dir = root / label
         manifest_path = size_dir / "manifest.json"
@@ -458,6 +524,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(f"{manifest_path} missing frames: {', '.join(missing_frames)}")
 
         combined_text = []
+        frame_text = {}
         for frame in frames:
             capture = captures.get(frame, {})
             for key in ("txt", "ansi", "png", "history_txt", "history_ansi"):
@@ -470,15 +537,22 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
                     errors.append(f"missing {path}")
             txt_path = size_dir / f"{frame}.txt"
             if txt_path.exists():
-                combined_text.append(txt_path.read_text())
+                text = txt_path.read_text()
+                frame_text[frame] = text
+                combined_text.append(text)
         combined = "\n".join(combined_text)
         for marker in markers:
             if marker not in combined:
                 errors.append(f"{size_dir} missing marker {marker!r}")
+        for frame, frame_markers in content_markers.items():
+            text = frame_text.get(frame, "")
+            for marker in frame_markers:
+                if marker not in text:
+                    errors.append(f"{size_dir}/{frame}.txt missing content marker {marker!r}")
 
     if errors:
         raise SystemExit("Capture validation failed:\n- " + "\n- ".join(errors))
-    print(f"OK: {root} captures match expected {mode} frames and markers.")
+    print(f"OK: {root} captures match expected {mode} frames, markers, and content.")
 
 
 def main():

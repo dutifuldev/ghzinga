@@ -39,7 +39,7 @@ show previous footer/status wrapping behavior.
    - history capture paths
 2. Add a validation mode to the same script:
    - verify every expected frame exists for narrow, medium, and large sizes
-   - verify current marker text in each frame set
+   - verify current marker and high-value content text in each frame set
    - verify the footer action surface is present
    - verify each size manifest records actual tmux dimensions
    - verify no app/rendering source paths changed since the recorded capture
@@ -60,7 +60,8 @@ show previous footer/status wrapping behavior.
 
 The capture directories should become reproducible evidence for the current UI:
 an auditor can inspect frame text/PNG output, see exactly how each frame was
-created, and rerun the marker validation without manually reading every file.
+created, and rerun the marker/content validation without manually reading every
+file.
 By default, validation should fail when app/rendering code changed after the
 recorded capture revision, so UX evidence cannot silently drift behind the code
 under review while still allowing capture artifact commits to sit on top.
