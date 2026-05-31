@@ -2999,6 +2999,31 @@ fn timeline_body(typename: &str, node: &Value) -> String {
                 .unwrap_or_default()
         ),
         "UnlockedEvent" => "unlocked".to_string(),
+        "AddedToProjectEvent" => "added to project".to_string(),
+        "AddedToProjectV2Event" => format!("added to project{}", automated_suffix(node)),
+        "MovedColumnsInProjectEvent" => "moved in project".to_string(),
+        "RemovedFromProjectEvent" => "removed from project".to_string(),
+        "RemovedFromProjectV2Event" => format!("removed from project{}", automated_suffix(node)),
+        "ProjectV2ItemStatusChangedEvent" => format!(
+            "changed project status from {} to {}{}",
+            github_value_or_unknown(node, "previousStatus"),
+            github_value_or_unknown(node, "status"),
+            automated_suffix(node)
+        ),
+        "ConvertedFromDraftEvent" => {
+            format!("converted from draft{}", automated_suffix(node))
+        }
+        "ConvertedNoteToIssueEvent" => format!(
+            "converted project note to issue{}",
+            string_field(node, "projectColumnName")
+                .map(|column| format!(" from {column}"))
+                .unwrap_or_default()
+        ),
+        "UserBlockedEvent" => format!(
+            "blocked {} for {}",
+            string_field_at(node, &["subject", "login"]).unwrap_or("unknown"),
+            format_github_state(string_field(node, "blockDuration").unwrap_or("unknown"))
+        ),
         "SubscribedEvent" => "subscribed".to_string(),
         "UnsubscribedEvent" => "unsubscribed".to_string(),
         "MentionedEvent" => "mentioned".to_string(),
@@ -3061,6 +3086,22 @@ fn timeline_body(typename: &str, node: &Value) -> String {
             "changed issue type from {} to {}",
             issue_type_name(node, "prevIssueType"),
             issue_type_name(node, "issueType")
+        ),
+        "IssueFieldAddedEvent" => format!(
+            "added issue field {}{}",
+            issue_field_name(node),
+            value_suffix(node, "value")
+                .or_else(|| value_suffix(node, "color"))
+                .unwrap_or_default()
+        ),
+        "IssueFieldRemovedEvent" => {
+            format!("removed issue field {}", issue_field_name(node))
+        }
+        "IssueFieldChangedEvent" => format!(
+            "changed issue field {} from {} to {}",
+            issue_field_name(node),
+            issue_field_value(node, "previousValue", "previousColor"),
+            issue_field_value(node, "newValue", "newColor")
         ),
         "SubIssueAddedEvent" => format!(
             "added sub-issue {}",
@@ -3174,6 +3215,8 @@ fn timeline_body(typename: &str, node: &Value) -> String {
                 .map(|reason| format!(": {reason}"))
                 .unwrap_or_default()
         ),
+        "DeployedEvent" => deployment_body(node),
+        "DeploymentEnvironmentChangedEvent" => deployment_environment_changed_body(node),
         other => format!("{other} event"),
     }
 }
@@ -3202,6 +3245,76 @@ fn resource_reference_label(value: &Value) -> String {
 
 fn issue_type_name(node: &Value, key: &str) -> String {
     string_field_at(node, &[key, "name"])
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn issue_field_name(node: &Value) -> String {
+    string_field_at(node, &["issueField", "name"])
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn issue_field_value(node: &Value, value_key: &str, color_key: &str) -> String {
+    string_field(node, value_key)
+        .or_else(|| string_field(node, color_key))
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn value_suffix(node: &Value, key: &str) -> Option<String> {
+    string_field(node, key)
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| format!(" = {value}"))
+}
+
+fn automated_suffix(node: &Value) -> &'static str {
+    match node.get("wasAutomated").and_then(Value::as_bool) {
+        Some(true) => " automatically",
+        _ => "",
+    }
+}
+
+fn github_value_or_unknown(node: &Value, key: &str) -> String {
+    string_field(node, key)
+        .map(format_github_state)
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn deployment_body(node: &Value) -> String {
+    let ref_name = string_field_at(node, &["ref", "name"]).unwrap_or("ref");
+    let environment = deployment_environment(node, &["deployment"]);
+    let state = string_field_at(node, &["deployment", "latestStatus", "state"])
+        .or_else(|| string_field_at(node, &["deployment", "state"]))
+        .map(format_github_state)
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("deployed {ref_name} to {environment}: {state}")
+}
+
+fn deployment_environment_changed_body(node: &Value) -> String {
+    let environment = deployment_environment(node, &["deploymentStatus"]);
+    let state = string_field_at(node, &["deploymentStatus", "state"])
+        .map(format_github_state)
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("deployment environment changed to {environment}: {state}")
+}
+
+fn deployment_environment(node: &Value, path: &[&str]) -> String {
+    let mut environment_path = path.to_vec();
+    environment_path.push("environment");
+    let mut latest_environment_path = path.to_vec();
+    latest_environment_path.push("latestEnvironment");
+    let mut nested_environment_path = path.to_vec();
+    nested_environment_path.push("deployment");
+    nested_environment_path.push("environment");
+    let mut nested_latest_environment_path = path.to_vec();
+    nested_latest_environment_path.push("deployment");
+    nested_latest_environment_path.push("latestEnvironment");
+
+    string_field_at(node, &latest_environment_path)
+        .or_else(|| string_field_at(node, &environment_path))
+        .or_else(|| string_field_at(node, &nested_latest_environment_path))
+        .or_else(|| string_field_at(node, &nested_environment_path))
         .unwrap_or("unknown")
         .to_string()
 }
@@ -3243,6 +3356,10 @@ fn cross_reference_url(node: &Value) -> Option<String> {
         &["blockedIssue", "url"],
         &["discussion", "url"],
         &["issueComment", "url"],
+        &["deployment", "latestStatus", "environmentUrl"],
+        &["deployment", "latestStatus", "logUrl"],
+        &["deploymentStatus", "environmentUrl"],
+        &["deploymentStatus", "logUrl"],
         &["url"],
     ];
     paths
@@ -3659,7 +3776,14 @@ mod tests {
         assert!(pr_query.contains("HEAD_REF_FORCE_PUSHED_EVENT"));
         assert!(pr_query.contains("REVIEW_DISMISSED_EVENT"));
         assert!(pr_query.contains("ADDED_TO_MERGE_QUEUE_EVENT"));
+        assert!(pr_query.contains("DEPLOYED_EVENT"));
+        assert!(pr_query.contains("DeploymentEnvironmentChangedEvent"));
+        assert!(issue_query.contains("ADDED_TO_PROJECT_V2_EVENT"));
+        assert!(issue_query.contains("PROJECT_V2_ITEM_STATUS_CHANGED_EVENT"));
+        assert!(issue_query.contains("CONVERTED_NOTE_TO_ISSUE_EVENT"));
+        assert!(issue_query.contains("USER_BLOCKED_EVENT"));
         assert!(issue_query.contains("ISSUE_TYPE_CHANGED_EVENT"));
+        assert!(issue_query.contains("ISSUE_FIELD_CHANGED_EVENT"));
         assert!(issue_query.contains("SUB_ISSUE_ADDED_EVENT"));
         assert!(issue_query.contains("BLOCKED_BY_ADDED_EVENT"));
         assert!(issue_query.contains("ConvertedToDiscussionEvent"));
@@ -5917,6 +6041,134 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert_eq!(
             activity[16].url.as_deref(),
             Some("https://github.com/openclaw/openclaw/issues/88499#issuecomment-2")
+        );
+    }
+
+    #[test]
+    fn timeline_activity_maps_schema_coverage_events() {
+        let activity = timeline_activity(TimelineResponse {
+            data: TimelineData {
+                repository: Some(TimelineRepository {
+                    issue: Some(TimelineResource {
+                        timeline_items: TimelineItemsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
+                            nodes: vec![
+                                serde_json::json!({
+                                    "__typename": "AddedToProjectV2Event",
+                                    "id": "project-add",
+                                    "createdAt": "2026-05-31T08:00:00Z",
+                                    "actor": {"login": "alice"},
+                                    "wasAutomated": true
+                                }),
+                                serde_json::json!({
+                                    "__typename": "ProjectV2ItemStatusChangedEvent",
+                                    "id": "project-status",
+                                    "createdAt": "2026-05-31T08:01:00Z",
+                                    "actor": {"login": "alice"},
+                                    "previousStatus": "TODO",
+                                    "status": "IN_PROGRESS",
+                                    "wasAutomated": false
+                                }),
+                                serde_json::json!({
+                                    "__typename": "ConvertedNoteToIssueEvent",
+                                    "id": "note-converted",
+                                    "createdAt": "2026-05-31T08:02:00Z",
+                                    "actor": {"login": "alice"},
+                                    "projectColumnName": "Backlog"
+                                }),
+                                serde_json::json!({
+                                    "__typename": "UserBlockedEvent",
+                                    "id": "user-blocked",
+                                    "createdAt": "2026-05-31T08:03:00Z",
+                                    "actor": {"login": "owner"},
+                                    "subject": {"login": "spammer"},
+                                    "blockDuration": "ONE_DAY"
+                                }),
+                                serde_json::json!({
+                                    "__typename": "IssueFieldAddedEvent",
+                                    "id": "field-added",
+                                    "createdAt": "2026-05-31T08:04:00Z",
+                                    "actor": {"login": "alice"},
+                                    "value": "High",
+                                    "issueField": {"__typename": "IssueFieldSingleSelect", "name": "Priority"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "IssueFieldChangedEvent",
+                                    "id": "field-changed",
+                                    "createdAt": "2026-05-31T08:05:00Z",
+                                    "actor": {"login": "alice"},
+                                    "previousValue": "High",
+                                    "newValue": "Urgent",
+                                    "issueField": {"__typename": "IssueFieldSingleSelect", "name": "Priority"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "DeployedEvent",
+                                    "id": "deployed",
+                                    "createdAt": "2026-05-31T08:06:00Z",
+                                    "actor": {"login": "deploy-bot"},
+                                    "ref": {"name": "main"},
+                                    "deployment": {
+                                        "environment": "production",
+                                        "latestEnvironment": "production",
+                                        "state": "SUCCESS",
+                                        "latestStatus": {
+                                            "state": "SUCCESS",
+                                            "environmentUrl": "https://example.com/app",
+                                            "logUrl": "https://example.com/logs"
+                                        }
+                                    }
+                                }),
+                                serde_json::json!({
+                                    "__typename": "DeploymentEnvironmentChangedEvent",
+                                    "id": "deployment-env",
+                                    "createdAt": "2026-05-31T08:07:00Z",
+                                    "actor": {"login": "deploy-bot"},
+                                    "deploymentStatus": {
+                                        "state": "INACTIVE",
+                                        "environment": "staging",
+                                        "environmentUrl": "https://example.com/staging",
+                                        "deployment": {
+                                            "environment": "staging",
+                                            "latestEnvironment": "staging"
+                                        }
+                                    }
+                                }),
+                            ],
+                        },
+                    }),
+                    pull_request: None,
+                }),
+            },
+        });
+
+        assert_eq!(activity.len(), 8);
+        assert_eq!(activity[0].body, "added to project automatically");
+        assert_eq!(
+            activity[1].body,
+            "changed project status from Todo to In Progress"
+        );
+        assert_eq!(
+            activity[2].body,
+            "converted project note to issue from Backlog"
+        );
+        assert_eq!(activity[3].body, "blocked spammer for One Day");
+        assert_eq!(activity[4].body, "added issue field Priority = High");
+        assert_eq!(
+            activity[5].body,
+            "changed issue field Priority from High to Urgent"
+        );
+        assert_eq!(activity[6].body, "deployed main to production: Success");
+        assert_eq!(activity[6].url.as_deref(), Some("https://example.com/app"));
+        assert_eq!(
+            activity[7].body,
+            "deployment environment changed to staging: Inactive"
+        );
+        assert_eq!(
+            activity[7].url.as_deref(),
+            Some("https://example.com/staging")
         );
     }
 

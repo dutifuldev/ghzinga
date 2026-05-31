@@ -549,7 +549,9 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
         AUTO_REBASE_ENABLED_EVENT,
         AUTO_SQUASH_ENABLED_EVENT,
         AUTO_MERGE_ENABLED_EVENT,
-        AUTO_MERGE_DISABLED_EVENT"#
+        AUTO_MERGE_DISABLED_EVENT,
+        DEPLOYED_EVENT,
+        DEPLOYMENT_ENVIRONMENT_CHANGED_EVENT"#
         }
         ResourceKind::Issue => "",
     };
@@ -624,7 +626,38 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
           ... on AutoRebaseEnabledEvent { id createdAt actor { login } enabler { login } }
           ... on AutoSquashEnabledEvent { id createdAt actor { login } enabler { login } }
           ... on AutoMergeEnabledEvent { id createdAt actor { login } }
-          ... on AutoMergeDisabledEvent { id createdAt actor { login } reason }"#
+          ... on AutoMergeDisabledEvent { id createdAt actor { login } reason }
+          ... on DeployedEvent {
+            id
+            createdAt
+            actor { login }
+            ref { name }
+            deployment {
+              environment
+              latestEnvironment
+              state
+              latestStatus {
+                state
+                environmentUrl
+                logUrl
+              }
+            }
+          }
+          ... on DeploymentEnvironmentChangedEvent {
+            id
+            createdAt
+            actor { login }
+            deploymentStatus {
+              state
+              environment
+              environmentUrl
+              logUrl
+              deployment {
+                environment
+                latestEnvironment
+              }
+            }
+          }"#
         }
         ResourceKind::Issue => "",
     };
@@ -644,6 +677,15 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
         UNPINNED_EVENT,
         LOCKED_EVENT,
         UNLOCKED_EVENT,
+        ADDED_TO_PROJECT_EVENT,
+        ADDED_TO_PROJECT_V2_EVENT,
+        MOVED_COLUMNS_IN_PROJECT_EVENT,
+        REMOVED_FROM_PROJECT_EVENT,
+        REMOVED_FROM_PROJECT_V2_EVENT,
+        PROJECT_V2_ITEM_STATUS_CHANGED_EVENT,
+        CONVERTED_FROM_DRAFT_EVENT,
+        CONVERTED_NOTE_TO_ISSUE_EVENT,
+        USER_BLOCKED_EVENT,
         SUBSCRIBED_EVENT,
         UNSUBSCRIBED_EVENT,
         MENTIONED_EVENT,
@@ -664,6 +706,9 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
         ISSUE_TYPE_ADDED_EVENT,
         ISSUE_TYPE_REMOVED_EVENT,
         ISSUE_TYPE_CHANGED_EVENT,
+        ISSUE_FIELD_ADDED_EVENT,
+        ISSUE_FIELD_REMOVED_EVENT,
+        ISSUE_FIELD_CHANGED_EVENT,
         SUB_ISSUE_ADDED_EVENT,
         SUB_ISSUE_REMOVED_EVENT,
         PARENT_ISSUE_ADDED_EVENT,
@@ -699,6 +744,28 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
           ... on UnpinnedEvent {{ id createdAt actor {{ login }} }}
           ... on LockedEvent {{ id createdAt actor {{ login }} lockReason }}
           ... on UnlockedEvent {{ id createdAt actor {{ login }} }}
+          ... on AddedToProjectEvent {{ id createdAt actor {{ login }} }}
+          ... on AddedToProjectV2Event {{ id createdAt actor {{ login }} wasAutomated }}
+          ... on MovedColumnsInProjectEvent {{ id createdAt actor {{ login }} }}
+          ... on RemovedFromProjectEvent {{ id createdAt actor {{ login }} }}
+          ... on RemovedFromProjectV2Event {{ id createdAt actor {{ login }} wasAutomated }}
+          ... on ProjectV2ItemStatusChangedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            previousStatus
+            status
+            wasAutomated
+          }}
+          ... on ConvertedFromDraftEvent {{ id createdAt actor {{ login }} wasAutomated }}
+          ... on ConvertedNoteToIssueEvent {{ id createdAt actor {{ login }} projectColumnName }}
+          ... on UserBlockedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            blockDuration
+            subject {{ login }}
+          }}
           ... on SubscribedEvent {{ id createdAt actor {{ login }} }}
           ... on UnsubscribedEvent {{ id createdAt actor {{ login }} }}
           ... on MentionedEvent {{ id createdAt actor {{ login }} }}
@@ -787,6 +854,48 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
             actor {{ login }}
             prevIssueType {{ name }}
             issueType {{ name }}
+          }}
+          ... on IssueFieldAddedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            value
+            color
+            issueField {{
+              __typename
+              ... on IssueFieldDate {{ name }}
+              ... on IssueFieldNumber {{ name }}
+              ... on IssueFieldSingleSelect {{ name }}
+              ... on IssueFieldText {{ name }}
+            }}
+          }}
+          ... on IssueFieldRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            issueField {{
+              __typename
+              ... on IssueFieldDate {{ name }}
+              ... on IssueFieldNumber {{ name }}
+              ... on IssueFieldSingleSelect {{ name }}
+              ... on IssueFieldText {{ name }}
+            }}
+          }}
+          ... on IssueFieldChangedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            previousValue
+            newValue
+            previousColor
+            newColor
+            issueField {{
+              __typename
+              ... on IssueFieldDate {{ name }}
+              ... on IssueFieldNumber {{ name }}
+              ... on IssueFieldSingleSelect {{ name }}
+              ... on IssueFieldText {{ name }}
+            }}
           }}
           ... on SubIssueAddedEvent {{
             id

@@ -77,10 +77,12 @@ For pull requests:
   references, assignments, locks, pins, duplicate markers, transfers, review
   requests, draft/ready state, branch changes, force-pushes, merge queue
   changes, review dismissals, auto-merge/rebase/squash changes, automatic base
-  changes, merges, title changes, milestones, issue types, sub-issues, parent
-  issues, blocking relationships, and converted discussions; comments, timeline
-  events, reviews, review threads, and review-thread comments are paginated so long
-  histories are not capped at the first page
+  changes, merges, title changes, milestones, projects, project-v2 statuses,
+  issue types, issue fields, sub-issues, parent issues, blocking relationships,
+  user blocks, converted project notes, converted draft items, converted
+  discussions, and deployment events; comments, timeline events, reviews, review
+  threads, and review-thread comments are paginated so long histories are not
+  capped at the first page
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
@@ -100,9 +102,10 @@ For issues:
   and projects where available
 - comments and timeline events such as labels, references, assignments, title
   changes, locks, pins, duplicate markers, transfers, milestones, issue types,
-  sub-issues, parent issues, blocking relationships, and converted discussions;
-  comments and timeline events are paginated so long histories are not capped at
-  the first page
+  issue fields, projects, project-v2 statuses, sub-issues, parent issues,
+  blocking relationships, user blocks, converted project notes, converted draft
+  items, and converted discussions; comments and timeline events are paginated so
+  long histories are not capped at the first page
 - comment author association, edit/minimized flags, reactions, and permalinks
 - detected issue/PR links, including paginated GitHub relationship links
 
