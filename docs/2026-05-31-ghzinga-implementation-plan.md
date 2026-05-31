@@ -29,9 +29,10 @@ read an existing credential with `gh auth token`.
 - Full Rust implementation.
 - Ratatui UI with Crossterm terminal setup and mouse capture.
 - Standalone binary, not a `gh dash` plugin.
-- No Nerd Font characters required. The default UI may use common emoji symbols
-  as semantic markers, but controls must also include text labels so meaning is
-  not color- or symbol-only.
+- No Nerd Font characters, emoji, or non-ASCII chrome are required by default.
+  The default UI uses ASCII markers and text labels; `--symbols emoji` may opt
+  into richer semantic markers, but controls must still include text labels so
+  meaning is not color- or symbol-only.
 - PR support: body, reactions, comments, review comments, commits, CI/check status, changed files, labels, author, branch/base metadata, mergeability/status.
 - Issue support: body, reactions, comments, labels, author, state, linked PR/issue navigation where available.
 - Mouse-first interaction:
