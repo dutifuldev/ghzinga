@@ -55,6 +55,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = run_graphql_base_pr(id).await?;
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
+    enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -95,6 +96,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = run_graphql_base_issue(id).await?;
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
+    enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -116,6 +118,14 @@ fn replace_comment_activity(resource: &mut Resource, comments: Vec<ActivityEntry
         .activity
         .retain(|entry| entry.kind != ActivityKind::Comment);
     resource.activity.extend(comments);
+}
+
+async fn enrich_project_metadata(resource: &mut Resource, id: &ResourceId, kind: ResourceKind) {
+    match fetch_project_names(id, kind).await {
+        Ok(projects) => apply_project_metadata(&mut resource.metadata, projects),
+        Err(error) if is_project_scope_error(&error) => {}
+        Err(error) => push_enrichment_warning(resource, "projects unavailable", &error),
+    }
 }
 
 async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
@@ -218,6 +228,15 @@ async fn run_graphql_base_pr(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
 
 async fn run_graphql_base_issue(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
     run_graphql_query(base_issue_query(), owner_repo_number_variables(id, None)).await
+}
+
+async fn run_graphql_project_items(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = project_items_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
 fn graphql_preview(selector: &str, id: &ResourceId) -> Vec<String> {
@@ -393,6 +412,34 @@ query($owner: String!, $name: String!, $number: Int!) {
   }
 }
 "#
+}
+
+fn project_items_query(kind: ResourceKind) -> String {
+    let selector = match kind {
+        ResourceKind::PullRequest => "pullRequest",
+        ResourceKind::Issue => "issue",
+    };
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      projectItems(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          project {{
+            title
+          }}
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
 }
 
 async fn run_graphql_comments(
@@ -1122,6 +1169,50 @@ struct TimelineItemsConnection {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct ProjectItemsResponse {
+    data: ProjectItemsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectItemsData {
+    repository: Option<ProjectItemsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectItemsRepository {
+    issue: Option<ProjectItemsResource>,
+    pull_request: Option<ProjectItemsResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectItemsResource {
+    project_items: ProjectItemsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectItemsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<ProjectItemDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectItemDto {
+    project: Option<ProjectDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectDto {
+    title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PageInfoDto {
     has_next_page: bool,
     end_cursor: Option<String>,
@@ -1741,6 +1832,33 @@ fn push_vec_metadata(items: &mut Vec<MetadataItem>, label: &str, values: Vec<Str
     });
 }
 
+fn apply_project_metadata(items: &mut Vec<MetadataItem>, projects: Vec<String>) {
+    let projects = deduped_nonempty_strings(projects);
+    if projects.is_empty() {
+        return;
+    }
+    if let Some(item) = items.iter_mut().find(|item| item.label == "Projects") {
+        item.value = projects.join(", ");
+        return;
+    }
+    push_vec_metadata(items, "Projects", projects);
+}
+
+fn deduped_nonempty_strings(values: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    values
+        .into_iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .filter(|value| seen.insert(value.clone()))
+        .collect()
+}
+
+fn is_project_scope_error(error: &anyhow::Error) -> bool {
+    let message = error.to_string();
+    message.contains("read:project") || message.contains("INSUFFICIENT_SCOPES")
+}
+
 fn value_titles(values: &[Value]) -> Vec<String> {
     values
         .iter()
@@ -1997,6 +2115,50 @@ async fn fetch_timeline_activity(
         };
         after = Some(cursor);
     }
+}
+
+async fn fetch_project_names(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<String>> {
+    let mut projects = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_project_items(id, kind, after.as_deref()).await?;
+        let response: ProjectItemsResponse = serde_json::from_slice(&output)
+            .context("failed to parse project items GraphQL JSON")?;
+        let Some(page) = project_items_page(response) else {
+            return Ok(projects);
+        };
+        projects.extend(page.projects);
+        if !page.has_next_page {
+            return Ok(deduped_nonempty_strings(projects));
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("project items page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+struct ProjectItemsPage {
+    projects: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+fn project_items_page(response: ProjectItemsResponse) -> Option<ProjectItemsPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.project_items.page_info;
+    Some(ProjectItemsPage {
+        projects: resource
+            .project_items
+            .nodes
+            .into_iter()
+            .filter_map(|item| item.project?.title)
+            .filter(|title| !title.trim().is_empty())
+            .collect(),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
 }
 
 async fn fetch_changed_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>> {
@@ -2833,6 +2995,93 @@ mod tests {
             assert!(query.contains("endCursor"));
             assert!(query.contains("reactionGroups"));
         }
+    }
+
+    #[test]
+    fn project_items_query_uses_selector_and_pagination_state() {
+        let issue_query = project_items_query(ResourceKind::Issue);
+        let pr_query = project_items_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("projectItems(first: 100, after: $after)"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("project"));
+            assert!(query.contains("title"));
+        }
+    }
+
+    #[test]
+    fn project_items_page_preserves_pagination_state() {
+        let page = project_items_page(ProjectItemsResponse {
+            data: ProjectItemsData {
+                repository: Some(ProjectItemsRepository {
+                    issue: None,
+                    pull_request: Some(ProjectItemsResource {
+                        project_items: ProjectItemsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("project-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                ProjectItemDto {
+                                    project: Some(ProjectDto {
+                                        title: Some("Roadmap".into()),
+                                    }),
+                                },
+                                ProjectItemDto {
+                                    project: Some(ProjectDto {
+                                        title: Some(" ".into()),
+                                    }),
+                                },
+                                ProjectItemDto { project: None },
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("project items page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("project-cursor-2"));
+        assert_eq!(page.projects, vec!["Roadmap"]);
+    }
+
+    #[test]
+    fn apply_project_metadata_replaces_existing_value_and_dedupes() {
+        let mut metadata = vec![
+            MetadataItem {
+                label: "Closed".into(),
+                value: "no".into(),
+            },
+            MetadataItem {
+                label: "Projects".into(),
+                value: "Old".into(),
+            },
+        ];
+
+        apply_project_metadata(
+            &mut metadata,
+            vec![" Roadmap ".into(), "Roadmap".into(), "Triage".into()],
+        );
+
+        assert_eq!(metadata.len(), 2);
+        assert_eq!(metadata[1].label, "Projects");
+        assert_eq!(metadata[1].value, "Roadmap, Triage");
+    }
+
+    #[test]
+    fn project_scope_errors_are_suppressed_for_optional_metadata() {
+        let error = anyhow::anyhow!(
+            "GitHub GraphQL request returned errors: INSUFFICIENT_SCOPES read:project"
+        );
+
+        assert!(is_project_scope_error(&error));
     }
 
     #[test]
