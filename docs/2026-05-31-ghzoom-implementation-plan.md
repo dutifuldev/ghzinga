@@ -183,7 +183,8 @@ Data loaded for PR:
   job/context rows so top-level workflow status is visible first
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and
-  review-thread resolved/outdated state
+  review-thread resolved/outdated state; review thread pages are fetched until
+  GitHub reports no next page
 - timeline events for labels, references, assignments, pins, locks, duplicate
   markers, transfers, connected/disconnected references, review requests,
   draft/ready state, auto-merge changes, merges, title changes, milestones,
