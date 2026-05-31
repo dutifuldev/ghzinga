@@ -65,19 +65,22 @@ async fn run_tui(
     refresh_interval: Duration,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
+    let gateway = GithubApiGateway;
     let mut last_refresh = Instant::now();
     loop {
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
             return Ok(());
         }
-        if live_refresh
-            && refresh_interval.as_secs() > 0
-            && last_refresh.elapsed() >= refresh_interval
-        {
-            refresh_resource(state).await;
-            last_refresh = Instant::now();
-        }
+        maybe_auto_refresh(
+            state,
+            live_refresh,
+            refresh_interval,
+            &mut last_refresh,
+            Instant::now(),
+            &gateway,
+        )
+        .await;
         if event::poll(Duration::from_millis(250))? {
             let app_event = match event::read()? {
                 Event::Key(key) => Some(AppEvent::Key(key)),
@@ -89,7 +92,7 @@ async fn run_tui(
                     AppIntent::Quit => return Ok(()),
                     AppIntent::Refresh => {
                         if live_refresh {
-                            refresh_resource(state).await;
+                            refresh_resource(state, &gateway).await;
                             last_refresh = Instant::now();
                         } else {
                             state.status_message =
@@ -98,7 +101,7 @@ async fn run_tui(
                     }
                     AppIntent::Navigate(id) => {
                         if live_refresh {
-                            navigate_to_resource(state, id).await;
+                            navigate_to_resource(state, id, &gateway).await;
                             last_refresh = Instant::now();
                         } else {
                             state.last_error = Some(format!(
@@ -115,7 +118,7 @@ async fn run_tui(
                     }
                     AppIntent::Back => {
                         if live_refresh {
-                            navigate_back(state).await;
+                            navigate_back(state, &gateway).await;
                             last_refresh = Instant::now();
                         } else {
                             state.status_message =
@@ -127,6 +130,31 @@ async fn run_tui(
             }
         }
     }
+}
+
+async fn maybe_auto_refresh<G: GithubGateway>(
+    state: &mut AppState,
+    live_refresh: bool,
+    refresh_interval: Duration,
+    last_refresh: &mut Instant,
+    now: Instant,
+    gateway: &G,
+) -> bool {
+    if !auto_refresh_due(
+        live_refresh,
+        refresh_interval,
+        now.duration_since(*last_refresh),
+    ) {
+        return false;
+    }
+
+    refresh_resource(state, gateway).await;
+    *last_refresh = now;
+    true
+}
+
+fn auto_refresh_due(live_refresh: bool, refresh_interval: Duration, elapsed: Duration) -> bool {
+    live_refresh && refresh_interval.as_secs() > 0 && elapsed >= refresh_interval
 }
 
 async fn open_url(state: &mut AppState, url: &str) {
@@ -235,9 +263,8 @@ fn open_command_args(id: &ResourceId) -> Vec<String> {
     }
 }
 
-async fn refresh_resource(state: &mut AppState) {
+async fn refresh_resource<G: GithubGateway>(state: &mut AppState, gateway: &G) {
     let id = state.resource.id.clone();
-    let gateway = GithubApiGateway;
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             state.apply_refreshed_resource(resource, current_refresh_label());
@@ -248,8 +275,11 @@ async fn refresh_resource(state: &mut AppState) {
     }
 }
 
-async fn navigate_to_resource(state: &mut AppState, id: ghzoom::domain::ResourceId) {
-    let gateway = GithubApiGateway;
+async fn navigate_to_resource<G: GithubGateway>(
+    state: &mut AppState,
+    id: ghzoom::domain::ResourceId,
+    gateway: &G,
+) {
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             state.push_current_to_history();
@@ -276,12 +306,11 @@ fn current_refresh_label() -> String {
     format!("{hours:02}:{minutes:02}:{seconds:02} UTC")
 }
 
-async fn navigate_back(state: &mut AppState) {
+async fn navigate_back<G: GithubGateway>(state: &mut AppState, gateway: &G) {
     let Some(id) = state.pop_history() else {
         state.status_message = Some("no previous resource".into());
         return;
     };
-    let gateway = GithubApiGateway;
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             let name = resource.id.canonical_name();
@@ -297,9 +326,77 @@ async fn navigate_back(state: &mut AppState) {
 
 #[cfg(test)]
 mod tests {
-    use ghzoom::domain::{ResourceId, ResourceKind};
+    use std::{
+        collections::VecDeque,
+        sync::Mutex,
+        time::{Duration, Instant},
+    };
 
-    use super::{open_command_args, url_open_command};
+    use ghzoom::{
+        app::AppState,
+        domain::{ReactionCounts, Resource, ResourceId, ResourceKind},
+        github::api::GithubGateway,
+    };
+
+    use super::{
+        auto_refresh_due, maybe_auto_refresh, navigate_back, navigate_to_resource,
+        open_command_args, url_open_command,
+    };
+
+    struct FakeGateway {
+        resources: Mutex<VecDeque<Resource>>,
+        requested: Mutex<Vec<ResourceId>>,
+    }
+
+    impl FakeGateway {
+        fn new(resources: Vec<Resource>) -> Self {
+            Self {
+                resources: Mutex::new(resources.into()),
+                requested: Mutex::new(Vec::new()),
+            }
+        }
+
+        fn requested(&self) -> Vec<ResourceId> {
+            self.requested.lock().unwrap().clone()
+        }
+    }
+
+    impl GithubGateway for FakeGateway {
+        async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
+            self.requested.lock().unwrap().push(id.clone());
+            self.resources
+                .lock()
+                .unwrap()
+                .pop_front()
+                .ok_or_else(|| anyhow::anyhow!("no fake resource queued"))
+        }
+    }
+
+    fn issue_resource(number: u64, title: &str) -> Resource {
+        Resource {
+            id: ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number,
+                kind_hint: Some(ResourceKind::Issue),
+            },
+            title: title.into(),
+            url: format!("https://github.com/owner/repo/issues/{number}"),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![],
+            pull_request: None,
+        }
+    }
 
     #[test]
     fn open_command_uses_pr_web_view_for_pull_requests() {
@@ -359,6 +456,121 @@ mod tests {
                     "https://github.com/openclaw/openclaw/actions/runs/1".into()
                 ]
             )
+        );
+    }
+
+    #[test]
+    fn auto_refresh_due_requires_live_mode_positive_interval_and_elapsed_time() {
+        assert!(auto_refresh_due(
+            true,
+            Duration::from_secs(30),
+            Duration::from_secs(30)
+        ));
+        assert!(!auto_refresh_due(
+            false,
+            Duration::from_secs(30),
+            Duration::from_secs(30)
+        ));
+        assert!(!auto_refresh_due(
+            true,
+            Duration::from_secs(0),
+            Duration::from_secs(30)
+        ));
+        assert!(!auto_refresh_due(
+            true,
+            Duration::from_secs(30),
+            Duration::from_secs(29)
+        ));
+    }
+
+    #[tokio::test]
+    async fn automatic_refresh_fetches_resource_and_records_changes() {
+        let initial = issue_resource(1, "Initial issue");
+        let mut refreshed = issue_resource(1, "Updated issue");
+        refreshed.body = "Updated body".into();
+        let gateway = FakeGateway::new(vec![refreshed]);
+        let mut state = AppState::new(initial);
+        let mut last_refresh = Instant::now();
+        let now = last_refresh + Duration::from_secs(30);
+
+        let refreshed = maybe_auto_refresh(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            now,
+            &gateway,
+        )
+        .await;
+
+        assert!(refreshed);
+        assert_eq!(last_refresh, now);
+        assert_eq!(state.resource.title, "Updated issue");
+        assert_eq!(state.resource.body, "Updated body");
+        assert_eq!(state.last_refresh_had_changes, Some(true));
+        assert_eq!(state.last_refresh_changed_sections, ["summary"]);
+        assert_eq!(gateway.requested(), [state.resource.id.clone()]);
+    }
+
+    #[tokio::test]
+    async fn automatic_refresh_waits_until_interval_is_due() {
+        let initial = issue_resource(1, "Initial issue");
+        let gateway = FakeGateway::new(vec![issue_resource(1, "Unexpected issue")]);
+        let mut state = AppState::new(initial.clone());
+        let mut last_refresh = Instant::now();
+        let now = last_refresh + Duration::from_secs(29);
+
+        let refreshed = maybe_auto_refresh(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            now,
+            &gateway,
+        )
+        .await;
+
+        assert!(!refreshed);
+        assert_eq!(state.resource.title, initial.title);
+        assert!(gateway.requested().is_empty());
+    }
+
+    #[tokio::test]
+    async fn navigation_loads_target_and_back_restores_previous_resource() {
+        let initial = issue_resource(1, "Initial issue");
+        let target = issue_resource(2, "Linked issue");
+        let gateway = FakeGateway::new(vec![target, initial.clone()]);
+        let mut state = AppState::new(initial.clone());
+        let target_id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+
+        navigate_to_resource(&mut state, target_id.clone(), &gateway).await;
+
+        assert_eq!(state.resource.id, target_id);
+        assert_eq!(state.resource.title, "Linked issue");
+        assert_eq!(state.history.as_slice(), std::slice::from_ref(&initial.id));
+        assert_eq!(state.status_message.as_deref(), Some("opened owner/repo#2"));
+
+        navigate_back(&mut state, &gateway).await;
+
+        assert_eq!(state.resource.id, initial.id);
+        assert_eq!(state.resource.title, "Initial issue");
+        assert!(state.history.is_empty());
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("returned to owner/repo#1")
+        );
+        assert_eq!(
+            gateway
+                .requested()
+                .into_iter()
+                .map(|id| id.number)
+                .collect::<Vec<_>>(),
+            [2, 1]
         );
     }
 }
