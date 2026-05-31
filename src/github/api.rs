@@ -15,7 +15,7 @@ use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
     comments_query, commit_authors_query, commit_comment_thread_comments_query,
     commit_deployment_items_query, commit_deployments_query, commits_query, labels_query,
-    linked_resources_query, project_items_query, review_requests_query,
+    linked_resources_query, participants_query, project_items_query, review_requests_query,
     review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
     timeline_query,
 };
@@ -74,6 +74,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
+    enrich_participants(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_review_requests(&mut resource, id).await;
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
@@ -136,6 +137,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
+    enrich_participants(&mut resource, id, ResourceKind::Issue).await;
     enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
@@ -225,7 +227,7 @@ async fn fetch_public_rest_pr(
     });
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, relationship links, and check suites".into(),
+        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, participants, relationship links, and check suites".into(),
     );
     Ok(resource)
 }
@@ -250,7 +252,7 @@ async fn fetch_public_rest_issue(
     let mut resource = rest_issue_resource(issue, id, comments);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, relationship links, and review data".into(),
+        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, relationship links, and review data".into(),
     );
     Ok(resource)
 }
@@ -367,6 +369,13 @@ async fn enrich_labels_and_assignees(resource: &mut Resource, id: &ResourceId, k
     }
 }
 
+async fn enrich_participants(resource: &mut Resource, id: &ResourceId, kind: ResourceKind) {
+    match fetch_participants(id, kind).await {
+        Ok(participants) => apply_participant_metadata(&mut resource.metadata, participants),
+        Err(error) => push_enrichment_warning(resource, "participants unavailable", &error),
+    }
+}
+
 async fn enrich_review_requests(resource: &mut Resource, id: &ResourceId) {
     match fetch_review_requests(id).await {
         Ok(review_requests) => {
@@ -426,6 +435,15 @@ async fn run_graphql_assignees(
     after: Option<&str>,
 ) -> anyhow::Result<Vec<u8>> {
     let query = assignees_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_participants(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = participants_query(kind);
     run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
@@ -813,6 +831,38 @@ struct AssigneesResource {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AssigneesConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<UserDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParticipantsResponse {
+    data: ParticipantsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParticipantsData {
+    repository: Option<ParticipantsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParticipantsRepository {
+    issue: Option<ParticipantsResource>,
+    pull_request: Option<ParticipantsResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParticipantsResource {
+    participants: ParticipantsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ParticipantsConnection {
     page_info: PageInfoDto,
     nodes: Vec<UserDto>,
 }
@@ -1993,6 +2043,18 @@ fn apply_project_metadata(items: &mut Vec<MetadataItem>, projects: Vec<String>) 
     push_vec_metadata(items, "Projects", projects);
 }
 
+fn apply_participant_metadata(items: &mut Vec<MetadataItem>, participants: Vec<String>) {
+    let participants = deduped_nonempty_strings(participants);
+    if participants.is_empty() {
+        return;
+    }
+    if let Some(item) = items.iter_mut().find(|item| item.label == "Participants") {
+        item.value = participants.join(", ");
+        return;
+    }
+    push_vec_metadata(items, "Participants", participants);
+}
+
 fn deduped_nonempty_strings(values: Vec<String>) -> Vec<String> {
     let mut seen = HashSet::new();
     values
@@ -2045,6 +2107,27 @@ async fn fetch_assignees(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<
         }
         let Some(cursor) = page.end_cursor else {
             anyhow::bail!("assignees page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+async fn fetch_participants(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<String>> {
+    let mut participants = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_participants(id, kind, after.as_deref()).await?;
+        let response: ParticipantsResponse =
+            serde_json::from_slice(&output).context("failed to parse participants GraphQL JSON")?;
+        let Some(page) = participants_page(response) else {
+            return Ok(participants);
+        };
+        participants.extend(page.participants);
+        if !page.has_next_page {
+            return Ok(participants);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("participants page reported next page without an end cursor");
         };
         after = Some(cursor);
     }
@@ -2107,6 +2190,12 @@ struct AssigneesPage {
     end_cursor: Option<String>,
 }
 
+struct ParticipantsPage {
+    participants: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
 struct ReviewRequestsPage {
     reviewers: Vec<String>,
     has_next_page: bool,
@@ -2130,6 +2219,13 @@ fn labels_from_response(response: LabelsResponse) -> Vec<String> {
 fn assignees_from_response(response: AssigneesResponse) -> Vec<String> {
     assignees_page(response)
         .map(|page| page.assignees)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn participants_from_response(response: ParticipantsResponse) -> Vec<String> {
+    participants_page(response)
+        .map(|page| page.participants)
         .unwrap_or_default()
 }
 
@@ -2174,6 +2270,17 @@ fn assignees_page(response: AssigneesResponse) -> Option<AssigneesPage> {
     let page_info = resource.assignees.page_info;
     Some(AssigneesPage {
         assignees: names_from_users(resource.assignees.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn participants_page(response: ParticipantsResponse) -> Option<ParticipantsPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.participants.page_info;
+    Some(ParticipantsPage {
+        participants: names_from_users(resource.participants.nodes),
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
@@ -4877,6 +4984,24 @@ mod tests {
     }
 
     #[test]
+    fn participants_query_uses_selector_and_pagination_state() {
+        let issue_query = participants_query(ResourceKind::Issue);
+        let pr_query = participants_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("participants(first: 100, after: $after)"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("login"));
+            assert!(query.contains("name"));
+        }
+    }
+
+    #[test]
     fn review_requests_query_requests_pagination_state_and_reviewer_fragments() {
         let query = review_requests_query();
 
@@ -5065,6 +5190,63 @@ mod tests {
         });
 
         assert!(assignees.is_empty());
+    }
+
+    #[test]
+    fn participants_page_preserves_pagination_state_and_display_names() {
+        let page = participants_page(ParticipantsResponse {
+            data: ParticipantsData {
+                repository: Some(ParticipantsRepository {
+                    issue: Some(ParticipantsResource {
+                        participants: ParticipantsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("participant-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                UserDto {
+                                    login: Some("alice".into()),
+                                    name: Some("Alice Maintainer".into()),
+                                },
+                                UserDto {
+                                    login: None,
+                                    name: Some("Display Name".into()),
+                                },
+                                UserDto {
+                                    login: None,
+                                    name: None,
+                                },
+                            ],
+                        },
+                    }),
+                    pull_request: None,
+                }),
+            },
+        })
+        .expect("participants page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("participant-cursor-2"));
+        assert_eq!(page.participants, vec!["alice", "Display Name"]);
+
+        let participants = participants_from_response(ParticipantsResponse {
+            data: ParticipantsData {
+                repository: Some(ParticipantsRepository {
+                    issue: None,
+                    pull_request: Some(ParticipantsResource {
+                        participants: ParticipantsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
+                            nodes: Vec::new(),
+                        },
+                    }),
+                }),
+            },
+        });
+
+        assert!(participants.is_empty());
     }
 
     #[test]
@@ -5259,6 +5441,29 @@ mod tests {
         assert_eq!(metadata.len(), 2);
         assert_eq!(metadata[1].label, "Projects");
         assert_eq!(metadata[1].value, "Roadmap, Triage");
+    }
+
+    #[test]
+    fn apply_participant_metadata_replaces_existing_value_and_dedupes() {
+        let mut metadata = vec![
+            MetadataItem {
+                label: "Closed".into(),
+                value: "no".into(),
+            },
+            MetadataItem {
+                label: "Participants".into(),
+                value: "old".into(),
+            },
+        ];
+
+        apply_participant_metadata(
+            &mut metadata,
+            vec![" alice ".into(), "alice".into(), "bob".into(), "".into()],
+        );
+
+        assert_eq!(metadata.len(), 2);
+        assert_eq!(metadata[1].label, "Participants");
+        assert_eq!(metadata[1].value, "alice, bob");
     }
 
     #[test]
