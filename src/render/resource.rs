@@ -11,7 +11,7 @@ use crate::{
     app::{AppState, BlockId, Tab},
     domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
-    render::{markdown, Palette, ViewRects},
+    render::{markdown, Palette, Symbols, ViewRects},
 };
 
 struct ContentRow {
@@ -36,6 +36,13 @@ enum TimelineItem<'a> {
 struct StyledPiece {
     text: String,
     style: Style,
+}
+
+struct CheckGroupRenderContext<'a> {
+    expanded_blocks: &'a std::collections::HashSet<BlockId>,
+    width: usize,
+    palette: &'a Palette,
+    symbols: &'a Symbols,
 }
 
 impl ContentRow {
@@ -189,30 +196,39 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
 
 fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
     let resource = &state.resource;
+    let symbols = state.symbols.symbols();
     let mut pieces = Vec::new();
     pieces.push(StyledPiece {
-        text: format!("{} {}", resource_state_symbol(resource), resource.state),
+        text: format!(
+            "{} {}",
+            resource_state_symbol(resource, &symbols),
+            resource.state
+        ),
         style: resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
     });
     push_status_piece(
         &mut pieces,
-        format!("👤 @{}", resource.author),
+        format!("{} @{}", symbols.author, resource.author),
         Style::default().fg(palette.subtext0),
     );
     push_status_piece(
         &mut pieces,
-        format!("💬 {}", resource.activity.len()),
+        format!("{} {}", symbols.comments, resource.activity.len()),
         Style::default().fg(palette.teal),
     );
     push_status_piece(
         &mut pieces,
-        format!("👍 {}", resource.reactions.total()),
+        format!("{} {}", symbols.reactions, resource.reactions.total()),
         Style::default().fg(palette.yellow),
     );
     if !resource.assignees.is_empty() {
         push_status_piece(
             &mut pieces,
-            format!("🎯 {}", people_summary(&resource.assignees)),
+            format!(
+                "{} {}",
+                symbols.assignees,
+                people_summary(&resource.assignees)
+            ),
             Style::default().fg(palette.blue),
         );
     }
@@ -221,7 +237,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
             &mut pieces,
             format!(
                 "{} checks {}",
-                checks_symbol(resource),
+                checks_symbol(resource, &symbols),
                 checks_summary(resource)
             ),
             checks_style(resource, palette).add_modifier(Modifier::BOLD),
@@ -229,7 +245,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         if let Some(threads) = review_threads_summary(resource) {
             push_status_piece(
                 &mut pieces,
-                format!("🧵 {threads}"),
+                format!("{} {threads}", symbols.threads),
                 Style::default().fg(palette.peach),
             );
         }
@@ -237,7 +253,8 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
             push_status_piece(
                 &mut pieces,
                 format!(
-                    "📄 {} files +{} -{}",
+                    "{} {} +{} -{}",
+                    symbols.files,
                     pr.files.len(),
                     pr.additions,
                     pr.deletions
@@ -249,7 +266,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     if !resource.warnings.is_empty() {
         push_status_piece(
             &mut pieces,
-            format!("⚠ Warnings: {}", resource.warnings.len()),
+            format!("{} Warnings: {}", symbols.warning, resource.warnings.len()),
             Style::default()
                 .fg(palette.yellow)
                 .add_modifier(Modifier::BOLD),
@@ -258,14 +275,14 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     if let Some(refresh) = refresh_summary(state) {
         push_status_piece(
             &mut pieces,
-            format!("🔁 {refresh}"),
+            format!("{} {refresh}", symbols.refresh),
             Style::default().fg(palette.accent),
         );
     }
     if let Some(changes) = refresh_changes_summary(state) {
         push_status_piece(
             &mut pieces,
-            format!("✦ {changes}"),
+            format!("{} {changes}", symbols.changed),
             Style::default()
                 .fg(palette.green)
                 .add_modifier(Modifier::BOLD),
@@ -273,7 +290,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     }
 
     let mut lines = wrap_styled_pieces(&pieces, area.width as usize);
-    if let Some(message) = status_detail_line(state) {
+    if let Some(message) = status_detail_line(state, &symbols) {
         let style = if state.last_error.is_some() {
             Style::default()
                 .fg(palette.red)
@@ -293,7 +310,7 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         lines.truncate(area.height as usize);
         if let Some(last) = lines.last_mut() {
             *last = Line::from(Span::styled(
-                truncate_display("…", area.width as usize),
+                truncate_display("...", area.width as usize),
                 Style::default()
                     .fg(palette.overlay1)
                     .add_modifier(Modifier::BOLD),
@@ -309,12 +326,12 @@ fn push_status_piece(pieces: &mut Vec<StyledPiece>, text: String, style: Style) 
     pieces.push(StyledPiece { text, style });
 }
 
-fn status_detail_line(state: &AppState) -> Option<String> {
+fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
     if let Some(error) = &state.last_error {
-        return Some(format!("❌ {error}"));
+        return Some(format!("{} {error}", symbols.error));
     }
     if let Some(message) = &state.status_message {
-        return Some(format!("ⓘ {message}"));
+        return Some(format!("{} {message}", symbols.info));
     }
     None
 }
@@ -347,12 +364,12 @@ fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>
     lines
 }
 
-fn resource_state_symbol(resource: &Resource) -> &'static str {
+fn resource_state_symbol(resource: &Resource, symbols: &Symbols) -> &'static str {
     match resource.state.to_ascii_uppercase().as_str() {
-        "OPEN" => "✅",
-        "MERGED" => "🟣",
-        "CLOSED" => "❌",
-        _ => "○",
+        "OPEN" => symbols.state_open,
+        "MERGED" => symbols.state_merged,
+        "CLOSED" => symbols.state_closed,
+        _ => symbols.state_unknown,
     }
 }
 
@@ -366,12 +383,12 @@ fn resource_state_style(resource: &Resource, palette: &Palette) -> Style {
     Style::default().fg(color)
 }
 
-fn checks_symbol(resource: &Resource) -> &'static str {
+fn checks_symbol(resource: &Resource, symbols: &Symbols) -> &'static str {
     match summarize_checks(resource).as_str() {
-        "PASS" => "✅",
-        "FAIL" => "❌",
-        "PENDING" => "⏳",
-        _ => "○",
+        "PASS" => symbols.checks_pass,
+        "FAIL" => symbols.checks_fail,
+        "PENDING" => symbols.checks_pending,
+        _ => symbols.checks_unknown,
     }
 }
 
@@ -384,14 +401,14 @@ fn checks_style(resource: &Resource, palette: &Palette) -> Style {
     }
 }
 
-fn check_status_symbol(status: CheckStatus) -> &'static str {
+fn check_status_symbol(status: CheckStatus, symbols: &Symbols) -> &'static str {
     match status {
-        CheckStatus::Success => "✅",
-        CheckStatus::Failure => "❌",
-        CheckStatus::Pending => "⏳",
-        CheckStatus::Skipped => "↷",
-        CheckStatus::Neutral => "○",
-        CheckStatus::Unknown => "?",
+        CheckStatus::Success => symbols.check_success,
+        CheckStatus::Failure => symbols.check_failure,
+        CheckStatus::Pending => symbols.check_pending,
+        CheckStatus::Skipped => symbols.check_skipped,
+        CheckStatus::Neutral => symbols.check_neutral,
+        CheckStatus::Unknown => symbols.check_unknown,
     }
 }
 
@@ -445,11 +462,11 @@ fn separator_row(width: usize, palette: &Palette) -> ContentRow {
     ContentRow::styled(horizontal_rule(width as u16), dim_style(palette))
 }
 
-fn expand_label(expanded: bool) -> &'static str {
+fn expand_label(expanded: bool, symbols: &Symbols) -> &'static str {
     if expanded {
-        "[➖ less]"
+        symbols.less
     } else {
-        "[➕ more]"
+        symbols.more
     }
 }
 
@@ -508,8 +525,9 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
 }
 
 fn content_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
+    let symbols = state.symbols.symbols();
     if state.show_help {
-        return help_rows(width, palette);
+        return help_rows(width, palette, &symbols);
     }
     match state.active_tab {
         Tab::Overview => overview_rows(state, width, palette),
@@ -521,15 +539,19 @@ fn content_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<Co
     }
 }
 
-fn help_rows(width: usize, palette: &Palette) -> Vec<ContentRow> {
+fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentRow> {
     let mut rows = Vec::new();
     rows.push(heading_row("Help", palette));
     rows.push(ContentRow::plain(""));
     rows.push(heading_row("Mouse", palette));
+    let expand_help = format!(
+        "- Click {} or {} to expand or collapse long text, checks, and files.",
+        symbols.more, symbols.less
+    );
     rows.extend(
         [
             "- Click tabs to switch sections.",
-            "- Click [➕ more] or [➖ less] to expand or collapse long text, checks, and files.",
+            expand_help.as_str(),
             "- Click visible GitHub issue or PR references to navigate.",
             "- Use the mouse wheel to scroll the current view.",
             "",
@@ -738,8 +760,12 @@ fn push_body_timeline_rows(
     palette: &Palette,
 ) {
     let resource = &state.resource;
+    let symbols = state.symbols.symbols();
     rows.push(ContentRow::styled(
-        format!("📝 @{} opened {}", resource.author, resource.created_at),
+        format!(
+            "{} @{} opened {}",
+            symbols.body, resource.author, resource.created_at
+        ),
         heading_style(palette),
     ));
     if resource.body.trim().is_empty() {
@@ -759,7 +785,7 @@ fn push_body_timeline_rows(
     );
     if truncated || expanded {
         rows.push(ContentRow::target_styled(
-            expand_label(expanded),
+            expand_label(expanded, &symbols),
             HitTarget::ToggleBlock(BlockId::Body),
             button_style(palette),
         ));
@@ -773,12 +799,13 @@ fn push_commit_timeline_rows(
     width: usize,
     palette: &Palette,
 ) {
+    let symbols = state.symbols.symbols();
     let block = BlockId::Commit(commit.oid.clone());
     let expanded = state.block_expanded(&block);
-    let marker = expand_label(expanded);
+    let marker = expand_label(expanded, &symbols);
     rows.push(ContentRow::target_styled(
         format!(
-            "● commit {} by @{} {} [{}] {}",
+            "* commit {} by @{} {} [{}] {}",
             truncate_ascii(&commit.oid, 8),
             commit.author,
             commit.committed_at,
@@ -792,7 +819,7 @@ fn push_commit_timeline_rows(
     if expanded {
         push_expanded_commit_details(rows, commit, width, &state.resource);
         rows.push(ContentRow::target_styled(
-            expand_label(true),
+            expand_label(true, &symbols),
             HitTarget::ToggleBlock(block),
             button_style(palette),
         ));
@@ -807,10 +834,11 @@ fn push_activity_timeline_rows(
     palette: &Palette,
 ) {
     let resource = &state.resource;
+    let symbols = state.symbols.symbols();
     rows.push(ContentRow::styled(
         format!(
             "{} {} by @{} {}",
-            activity_icon(entry),
+            activity_icon(entry, &symbols),
             entry.kind.label(),
             entry.author,
             entry.updated_at
@@ -846,19 +874,19 @@ fn push_activity_timeline_rows(
     );
     if truncated || expanded {
         rows.push(ContentRow::target_styled(
-            expand_label(expanded),
+            expand_label(expanded, &symbols),
             HitTarget::ToggleBlock(block),
             button_style(palette),
         ));
     }
 }
 
-fn activity_icon(entry: &ActivityEntry) -> &'static str {
+fn activity_icon(entry: &ActivityEntry, symbols: &Symbols) -> &'static str {
     match entry.kind {
-        crate::domain::ActivityKind::Comment => "💬",
-        crate::domain::ActivityKind::Review => "✅",
-        crate::domain::ActivityKind::ReviewComment => "🧵",
-        crate::domain::ActivityKind::Timeline => "•",
+        crate::domain::ActivityKind::Comment => symbols.activity_comment,
+        crate::domain::ActivityKind::Review => symbols.activity_review,
+        crate::domain::ActivityKind::ReviewComment => symbols.activity_review_comment,
+        crate::domain::ActivityKind::Timeline => symbols.activity_timeline,
     }
 }
 
@@ -901,6 +929,7 @@ fn push_metadata_rows(
 }
 
 fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
+    let symbols = state.symbols.symbols();
     let mut rows = vec![
         ContentRow::styled(
             format!("Activity ({} entries)", state.resource.activity.len()),
@@ -948,7 +977,7 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         );
         if truncated || expanded {
             rows.push(ContentRow::target_styled(
-                expand_label(expanded),
+                expand_label(expanded, &symbols),
                 HitTarget::ToggleBlock(block),
                 button_style(palette),
             ));
@@ -960,6 +989,7 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
 
 fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
     let resource = &state.resource;
+    let symbols = state.symbols.symbols();
     let Some(pr) = &resource.pull_request else {
         return vec![ContentRow::plain(
             "Commits are only available for pull requests.",
@@ -975,7 +1005,7 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
     for commit in &pr.commits {
         let block = BlockId::Commit(commit.oid.clone());
         let expanded = state.block_expanded(&block);
-        let marker = expand_label(expanded);
+        let marker = expand_label(expanded, &symbols);
         rows.push(ContentRow::target_styled(
             format!(
                 "{} {} [{}] {}",
@@ -994,7 +1024,7 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
         if expanded {
             push_expanded_commit_details(&mut rows, commit, width, resource);
             rows.push(ContentRow::target_styled(
-                expand_label(true),
+                expand_label(true, &symbols),
                 HitTarget::ToggleBlock(block),
                 button_style(palette),
             ));
@@ -1061,6 +1091,7 @@ fn push_expanded_commit_details(
 
 fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
     let resource = &state.resource;
+    let symbols = state.symbols.symbols();
     let Some(pr) = &resource.pull_request else {
         return vec![ContentRow::plain(
             "Checks are only available for pull requests.",
@@ -1085,59 +1116,53 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
         )),
         ContentRow::plain(""),
     ];
+    let context = CheckGroupRenderContext {
+        expanded_blocks: &state.expanded_blocks,
+        width,
+        palette,
+        symbols: &symbols,
+    };
     push_check_group(
         &mut rows,
         "Failing",
         &pr.checks,
         CheckStatus::Failure,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     push_check_group(
         &mut rows,
         "Pending",
         &pr.checks,
         CheckStatus::Pending,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     push_check_group(
         &mut rows,
         "Passing",
         &pr.checks,
         CheckStatus::Success,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     push_check_group(
         &mut rows,
         "Neutral",
         &pr.checks,
         CheckStatus::Neutral,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     push_check_group(
         &mut rows,
         "Skipped",
         &pr.checks,
         CheckStatus::Skipped,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     push_check_group(
         &mut rows,
         "Unknown",
         &pr.checks,
         CheckStatus::Unknown,
-        &state.expanded_blocks,
-        width,
-        palette,
+        &context,
     );
     if pr.checks.is_empty() {
         rows.push(ContentRow::plain("No checks reported yet."));
@@ -1150,9 +1175,7 @@ fn push_check_group(
     label: &str,
     checks: &[CheckRun],
     status: CheckStatus,
-    expanded_blocks: &std::collections::HashSet<BlockId>,
-    width: usize,
-    palette: &Palette,
+    context: &CheckGroupRenderContext<'_>,
 ) {
     let matching = checks
         .iter()
@@ -1163,16 +1186,16 @@ fn push_check_group(
     }
     rows.push(ContentRow::styled(
         format!("{label} ({})", matching.len()),
-        heading_style(palette),
+        heading_style(context.palette),
     ));
     for check in matching {
         let summary = check.summary.clone().unwrap_or_default();
         let block = BlockId::Check(format!("{}:{}", check.status.label(), check.name));
-        let expanded = expanded_blocks.contains(&block);
-        let marker = expand_label(expanded);
+        let expanded = context.expanded_blocks.contains(&block);
+        let marker = expand_label(expanded, context.symbols);
         let prefix = format!(
             "[{} {}] ",
-            check_status_symbol(check.status),
+            check_status_symbol(check.status, context.symbols),
             check.status.label()
         );
         let reserved = UnicodeWidthStr::width(prefix.as_str()) + UnicodeWidthStr::width(marker) + 1;
@@ -1180,11 +1203,11 @@ fn push_check_group(
             format!(
                 "{}{} {}",
                 prefix,
-                truncate_ascii(&check.name, width.saturating_sub(reserved)),
+                truncate_ascii(&check.name, context.width.saturating_sub(reserved)),
                 marker
             ),
             HitTarget::ToggleBlock(block.clone()),
-            check_status_style(check.status, palette).add_modifier(Modifier::BOLD),
+            check_status_style(check.status, context.palette).add_modifier(Modifier::BOLD),
         ));
         if expanded {
             rows.push(ContentRow::plain(format!("name: {}", check.name)));
@@ -1211,9 +1234,9 @@ fn push_check_group(
                 rows.push(ContentRow::plain(format!("summary: {}", summary)));
             }
             rows.push(ContentRow::target_styled(
-                expand_label(true),
+                expand_label(true, context.symbols),
                 HitTarget::ToggleBlock(block),
-                button_style(palette),
+                button_style(context.palette),
             ));
             rows.push(ContentRow::plain(""));
         }
@@ -1245,7 +1268,8 @@ fn files_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentR
             "Files are only available for pull requests.",
         )];
     };
-    files_rows_for_pr(pr, width, &state.expanded_blocks, palette)
+    let symbols = state.symbols.symbols();
+    files_rows_for_pr(pr, width, &state.expanded_blocks, palette, &symbols)
 }
 
 fn files_rows_for_pr(
@@ -1253,6 +1277,7 @@ fn files_rows_for_pr(
     width: usize,
     expanded_blocks: &std::collections::HashSet<BlockId>,
     palette: &Palette,
+    symbols: &Symbols,
 ) -> Vec<ContentRow> {
     let mut rows = vec![
         ContentRow::styled(
@@ -1264,7 +1289,7 @@ fn files_rows_for_pr(
     for file in &pr.files {
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
-        let marker = expand_label(expanded);
+        let marker = expand_label(expanded, symbols);
         rows.push(ContentRow::target_styled(
             format!(
                 "+{:<4} -{:<4} {:<8} {} {}",
@@ -1296,9 +1321,9 @@ fn files_rows_for_pr(
                 if truncated || patch_expanded {
                     rows.push(ContentRow::target_styled(
                         if patch_expanded {
-                            "[➖ less patch]"
+                            symbols.less_patch
                         } else {
-                            "[➕ more patch]"
+                            symbols.more_patch
                         },
                         HitTarget::ToggleBlock(patch_block),
                         button_style(palette),
@@ -1308,7 +1333,7 @@ fn files_rows_for_pr(
                 rows.push(ContentRow::plain("patch: not loaded"));
             }
             rows.push(ContentRow::target_styled(
-                expand_label(true),
+                expand_label(true, symbols),
                 HitTarget::ToggleBlock(block),
                 button_style(palette),
             ));
@@ -1428,11 +1453,12 @@ fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
 }
 
 fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
+    let symbols = state.symbols.symbols();
     let controls = [
-        ("[🔄 refresh]", HitTarget::Refresh),
-        ("[🌐 open]", HitTarget::OpenCurrent),
-        ("[❔ help]", HitTarget::Help),
-        ("[⏻ quit]", HitTarget::Quit),
+        (symbols.footer_refresh, HitTarget::Refresh),
+        (symbols.footer_open, HitTarget::OpenCurrent),
+        (symbols.footer_help, HitTarget::Help),
+        (symbols.footer_quit, HitTarget::Quit),
     ];
     let mut x = area.x;
     let mut y = area.y;
@@ -1492,7 +1518,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
             lines.push(Line::from(Span::styled(line, message_style)));
         }
     } else if let Some(last) = lines.last_mut() {
-        last.spans.push(Span::styled(" …", dim_style(palette)));
+        last.spans.push(Span::styled(" ...", dim_style(palette)));
     }
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
@@ -1697,7 +1723,7 @@ fn summarize_checks(resource: &Resource) -> String {
 }
 
 fn horizontal_rule(width: u16) -> String {
-    "─".repeat(width as usize)
+    "-".repeat(width as usize)
 }
 
 fn truncate_ascii(input: &str, max_width: usize) -> String {
@@ -1885,11 +1911,12 @@ mod tests {
         assert!(content.contains("[Overview]"));
         assert!(content.contains("Conversation"));
         assert!(content.contains("checks PASS"));
-        assert!(content.contains("📝 @KLilyZ opened"));
-        assert!(content.contains("● commit fb948c9"));
-        assert!(content.contains("[➕ more]") || content.contains("Problem: senseaudio"));
+        assert!(content.contains("* @KLilyZ opened"));
+        assert!(content.contains("* commit fb948c9"));
+        assert!(content.contains("[+ more]") || content.contains("Problem: senseaudio"));
         assert!(!content.contains("┌"));
         assert!(!content.contains("│"));
+        assert!(!content.contains("─"));
     }
 
     #[test]
@@ -2211,7 +2238,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[🔄 refresh] [🌐 open] [❔ help] [⏻ quit]"));
+        assert!(content.contains("[refresh] [open] [help] [quit]"));
         assert!(state
             .hit_areas
             .iter()
@@ -2239,7 +2266,7 @@ mod tests {
         state.status_message =
             Some("background refresh finished after collecting checks and comments".into());
 
-        let content = draw(&mut state, 36, 24);
+        let content = draw(&mut state, 24, 24);
         let mut tab_rows = state
             .hit_areas
             .iter()
@@ -2262,8 +2289,8 @@ mod tests {
         footer_rows.dedup();
 
         assert!(content.contains("[Overview]"));
-        assert!(content.contains("[🔄 refresh]"));
-        assert!(content.contains("background refresh finished"));
+        assert!(content.contains("[refresh]"));
+        assert!(content.contains("background"));
         assert!(tab_rows.len() > 1);
         assert!(footer_rows.len() > 1);
         assert!(state
@@ -2356,7 +2383,7 @@ mod tests {
         let content = draw(&mut state, 120, 80);
 
         assert!(content.contains("fb948c9"));
-        assert!(content.contains("[➕ more]"));
+        assert!(content.contains("[+ more]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::ToggleBlock(BlockId::Commit(oid)) if oid == "fb948c9"
@@ -2369,7 +2396,7 @@ mod tests {
         assert!(content.contains("authored: 2026-05-14T13:10:00Z"));
         assert!(content.contains("committed: 1mo"));
         assert!(content.contains("Registers a SenseAudio speech provider."));
-        assert!(content.contains("[➖ less]"));
+        assert!(content.contains("[- less]"));
     }
 
     #[test]
@@ -2452,7 +2479,7 @@ mod tests {
         assert!(content.contains("+patch line 0"));
         assert!(content.contains("+patch line 17"));
         assert!(!content.contains("+patch line 29"));
-        assert!(content.contains("[➕ more patch]"));
+        assert!(content.contains("[+ more patch]"));
         assert!(state
             .hit_areas
             .iter()
@@ -2468,7 +2495,7 @@ mod tests {
         let content = draw(&mut state, 120, 80);
 
         assert!(content.contains("+patch line 29"));
-        assert!(content.contains("[➖ less patch]"));
+        assert!(content.contains("[- less patch]"));
     }
 
     #[test]
@@ -2568,7 +2595,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[➕ more]"));
+        assert!(content.contains("[+ more]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::ToggleBlock(BlockId::File(path))
@@ -2583,7 +2610,7 @@ mod tests {
 
         assert!(content.contains("path: extensions/senseaudio/index.ts"));
         assert!(content.contains("change: MODIFIED, additions: 3, deletions: 1"));
-        assert!(content.contains("[➖ less]"));
+        assert!(content.contains("[- less]"));
     }
 
     #[test]
@@ -2603,7 +2630,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[➕ more]"));
+        assert!(content.contains("[+ more]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::ToggleBlock(BlockId::Activity(id)) if id == "c1"
@@ -2819,7 +2846,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[➕ more]"));
+        assert!(content.contains("[+ more]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::ToggleBlock(BlockId::Check(id))
@@ -2846,7 +2873,7 @@ mod tests {
             content.contains("details: https://github.com/openclaw/openclaw/actions/runs/1/job/2")
         );
         assert!(content.contains("summary: failed because the test command exited with status 1"));
-        assert!(content.contains("[➖ less]"));
+        assert!(content.contains("[- less]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::OpenUrl(url)
