@@ -13,9 +13,9 @@ use crate::domain::{
 };
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
-    comments_query, commit_deployments_query, commits_query, labels_query, project_items_query,
-    review_requests_query, review_thread_comments_query, review_threads_query, reviews_query,
-    status_rollup_query, timeline_query,
+    comments_query, commit_deployments_query, commits_query, labels_query, linked_resources_query,
+    project_items_query, review_requests_query, review_thread_comments_query, review_threads_query,
+    reviews_query, status_rollup_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -63,6 +63,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
+    enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_review_requests(&mut resource, id).await;
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
@@ -118,6 +119,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
+    enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -178,6 +180,13 @@ async fn enrich_review_requests(resource: &mut Resource, id: &ResourceId) {
     }
 }
 
+async fn enrich_linked_resources(resource: &mut Resource, id: &ResourceId, kind: ResourceKind) {
+    match fetch_linked_resources(id, kind).await {
+        Ok(related_resources) => resource.related_resources = related_resources,
+        Err(error) => push_enrichment_warning(resource, "linked resources unavailable", &error),
+    }
+}
+
 fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
     json!({
         "owner": id.owner,
@@ -231,6 +240,15 @@ async fn run_graphql_review_requests(
         owner_repo_number_variables(id, after),
     )
     .await
+}
+
+async fn run_graphql_linked_resources(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = linked_resources_query(kind);
+    run_graphql_query(&query, owner_repo_number_variables(id, after)).await
 }
 
 fn graphql_preview(selector: &str, id: &ResourceId) -> Vec<String> {
@@ -452,6 +470,39 @@ struct ReviewRequestsPullRequest {
 struct ReviewRequestsConnection {
     page_info: PageInfoDto,
     nodes: Vec<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedResourcesResponse {
+    data: LinkedResourcesData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedResourcesData {
+    repository: Option<LinkedResourcesRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedResourcesRepository {
+    issue: Option<LinkedResourcesResource>,
+    pull_request: Option<LinkedResourcesResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedResourcesResource {
+    closing_issues_references: Option<LinkedResourcesConnection>,
+    closed_by_pull_requests_references: Option<LinkedResourcesConnection>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedResourcesConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<RelatedResourceDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1568,6 +1619,30 @@ async fn fetch_review_requests(id: &ResourceId) -> anyhow::Result<Vec<String>> {
     }
 }
 
+async fn fetch_linked_resources(
+    id: &ResourceId,
+    kind: ResourceKind,
+) -> anyhow::Result<Vec<ResourceId>> {
+    let mut related_resources = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_linked_resources(id, kind, after.as_deref()).await?;
+        let response: LinkedResourcesResponse = serde_json::from_slice(&output)
+            .context("failed to parse linked resources GraphQL JSON")?;
+        let Some(page) = linked_resources_page(response, kind, id) else {
+            return Ok(related_resources);
+        };
+        related_resources.extend(page.related_resources);
+        if !page.has_next_page {
+            return Ok(related_resources);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("linked resources page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 struct LabelsPage {
     labels: Vec<String>,
     has_next_page: bool,
@@ -1582,6 +1657,12 @@ struct AssigneesPage {
 
 struct ReviewRequestsPage {
     reviewers: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct LinkedResourcesPage {
+    related_resources: Vec<ResourceId>,
     has_next_page: bool,
     end_cursor: Option<String>,
 }
@@ -1604,6 +1685,17 @@ fn assignees_from_response(response: AssigneesResponse) -> Vec<String> {
 fn review_requests_from_response(response: ReviewRequestsResponse) -> Vec<String> {
     review_requests_page(response)
         .map(|page| page.reviewers)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn linked_resources_from_response(
+    response: LinkedResourcesResponse,
+    kind: ResourceKind,
+    requested: &ResourceId,
+) -> Vec<ResourceId> {
+    linked_resources_page(response, kind, requested)
+        .map(|page| page.related_resources)
         .unwrap_or_default()
 }
 
@@ -1641,6 +1733,29 @@ fn review_requests_page(response: ReviewRequestsResponse) -> Option<ReviewReques
     let page_info = pull_request.review_requests.page_info;
     Some(ReviewRequestsPage {
         reviewers: review_request_names(pull_request.review_requests.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn linked_resources_page(
+    response: LinkedResourcesResponse,
+    kind: ResourceKind,
+    requested: &ResourceId,
+) -> Option<LinkedResourcesPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let fallback_kind = match kind {
+        ResourceKind::Issue => ResourceKind::PullRequest,
+        ResourceKind::PullRequest => ResourceKind::Issue,
+    };
+    let connection = match kind {
+        ResourceKind::Issue => resource.closed_by_pull_requests_references?,
+        ResourceKind::PullRequest => resource.closing_issues_references?,
+    };
+    let page_info = connection.page_info;
+    Some(LinkedResourcesPage {
+        related_resources: related_resource_ids(connection.nodes, fallback_kind, requested),
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
@@ -3314,6 +3429,25 @@ mod tests {
     }
 
     #[test]
+    fn linked_resources_query_uses_selector_connection_and_pagination_state() {
+        let issue_query = linked_resources_query(ResourceKind::Issue);
+        let pr_query = linked_resources_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(issue_query.contains("closedByPullRequestsReferences(first: 100, after: $after)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        assert!(pr_query.contains("closingIssuesReferences(first: 100, after: $after)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("number"));
+            assert!(query.contains("url"));
+        }
+    }
+
+    #[test]
     fn reviews_query_requests_pagination_state_and_reaction_fields() {
         let query = reviews_query();
 
@@ -3529,6 +3663,117 @@ mod tests {
         });
 
         assert!(reviewers.is_empty());
+    }
+
+    #[test]
+    fn linked_resources_page_preserves_pagination_state_and_kind_mapping() {
+        let requested = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let page = linked_resources_page(
+            LinkedResourcesResponse {
+                data: LinkedResourcesData {
+                    repository: Some(LinkedResourcesRepository {
+                        issue: None,
+                        pull_request: Some(LinkedResourcesResource {
+                            closing_issues_references: Some(LinkedResourcesConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: true,
+                                    end_cursor: Some("linked-cursor-2".into()),
+                                },
+                                nodes: vec![
+                                    RelatedResourceDto {
+                                        number: None,
+                                        url: Some(
+                                            "https://github.com/openclaw/openclaw/issues/88499"
+                                                .into(),
+                                        ),
+                                    },
+                                    RelatedResourceDto {
+                                        number: Some(90001),
+                                        url: None,
+                                    },
+                                ],
+                            }),
+                            closed_by_pull_requests_references: None,
+                        }),
+                    }),
+                },
+            },
+            ResourceKind::PullRequest,
+            &requested,
+        )
+        .expect("linked resources page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("linked-cursor-2"));
+        assert_eq!(page.related_resources.len(), 2);
+        assert_eq!(page.related_resources[0].number, 88499);
+        assert_eq!(
+            page.related_resources[0].kind_hint,
+            Some(ResourceKind::Issue)
+        );
+        assert_eq!(page.related_resources[1].number, 90001);
+        assert_eq!(
+            page.related_resources[1].kind_hint,
+            Some(ResourceKind::Issue)
+        );
+
+        let issue = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let related_prs = linked_resources_from_response(
+            LinkedResourcesResponse {
+                data: LinkedResourcesData {
+                    repository: Some(LinkedResourcesRepository {
+                        issue: Some(LinkedResourcesResource {
+                            closing_issues_references: None,
+                            closed_by_pull_requests_references: Some(LinkedResourcesConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: false,
+                                    end_cursor: None,
+                                },
+                                nodes: vec![RelatedResourceDto {
+                                    number: Some(81834),
+                                    url: None,
+                                }],
+                            }),
+                        }),
+                        pull_request: None,
+                    }),
+                },
+            },
+            ResourceKind::Issue,
+            &issue,
+        );
+
+        assert_eq!(related_prs.len(), 1);
+        assert_eq!(related_prs[0].number, 81834);
+        assert_eq!(related_prs[0].kind_hint, Some(ResourceKind::PullRequest));
+    }
+
+    #[test]
+    fn linked_resources_page_allows_valid_empty_pages() {
+        let requested = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let related = linked_resources_from_response(
+            LinkedResourcesResponse {
+                data: LinkedResourcesData {
+                    repository: Some(LinkedResourcesRepository {
+                        issue: None,
+                        pull_request: Some(LinkedResourcesResource {
+                            closing_issues_references: Some(LinkedResourcesConnection {
+                                page_info: PageInfoDto {
+                                    has_next_page: false,
+                                    end_cursor: None,
+                                },
+                                nodes: Vec::new(),
+                            }),
+                            closed_by_pull_requests_references: None,
+                        }),
+                    }),
+                },
+            },
+            ResourceKind::PullRequest,
+            &requested,
+        );
+
+        assert!(related.is_empty());
     }
 
     #[test]
