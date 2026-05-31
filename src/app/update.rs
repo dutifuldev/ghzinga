@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use crate::app::{AppState, BlockId};
 use crate::input::{hit_test, HitTarget};
+use crate::render::{SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppIntent {
@@ -11,6 +12,7 @@ pub enum AppIntent {
     OpenResource(crate::domain::ResourceId),
     OpenUrl(String),
     Back,
+    SaveSettings,
     Quit,
 }
 
@@ -49,6 +51,28 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         KeyCode::Char('?') => {
             state.toggle_help();
             AppIntent::None
+        }
+        KeyCode::Char('s') => {
+            state.toggle_settings();
+            AppIntent::None
+        }
+        KeyCode::Esc if state.show_settings => {
+            state.close_settings();
+            AppIntent::None
+        }
+        KeyCode::Char('t') if state.show_settings => {
+            if state.cycle_theme() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
+        KeyCode::Char('y') if state.show_settings => {
+            if state.cycle_symbols() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
         }
         KeyCode::Tab | KeyCode::Char('\t') | KeyCode::Right => {
             state.next_tab();
@@ -151,6 +175,22 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.toggle_help();
             AppIntent::None
         }
+        HitTarget::Settings => {
+            state.toggle_settings();
+            AppIntent::None
+        }
+        HitTarget::CloseSettings => {
+            state.close_settings();
+            AppIntent::None
+        }
+        HitTarget::SetTheme(theme) => match theme.parse::<ThemeName>() {
+            Ok(theme) if state.set_theme(theme) => AppIntent::SaveSettings,
+            _ => AppIntent::None,
+        },
+        HitTarget::SetSymbols(symbols) => match symbols.parse::<SymbolMode>() {
+            Ok(symbols) if state.set_symbols(symbols) => AppIntent::SaveSettings,
+            _ => AppIntent::None,
+        },
     }
 }
 
@@ -514,6 +554,86 @@ mod tests {
         );
 
         assert!(state.show_help);
+    }
+
+    #[test]
+    fn keyboard_s_toggles_settings() {
+        let mut state = AppState::new(resource());
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty())),
+        );
+
+        assert!(state.show_settings);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::empty())),
+        );
+
+        assert!(!state.show_settings);
+    }
+
+    #[test]
+    fn settings_keyboard_changes_return_save_intent() {
+        let mut state = AppState::new(resource());
+        state.show_settings = true;
+
+        let theme = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(theme, AppIntent::SaveSettings);
+        assert_eq!(state.theme, ThemeName::SolarizedDark);
+
+        let symbols = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(symbols, AppIntent::SaveSettings);
+        assert_eq!(state.symbols, SymbolMode::Emoji);
+    }
+
+    #[test]
+    fn mouse_click_on_settings_targets_updates_preferences() {
+        let mut state = AppState::new(resource());
+        state
+            .hit_areas
+            .push(HitArea::new(Rect::new(0, 0, 10, 1), HitTarget::Settings));
+
+        let open = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(open, AppIntent::None);
+        assert!(state.show_settings);
+
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 20, 1),
+            HitTarget::SetTheme("solarized-dark".into()),
+        ));
+        let theme = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(theme, AppIntent::SaveSettings);
+        assert_eq!(state.theme, ThemeName::SolarizedDark);
     }
 
     #[test]

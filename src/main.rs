@@ -9,6 +9,7 @@ use crossterm::event::{self, Event};
 use ghzinga::{
     app::{apply_event, AppEvent, AppIntent, AppState},
     cli::Cli,
+    config::{self, AppConfig},
     domain::{ResourceId, ResourceKind},
     github::{
         api::{GithubApiGateway, GithubGateway},
@@ -25,6 +26,7 @@ const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    let loaded_config = config::load();
     let resource_id = cli.parse_resource_id()?;
     let resource = if let Some(path) = &cli.offline_fixture {
         load_fixture(path)?
@@ -34,8 +36,18 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut state = AppState::new(resource);
-    state.theme = cli.theme;
-    state.symbols = cli.symbols;
+    state.config_path = loaded_config.path.clone();
+    state.theme = loaded_config.config.ui.theme;
+    state.symbols = loaded_config.config.ui.symbols;
+    if !loaded_config.diagnostics.is_empty() {
+        state.last_error = Some(loaded_config.diagnostics.join("; "));
+    }
+    if let Some(theme) = cli.theme {
+        state.theme = theme;
+    }
+    if let Some(symbols) = cli.symbols {
+        state.symbols = symbols;
+    }
     if let Some(tab) = cli.tab {
         state.set_tab(tab);
     }
@@ -162,7 +174,30 @@ async fn handle_intent<G: GithubGateway>(
             }
             false
         }
+        AppIntent::SaveSettings => {
+            save_settings(state);
+            false
+        }
         AppIntent::None => false,
+    }
+}
+
+fn save_settings(state: &mut AppState) {
+    let config = AppConfig::default()
+        .with_theme(state.theme)
+        .with_symbols(state.symbols);
+    match config::save_to_path(&state.config_path, config) {
+        Ok(()) => {
+            state.last_error = None;
+            state.status_message =
+                Some(format!("saved settings to {}", state.config_path.display()));
+        }
+        Err(error) => {
+            state.last_error = Some(format!(
+                "failed to save settings to {}: {error}",
+                state.config_path.display()
+            ));
+        }
     }
 }
 

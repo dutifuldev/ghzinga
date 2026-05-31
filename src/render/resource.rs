@@ -11,7 +11,7 @@ use crate::{
     app::{AppState, BlockId, Tab},
     domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
-    render::{markdown, Palette, Symbols, ViewRects},
+    render::{markdown, Palette, SymbolMode, Symbols, ThemeName, ViewRects},
 };
 
 struct ContentRow {
@@ -646,6 +646,9 @@ fn content_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<Co
     if state.show_help {
         return help_rows(width, palette, &symbols);
     }
+    if state.show_settings {
+        return settings_rows(state, width, palette);
+    }
     match state.active_tab {
         Tab::Overview => overview_rows(state, width, palette),
         Tab::Activity => activity_rows(state, width, palette),
@@ -670,6 +673,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- Click tabs to switch sections.",
             expand_help.as_str(),
             "- Click visible GitHub issue or PR references to navigate.",
+            "- Click settings rows to apply theme and symbol preferences.",
             "- Use the mouse wheel to scroll the current view.",
             "",
         ]
@@ -682,6 +686,8 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
         [
             "- q: quit",
             "- ?: toggle this help",
+            "- s: open or close settings",
+            "- t / y in settings: cycle theme / symbol style",
             "- r: refresh now",
             "- o: open current resource in browser through gh",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
@@ -705,6 +711,100 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
         .map(ContentRow::plain),
     );
     rows
+}
+
+fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
+    let mut rows = Vec::new();
+    rows.push(heading_row("Settings", palette));
+    rows.push(separator_row(width, palette));
+    rows.extend(
+        markdown::wrap_plain_text(&format!("Config: {}", state.config_path.display()), width)
+            .into_iter()
+            .map(|line| ContentRow::styled(line, dim_style(palette))),
+    );
+    rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Theme", palette));
+    rows.push(settings_option_row(
+        "default",
+        "Tokyo-inspired default dark colors",
+        state.theme == ThemeName::Default,
+        HitTarget::SetTheme("default".into()),
+        palette,
+    ));
+    rows.push(settings_option_row(
+        "solarized-dark",
+        "Solarized dark colors",
+        state.theme == ThemeName::SolarizedDark,
+        HitTarget::SetTheme("solarized-dark".into()),
+        palette,
+    ));
+    rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Symbols", palette));
+    rows.push(settings_option_row(
+        "ascii",
+        "Plain terminal-safe labels",
+        state.symbols == SymbolMode::Ascii,
+        HitTarget::SetSymbols("ascii".into()),
+        palette,
+    ));
+    rows.push(settings_option_row(
+        "emoji",
+        "Richer semantic markers",
+        state.symbols == SymbolMode::Emoji,
+        HitTarget::SetSymbols("emoji".into()),
+        palette,
+    ));
+    rows.push(ContentRow::plain(""));
+    rows.push(ContentRow::target_styled(
+        "[close settings]",
+        HitTarget::CloseSettings,
+        button_style(palette),
+    ));
+    rows.extend(
+        [
+            "",
+            "Keyboard: t theme | y symbols | s or Esc close",
+            "Changes are applied live and saved immediately.",
+        ]
+        .into_iter()
+        .flat_map(|line| markdown::wrap_plain_text(line, width))
+        .map(|line| ContentRow::styled(line, dim_style(palette))),
+    );
+    rows
+}
+
+fn settings_option_row(
+    name: &'static str,
+    description: &'static str,
+    selected: bool,
+    target: HitTarget,
+    palette: &Palette,
+) -> ContentRow {
+    let marker = if selected { "[x]" } else { "[ ]" };
+    let marker_style = if selected {
+        Style::default()
+            .fg(palette.accent)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(palette.overlay1)
+    };
+    let name_style = if selected {
+        Style::default()
+            .fg(palette.accent)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(palette.text)
+    };
+    ContentRow::target_line(
+        Line::from(vec![
+            Span::styled(marker, marker_style),
+            Span::raw(" "),
+            Span::styled(name, name_style),
+            Span::raw("  "),
+            Span::styled(description, dim_style(palette)),
+        ]),
+        target,
+    )
 }
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -1656,6 +1756,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let controls = [
         (symbols.footer_refresh, HitTarget::Refresh),
         (symbols.footer_open, HitTarget::OpenCurrent),
+        (symbols.footer_settings, HitTarget::Settings),
         (symbols.footer_help, HitTarget::Help),
         (symbols.footer_quit, HitTarget::Quit),
     ];
@@ -1693,7 +1794,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     }
 
     let default_message = format!(
-        "r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab {} | scroll {}",
+        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab {} | scroll {}",
         state.active_tab.label(),
         state.scroll
     );
@@ -2487,7 +2588,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[refresh] [open] [help] [quit]"));
+        assert!(content.contains("[refresh] [open] [settings] [help] [quit]"));
         assert!(state
             .hit_areas
             .iter()
@@ -2496,6 +2597,10 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::OpenCurrent));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::Settings));
         assert!(state
             .hit_areas
             .iter()
@@ -2993,6 +3098,13 @@ mod tests {
         assert_eq!(help, AppIntent::None);
         assert!(help_state.show_help);
 
+        let mut settings_state = AppState::new(pr_resource());
+        draw(&mut settings_state, 120, 36);
+        let settings =
+            click_rendered_target(&mut settings_state, |target| *target == HitTarget::Settings);
+        assert_eq!(settings, AppIntent::None);
+        assert!(settings_state.show_settings);
+
         let mut open_state = AppState::new(pr_resource());
         draw(&mut open_state, 120, 36);
         let open =
@@ -3026,6 +3138,36 @@ mod tests {
         assert!(content.contains("Help"));
         assert!(content.contains("Mouse"));
         assert!(content.contains("Keyboard"));
+    }
+
+    #[test]
+    fn renders_settings_view_with_clickable_options() {
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.show_settings = true;
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("Settings"));
+        assert!(content.contains("Config:"));
+        assert!(content.contains("solarized-dark"));
+        assert!(content.contains("emoji"));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetTheme("solarized-dark".into())));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetSymbols("emoji".into())));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::CloseSettings));
     }
 
     #[test]

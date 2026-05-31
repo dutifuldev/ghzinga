@@ -1,9 +1,17 @@
 use assert_cmd::Command;
 use predicates::str::contains;
 
+fn gzg_command() -> Command {
+    let config_path = std::env::temp_dir().join("ghzinga-cli-once-empty-config.toml");
+    let _ = std::fs::remove_file(&config_path);
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    cmd.env("GZG_CONFIG_PATH", config_path);
+    cmd
+}
+
 #[test]
 fn once_renders_pr_fixture_through_binary() {
-    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    let mut cmd = gzg_command();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -23,7 +31,7 @@ fn once_renders_pr_fixture_through_binary() {
 
 #[test]
 fn once_renders_issue_fixture_through_binary() {
-    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    let mut cmd = gzg_command();
 
     cmd.args([
         "openclaw/openclaw#66943",
@@ -40,7 +48,7 @@ fn once_renders_issue_fixture_through_binary() {
 
 #[test]
 fn once_can_render_pr_checks_tab() {
-    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    let mut cmd = gzg_command();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -59,7 +67,7 @@ fn once_can_render_pr_checks_tab() {
 
 #[test]
 fn once_can_render_pr_files_tab() {
-    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    let mut cmd = gzg_command();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -78,7 +86,7 @@ fn once_can_render_pr_files_tab() {
 
 #[test]
 fn once_can_render_emoji_symbols_when_requested() {
-    let mut cmd = Command::cargo_bin("gzg").unwrap();
+    let mut cmd = gzg_command();
 
     cmd.args([
         "openclaw/openclaw#81834",
@@ -93,4 +101,25 @@ fn once_can_render_emoji_symbols_when_requested() {
     .assert()
     .success()
     .stdout(contains("[➕ more]"));
+}
+
+#[test]
+fn once_uses_config_symbols_when_cli_does_not_override() {
+    let dir = tempfile::tempdir().unwrap();
+    let config_path = dir.path().join("config.toml");
+    std::fs::write(&config_path, "[ui]\nsymbols = \"emoji\"\n").unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
+
+    cmd.env("GZG_CONFIG_PATH", config_path)
+        .args([
+            "openclaw/openclaw#81834",
+            "--offline-fixture",
+            "fixtures/pr-81834.json",
+            "--tab",
+            "checks",
+            "--once",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("[➕ more]"));
 }
