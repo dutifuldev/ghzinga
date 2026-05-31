@@ -91,6 +91,9 @@ reach back into TUI layers.
 - `src/terminal` stays out of domain, data, input, render, and app layers
 - GitHub data transport does not regress to `gh pr view`, `gh issue view`, or
   `gh api`; the only allowed `gh` use in the GitHub adapter is `gh auth token`
+- `TerminalGuard` must be safe during partial setup: raw mode, alternate screen,
+  and mouse capture are tracked independently so a setup error unwinds through
+  the same restoration path as a normal exit
 
 CI runs these checks through `cargo test`.
 
