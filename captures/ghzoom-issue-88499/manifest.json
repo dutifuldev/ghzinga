@@ -3,7 +3,7 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "/home/bob/repos/ghzoom/target/debug/ghzoom",
-  "git_commit": "17247389a29014b45c4d2d2ca8d765705cc17943",
+  "git_commit": "222cd99ee5ec6754262f925e7015c2b6e6d778c4",
   "sizes": [
     {
       "label": "narrow",
