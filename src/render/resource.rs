@@ -681,7 +681,7 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let content_area = content_area_for_spacing(area, state.spacing);
     let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
-    let rows = wrap_content_rows(rows, content_area.width);
+    let rows = wrap_content_rows(rows, content_area.width, state.spacing);
     let max_scroll = rows.len().saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
@@ -749,21 +749,25 @@ fn is_section_rule(row: &ContentRow) -> bool {
     !text.is_empty() && text.chars().all(|ch| ch == '-')
 }
 
-fn wrap_content_rows(rows: Vec<ContentRow>, width: u16) -> Vec<ContentRow> {
+fn wrap_content_rows(rows: Vec<ContentRow>, width: u16, spacing: SpacingMode) -> Vec<ContentRow> {
     let width = usize::from(width).max(1);
     rows.into_iter()
-        .flat_map(|row| wrap_content_row(row, width))
+        .flat_map(|row| wrap_content_row(row, width, spacing))
         .collect()
 }
 
-fn wrap_content_row(row: ContentRow, width: usize) -> Vec<ContentRow> {
+fn wrap_content_row(row: ContentRow, width: usize, spacing: SpacingMode) -> Vec<ContentRow> {
     let text = line_text(&row.line);
     if UnicodeWidthStr::width(text.as_str()) <= width {
         return vec![row];
     }
     let style = row_primary_style(&row.line);
-    markdown::wrap_display_text(&text, width)
+    let indent = continuation_indent(width, spacing);
+    let wrap_width = width.saturating_sub(indent).max(1);
+    markdown::wrap_display_text(&text, wrap_width)
         .into_iter()
+        .enumerate()
+        .map(|(index, line)| continuation_line(line, index, indent))
         .map(|line| match &row.target {
             Some(target) if style != Style::default() => {
                 ContentRow::target_styled(line, target.clone(), style)
@@ -773,6 +777,22 @@ fn wrap_content_row(row: ContentRow, width: usize) -> Vec<ContentRow> {
             None => ContentRow::plain(line),
         })
         .collect()
+}
+
+fn continuation_indent(width: usize, spacing: SpacingMode) -> usize {
+    if spacing == SpacingMode::Comfortable && width >= 48 {
+        2
+    } else {
+        0
+    }
+}
+
+fn continuation_line(line: String, index: usize, indent: usize) -> String {
+    if index == 0 || indent == 0 || line.is_empty() {
+        line
+    } else {
+        format!("{}{}", " ".repeat(indent), line)
+    }
 }
 
 fn line_text(line: &Line<'static>) -> String {
@@ -1399,7 +1419,9 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
                 button_style(palette),
             ));
         }
-        rows.push(ContentRow::plain(""));
+        if let Some(last) = rows.last_mut() {
+            last.comfortable_gap_after = true;
+        }
     }
     rows
 }
@@ -3002,6 +3024,7 @@ mod tests {
                 link_style(&Palette::default_dark()),
             )],
             24,
+            SpacingMode::Compact,
         );
 
         assert!(rows.len() > 1);
@@ -3013,6 +3036,40 @@ mod tests {
             Some(HitTarget::OpenUrl(url))
                 if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1234567890🙂tail"
         )));
+    }
+
+    #[test]
+    fn comfortable_wrapped_rows_use_hanging_indent() {
+        let rows = wrap_content_rows(
+            vec![ContentRow::plain(
+                "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda",
+            )],
+            50,
+            SpacingMode::Comfortable,
+        );
+
+        assert!(rows.len() > 1);
+        assert!(!line_text(&rows[0].line).starts_with("  "));
+        assert!(line_text(&rows[1].line).starts_with("  "));
+        assert!(rows
+            .iter()
+            .all(|row| UnicodeWidthStr::width(line_text(&row.line).as_str()) <= 50));
+    }
+
+    #[test]
+    fn compact_wrapped_rows_stay_flush_left() {
+        let rows = wrap_content_rows(
+            vec![ContentRow::plain(
+                "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda",
+            )],
+            50,
+            SpacingMode::Compact,
+        );
+
+        assert!(rows.len() > 1);
+        assert!(rows
+            .iter()
+            .all(|row| !line_text(&row.line).starts_with("  ")));
     }
 
     #[test]
