@@ -14,7 +14,7 @@ use crate::domain::{
 use crate::github::queries::{
     base_issue_query, base_pr_query, changed_files_query, check_suites_query, comments_query,
     commit_deployments_query, commits_query, project_items_query, review_thread_comments_query,
-    review_threads_query, status_rollup_query, timeline_query,
+    review_threads_query, reviews_query, status_rollup_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -64,6 +64,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
+    }
+    match fetch_review_activity(id).await {
+        Ok(reviews) => replace_review_activity(&mut resource, reviews),
+        Err(error) => push_enrichment_warning(&mut resource, "reviews unavailable", &error),
     }
     match fetch_review_thread_activity(id).await {
         Ok(review_comments) => resource.activity.extend(review_comments),
@@ -133,6 +137,13 @@ fn replace_comment_activity(resource: &mut Resource, comments: Vec<ActivityEntry
     resource.activity.extend(comments);
 }
 
+fn replace_review_activity(resource: &mut Resource, reviews: Vec<ActivityEntry>) {
+    resource
+        .activity
+        .retain(|entry| entry.kind != ActivityKind::Review);
+    resource.activity.extend(reviews);
+}
+
 async fn enrich_project_metadata(resource: &mut Resource, id: &ResourceId, kind: ResourceKind) {
     match fetch_project_names(id, kind).await {
         Ok(projects) => apply_project_metadata(&mut resource.metadata, projects),
@@ -192,6 +203,10 @@ async fn run_graphql_review_threads(
 ) -> anyhow::Result<Vec<u8>> {
     let query = review_threads_query();
     run_graphql_query(query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_reviews(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(reviews_query(), owner_repo_number_variables(id, after)).await
 }
 
 async fn run_graphql_review_thread_comments(
@@ -364,6 +379,37 @@ struct ReviewDto {
     url: Option<String>,
     #[serde(default)]
     reaction_groups: Vec<ReactionGroupDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewsResponse {
+    data: ReviewsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewsData {
+    repository: Option<ReviewsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewsRepository {
+    pull_request: Option<ReviewsPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewsPullRequest {
+    reviews: ReviewsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<ReviewDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1490,6 +1536,44 @@ fn comment_activity_page(response: CommentsResponse) -> Option<CommentActivityPa
     })
 }
 
+async fn fetch_review_activity(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
+    let mut activity = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_reviews(id, after.as_deref()).await?;
+        let response: ReviewsResponse =
+            serde_json::from_slice(&output).context("failed to parse reviews GraphQL JSON")?;
+        let Some(page) = review_activity_page(response) else {
+            return Ok(activity);
+        };
+        activity.extend(page.activity);
+        if !page.has_next_page {
+            return Ok(activity);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("reviews page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+struct ReviewActivityPage {
+    activity: Vec<ActivityEntry>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+fn review_activity_page(response: ReviewsResponse) -> Option<ReviewActivityPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let page_info = pull_request.reviews.page_info;
+    Some(ReviewActivityPage {
+        activity: reviews_to_activity(pull_request.reviews.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
 async fn fetch_review_thread_activity(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
     let mut activity = Vec::new();
     let mut after = None;
@@ -2507,38 +2591,46 @@ fn string_field_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
 
 fn pr_activity(comments: Vec<CommentDto>, reviews: Vec<ReviewDto>) -> Vec<ActivityEntry> {
     let mut activity = comments_to_activity(comments);
-    activity.extend(reviews.into_iter().enumerate().map(|(index, review)| {
-        let state = review.state.unwrap_or_else(|| "REVIEW".to_string());
-        let body = review.body.unwrap_or_default();
-        let body = if body.trim().is_empty() {
-            state.clone()
-        } else {
-            format!("{state}: {body}")
-        };
-        ActivityEntry {
-            id: review.id.unwrap_or_else(|| format!("review-{index}")),
-            kind: ActivityKind::Review,
-            author: display_author(review.author),
-            body,
-            updated_at: review
-                .updated_at
-                .or(review.submitted_at)
-                .unwrap_or_else(|| "unknown".to_string()),
-            path: None,
-            line: None,
-            url: review.url,
-            author_association: review.author_association,
-            reactions: reaction_counts(review.reaction_groups),
-            includes_created_edit: false,
-            is_minimized: false,
-            minimized_reason: None,
-            thread_id: None,
-            thread_resolved: None,
-            thread_outdated: None,
-        }
-    }));
+    activity.extend(reviews_to_activity(reviews));
     sort_activity(&mut activity);
     activity
+}
+
+fn reviews_to_activity(reviews: Vec<ReviewDto>) -> Vec<ActivityEntry> {
+    reviews
+        .into_iter()
+        .enumerate()
+        .map(|(index, review)| {
+            let state = review.state.unwrap_or_else(|| "REVIEW".to_string());
+            let body = review.body.unwrap_or_default();
+            let body = if body.trim().is_empty() {
+                state.clone()
+            } else {
+                format!("{state}: {body}")
+            };
+            ActivityEntry {
+                id: review.id.unwrap_or_else(|| format!("review-{index}")),
+                kind: ActivityKind::Review,
+                author: display_author(review.author),
+                body,
+                updated_at: review
+                    .updated_at
+                    .or(review.submitted_at)
+                    .unwrap_or_else(|| "unknown".to_string()),
+                path: None,
+                line: None,
+                url: review.url,
+                author_association: review.author_association,
+                reactions: reaction_counts(review.reaction_groups),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            }
+        })
+        .collect()
 }
 
 fn sort_activity(activity: &mut [ActivityEntry]) {
@@ -2883,6 +2975,22 @@ mod tests {
     }
 
     #[test]
+    fn reviews_query_requests_pagination_state_and_reaction_fields() {
+        let query = reviews_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("pullRequest(number: $number)"));
+        assert!(query.contains("reviews(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("authorAssociation"));
+        assert!(query.contains("submittedAt"));
+        assert!(query.contains("updatedAt"));
+        assert!(query.contains("reactionGroups"));
+    }
+
+    #[test]
     fn project_items_query_uses_selector_and_pagination_state() {
         let issue_query = project_items_query(ResourceKind::Issue);
         let pr_query = project_items_query(ResourceKind::PullRequest);
@@ -3080,6 +3188,57 @@ mod tests {
     }
 
     #[test]
+    fn review_activity_page_preserves_pagination_state() {
+        let page = review_activity_page(ReviewsResponse {
+            data: ReviewsData {
+                repository: Some(ReviewsRepository {
+                    pull_request: Some(ReviewsPullRequest {
+                        reviews: ReviewsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("review-cursor-2".into()),
+                            },
+                            nodes: vec![ReviewDto {
+                                id: Some("review-1".into()),
+                                author: Some(UserDto {
+                                    login: Some("bob".into()),
+                                    name: None,
+                                }),
+                                author_association: Some("CONTRIBUTOR".into()),
+                                body: Some("looks good".into()),
+                                state: Some("APPROVED".into()),
+                                submitted_at: Some("2026-01-02T00:00:00Z".into()),
+                                updated_at: None,
+                                url: Some(
+                                    "https://github.com/openclaw/openclaw/pull/81834#pullrequestreview-1"
+                                        .into(),
+                                ),
+                                reaction_groups: vec![ReactionGroupDto {
+                                    content: "THUMBS_UP".into(),
+                                    users: TotalCountDto { total_count: 3 },
+                                }],
+                            }],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("review page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("review-cursor-2"));
+        assert_eq!(page.activity.len(), 1);
+        assert_eq!(page.activity[0].kind, ActivityKind::Review);
+        assert_eq!(page.activity[0].author, "bob");
+        assert_eq!(page.activity[0].body, "APPROVED: looks good");
+        assert_eq!(
+            page.activity[0].author_association.as_deref(),
+            Some("CONTRIBUTOR")
+        );
+        assert_eq!(page.activity[0].reactions.thumbs_up, 3);
+    }
+
+    #[test]
     fn replace_comment_activity_keeps_other_activity() {
         let mut resource = Resource {
             id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
@@ -3169,6 +3328,75 @@ mod tests {
             .activity
             .iter()
             .any(|entry| entry.id == "old-comment"));
+    }
+
+    #[test]
+    fn replace_review_activity_keeps_comments_review_comments_and_timeline() {
+        fn activity(id: &str, kind: ActivityKind) -> ActivityEntry {
+            ActivityEntry {
+                id: id.into(),
+                kind,
+                author: "alice".into(),
+                body: id.into(),
+                updated_at: "2026-01-01T00:00:00Z".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            }
+        }
+
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
+            title: "title".into(),
+            url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: vec![
+                activity("comment", ActivityKind::Comment),
+                activity("old-review", ActivityKind::Review),
+                activity("review-comment", ActivityKind::ReviewComment),
+                activity("timeline", ActivityKind::Timeline),
+            ],
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: None,
+        };
+
+        replace_review_activity(
+            &mut resource,
+            vec![activity("new-review", ActivityKind::Review)],
+        );
+
+        assert_eq!(resource.activity.len(), 4);
+        assert!(resource.activity.iter().any(|entry| entry.id == "comment"));
+        assert!(resource
+            .activity
+            .iter()
+            .any(|entry| entry.id == "review-comment"));
+        assert!(resource.activity.iter().any(|entry| entry.id == "timeline"));
+        assert!(resource
+            .activity
+            .iter()
+            .any(|entry| entry.id == "new-review"));
+        assert!(!resource
+            .activity
+            .iter()
+            .any(|entry| entry.id == "old-review"));
     }
 
     #[test]

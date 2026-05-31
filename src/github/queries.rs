@@ -306,6 +306,37 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
 "#
 }
 
+pub(crate) fn reviews_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviews(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          author { login }
+          authorAssociation
+          body
+          state
+          submittedAt
+          updatedAt
+          url
+          reactionGroups {
+            content
+            users { totalCount }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn review_thread_comments_query() -> &'static str {
     r#"
 query($threadId: ID!, $after: String) {
