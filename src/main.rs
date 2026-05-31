@@ -283,12 +283,8 @@ fn maybe_auto_refresh_with_start(
     }
 
     let id = state.resource.id.clone();
-    if start(state, FetchAction::Refresh { id }) {
-        *last_refresh = now;
-        true
-    } else {
-        false
-    }
+    *last_refresh = now;
+    start(state, FetchAction::Refresh { id })
 }
 
 fn auto_refresh_due(live_refresh: bool, refresh_interval: Duration, elapsed: Duration) -> bool {
@@ -484,7 +480,7 @@ mod tests {
 
     use super::{
         apply_fetch_outcome, auto_refresh_due, maybe_auto_refresh_with_start, navigate_back,
-        navigate_to_resource, url_open_command, FetchAction, FetchOutcome,
+        navigate_to_resource, start_background_fetch, url_open_command, FetchAction, FetchOutcome,
     };
 
     struct FakeGateway {
@@ -666,6 +662,81 @@ mod tests {
         assert!(!refreshed);
         assert_eq!(state.resource.title, initial.title);
         assert!(!started);
+    }
+
+    #[test]
+    fn automatic_refresh_throttles_due_attempt_while_fetch_is_in_progress() {
+        let initial = issue_resource(1, "Initial issue");
+        let mut state = AppState::new(initial);
+        state.begin_loading(
+            state.resource.id.clone(),
+            "refreshing owner/repo#1 from GitHub",
+        );
+        let mut last_refresh = Instant::now();
+        let now = last_refresh + Duration::from_secs(30);
+        let mut attempts = 0;
+
+        let refreshed = maybe_auto_refresh_with_start(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            now,
+            |state, _| {
+                attempts += 1;
+                state.status_message = Some(format!(
+                    "still loading: {}",
+                    state.loading_message().unwrap()
+                ));
+                false
+            },
+        );
+
+        assert!(!refreshed);
+        assert_eq!(attempts, 1);
+        assert_eq!(last_refresh, now);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+
+        let next_frame = now + Duration::from_millis(250);
+        let refreshed = maybe_auto_refresh_with_start(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            next_frame,
+            |_, _| {
+                attempts += 1;
+                false
+            },
+        );
+
+        assert!(!refreshed);
+        assert_eq!(attempts, 1);
+        assert_eq!(last_refresh, now);
+    }
+
+    #[test]
+    fn duplicate_fetch_start_reports_existing_loading_without_queueing() {
+        let initial = issue_resource(1, "Initial issue");
+        let mut state = AppState::new(initial);
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        state.begin_loading(
+            state.resource.id.clone(),
+            "opening owner/repo#2 from GitHub",
+        );
+        let id = state.resource.id.clone();
+
+        let started = start_background_fetch(&mut state, FetchAction::Refresh { id }, &fetch_tx);
+
+        assert!(!started);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: opening owner/repo#2 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
     }
 
     #[test]
