@@ -158,13 +158,13 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
     let mut x = area.x;
     let mut y = area.y;
     for tab in state.tabs() {
-        let label = if *tab == state.active_tab {
+        let raw_label = if *tab == state.active_tab {
             format!("[{}]", tab.label())
         } else {
             format!(" {} ", tab.label())
         };
-        let width = UnicodeWidthStr::width(label.as_str()) as u16;
-        if x > area.x && x.saturating_add(width) > area.x.saturating_add(area.width) {
+        let raw_width = UnicodeWidthStr::width(raw_label.as_str()) as u16;
+        if x > area.x && x.saturating_add(raw_width) > area.x.saturating_add(area.width) {
             lines.push(Line::from(spans));
             spans = Vec::new();
             x = area.x;
@@ -173,8 +173,13 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
         if y >= area.y.saturating_add(area.height) {
             break;
         }
+        let label = fit_label_to_width(&raw_label, area.width);
+        let width = UnicodeWidthStr::width(label.as_str()) as u16;
+        if width == 0 {
+            continue;
+        }
         state.hit_areas.push(HitArea::new(
-            Rect::new(x, y, width.min(area.width), 1),
+            Rect::new(x, y, width, 1),
             HitTarget::Tab(*tab),
         ));
         x = x.saturating_add(width);
@@ -298,10 +303,11 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
         } else {
             Style::default().fg(palette.subtext0)
         };
-        lines.push(Line::from(Span::styled(
-            truncate_display(&message, area.width as usize),
-            style,
-        )));
+        lines.extend(
+            markdown::wrap_plain_text(&message, area.width as usize)
+                .into_iter()
+                .map(|line| Line::from(Span::styled(line, style))),
+        );
     }
     if lines.is_empty() {
         lines.push(separator_line(area.width, palette));
@@ -342,21 +348,30 @@ fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>
     let mut spans = Vec::new();
     let mut current_width = 0;
     for piece in pieces {
-        let separator_width = usize::from(current_width > 0) * 2;
-        let piece_width = UnicodeWidthStr::width(piece.text.as_str());
-        if current_width > 0 && current_width + separator_width + piece_width > width {
-            lines.push(Line::from(spans));
-            spans = Vec::new();
-            current_width = 0;
+        for (index, segment) in markdown::wrap_display_text(&piece.text, width)
+            .into_iter()
+            .enumerate()
+        {
+            if index > 0 && current_width > 0 {
+                lines.push(Line::from(spans));
+                spans = Vec::new();
+                current_width = 0;
+            }
+            let separator_width = usize::from(current_width > 0) * 2;
+            let segment_width = UnicodeWidthStr::width(segment.as_str());
+            if current_width > 0 && current_width + separator_width + segment_width > width {
+                lines.push(Line::from(spans));
+                spans = Vec::new();
+                current_width = 0;
+            }
+            if current_width > 0 {
+                spans.push(Span::raw("  "));
+                current_width += 2;
+            }
+            let text = truncate_display(&segment, width);
+            current_width += UnicodeWidthStr::width(text.as_str());
+            spans.push(Span::styled(text, piece.style));
         }
-        if current_width > 0 {
-            spans.push(Span::raw("  "));
-            current_width += 2;
-        }
-        let remaining = width.saturating_sub(current_width).max(1);
-        let text = truncate_display(&piece.text, remaining);
-        current_width += UnicodeWidthStr::width(text.as_str());
-        spans.push(Span::styled(text, piece.style));
     }
     if !spans.is_empty() {
         lines.push(Line::from(spans));
@@ -1519,8 +1534,8 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let mut control_spans = Vec::new();
     let mut control_lines = Vec::<Line<'static>>::new();
     for (label, target) in controls.iter() {
-        let width = UnicodeWidthStr::width(*label) as u16;
-        if x > area.x && x.saturating_add(width) > area.x.saturating_add(area.width) {
+        let raw_width = UnicodeWidthStr::width(*label) as u16;
+        if x > area.x && x.saturating_add(raw_width) > area.x.saturating_add(area.width) {
             control_lines.push(Line::from(control_spans));
             control_spans = Vec::new();
             x = area.x;
@@ -1529,14 +1544,18 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         if y >= area.y.saturating_add(area.height) {
             break;
         }
-        state.hit_areas.push(HitArea::new(
-            Rect::new(x, y, width.min(area.width), 1),
-            target.clone(),
-        ));
+        let label = fit_label_to_width(label, area.width);
+        let width = UnicodeWidthStr::width(label.as_str()) as u16;
+        if width == 0 {
+            continue;
+        }
+        state
+            .hit_areas
+            .push(HitArea::new(Rect::new(x, y, width, 1), target.clone()));
         if x > area.x {
             control_spans.push(Span::raw(" "));
         }
-        control_spans.push(Span::styled(*label, button_style(palette)));
+        control_spans.push(Span::styled(label, button_style(palette)));
         x = x.saturating_add(width + 1);
     }
     if !control_spans.is_empty() {
@@ -1782,6 +1801,15 @@ fn horizontal_rule(width: u16) -> String {
 
 fn truncate_ascii(input: &str, max_width: usize) -> String {
     truncate_display(input, max_width)
+}
+
+fn fit_label_to_width(input: &str, max_width: u16) -> String {
+    let max_width = max_width as usize;
+    if max_width == 0 {
+        String::new()
+    } else {
+        truncate_display(input, max_width)
+    }
 }
 
 fn truncate_display(input: &str, max_width: usize) -> String {
@@ -2309,6 +2337,68 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Help));
+    }
+
+    #[test]
+    fn oversized_status_pieces_wrap_without_early_ellipsis() {
+        let lines = wrap_styled_pieces(
+            &[
+                StyledPiece {
+                    text: "OK OPEN".into(),
+                    style: Style::default(),
+                },
+                StyledPiece {
+                    text: "assignees @extraordinarily-long-user-name @second-reviewer".into(),
+                    style: Style::default().add_modifier(Modifier::BOLD),
+                },
+            ],
+            14,
+        );
+        let text = lines.iter().map(line_text).collect::<Vec<_>>().join("\n");
+
+        assert!(lines.len() > 2);
+        assert!(lines
+            .iter()
+            .all(|line| UnicodeWidthStr::width(line_text(line).as_str()) <= 14));
+        assert!(!text.contains("..."));
+        assert!(text.contains("@second"));
+    }
+
+    #[test]
+    fn extremely_narrow_tabs_fit_visible_width() {
+        let mut state = AppState::new(pr_resource());
+
+        let content = draw(&mut state, 6, 20);
+
+        assert!(content.contains("[Ov..."));
+        assert!(state
+            .hit_areas
+            .iter()
+            .filter(|area| matches!(area.target, HitTarget::Tab(_)))
+            .all(|area| area.rect.width <= 6));
+    }
+
+    #[test]
+    fn extremely_narrow_footer_controls_fit_visible_width() {
+        let mut state = AppState::new(pr_resource());
+
+        let content = draw(&mut state, 8, 20);
+
+        assert!(content.contains("[refr..."));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::Refresh));
+        assert!(state
+            .hit_areas
+            .iter()
+            .filter(|area| {
+                matches!(
+                    area.target,
+                    HitTarget::Refresh | HitTarget::OpenCurrent | HitTarget::Help | HitTarget::Quit
+                )
+            })
+            .all(|area| area.rect.width <= 8));
     }
 
     #[test]
