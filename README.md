@@ -3,11 +3,12 @@
 `ghzoom` is a standalone Rust terminal UI for monitoring one GitHub pull request
 or issue.
 
-It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for
-paginated enrichment data. There is no separate login flow: if `GH_TOKEN` or
+It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for PR,
+issue, and enrichment data. There is no separate login flow: if `GH_TOKEN` or
 `GITHUB_TOKEN` is set, `ghzoom` uses it; otherwise it can reuse the token from an
-existing `gh` login. If credentials are missing, `ghzoom` reports the failed
-credential step and the `gh auth status` / `gh auth login` next step.
+existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
+fallback, not the data transport. If credentials are missing, `ghzoom` reports
+the failed credential step and the `gh auth status` / `gh auth login` next step.
 The primary PR or issue view is fetched first; optional enrichment failures are
 shown as warnings instead of preventing the resource from rendering.
 
@@ -61,7 +62,7 @@ For pull requests:
 
 - body, labels, reactions, author, state, base/head branches
 - assignees and requested reviewers
-- GitHub metadata such as draft/cross-repository state, mergeability, changed-file count, milestones, projects, ref OIDs, and merge commits where available
+- GitHub metadata such as draft/cross-repository state, mergeability, changed-file count, milestones, ref OIDs, and merge commits where available
 - comments, reviews, review comments, and timeline events such as labels,
   references, assignments, locks, pins, duplicate markers, transfers, review
   requests, draft/ready state, merges, title changes, and milestones; comments,
@@ -81,7 +82,7 @@ For pull requests:
 For issues:
 
 - body, labels, reactions, assignees, author, and state
-- GitHub metadata such as pinned state, state reason, closed time, milestones, and projects where available
+- GitHub metadata such as pinned state, state reason, closed time, and milestones where available
 - comments and timeline events such as labels, references, assignments, title
   changes, locks, pins, duplicate markers, transfers, and milestones; comments
   and timeline events are paginated so long histories are not capped at the
