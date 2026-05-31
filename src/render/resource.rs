@@ -480,6 +480,31 @@ fn commits_rows(state: &AppState, width: usize) -> Vec<ContentRow> {
                 "committed: {}",
                 commit.committed_at
             )));
+            if !commit.deployments.is_empty() {
+                rows.push(ContentRow::plain("deployments"));
+                for deployment in &commit.deployments {
+                    rows.push(ContentRow::plain(truncate_ascii(
+                        &format!(
+                            "- {} [{}] {}",
+                            deployment.environment, deployment.state, deployment.updated_at
+                        ),
+                        width,
+                    )));
+                    if let Some(description) = deployment.description.as_deref() {
+                        rows.extend(
+                            markdown::wrap_plain_text(&format!("  {description}"), width)
+                                .into_iter()
+                                .map(ContentRow::plain),
+                        );
+                    }
+                    if let Some(url) = deployment.environment_url.as_deref() {
+                        rows.push(linkable_text_row(format!("  environment: {url}"), resource));
+                    }
+                    if let Some(url) = deployment.log_url.as_deref() {
+                        rows.push(linkable_text_row(format!("  logs: {url}"), resource));
+                    }
+                }
+            }
             if !commit.body.trim().is_empty() {
                 rows.push(ContentRow::plain("body"));
                 let wrapped = markdown::wrap_plain_text(&commit.body, width);
@@ -1010,8 +1035,8 @@ mod tests {
     use super::*;
     use crate::app::{apply_event, AppEvent, AppIntent};
     use crate::domain::{
-        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, MetadataItem,
-        PullRequest, ReactionCounts, ResourceId, ResourceKind,
+        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
+        MetadataItem, PullRequest, ReactionCounts, ResourceId, ResourceKind,
     };
 
     fn pr_resource() -> Resource {
@@ -1088,6 +1113,7 @@ mod tests {
                     authored_at: Some("2026-05-14T13:10:00Z".into()),
                     committed_at: "1mo".into(),
                     status: CheckStatus::Success,
+                    deployments: Vec::new(),
                 }],
                 checks: vec![CheckRun {
                     name: "ci/test".into(),
@@ -1501,6 +1527,36 @@ mod tests {
         assert!(content.contains("committed: 1mo"));
         assert!(content.contains("Registers a SenseAudio speech provider."));
         assert!(content.contains("[less]"));
+    }
+
+    #[test]
+    fn expanded_commit_rows_show_deployments() {
+        let mut resource = pr_resource();
+        resource
+            .pull_request
+            .as_mut()
+            .unwrap()
+            .commits
+            .first_mut()
+            .unwrap()
+            .deployments = vec![Deployment {
+            environment: "preview".into(),
+            state: "SUCCESS".into(),
+            description: Some("Preview deployed".into()),
+            environment_url: Some("https://github.com/openclaw/openclaw/deployments/1".into()),
+            log_url: Some("https://github.com/openclaw/openclaw/actions/runs/1".into()),
+            created_at: Some("2026-05-30T03:20:00Z".into()),
+            updated_at: "2026-05-30T03:21:00Z".into(),
+        }];
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Commits);
+        state.toggle_block(BlockId::Commit("fb948c9".into()));
+
+        let content = draw(&mut state, 120, 80);
+
+        assert!(content.contains("deployments"));
+        assert!(content.contains("preview [SUCCESS]"));
+        assert!(content.contains("Preview deployed"));
     }
 
     #[test]

@@ -6,8 +6,8 @@ use serde_json::Value;
 use tokio::process::Command;
 
 use crate::domain::{
-    ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, MetadataItem,
-    PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
+    ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
+    MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
 };
 
 const PR_FIELDS: &str = "number,title,url,state,author,createdAt,updatedAt,labels,assignees,reactionGroups,body,baseRefName,headRefName,baseRefOid,headRefOid,headRepository,headRepositoryOwner,reviewDecision,reviewRequests,closingIssuesReferences,mergeStateStatus,mergeable,isDraft,isCrossRepository,maintainerCanModify,changedFiles,closed,closedAt,mergedAt,mergedBy,milestone,projectItems,autoMergeRequest,mergeCommit,potentialMergeCommit,additions,deletions,commits,statusCheckRollup,files,comments,reviews";
@@ -69,6 +69,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         match fetch_file_patches(id).await {
             Ok(patches) => apply_file_patches(&mut pr.files, patches),
             Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
+        }
+        match fetch_commit_deployments(id).await {
+            Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
+            Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
         }
     }
     resource.warnings.extend(warnings);
@@ -326,6 +330,73 @@ query($owner: String!, $name: String!, $number: Int!) {{
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("{}", gh_failure_message("gh api graphql timeline", &stderr));
+    }
+
+    Ok(output.stdout)
+}
+
+async fn run_graphql_commit_deployments(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    let query = r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      commits(last: 100) {
+        nodes {
+          commit {
+            oid
+            deployments(last: 10) {
+              nodes {
+                environment
+                task
+                description
+                createdAt
+                updatedAt
+                latestStatus {
+                  state
+                  description
+                  environmentUrl
+                  logUrl
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#;
+    let number = id.number.to_string();
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!(gh_execute_error(
+                "gh api graphql commit deployments",
+                &error
+            ))
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "{}",
+            gh_failure_message("gh api graphql commit deployments", &stderr)
+        );
     }
 
     Ok(output.stdout)
@@ -605,6 +676,76 @@ struct CommitDto {
     committed_date: Option<String>,
     authored_date: Option<String>,
     authors: Option<Vec<UserDto>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentsResponse {
+    data: CommitDeploymentsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentsData {
+    repository: Option<CommitDeploymentsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentsRepository {
+    pull_request: Option<CommitDeploymentsPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentsPullRequest {
+    commits: CommitDeploymentsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentsConnection {
+    nodes: Vec<CommitDeploymentNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentNode {
+    commit: CommitDeploymentCommit,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDeploymentCommit {
+    oid: String,
+    deployments: DeploymentConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeploymentConnection {
+    nodes: Vec<DeploymentDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeploymentDto {
+    environment: Option<String>,
+    task: Option<String>,
+    description: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+    latest_status: Option<DeploymentStatusDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeploymentStatusDto {
+    state: Option<String>,
+    description: Option<String>,
+    environment_url: Option<String>,
+    log_url: Option<String>,
+    created_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1096,10 +1237,30 @@ async fn fetch_changed_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>
     }
 }
 
+async fn fetch_commit_deployments(
+    id: &ResourceId,
+) -> anyhow::Result<HashMap<String, Vec<Deployment>>> {
+    let output = run_graphql_commit_deployments(id).await?;
+    let response: CommitDeploymentsResponse = serde_json::from_slice(&output)
+        .context("failed to parse commit deployments GraphQL JSON")?;
+    Ok(commit_deployments_from_response(response))
+}
+
 async fn fetch_file_patches(id: &ResourceId) -> anyhow::Result<HashMap<String, String>> {
     let output = run_pr_diff(id).await?;
     let diff = String::from_utf8_lossy(&output);
     Ok(parse_unified_diff_patches(&diff))
+}
+
+fn apply_commit_deployments(
+    commits: &mut [Commit],
+    deployments_by_commit: HashMap<String, Vec<Deployment>>,
+) {
+    for commit in commits {
+        if let Some(deployments) = deployments_by_commit.get(&commit.oid) {
+            commit.deployments = deployments.clone();
+        }
+    }
 }
 
 fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String>) {
@@ -1107,6 +1268,67 @@ fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String
         if let Some(patch) = patches.get(&file.path) {
             file.patch = Some(patch.clone());
         }
+    }
+}
+
+fn commit_deployments_from_response(
+    response: CommitDeploymentsResponse,
+) -> HashMap<String, Vec<Deployment>> {
+    response
+        .data
+        .repository
+        .and_then(|repository| repository.pull_request)
+        .map(|pull_request| {
+            pull_request
+                .commits
+                .nodes
+                .into_iter()
+                .map(|node| {
+                    (
+                        node.commit.oid,
+                        node.commit
+                            .deployments
+                            .nodes
+                            .into_iter()
+                            .map(deployment_from_dto)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<HashMap<_, _>>()
+        })
+        .unwrap_or_default()
+}
+
+fn deployment_from_dto(deployment: DeploymentDto) -> Deployment {
+    let status = deployment.latest_status;
+    let state = status
+        .as_ref()
+        .and_then(|status| status.state.clone())
+        .unwrap_or_else(|| "UNKNOWN".to_string());
+    let description = status
+        .as_ref()
+        .and_then(|status| status.description.clone())
+        .or(deployment.description);
+    let created_at = deployment
+        .created_at
+        .or_else(|| status.as_ref().and_then(|status| status.created_at.clone()));
+    Deployment {
+        environment: deployment
+            .environment
+            .filter(|value| !value.is_empty())
+            .or(deployment.task)
+            .unwrap_or_else(|| "deployment".to_string()),
+        state,
+        description,
+        environment_url: status
+            .as_ref()
+            .and_then(|status| status.environment_url.clone()),
+        log_url: status.as_ref().and_then(|status| status.log_url.clone()),
+        created_at,
+        updated_at: deployment
+            .updated_at
+            .or_else(|| status.and_then(|status| status.created_at))
+            .unwrap_or_else(|| "unknown".to_string()),
     }
 }
 
@@ -1368,6 +1590,7 @@ fn commit_from_dto(commit: CommitDto) -> Commit {
             .or(authored_at)
             .unwrap_or_else(|| "unknown".to_string()),
         status: CheckStatus::Unknown,
+        deployments: Vec::new(),
     }
 }
 
@@ -1612,6 +1835,93 @@ mod tests {
         assert_eq!(commit.authors, vec!["alice", "friend"]);
         assert_eq!(commit.authored_at.as_deref(), Some("2026-05-14T13:10:00Z"));
         assert_eq!(commit.committed_at, "2026-05-30T03:18:51Z");
+        assert!(commit.deployments.is_empty());
+    }
+
+    #[test]
+    fn commit_deployments_from_response_maps_environment_status_and_urls() {
+        let response = CommitDeploymentsResponse {
+            data: CommitDeploymentsData {
+                repository: Some(CommitDeploymentsRepository {
+                    pull_request: Some(CommitDeploymentsPullRequest {
+                        commits: CommitDeploymentsConnection {
+                            nodes: vec![CommitDeploymentNode {
+                                commit: CommitDeploymentCommit {
+                                    oid: "abcdef123".into(),
+                                    deployments: DeploymentConnection {
+                                        nodes: vec![DeploymentDto {
+                                            environment: Some("preview".into()),
+                                            task: Some("deploy".into()),
+                                            description: None,
+                                            created_at: Some("2026-05-30T03:20:00Z".into()),
+                                            updated_at: Some("2026-05-30T03:21:00Z".into()),
+                                            latest_status: Some(DeploymentStatusDto {
+                                                state: Some("SUCCESS".into()),
+                                                description: Some("Preview deployed".into()),
+                                                environment_url: Some(
+                                                    "https://example.test/preview".into(),
+                                                ),
+                                                log_url: Some("https://example.test/logs".into()),
+                                                created_at: Some("2026-05-30T03:21:00Z".into()),
+                                            }),
+                                        }],
+                                    },
+                                },
+                            }],
+                        },
+                    }),
+                }),
+            },
+        };
+
+        let deployments = commit_deployments_from_response(response);
+
+        assert_eq!(deployments["abcdef123"][0].environment, "preview");
+        assert_eq!(deployments["abcdef123"][0].state, "SUCCESS");
+        assert_eq!(
+            deployments["abcdef123"][0].description.as_deref(),
+            Some("Preview deployed")
+        );
+        assert_eq!(
+            deployments["abcdef123"][0].environment_url.as_deref(),
+            Some("https://example.test/preview")
+        );
+        assert_eq!(
+            deployments["abcdef123"][0].log_url.as_deref(),
+            Some("https://example.test/logs")
+        );
+    }
+
+    #[test]
+    fn applies_commit_deployments_to_matching_commits() {
+        let mut commits = vec![Commit {
+            oid: "abcdef123".into(),
+            message: "feat: add thing".into(),
+            body: String::new(),
+            author: "alice".into(),
+            authors: vec!["alice".into()],
+            authored_at: None,
+            committed_at: "2026-05-30T03:18:51Z".into(),
+            status: CheckStatus::Unknown,
+            deployments: Vec::new(),
+        }];
+        let mut deployments = HashMap::new();
+        deployments.insert(
+            "abcdef123".into(),
+            vec![Deployment {
+                environment: "preview".into(),
+                state: "SUCCESS".into(),
+                description: None,
+                environment_url: None,
+                log_url: None,
+                created_at: None,
+                updated_at: "2026-05-30T03:21:00Z".into(),
+            }],
+        );
+
+        apply_commit_deployments(&mut commits, deployments);
+
+        assert_eq!(commits[0].deployments[0].environment, "preview");
     }
 
     #[test]
