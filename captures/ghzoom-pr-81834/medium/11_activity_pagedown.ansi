@@ -2,35 +2,35 @@
 feat(senseaudio): add SenseAudio TTS provider                                                                           
 [38;2;65;72;104m------------------------------------------------------------------------------------------------------------------------
 [38;2;169;177;214m Overview [1m[38;2;26;27;38m[48;2;122;162;247m[Activity][0m[38;2;169;177;214m[48;2;26;27;38m Commits  Checks  Files  Links [38;2;192;202;245m                                                                     
-[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @KLilyZ[38;2;192;202;245m  [38;2;125;207;255mcomments 43[38;2;192;202;245m  [38;2;224;175;104mreactions 4[38;2;192;202;245m  [1m[38;2;158;206;106mOK checks PASS (97 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mfiles 14 +1057 -22[38;2;192;202;245m          
-                                                                                                                        
-[1m[38;2;122;162;247mActivity (43 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                   
-[38;2;86;95;137m------------------------------------------------------------------------------------------------------------------------
-[38;2;192;202;245mTimeline by @github-actions 2026-05-14T14:05:56Z                                                                        
-added label dependencies-changed                                                                                        
-                                                                                                                        
-Comment by @github-actions 2026-05-14T14:05:57Z                                                                         
-meta: association CONTRIBUTOR                                                                                           
-[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
-<!-- openclaw:dependency-change-awareness -->                                                                           
-                                                                                                                        
-Dependency Changes Detected                                                                                             
-                                                                                                                        
-This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
+[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @KLilyZ[38;2;192;202;245m  [38;2;125;207;255mcomments 7[38;2;192;202;245m  [38;2;224;175;104mreactions 4[38;2;192;202;245m  [1m[38;2;158;206;106mOK checks PASS (97 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mfiles 14 +1057 -22[38;2;192;202;245m           
+[1m[38;2;224;175;104mwarn Warnings: 1[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                        
                                                                                                                         
 Changed files:                                                                                                          
 - extensions/senseaudio/package.json                                                                                    
 [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:07Z                                                                     
-added label extensions: senseaudio                                                                                      
+Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                 
+meta: association NONE                                                                                                  
+[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
+Codex review: needs changes before merge.                                                                               
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:10Z                                                                     
-added label triage: needs-real-behavior-proof                                                                           
+Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP    
+helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                        
                                                                                                                         
-Timeline by @openclaw-barnacle 2026-05-14T14:06:11Z                                                                     
-added label size: L                                                                                                     
+Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The        
+remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider    
+<id>.                                                                                                                   
+[1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                
                                                                                                                         
-Timeline by @KLilyZ 2026-05-14T14:30:43Z                                                                                
-referenced commit 512296420fe0                                                                                          
+Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                 
+meta: association NONE                                                                                                  
+[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
+Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                 
+contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,   
+just flagging it in case it slipped past the queue.                                                                     
+                                                                                                                        
+Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                               
+meta: association MEMBER                                                                                                
+[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
+<!-- dependency-guard-rebase-needed-backfill -->                                                                        
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                                      

@@ -2,7 +2,7 @@ openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z
 openai-responses provider: 404 on previous_response_id when store=false (default)                                                                               
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 [Overview] Activity  Links                                                                                                                                      
-OK OPEN  by @xneone  comments 9  reactions 1                                                                                                                    
+OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                                                                  
                                                                                                                                                                 
 Conversation                                                                                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -21,18 +21,6 @@ input.
 Once this happens, every subsequent request in the session fails with the same 404, because the stale previous_response_id is never cleared. The session is     
 [+ more]                                                                                                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- Timeline by @clawsweeper 2026-05-31T02:28:11Z                                                                                                                 
-added label P2                                                                                                                                                  
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- Timeline by @clawsweeper 2026-05-31T02:28:12Z                                                                                                                 
-added label impact:session-state                                                                                                                                
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                                                                 
-added label issue-rating: 🐚 platinum hermit                                                                                                                    
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-- Timeline by @clawsweeper 2026-05-31T02:28:15Z                                                                                                                 
-added label clawsweeper:needs-live-repro                                                                                                                        
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                            
 meta: association CONTRIBUTOR, edited                                                                                                                           
 [details]                                                                                                                                                       
@@ -47,4 +35,16 @@ Reproducibility: no. high-confidence live repro was run. Source inspection shows
 [+ more]                                                                                                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 comment Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                  
+meta: association CONTRIBUTOR                                                                                                                                   
+[details]                                                                                                                                                       
+Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                    
+                                                                                                                                                                
+Environment:                                                                                                                                                    
+- OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                     
+- OS: macOS arm64                                                                                                                                               
+- Channel: Slack, channel-scoped session                                                                                                                        
+- Provider/API path: openai / openai-responses                                                                                                                  
+- Model: gpt-5.5                                                                                                                                                
+[+ more]                                                                                                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
 [refresh] [open] [help] [quit] ...                                                                                                                              

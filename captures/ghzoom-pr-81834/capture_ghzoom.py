@@ -216,30 +216,33 @@ def capture_frame(
     tmux("kill-session", "-t", session, check=False)
     tab_arg = f" --tab {tab}" if tab else ""
     command = f"TERM=xterm-256color {BIN} {TARGET}{tab_arg} --refresh-seconds 0"
-    tmux("new-session", "-d", "-x", str(cols), "-y", str(rows), "-s", session, command)
-    tmux("resize-window", "-t", session, "-x", str(cols), "-y", str(rows))
-    actual_size = tmux_size(session)
-    meta.setdefault("actual_tmux_size", actual_size)
-    wait_for_loaded(session)
-    for key in keys or []:
-        send(session, key)
-    write_capture(
-        session,
-        out_dir,
-        name,
-        meta,
-        {
-            "command": command,
-            "tab": tab or "overview",
-            "keys": keys or [],
-            "actual_tmux_size": actual_size,
-        },
-    )
-    history_plain = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-p").stdout
-    history_ansi = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-e", "-p").stdout
-    (out_dir / f"{name}.history.txt").write_text(history_plain)
-    (out_dir / f"{name}.history.ansi").write_text(history_ansi)
-    tmux("kill-session", "-t", session, check=False)
+    print(f"capturing {MODE} {label}/{name} ({cols}x{rows}, tab={tab or 'overview'})", flush=True)
+    try:
+        tmux("new-session", "-d", "-x", str(cols), "-y", str(rows), "-s", session, command)
+        tmux("resize-window", "-t", session, "-x", str(cols), "-y", str(rows))
+        actual_size = tmux_size(session)
+        meta.setdefault("actual_tmux_size", actual_size)
+        wait_for_loaded(session)
+        for key in keys or []:
+            send(session, key)
+        write_capture(
+            session,
+            out_dir,
+            name,
+            meta,
+            {
+                "command": command,
+                "tab": tab or "overview",
+                "keys": keys or [],
+                "actual_tmux_size": actual_size,
+            },
+        )
+        history_plain = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-p").stdout
+        history_ansi = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-e", "-p").stdout
+        (out_dir / f"{name}.history.txt").write_text(history_plain)
+        (out_dir / f"{name}.history.ansi").write_text(history_ansi)
+    finally:
+        tmux("kill-session", "-t", session, check=False)
 
 
 def capture_size(label: str, cols: int, rows: int):
@@ -321,8 +324,9 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
-def validate_capture_root(root: Path, mode: str):
+def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = False):
     errors = []
+    expected_git_commit = git_commit()
     root_manifest = root / "manifest.json"
     if not root_manifest.exists():
         errors.append(f"missing {root_manifest}")
@@ -330,6 +334,10 @@ def validate_capture_root(root: Path, mode: str):
         manifest = read_json(root_manifest)
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
+        if not allow_stale_revision and manifest.get("git_commit") != expected_git_commit:
+            errors.append(
+                f"{root_manifest} git_commit is {manifest.get('git_commit')!r}, expected current HEAD {expected_git_commit!r}"
+            )
 
     frames = expected_frames(mode)
     markers = expected_markers(mode) + ["[refresh]", "[open]", "[help]", "[quit]"]
@@ -340,6 +348,10 @@ def validate_capture_root(root: Path, mode: str):
             errors.append(f"missing {manifest_path}")
             continue
         manifest = read_json(manifest_path)
+        if not allow_stale_revision and manifest.get("git_commit") != expected_git_commit:
+            errors.append(
+                f"{manifest_path} git_commit is {manifest.get('git_commit')!r}, expected current HEAD {expected_git_commit!r}"
+            )
         expected_size = f"{cols}x{rows}"
         if manifest.get("actual_tmux_size") != expected_size:
             errors.append(
@@ -383,6 +395,11 @@ def main():
     parser.add_argument("--load-needle", default=None)
     parser.add_argument("--mode", choices=["pr", "issue"], default=MODE)
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument(
+        "--allow-stale-revision",
+        action="store_true",
+        help="allow manifests captured from a different git revision",
+    )
     args = parser.parse_args()
 
     ROOT = args.root.resolve()
@@ -392,7 +409,7 @@ def main():
     MODE = args.mode
     ROOT.mkdir(parents=True, exist_ok=True)
     if args.validate_only:
-        validate_capture_root(ROOT, MODE)
+        validate_capture_root(ROOT, MODE, args.allow_stale_revision)
         return
 
     overall = {
@@ -407,7 +424,7 @@ def main():
         capture_size(label, cols, rows)
         overall["sizes"].append({"label": label, "columns": cols, "rows": rows})
     (ROOT / "manifest.json").write_text(json.dumps(overall, indent=2) + "\n")
-    validate_capture_root(ROOT, MODE)
+    validate_capture_root(ROOT, MODE, args.allow_stale_revision)
 
 
 if __name__ == "__main__":
