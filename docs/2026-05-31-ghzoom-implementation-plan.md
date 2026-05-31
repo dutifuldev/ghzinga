@@ -187,7 +187,8 @@ Data loaded for PR:
 - timeline events for labels, references, assignments, pins, locks, duplicate
   markers, transfers, connected/disconnected references, review requests,
   draft/ready state, auto-merge changes, merges, title changes, milestones,
-  close, and reopen events
+  close, and reopen events; timeline pages are fetched until GitHub reports no
+  next page
 - reviews and review states
 - mergeability and review decision where exposed
 
@@ -202,7 +203,7 @@ Data loaded for issue:
   reactions, edit/minimized metadata, permalinks, labels, references,
   assignments, pins, locks, duplicate markers, transfers,
   connected/disconnected references, title changes, milestones, close, and
-  reopen events
+  reopen events; timeline pages are fetched until GitHub reports no next page
 - timeline-ish linked references when available
 
 Refresh:

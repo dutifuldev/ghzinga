@@ -255,9 +255,14 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
     Ok(output.stdout)
 }
 
-async fn run_graphql_timeline(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<Vec<u8>> {
+async fn run_graphql_timeline(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
     let query = timeline_query(kind);
     let number = id.number.to_string();
+    let after = after.unwrap_or("null");
     let output = Command::new("gh")
         .args([
             "api",
@@ -268,6 +273,8 @@ async fn run_graphql_timeline(id: &ResourceId, kind: ResourceKind) -> anyhow::Re
             &format!("name={}", id.repo),
             "-F",
             &format!("number={number}"),
+            "-F",
+            &format!("after={after}"),
             "-f",
             &format!("query={query}"),
         ])
@@ -333,10 +340,10 @@ fn timeline_query(kind: ResourceKind) -> String {
     };
     format!(
         r#"
-query($owner: String!, $name: String!, $number: Int!) {{
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
   repository(owner: $owner, name: $name) {{
     {selector}(number: $number) {{
-      timelineItems(first: 100, itemTypes: [
+      timelineItems(first: 100, after: $after, itemTypes: [
         CLOSED_EVENT,
         REOPENED_EVENT,
         LABELED_EVENT,
@@ -362,6 +369,10 @@ query($owner: String!, $name: String!, $number: Int!) {{
         MILESTONED_EVENT,
         DEMILESTONED_EVENT{pr_timeline_items}
       ]) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
         nodes {{
           __typename
           ... on ClosedEvent {{ id createdAt actor {{ login }} closer {{ __typename }} }}
@@ -827,6 +838,7 @@ struct TimelineResource {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TimelineItemsConnection {
+    page_info: PageInfoDto,
     nodes: Vec<Value>,
 }
 
@@ -1453,10 +1465,24 @@ async fn fetch_timeline_activity(
     id: &ResourceId,
     kind: ResourceKind,
 ) -> anyhow::Result<Vec<ActivityEntry>> {
-    let output = run_graphql_timeline(id, kind).await?;
-    let response: TimelineResponse =
-        serde_json::from_slice(&output).context("failed to parse timeline GraphQL JSON")?;
-    Ok(timeline_activity(response))
+    let mut activity = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_timeline(id, kind, after.as_deref()).await?;
+        let response: TimelineResponse =
+            serde_json::from_slice(&output).context("failed to parse timeline GraphQL JSON")?;
+        let Some(page) = timeline_activity_page(response) else {
+            return Ok(activity);
+        };
+        activity.extend(page.activity);
+        if !page.has_next_page {
+            return Ok(activity);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("timeline page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
 }
 
 async fn fetch_changed_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>> {
@@ -1722,21 +1748,35 @@ fn review_thread_activity(response: ReviewThreadsResponse) -> Vec<ActivityEntry>
     entries
 }
 
+struct TimelineActivityPage {
+    activity: Vec<ActivityEntry>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+#[cfg(test)]
 fn timeline_activity(response: TimelineResponse) -> Vec<ActivityEntry> {
-    let Some(repository) = response.data.repository else {
-        return Vec::new();
-    };
-    let resource = repository.pull_request.or(repository.issue);
-    let Some(resource) = resource else {
-        return Vec::new();
-    };
-    resource
+    timeline_activity_page(response)
+        .map(|page| page.activity)
+        .unwrap_or_default()
+}
+
+fn timeline_activity_page(response: TimelineResponse) -> Option<TimelineActivityPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.timeline_items.page_info;
+    let activity = resource
         .timeline_items
         .nodes
         .into_iter()
         .enumerate()
         .map(|(index, node)| timeline_node_to_activity(index, &node))
-        .collect()
+        .collect();
+    Some(TimelineActivityPage {
+        activity,
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
 }
 
 fn timeline_node_to_activity(index: usize, node: &Value) -> ActivityEntry {
@@ -2886,6 +2926,10 @@ diff --git a/docs/two.md b/docs/two.md\n\
                 repository: Some(TimelineRepository {
                     issue: Some(TimelineResource {
                         timeline_items: TimelineItemsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
                             nodes: vec![
                                 serde_json::json!({
                                     "__typename": "LabeledEvent",
@@ -3004,6 +3048,37 @@ diff --git a/docs/two.md b/docs/two.md\n\
             activity[7].body,
             "connected openclaw/openclaw#88499 to openclaw/openclaw#81834"
         );
+    }
+
+    #[test]
+    fn timeline_activity_page_preserves_pagination_state() {
+        let page = timeline_activity_page(TimelineResponse {
+            data: TimelineData {
+                repository: Some(TimelineRepository {
+                    issue: Some(TimelineResource {
+                        timeline_items: TimelineItemsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("cursor-2".into()),
+                            },
+                            nodes: vec![serde_json::json!({
+                                "__typename": "PinnedEvent",
+                                "id": "pinned",
+                                "createdAt": "2026-05-31T07:08:12Z",
+                                "actor": {"login": "alice"}
+                            })],
+                        },
+                    }),
+                    pull_request: None,
+                }),
+            },
+        })
+        .expect("timeline page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("cursor-2"));
+        assert_eq!(page.activity.len(), 1);
+        assert_eq!(page.activity[0].body, "pinned");
     }
 
     #[test]
