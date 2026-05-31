@@ -3445,6 +3445,10 @@ fn timeline_body(typename: &str, node: &Value) -> String {
                 .map(|reason| format!(": {reason}"))
                 .unwrap_or_default()
         ),
+        "PullRequestRevisionMarker" => format!(
+            "revision marker at {}",
+            short_oid_at(node, &["lastSeenCommit", "oid"])
+        ),
         "DeployedEvent" => deployment_body(node),
         "DeploymentEnvironmentChangedEvent" => deployment_environment_changed_body(node),
         other => format!("{other} event"),
@@ -4005,6 +4009,7 @@ mod tests {
         assert!(issue_query.contains("MARKED_AS_DUPLICATE_EVENT"));
         assert!(!issue_query.contains("MERGED_EVENT"));
         assert!(!issue_query.contains("PULL_REQUEST_COMMIT_COMMENT_THREAD"));
+        assert!(!issue_query.contains("PULL_REQUEST_REVISION_MARKER"));
         assert!(!issue_query.contains("ReviewRequestedEvent"));
         assert!(pr_query.contains("pullRequest(number: $number)"));
         assert!(pr_query.contains("LOCKED_EVENT"));
@@ -4012,6 +4017,8 @@ mod tests {
         assert!(pr_query.contains("MERGED_EVENT"));
         assert!(pr_query.contains("PULL_REQUEST_COMMIT_COMMENT_THREAD"));
         assert!(pr_query.contains("PullRequestCommitCommentThread"));
+        assert!(pr_query.contains("PULL_REQUEST_REVISION_MARKER"));
+        assert!(pr_query.contains("PullRequestRevisionMarker"));
         assert!(pr_query.contains("ReviewRequestedEvent"));
         assert!(pr_query.contains("BASE_REF_CHANGED_EVENT"));
         assert!(pr_query.contains("HEAD_REF_FORCE_PUSHED_EVENT"));
@@ -6318,6 +6325,11 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         "url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-2"
                                     }
                                 }),
+                                serde_json::json!({
+                                    "__typename": "PullRequestRevisionMarker",
+                                    "createdAt": "2026-05-31T07:17:12Z",
+                                    "lastSeenCommit": {"oid": "fedcba9876543210"}
+                                }),
                             ],
                         },
                     }),
@@ -6326,7 +6338,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             },
         });
 
-        assert_eq!(activity.len(), 17);
+        assert_eq!(activity.len(), 18);
         assert_eq!(activity[0].kind, ActivityKind::Timeline);
         assert_eq!(activity[0].author, "clawsweeper");
         assert_eq!(activity[0].body, "added label P2");
@@ -6385,6 +6397,8 @@ diff --git a/docs/two.md b/docs/two.md\n\
             activity[16].url.as_deref(),
             Some("https://github.com/openclaw/openclaw/issues/88499#issuecomment-2")
         );
+        assert_eq!(activity[17].body, "revision marker at fedcba987654");
+        assert_eq!(activity[17].updated_at, "2026-05-31T07:17:12Z");
     }
 
     #[test]

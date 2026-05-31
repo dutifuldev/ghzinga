@@ -586,6 +586,7 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
         AUTO_MERGE_ENABLED_EVENT,
         AUTO_MERGE_DISABLED_EVENT,
         PULL_REQUEST_COMMIT_COMMENT_THREAD,
+        PULL_REQUEST_REVISION_MARKER,
         DEPLOYED_EVENT,
         DEPLOYMENT_ENVIRONMENT_CHANGED_EVENT"#
         }
@@ -692,6 +693,10 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
                 position
               }
             }
+          }
+          ... on PullRequestRevisionMarker {
+            createdAt
+            lastSeenCommit { oid }
           }
           ... on DeployedEvent {
             id

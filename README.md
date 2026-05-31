@@ -80,9 +80,10 @@ For pull requests:
   changes, merges, title changes, milestones, projects, project-v2 statuses,
   issue types, issue fields, sub-issues, parent issues, blocking relationships,
   user blocks, converted project notes, converted draft items, converted
-  discussions, and deployment events; comments, timeline events, reviews, review
-  threads, review-thread comments, commit comment threads, and nested commit
-  comments are paginated so long histories are not capped at the first page
+  discussions, revision markers, and deployment events; comments, timeline
+  events, reviews, review threads, review-thread comments, commit comment
+  threads, and nested commit comments are paginated so long histories are not
+  capped at the first page
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, commit-comment path/position, and review-thread resolved/outdated
   state when GitHub exposes it
