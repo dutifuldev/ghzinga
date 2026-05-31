@@ -440,7 +440,7 @@ This is useful but long. `#81834` has 126 aggregate checks in the captured statu
 +3   -1    extensions/senseaudio/index.ts
 ```
 
-This tab is a preview, not a file browser. It shows file names and change footprint, but no diff hunks, no file filtering, and no way to jump from a review-thread comment to a file. That is a reasonable gh-dash tradeoff because the main product is a dashboard. For a `ghzoom`-style tool, the Files area should probably be promoted to a navigable file list with optional diff preview.
+This tab is a preview, not a file browser. It shows file names and change footprint, but no diff hunks, no file filtering, and no way to jump from a review-thread comment to a file. That is a reasonable gh-dash tradeoff because the main product is a dashboard. For a `ghzinga`-style tool, the Files area should probably be promoted to a navigable file list with optional diff preview.
 
 ## Issue Preview
 
@@ -559,7 +559,7 @@ In `80x24`, the visible preview strip starts after the list and separator. The P
 
 The aggregate check box cleanly separates review, check, and merge states. It exposes a subtle but important state: "All checks have passed" while "Merging is blocked".
 
-For `ghzoom`, this pattern should be preserved, but the detailed check list should be grouped by state and workflow.
+For `ghzinga`, this pattern should be preserved, but the detailed check list should be grouped by state and workflow.
 
 ### 5. Activity needs richer structure for deep review
 
@@ -573,7 +573,7 @@ The flat chronological Activity feed is readable, but it hides useful axes:
 
 The captured `large/20_activity_top.txt` demonstrates both the benefit and limitation: the Markdown body is readable, but one long comment dominates the viewport.
 
-## Implications for ghzoom
+## Implications for ghzinga
 
 gh-dash is optimized for "peek at selected row while staying in the dashboard." A dedicated issue/PR viewer should keep the good parts but change the default layout.
 

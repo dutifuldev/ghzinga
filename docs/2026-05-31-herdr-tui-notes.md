@@ -6,7 +6,7 @@ date: 2026-05-31
 
 # Herdr TUI Architecture Notes
 
-This note summarizes how the local `herdr` checkout uses Ratatui, Crossterm, and supporting Rust libraries for its terminal UI, input pipeline, mouse capture, and embedded terminal panes. It is written as design input for `ghzoom`, a smaller GitHub issue/PR viewer.
+This note summarizes how the local `herdr` checkout uses Ratatui, Crossterm, and supporting Rust libraries for its terminal UI, input pipeline, mouse capture, and embedded terminal panes. It is written as design input for `ghzinga`, a smaller GitHub issue/PR viewer.
 
 Source baseline: `/home/bob/repos/herdr` at commit `7781979`.
 
@@ -14,16 +14,16 @@ Source baseline: `/home/bob/repos/herdr` at commit `7781979`.
 
 Herdr is built like a terminal multiplexer, not like a typical terminal dashboard. Ratatui is the renderer and layout system, Crossterm provides terminal mode commands and event types, Tokio drives async runtime work, and a vendored Ghostty terminal emulator handles real PTY panes. Mouse support is not a single flag; it is a policy that decides whether the host terminal should send mouse events to Herdr, whether Herdr should handle those events as application UI, and whether some events should be translated and forwarded into a child terminal app.
 
-The most useful Herdr patterns for `ghzoom` are:
+The most useful Herdr patterns for `ghzinga` are:
 
 - Compute all layout geometry before rendering.
 - Store hit areas in app state.
 - Route mouse input against those hit areas.
 - Keep terminal setup and restoration in a guard.
 - Use Crossterm mouse capture only when the app has real clickable UI.
-- Keep the first `ghzoom` design local and single-process.
+- Keep the first `ghzinga` design local and single-process.
 
-The Herdr parts `ghzoom` should avoid at first are PTY management, Ghostty terminal emulation, raw byte parsing, remote frame streaming, and child app mouse forwarding. Those solve multiplexer problems that a focused issue/PR viewer probably does not have.
+The Herdr parts `ghzinga` should avoid at first are PTY management, Ghostty terminal emulation, raw byte parsing, remote frame streaming, and child app mouse forwarding. Those solve multiplexer problems that a focused issue/PR viewer probably does not have.
 
 ## Source Map
 
@@ -55,7 +55,7 @@ Core crates in `Cargo.toml`:
 - `regex`, `unicode-width`: terminal text parsing, detection heuristics, and width-aware rendering.
 - Vendored Ghostty terminal code under `vendor/libghostty-vt`: terminal emulation, input state tracking, mouse encoding, ANSI/VT rendering, and scrollback.
 
-For `ghzoom`, the likely minimum is:
+For `ghzinga`, the likely minimum is:
 
 - `ratatui`: UI.
 - `crossterm`: terminal setup, event polling, mouse capture.
@@ -87,7 +87,7 @@ This mode:
 - handles input and render locally,
 - restores terminal state on normal exit and panic.
 
-This is closest to what `ghzoom` should start with.
+This is closest to what `ghzinga` should start with.
 
 ### Headless Server Mode
 
@@ -101,7 +101,7 @@ The server:
 - streams frame diffs to clients,
 - tells clients whether they should currently capture mouse input.
 
-`ghzoom` should not start here unless remote attach is a hard requirement.
+`ghzinga` should not start here unless remote attach is a hard requirement.
 
 ### Thin Client Mode
 
@@ -117,7 +117,7 @@ The client:
 - applies `ServerMessage::MouseCapture { enabled }` changes locally,
 - restores terminal state on exit.
 
-Again, this is unnecessary for an initial `ghzoom`, but it shows how mouse capture can be dynamically controlled by app state.
+Again, this is unnecessary for an initial `ghzinga`, but it shows how mouse capture can be dynamically controlled by app state.
 
 ## Terminal Setup In Detail
 
@@ -146,7 +146,7 @@ The thin client has an analogous guard in `src/client/mod.rs`:
 - `TerminalGuard` restores terminal state in `Drop`.
 - `restore_terminal_state(...)` disables mouse capture, bracketed paste, focus reporting, keyboard enhancement flags, and restores Ratatui.
 
-For `ghzoom`, use the guard pattern:
+For `ghzinga`, use the guard pattern:
 
 ```rust
 struct TerminalGuard;
@@ -174,7 +174,7 @@ impl Drop for TerminalGuard {
 }
 ```
 
-That gives `ghzoom` the important safety property without inheriting Herdr's full terminal protocol setup.
+That gives `ghzinga` the important safety property without inheriting Herdr's full terminal protocol setup.
 
 ## Ratatui Rendering Model
 
@@ -201,7 +201,7 @@ Important Herdr practice:
 - `AppState` owns behavior, mode, scroll offsets, selected item, hit areas, and drag state.
 - Rendering is mostly a projection from `AppState` to a terminal buffer.
 
-For `ghzoom`, design this as:
+For `ghzinga`, design this as:
 
 ```text
 AppState
@@ -242,7 +242,7 @@ Herdr uses Ratatui layouts directly:
 
 It does not treat layout as throwaway render code. Helpers such as sidebar, mobile, tabs, modals, and scrollbars compute rectangles that are later used by mouse handlers.
 
-For `ghzoom`, use a similar deterministic layout:
+For `ghzinga`, use a similar deterministic layout:
 
 ```text
 +--------------------------------------------------------------------------------+
@@ -290,7 +290,7 @@ Mouse handlers check mode early:
 - modal modes constrain input to modal buttons/scrollbars,
 - terminal mode allows pane, sidebar, tab, and context menu behavior.
 
-For `ghzoom`, likely modes:
+For `ghzinga`, likely modes:
 
 - `Normal`: read and navigate issue/PR content.
 - `Search`: typing into a filter/search prompt.
@@ -345,7 +345,7 @@ It converts terminal 1-based coordinates to 0-based Crossterm coordinates and ma
 - scroll up/down/left/right,
 - shift/alt/control modifiers.
 
-For `ghzoom`, use Crossterm's normal event APIs first. Herdr's raw parser is valuable only if `ghzoom` later needs:
+For `ghzinga`, use Crossterm's normal event APIs first. Herdr's raw parser is valuable only if `ghzinga` later needs:
 
 - exact modified-key behavior across many terminals,
 - host theme probing,
@@ -379,7 +379,7 @@ RawInputEvent::Mouse(mouse)
 
 The `mouse_capture = false` branch matters because Herdr may have disabled host mouse capture for its own UI but then re-enabled it when a focused child pane requested mouse reporting. In that state, mouse events should be forwarded to the pane, not interpreted as Herdr chrome clicks.
 
-For `ghzoom`, the flow can be:
+For `ghzinga`, the flow can be:
 
 ```text
 crossterm event
@@ -389,7 +389,7 @@ crossterm event
   -> render
 ```
 
-No forwarding branch is needed unless `ghzoom` embeds child terminal programs.
+No forwarding branch is needed unless `ghzinga` embeds child terminal programs.
 
 ## Mouse Capture Policy
 
@@ -433,7 +433,7 @@ if desired changed:
 
 In server mode, `src/server/headless.rs` sends the desired state to clients as `ServerMessage::MouseCapture { enabled }`; `src/client/mod.rs` applies it locally.
 
-For `ghzoom`, decide early:
+For `ghzinga`, decide early:
 
 - If mouse is central to the app, default `mouse_capture = true`.
 - If keyboard-first terminal ergonomics matter more, default `mouse_capture = false` and provide `--mouse`.
@@ -495,7 +495,7 @@ For middle click/drag:
 
 - forward to pane app when relevant.
 
-For `ghzoom`, use this ordering:
+For `ghzinga`, use this ordering:
 
 1. Overlay/modal first.
 2. Action menu or command palette.
@@ -585,7 +585,7 @@ This lets Herdr answer questions like:
 - `wheel_routing()`
 - `try_send_bytes(...)`
 
-This is not needed for `ghzoom` unless it grows a "run this command in a pane" feature.
+This is not needed for `ghzinga` unless it grows a "run this command in a pane" feature.
 
 ## Scroll Behavior
 
@@ -598,7 +598,7 @@ Herdr treats wheel events as context-sensitive:
 
 The `ui.mouse_scroll_lines` config defaults to `3` and is applied when Herdr scrolls pane scrollback itself.
 
-For `ghzoom`, use panel-local scroll offsets:
+For `ghzinga`, use panel-local scroll offsets:
 
 ```text
 ScrollState
@@ -625,7 +625,7 @@ Selection behavior includes:
 - copy feedback is rendered as a TUI overlay,
 - Shift-drag can still be used by host terminals when mouse capture is disabled.
 
-For `ghzoom`, decide whether app-level selection is worth implementing. Since GitHub content is structured data, a better first version is:
+For `ghzinga`, decide whether app-level selection is worth implementing. Since GitHub content is structured data, a better first version is:
 
 - keyboard command to copy URL,
 - keyboard command to copy title,
@@ -639,9 +639,9 @@ If mouse capture is on by default, app-level copy commands become more important
 
 Herdr centralizes palette state in `AppState` and uses Ratatui `Style` everywhere. It supports built-in themes, custom colors, and a special `terminal` theme that can query host terminal default colors.
 
-The advanced terminal theme path is tied to its terminal emulator and host color query machinery. That is too much for `ghzoom` initially.
+The advanced terminal theme path is tied to its terminal emulator and host color query machinery. That is too much for `ghzinga` initially.
 
-For `ghzoom`, define a simple palette:
+For `ghzinga`, define a simple palette:
 
 ```rust
 pub struct Palette {
@@ -682,7 +682,7 @@ Herdr has a real keybinding model:
 - custom command bindings,
 - validation and diagnostics.
 
-For `ghzoom`, do not start with a full prefix system unless it is meant to behave like tmux. A GitHub object viewer probably wants direct, discoverable bindings:
+For `ghzinga`, do not start with a full prefix system unless it is meant to behave like tmux. A GitHub object viewer probably wants direct, discoverable bindings:
 
 - `q`: quit
 - `tab` / `shift+tab`: next/previous panel
@@ -716,7 +716,7 @@ help = "?"
 
 Herdr tests rendering by using Ratatui in-memory backends and checking buffers. It tests raw input parsers and mouse routing with constructed `MouseEvent` values.
 
-For `ghzoom`, useful test layers:
+For `ghzinga`, useful test layers:
 
 - unit-test layout computation for known terminal sizes,
 - unit-test hit-area lookup,
@@ -727,7 +727,7 @@ For `ghzoom`, useful test layers:
 
 Avoid relying only on manual TUI testing. Mouse routing breaks easily when layout changes.
 
-## Practical Architecture For Ghzoom
+## Practical Architecture For Ghzinga
 
 Suggested module layout:
 
@@ -847,7 +847,7 @@ Avoid these unless a concrete feature demands them:
 
 ## Suggested First Mouse Behavior
 
-For a polished `ghzoom` first version:
+For a polished `ghzinga` first version:
 
 - left-click tab names to switch panels,
 - left-click comments/files/checks to focus them,
@@ -869,4 +869,4 @@ Herdr's TUI quality comes less from Ratatui itself and more from its architectur
 - mouse capture is a policy,
 - and terminal restoration is treated as critical infrastructure.
 
-`ghzoom` should adopt those patterns, but not Herdr's multiplexer machinery. A single-process Ratatui app with Crossterm mouse capture, async GitHub loading, explicit hit areas, and a small config model is the right starting point.
+`ghzinga` should adopt those patterns, but not Herdr's multiplexer machinery. A single-process Ratatui app with Crossterm mouse capture, async GitHub loading, explicit hit areas, and a small config model is the right starting point.

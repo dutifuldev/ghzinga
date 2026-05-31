@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn parses_single_resource_arg() {
-        let cli = Cli::parse_from(["ghzoom", "openclaw/openclaw#81834"]);
+        let cli = Cli::parse_from(["ghzinga", "openclaw/openclaw#81834"]);
 
         assert_eq!(
             cli.parse_resource_id().unwrap().canonical_name(),
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn parses_owner_repo_and_number_args() {
-        let cli = Cli::parse_from(["ghzoom", "openclaw/openclaw", "81834"]);
+        let cli = Cli::parse_from(["ghzinga", "openclaw/openclaw", "81834"]);
 
         assert_eq!(
             cli.parse_resource_id().unwrap().canonical_name(),
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn parses_offline_fixture_flag() {
         let cli = Cli::parse_from([
-            "ghzoom",
+            "ghzinga",
             "--offline-fixture",
             "fixtures/pr-81834.json",
             "openclaw/openclaw#81834",
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn parses_initial_tab() {
-        let cli = Cli::parse_from(["ghzoom", "--tab", "checks", "openclaw/openclaw#81834"]);
+        let cli = Cli::parse_from(["ghzinga", "--tab", "checks", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.tab, Some(Tab::Checks));
     }
@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn parses_theme() {
         let cli = Cli::parse_from([
-            "ghzoom",
+            "ghzinga",
             "--theme",
             "solarized-dark",
             "openclaw/openclaw#81834",
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn parses_symbol_mode() {
-        let cli = Cli::parse_from(["ghzoom", "--symbols", "emoji", "openclaw/openclaw#81834"]);
+        let cli = Cli::parse_from(["ghzinga", "--symbols", "emoji", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.symbols, SymbolMode::Emoji);
     }

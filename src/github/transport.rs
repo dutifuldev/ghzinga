@@ -49,7 +49,7 @@ impl GithubHttpTransport for ReqwestGithubHttpTransport {
                 GithubHttpMethod::Post => client.post(&request.url),
             }
             .bearer_auth(request.token)
-            .header(reqwest::header::USER_AGENT, "ghzoom")
+            .header(reqwest::header::USER_AGENT, "ghzinga")
             .header(reqwest::header::ACCEPT, request.accept);
             let builder = if let Some(body) = request.body {
                 builder.json(&body)

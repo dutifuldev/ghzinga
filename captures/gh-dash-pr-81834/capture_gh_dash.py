@@ -176,7 +176,7 @@ def strip_ansi(text: str) -> str:
 
 
 def capture_size(label: str, cols: int, rows: int):
-    session = f"ghzoom-ghdash-{label}"
+    session = f"ghzinga-ghdash-{label}"
     out_dir = ROOT / label
     out_dir.mkdir(parents=True, exist_ok=True)
     tmux("kill-session", "-t", session, check=False)
