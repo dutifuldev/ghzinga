@@ -17,7 +17,8 @@ fn once_renders_pr_fixture_through_binary() {
     .stdout(contains(
         "[Overview] Activity  Commits  Checks  Files  Links",
     ))
-    .stdout(contains("Checks: PASS"));
+    .stdout(contains("Conversation"))
+    .stdout(contains("checks PASS"));
 }
 
 #[test]

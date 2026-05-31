@@ -9,7 +9,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{
     app::{AppState, BlockId, Tab},
-    domain::{CheckRun, CheckStatus, MetadataItem, Resource, ResourceId},
+    domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
     render::{markdown, Palette, ViewRects},
 };
@@ -17,6 +17,19 @@ use crate::{
 struct ContentRow {
     line: Line<'static>,
     target: Option<HitTarget>,
+}
+
+struct TimelineEntry<'a> {
+    sort_key: Option<String>,
+    sequence: usize,
+    kind_order: u8,
+    item: TimelineItem<'a>,
+}
+
+enum TimelineItem<'a> {
+    Body,
+    Commit(&'a Commit),
+    Activity(&'a ActivityEntry),
 }
 
 impl ContentRow {
@@ -484,22 +497,28 @@ fn help_rows(width: usize, palette: &Palette) -> Vec<ContentRow> {
 }
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
-    let expanded = state.block_expanded(&BlockId::Body);
-    let wrapped = markdown::wrap_plain_text(&state.resource.body, width);
-    let (visible, truncated) = markdown::visible_prefix(&wrapped, 12, expanded);
     let mut rows = vec![
-        heading_row("Overview", palette),
+        heading_row("Conversation", palette),
         separator_row(width, palette),
-        ContentRow::plain(format!("Labels: {}", state.resource.labels.join(", "))),
-        ContentRow::plain(format!(
-            "Assignees: {}",
-            people_summary(&state.resource.assignees)
-        )),
-        ContentRow::plain(format!(
-            "Reactions: {}",
-            reaction_summary(&state.resource.reactions)
-        )),
     ];
+
+    push_conversation_rows(&mut rows, state, width, palette);
+
+    rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Details", palette));
+    rows.push(separator_row(width, palette));
+    rows.push(ContentRow::plain(format!(
+        "Labels: {}",
+        labels_summary(&state.resource.labels)
+    )));
+    rows.push(ContentRow::plain(format!(
+        "Assignees: {}",
+        people_summary(&state.resource.assignees)
+    )));
+    rows.push(ContentRow::plain(format!(
+        "Reactions: {}",
+        reaction_summary(&state.resource.reactions)
+    )));
     if !state.resource.warnings.is_empty() {
         rows.push(ContentRow::plain(""));
         rows.push(ContentRow::styled(
@@ -516,20 +535,6 @@ fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
                     .map(ContentRow::plain),
             );
         }
-    }
-    rows.push(ContentRow::plain(""));
-    rows.push(heading_row("Body", palette));
-    rows.extend(
-        visible
-            .into_iter()
-            .map(|line| linkable_text_row(line, &state.resource)),
-    );
-    if truncated || expanded {
-        rows.push(ContentRow::target_styled(
-            expand_label(expanded),
-            HitTarget::ToggleBlock(BlockId::Body),
-            button_style(palette),
-        ));
     }
     if let Some(pr) = &state.resource.pull_request {
         rows.push(ContentRow::plain(""));
@@ -564,6 +569,243 @@ fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         palette,
     );
     rows
+}
+
+fn push_conversation_rows(
+    rows: &mut Vec<ContentRow>,
+    state: &AppState,
+    width: usize,
+    palette: &Palette,
+) {
+    let entries = chronological_timeline_entries(&state.resource);
+    if entries.is_empty() {
+        rows.push(ContentRow::plain("No conversation items."));
+        return;
+    }
+
+    for (index, entry) in entries.iter().enumerate() {
+        match entry.item {
+            TimelineItem::Body => push_body_timeline_rows(rows, state, width, palette),
+            TimelineItem::Commit(commit) => {
+                push_commit_timeline_rows(rows, state, commit, width, palette)
+            }
+            TimelineItem::Activity(activity) => {
+                push_activity_timeline_rows(rows, state, activity, width, palette)
+            }
+        }
+        if index + 1 < entries.len() {
+            rows.push(separator_row(width, palette));
+        }
+    }
+}
+
+fn chronological_timeline_entries(resource: &Resource) -> Vec<TimelineEntry<'_>> {
+    let mut entries = Vec::new();
+    entries.push(TimelineEntry {
+        sort_key: sortable_timestamp(&resource.created_at),
+        sequence: 0,
+        kind_order: 0,
+        item: TimelineItem::Body,
+    });
+
+    let mut sequence = 1;
+    if let Some(pr) = &resource.pull_request {
+        for commit in &pr.commits {
+            let timestamp = if commit.committed_at.trim().is_empty() {
+                commit.authored_at.as_deref().unwrap_or_default()
+            } else {
+                commit.committed_at.as_str()
+            };
+            entries.push(TimelineEntry {
+                sort_key: sortable_timestamp(timestamp),
+                sequence,
+                kind_order: 1,
+                item: TimelineItem::Commit(commit),
+            });
+            sequence += 1;
+        }
+    }
+
+    for activity in &resource.activity {
+        entries.push(TimelineEntry {
+            sort_key: sortable_timestamp(&activity.updated_at),
+            sequence,
+            kind_order: 2,
+            item: TimelineItem::Activity(activity),
+        });
+        sequence += 1;
+    }
+
+    if entries.iter().all(|entry| entry.sort_key.is_some()) {
+        entries.sort_by(|left, right| {
+            left.sort_key
+                .cmp(&right.sort_key)
+                .then(left.kind_order.cmp(&right.kind_order))
+                .then(left.sequence.cmp(&right.sequence))
+        });
+    }
+    entries
+}
+
+fn sortable_timestamp(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.len() >= 10
+        && trimmed.as_bytes().get(4) == Some(&b'-')
+        && trimmed.as_bytes().get(7) == Some(&b'-')
+    {
+        Some(trimmed.to_string())
+    } else {
+        None
+    }
+}
+
+fn push_body_timeline_rows(
+    rows: &mut Vec<ContentRow>,
+    state: &AppState,
+    width: usize,
+    palette: &Palette,
+) {
+    let resource = &state.resource;
+    rows.push(ContentRow::styled(
+        format!("📝 @{} opened {}", resource.author, resource.created_at),
+        heading_style(palette),
+    ));
+    if resource.body.trim().is_empty() {
+        rows.push(ContentRow::styled(
+            "No description provided.",
+            dim_style(palette),
+        ));
+        return;
+    }
+    let expanded = state.block_expanded(&BlockId::Body);
+    let wrapped = markdown::wrap_plain_text(&resource.body, width);
+    let (visible, truncated) = markdown::visible_prefix(&wrapped, 12, expanded);
+    rows.extend(
+        visible
+            .into_iter()
+            .map(|line| linkable_text_row(line, resource)),
+    );
+    if truncated || expanded {
+        rows.push(ContentRow::target_styled(
+            expand_label(expanded),
+            HitTarget::ToggleBlock(BlockId::Body),
+            button_style(palette),
+        ));
+    }
+}
+
+fn push_commit_timeline_rows(
+    rows: &mut Vec<ContentRow>,
+    state: &AppState,
+    commit: &Commit,
+    width: usize,
+    palette: &Palette,
+) {
+    let block = BlockId::Commit(commit.oid.clone());
+    let expanded = state.block_expanded(&block);
+    let marker = expand_label(expanded);
+    rows.push(ContentRow::target_styled(
+        format!(
+            "● commit {} by @{} {} [{}] {}",
+            truncate_ascii(&commit.oid, 8),
+            commit.author,
+            commit.committed_at,
+            commit.status.label(),
+            marker
+        ),
+        HitTarget::ToggleBlock(block.clone()),
+        link_style(palette),
+    ));
+    rows.push(ContentRow::plain(truncate_ascii(&commit.message, width)));
+    if expanded {
+        push_expanded_commit_details(rows, commit, width, &state.resource);
+        rows.push(ContentRow::target_styled(
+            expand_label(true),
+            HitTarget::ToggleBlock(block),
+            button_style(palette),
+        ));
+    }
+}
+
+fn push_activity_timeline_rows(
+    rows: &mut Vec<ContentRow>,
+    state: &AppState,
+    entry: &ActivityEntry,
+    width: usize,
+    palette: &Palette,
+) {
+    let resource = &state.resource;
+    rows.push(ContentRow::styled(
+        format!(
+            "{} {} by @{} {}",
+            activity_icon(entry),
+            entry.kind.label(),
+            entry.author,
+            entry.updated_at
+        ),
+        activity_heading_style(entry, palette),
+    ));
+    if let Some(path) = &entry.path {
+        rows.push(ContentRow::plain(format!(
+            "{}:{}",
+            path,
+            entry.line.unwrap_or_default()
+        )));
+    }
+    if let Some(summary) = review_thread_summary(entry) {
+        rows.push(ContentRow::plain(summary));
+    }
+    if let Some(summary) = activity_metadata_summary(entry) {
+        rows.push(ContentRow::plain(truncate_ascii(&summary, width)));
+    }
+    let block = BlockId::Activity(entry.id.clone());
+    let expanded = state.block_expanded(&block);
+    if expanded {
+        if let Some(url) = &entry.url {
+            rows.push(linkable_text_row(format!("url: {url}"), resource));
+        }
+    }
+    let wrapped = markdown::wrap_plain_text(&entry.body, width);
+    let (visible, truncated) = markdown::visible_prefix(&wrapped, 8, expanded);
+    rows.extend(
+        visible
+            .into_iter()
+            .map(|line| linkable_text_row(line, resource)),
+    );
+    if truncated || expanded {
+        rows.push(ContentRow::target_styled(
+            expand_label(expanded),
+            HitTarget::ToggleBlock(block),
+            button_style(palette),
+        ));
+    }
+}
+
+fn activity_icon(entry: &ActivityEntry) -> &'static str {
+    match entry.kind {
+        crate::domain::ActivityKind::Comment => "💬",
+        crate::domain::ActivityKind::Review => "✅",
+        crate::domain::ActivityKind::ReviewComment => "🧵",
+        crate::domain::ActivityKind::Timeline => "•",
+    }
+}
+
+fn activity_heading_style(entry: &ActivityEntry, palette: &Palette) -> Style {
+    let color = match entry.kind {
+        crate::domain::ActivityKind::Comment => palette.teal,
+        crate::domain::ActivityKind::Review => palette.green,
+        crate::domain::ActivityKind::ReviewComment => palette.peach,
+        crate::domain::ActivityKind::Timeline => palette.subtext0,
+    };
+    Style::default().fg(color).add_modifier(Modifier::BOLD)
+}
+
+fn labels_summary(labels: &[String]) -> String {
+    if labels.is_empty() {
+        "none".to_string()
+    } else {
+        labels.join(", ")
+    }
 }
 
 fn push_metadata_rows(
@@ -678,53 +920,7 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             commit.author, commit.committed_at
         )));
         if expanded {
-            if !commit.authors.is_empty() {
-                rows.push(ContentRow::plain(format!(
-                    "authors: {}",
-                    commit.authors.join(", ")
-                )));
-            }
-            if let Some(authored_at) = commit.authored_at.as_deref() {
-                rows.push(ContentRow::plain(format!("authored: {authored_at}")));
-            }
-            rows.push(ContentRow::plain(format!(
-                "committed: {}",
-                commit.committed_at
-            )));
-            if !commit.deployments.is_empty() {
-                rows.push(ContentRow::plain("deployments"));
-                for deployment in &commit.deployments {
-                    rows.push(ContentRow::plain(truncate_ascii(
-                        &format!(
-                            "- {} [{}] {}",
-                            deployment.environment, deployment.state, deployment.updated_at
-                        ),
-                        width,
-                    )));
-                    if let Some(description) = deployment.description.as_deref() {
-                        rows.extend(
-                            markdown::wrap_plain_text(&format!("  {description}"), width)
-                                .into_iter()
-                                .map(ContentRow::plain),
-                        );
-                    }
-                    if let Some(url) = deployment.environment_url.as_deref() {
-                        rows.push(linkable_text_row(format!("  environment: {url}"), resource));
-                    }
-                    if let Some(url) = deployment.log_url.as_deref() {
-                        rows.push(linkable_text_row(format!("  logs: {url}"), resource));
-                    }
-                }
-            }
-            if !commit.body.trim().is_empty() {
-                rows.push(ContentRow::plain("body"));
-                let wrapped = markdown::wrap_plain_text(&commit.body, width);
-                let (visible, truncated) = markdown::visible_prefix(&wrapped, 14, false);
-                rows.extend(visible.into_iter().map(ContentRow::plain));
-                if truncated {
-                    rows.push(ContentRow::plain("[body truncated]"));
-                }
-            }
+            push_expanded_commit_details(&mut rows, commit, width, resource);
             rows.push(ContentRow::target_styled(
                 expand_label(true),
                 HitTarget::ToggleBlock(block),
@@ -734,6 +930,61 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
         }
     }
     rows
+}
+
+fn push_expanded_commit_details(
+    rows: &mut Vec<ContentRow>,
+    commit: &Commit,
+    width: usize,
+    resource: &Resource,
+) {
+    if !commit.authors.is_empty() {
+        rows.push(ContentRow::plain(format!(
+            "authors: {}",
+            commit.authors.join(", ")
+        )));
+    }
+    if let Some(authored_at) = commit.authored_at.as_deref() {
+        rows.push(ContentRow::plain(format!("authored: {authored_at}")));
+    }
+    rows.push(ContentRow::plain(format!(
+        "committed: {}",
+        commit.committed_at
+    )));
+    if !commit.deployments.is_empty() {
+        rows.push(ContentRow::plain("deployments"));
+        for deployment in &commit.deployments {
+            rows.push(ContentRow::plain(truncate_ascii(
+                &format!(
+                    "- {} [{}] {}",
+                    deployment.environment, deployment.state, deployment.updated_at
+                ),
+                width,
+            )));
+            if let Some(description) = deployment.description.as_deref() {
+                rows.extend(
+                    markdown::wrap_plain_text(&format!("  {description}"), width)
+                        .into_iter()
+                        .map(ContentRow::plain),
+                );
+            }
+            if let Some(url) = deployment.environment_url.as_deref() {
+                rows.push(linkable_text_row(format!("  environment: {url}"), resource));
+            }
+            if let Some(url) = deployment.log_url.as_deref() {
+                rows.push(linkable_text_row(format!("  logs: {url}"), resource));
+            }
+        }
+    }
+    if !commit.body.trim().is_empty() {
+        rows.push(ContentRow::plain("body"));
+        let wrapped = markdown::wrap_plain_text(&commit.body, width);
+        let (visible, truncated) = markdown::visible_prefix(&wrapped, 14, false);
+        rows.extend(visible.into_iter().map(ContentRow::plain));
+        if truncated {
+            rows.push(ContentRow::plain("[body truncated]"));
+        }
+    }
 }
 
 fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -1530,9 +1781,10 @@ mod tests {
 
         assert!(content.contains("openclaw/openclaw#81834"));
         assert!(content.contains("[Overview]"));
-        assert!(content.contains("Checks: PASS"));
-        assert!(content.contains("Assignees: @osolmaz"));
-        assert!(content.contains("Reviewers: @maintainer"));
+        assert!(content.contains("Conversation"));
+        assert!(content.contains("checks PASS"));
+        assert!(content.contains("📝 @KLilyZ opened"));
+        assert!(content.contains("● commit fb948c9"));
         assert!(content.contains("[➕ more]") || content.contains("Problem: senseaudio"));
         assert!(!content.contains("┌"));
         assert!(!content.contains("│"));
@@ -1540,7 +1792,7 @@ mod tests {
 
     #[test]
     fn renders_resource_and_pr_metadata() {
-        let backend = TestBackend::new(120, 36);
+        let backend = TestBackend::new(120, 80);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut state = AppState::new(pr_resource());
 
@@ -1552,6 +1804,55 @@ mod tests {
         assert!(content.contains("Draft: no"));
         assert!(content.contains("Cross repository: yes"));
         assert!(content.contains("Head ref OID: fb4165fe62f1d126ba8c4bde3abe10fd7e985778"));
+    }
+
+    #[test]
+    fn overview_conversation_interleaves_body_commits_and_activity_by_time() {
+        let mut resource = pr_resource();
+        resource.created_at = "2026-01-01T00:00:00Z".into();
+        resource.body = "Opening body".into();
+        resource.pull_request.as_mut().unwrap().commits[0].committed_at =
+            "2026-01-03T00:00:00Z".into();
+        resource.pull_request.as_mut().unwrap().commits[0].message = "Middle commit".into();
+        resource.activity[0].updated_at = "2026-01-02T00:00:00Z".into();
+        resource.activity[0].body = "Earlier comment".into();
+        let mut later_review = resource.activity[0].clone();
+        later_review.id = "review-later".into();
+        later_review.kind = ActivityKind::Review;
+        later_review.updated_at = "2026-01-04T00:00:00Z".into();
+        later_review.body = "Later review".into();
+        resource.activity.push(later_review);
+        let mut state = AppState::new(resource);
+
+        let content = draw(&mut state, 120, 80);
+        let body = content.find("Opening body").unwrap();
+        let comment = content.find("Earlier comment").unwrap();
+        let commit = content.find("Middle commit").unwrap();
+        let review = content.find("Later review").unwrap();
+        let details = content.find("Details").unwrap();
+
+        assert!(body < comment);
+        assert!(comment < commit);
+        assert!(commit < review);
+        assert!(review < details);
+    }
+
+    #[test]
+    fn overview_conversation_keeps_relative_timestamp_order_stable() {
+        let mut resource = pr_resource();
+        resource.body = "Opening body".into();
+        resource.pull_request.as_mut().unwrap().commits[0].message =
+            "Commit before activity".into();
+        resource.activity[0].body = "Activity after commit".into();
+        let mut state = AppState::new(resource);
+
+        let content = draw(&mut state, 120, 80);
+        let body = content.find("Opening body").unwrap();
+        let commit = content.find("Commit before activity").unwrap();
+        let activity = content.find("Activity after commit").unwrap();
+
+        assert!(body < commit);
+        assert!(commit < activity);
     }
 
     #[test]
