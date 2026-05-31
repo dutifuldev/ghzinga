@@ -6,6 +6,7 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
                                                                                                                                                                 
 Checks: PASS (97 pass, 0 pending, 0 fail)                                                                                                                       
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                                                
 142 total: 97 pass, 0 pending, 0 fail, 43 skipped, 2 neutral, 0 unknown                                                                                         
                                                                                                                                                                 
 Passing (97)                                                                                                                                                    
@@ -46,5 +47,4 @@ Passing (97)
 [OK PASS] CI/build-artifacts [+ more]                                                                                                                           
 [OK PASS] CI/checks-fast-bundled-protocol [+ more]                                                                                                              
 [OK PASS] CI/checks-fast-bun-launcher [+ more]                                                                                                                  
-[OK PASS] CI/checks-fast-contracts-plugins-a [+ more]                                                                                                           
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   

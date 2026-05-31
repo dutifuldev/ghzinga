@@ -6,6 +6,7 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
 warn Warnings: 1                                                                                                        
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
 * @KLilyZ opened 2026-05-14T14:05:46Z                                                                                   
 Summary                                                                                                                 
                                                                                                                         
@@ -21,6 +22,7 @@ scope.
 Change Type (select all)                                                                                                
 [+ more]                                                                                                                
 ------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
 comment Comment by @github-actions 2026-05-14T14:05:57Z                                                                 
 meta: association CONTRIBUTOR                                                                                           
 [details]                                                                                                               
@@ -31,6 +33,4 @@ Dependency Changes Detected
 This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
                                                                                                                         
 Changed files:                                                                                                          
-- extensions/senseaudio/package.json                                                                                    
-[+ more]                                                                                                                
 [refresh] [open] [settings] [help] [quit] ...                                                                           

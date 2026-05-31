@@ -17,7 +17,7 @@ Keyboard
 - q: quit                                                                                                               
 - ?: toggle this help                                                                                                   
 - s: open or close settings                                                                                             
-- t / y in settings: cycle theme / symbol style                                                                         
+- t / y / p in settings: cycle theme / symbol style / spacing                                                           
 - r: refresh now                                                                                                        
 - o: open current resource in browser through gh                                                                        
 - Tab / Shift-Tab / Left / Right: switch tabs                                                                           

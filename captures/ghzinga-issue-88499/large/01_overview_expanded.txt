@@ -6,6 +6,7 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
                                                                                                                                                                 
 Conversation                                                                                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                                                
 * @xneone opened 2026-05-31T02:21:19Z                                                                                                                           
 Bug Description                                                                                                                                                 
                                                                                                                                                                 
@@ -21,6 +22,7 @@ input.
 Once this happens, every subsequent request in the session fails with the same 404, because the stale previous_response_id is never cleared. The session is     
 [+ more]                                                                                                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                                                
 comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                            
 meta: association CONTRIBUTOR, edited                                                                                                                           
 [details]                                                                                                                                                       
@@ -34,6 +36,7 @@ covered by that direct-OpenAI-only path.
 Reproducibility: no. high-confidence live repro was run. Source inspection shows the risky shape on current main: generic openai-responses sends unstored       
 [+ more]                                                                                                                                                        
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                                                
 comment Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                  
 meta: association CONTRIBUTOR                                                                                                                                   
 [details]                                                                                                                                                       
@@ -44,7 +47,4 @@ Environment:
 - OS: macOS arm64                                                                                                                                               
 - Channel: Slack, channel-scoped session                                                                                                                        
 - Provider/API path: openai / openai-responses                                                                                                                  
-- Model: gpt-5.5                                                                                                                                                
-[+ more]                                                                                                                                                        
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   

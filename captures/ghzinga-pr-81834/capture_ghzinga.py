@@ -437,7 +437,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             "40_files_top": [
                 "Files changed (14)",
                 "extensions/senseaudio/speech-provider.ts",
-                "extensions/senseaudio/tts.ts",
+                "extensions/senseaudio/tts.test.ts",
             ],
             "50_links_top": [
                 "Links",
