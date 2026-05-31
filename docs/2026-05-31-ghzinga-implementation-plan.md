@@ -198,6 +198,9 @@ Advantages:
 - no token storage
 - no login UI
 - respects `GH_TOKEN`, `GITHUB_TOKEN`, or the user's existing `gh` auth token
+- if no token is available, public repositories should still render a useful
+  read-only REST fallback for the requested PR or issue; private repositories
+  and richer GraphQL-only metadata continue to require a token
 - keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
 - easy to mock in tests by abstracting HTTP transport
 
@@ -211,7 +214,8 @@ GitHub CLI reference notes:
 - `internal/config/config.go` is the relevant credential pattern: prefer
   explicit environment tokens before falling back to configured/keyring-backed
   credentials. `ghzinga` mirrors that at a smaller scale with `GH_TOKEN`,
-  `GITHUB_TOKEN`, then `gh auth token`.
+  `GITHUB_TOKEN`, then `gh auth token`, then unauthenticated REST for public
+  PRs/issues when no credential source is available.
 - `pkg/httpmock/stub.go` is the relevant test pattern for direct data access:
   tests should assert HTTP method/path/query shape instead of shell command
   arguments for GitHub data fetches.

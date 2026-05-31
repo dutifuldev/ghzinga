@@ -1,4 +1,4 @@
-use std::{io, process::Stdio};
+use std::{error::Error, fmt, io, process::Stdio};
 
 use tokio::process::Command;
 
@@ -17,16 +17,39 @@ pub(crate) async fn github_token() -> anyhow::Result<String> {
         .stderr(Stdio::piped())
         .output()
         .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh auth token", &error)))?;
+        .map_err(|error| GithubAuthError::Unavailable(gh_execute_error("gh auth token", &error)))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh auth token", &stderr));
+        return Err(
+            GithubAuthError::Unavailable(gh_failure_message("gh auth token", &stderr)).into(),
+        );
     }
     let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if token.is_empty() {
-        anyhow::bail!("`gh auth token` returned an empty token");
+        return Err(
+            GithubAuthError::Unavailable("`gh auth token` returned an empty token".into()).into(),
+        );
     }
     Ok(token)
+}
+
+#[derive(Debug)]
+pub(crate) enum GithubAuthError {
+    Unavailable(String),
+}
+
+impl fmt::Display for GithubAuthError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable(message) => f.write_str(message),
+        }
+    }
+}
+
+impl Error for GithubAuthError {}
+
+pub(crate) fn is_auth_unavailable(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<GithubAuthError>().is_some()
 }
 
 pub(crate) fn gh_execute_error(command: &str, error: &io::Error) -> String {

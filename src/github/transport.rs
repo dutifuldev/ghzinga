@@ -20,7 +20,7 @@ pub(crate) struct GithubHttpRequest {
     pub(crate) method: GithubHttpMethod,
     pub(crate) url: String,
     pub(crate) accept: String,
-    pub(crate) token: String,
+    pub(crate) token: Option<String>,
     pub(crate) body: Option<Value>,
 }
 
@@ -48,9 +48,13 @@ impl GithubHttpTransport for ReqwestGithubHttpTransport {
                 GithubHttpMethod::Get => client.get(&request.url),
                 GithubHttpMethod::Post => client.post(&request.url),
             }
-            .bearer_auth(request.token)
             .header(reqwest::header::USER_AGENT, "ghzinga")
             .header(reqwest::header::ACCEPT, request.accept);
+            let builder = if let Some(token) = request.token {
+                builder.bearer_auth(token)
+            } else {
+                builder
+            };
             let builder = if let Some(body) = request.body {
                 builder.json(&body)
             } else {
@@ -74,12 +78,12 @@ impl GithubHttpTransport for ReqwestGithubHttpTransport {
 
 pub(crate) async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
     let token = github_token().await?;
-    run_graphql_query_with(&ReqwestGithubHttpTransport, &token, query, variables).await
+    run_graphql_query_with(&ReqwestGithubHttpTransport, Some(&token), query, variables).await
 }
 
 pub(crate) async fn run_graphql_query_with(
     transport: &impl GithubHttpTransport,
-    token: &str,
+    token: Option<&str>,
     query: &str,
     variables: Value,
 ) -> anyhow::Result<Vec<u8>> {
@@ -88,7 +92,7 @@ pub(crate) async fn run_graphql_query_with(
             method: GithubHttpMethod::Post,
             url: GITHUB_GRAPHQL_URL.to_string(),
             accept: GITHUB_JSON_ACCEPT.to_string(),
-            token: token.to_string(),
+            token: token.map(str::to_string),
             body: Some(json!({
                 "query": query,
                 "variables": variables,
@@ -149,12 +153,16 @@ fn compact_whitespace(value: &str) -> String {
 
 pub(crate) async fn run_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
     let token = github_token().await?;
-    run_rest_get_with(&ReqwestGithubHttpTransport, &token, path, accept).await
+    run_rest_get_with(&ReqwestGithubHttpTransport, Some(&token), path, accept).await
+}
+
+pub(crate) async fn run_public_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
+    run_rest_get_with(&ReqwestGithubHttpTransport, None, path, accept).await
 }
 
 pub(crate) async fn run_rest_get_with(
     transport: &impl GithubHttpTransport,
-    token: &str,
+    token: Option<&str>,
     path: &str,
     accept: &str,
 ) -> anyhow::Result<Vec<u8>> {
@@ -164,7 +172,7 @@ pub(crate) async fn run_rest_get_with(
             method: GithubHttpMethod::Get,
             url,
             accept: accept.to_string(),
-            token: token.to_string(),
+            token: token.map(str::to_string),
             body: None,
         })
         .await

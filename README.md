@@ -7,10 +7,12 @@ It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for PR,
 issue, and enrichment data. There is no separate login flow: if `GH_TOKEN` or
 `GITHUB_TOKEN` is set, `ghzinga` uses it; otherwise it can reuse the token from an
 existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
-fallback, not the data transport. If credentials are missing, `ghzinga` reports
-the failed credential step and the `gh auth status` / `gh auth login` next step.
-The primary PR or issue view is fetched first; optional enrichment failures are
-shown as warnings instead of preventing the resource from rendering.
+fallback, not the data transport. When credentials are unavailable, public
+repositories fall back to an unauthenticated REST view with warnings for richer
+GraphQL-only metadata; private repositories still need a token or existing `gh`
+login. The primary PR or issue view is fetched first; optional enrichment
+failures are shown as warnings instead of preventing the resource from
+rendering.
 Architecture guardrails are documented in
 `docs/2026-06-01-ghzinga-slophammer-guardrails.md` and enforced by
 `tests/architecture.rs`.
