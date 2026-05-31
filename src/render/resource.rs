@@ -663,9 +663,19 @@ fn push_check_group(
 
 fn linkable_check_url_row(url: &str) -> ContentRow {
     if let Ok(id) = ResourceId::parse(url) {
-        ContentRow::target(format!("details: {url}"), HitTarget::Navigate(id))
+        if should_open_exact_url(url, &id) {
+            ContentRow::target(
+                format!("details: {url}"),
+                HitTarget::OpenUrl(url.to_string()),
+            )
+        } else {
+            ContentRow::target(format!("details: {url}"), HitTarget::Navigate(id))
+        }
     } else {
-        ContentRow::plain(format!("details: {url}"))
+        ContentRow::target(
+            format!("details: {url}"),
+            HitTarget::OpenUrl(url.to_string()),
+        )
     }
 }
 
@@ -753,12 +763,14 @@ fn links_rows(resource: &Resource, width: usize) -> Vec<ContentRow> {
         }
     }
     for token in linked_resource_tokens(resource) {
-        if let Some((display, id)) = parse_link_token(token, resource) {
-            if seen.insert(id.canonical_name()) {
-                rows.push(ContentRow::target(
-                    truncate_ascii(&display, width),
-                    HitTarget::Navigate(id),
-                ));
+        if let Some((display, target)) = parse_link_token(token, resource) {
+            let key = match &target {
+                HitTarget::Navigate(id) => id.canonical_name(),
+                HitTarget::OpenUrl(url) => url.clone(),
+                _ => display.clone(),
+            };
+            if seen.insert(key) {
+                rows.push(ContentRow::target(truncate_ascii(&display, width), target));
             }
         }
     }
@@ -787,15 +799,22 @@ fn linked_resource_tokens(resource: &Resource) -> Vec<&str> {
     tokens
 }
 
-fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, ResourceId)> {
+fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarget)> {
     let clean = token.trim_matches(|c: char| {
         matches!(
             c,
             ')' | '(' | ',' | '.' | ';' | ':' | '"' | '\'' | '[' | ']'
         )
     });
+    let is_url = clean.starts_with("https://") || clean.starts_with("http://");
     if let Ok(id) = ResourceId::parse(clean) {
-        return Some((clean.to_string(), id));
+        if is_url && should_open_exact_url(clean, &id) {
+            return Some((clean.to_string(), HitTarget::OpenUrl(clean.to_string())));
+        }
+        return Some((clean.to_string(), HitTarget::Navigate(id)));
+    }
+    if is_url {
+        return Some((clean.to_string(), HitTarget::OpenUrl(clean.to_string())));
     }
     if let Some(number) = clean.strip_prefix('#') {
         if number.chars().all(|ch| ch.is_ascii_digit()) {
@@ -803,19 +822,34 @@ fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, Resourc
                 ResourceId::relative_to_repo(&resource.id.owner, &resource.id.repo, number).ok()?;
             return Some((
                 format!("{}#{}", resource.id.repo_name_with_owner(), number),
-                id,
+                HitTarget::Navigate(id),
             ));
         }
     }
     None
 }
 
+fn should_open_exact_url(url: &str, id: &ResourceId) -> bool {
+    let Some(kind) = id.kind_hint else {
+        return false;
+    };
+    let segment = match kind {
+        crate::domain::ResourceKind::PullRequest => "pull",
+        crate::domain::ResourceKind::Issue => "issues",
+    };
+    let bare = format!(
+        "https://github.com/{}/{}/{}/{}",
+        id.owner, id.repo, segment, id.number
+    );
+    url != bare
+}
+
 fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
-    if let Some((_display, id)) = text
+    if let Some((_display, target)) = text
         .split_whitespace()
         .find_map(|token| parse_link_token(token, resource))
     {
-        ContentRow::target(text, HitTarget::Navigate(id))
+        ContentRow::target(text, target)
     } else {
         ContentRow::plain(text)
     }
@@ -1433,6 +1467,27 @@ mod tests {
     }
 
     #[test]
+    fn render_registers_exact_comment_url_as_open_url() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.activity[0].body =
+            "Permalink https://github.com/openclaw/openclaw/pull/81834#discussion_r1".into();
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Activity);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
+        )));
+    }
+
+    #[test]
     fn render_registers_footer_action_hit_areas() {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1578,6 +1633,15 @@ mod tests {
         assert!(content.contains("deployments"));
         assert!(content.contains("preview [SUCCESS]"));
         assert!(content.contains("Preview deployed"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/deployments/1"
+        )));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url) if url == "https://github.com/openclaw/openclaw/actions/runs/1"
+        )));
     }
 
     #[test]
@@ -1936,6 +2000,22 @@ mod tests {
         );
         assert!(content.contains("summary: failed because the test command exited with status 1"));
         assert!(content.contains("[less]"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/actions/runs/1/job/2"
+        )));
+        let intent = click_rendered_target(&mut state, |target| {
+            matches!(
+                target,
+                HitTarget::OpenUrl(url)
+                    if url == "https://github.com/openclaw/openclaw/actions/runs/1/job/2"
+            )
+        });
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/openclaw/openclaw/actions/runs/1/job/2".into())
+        );
     }
 
     #[test]

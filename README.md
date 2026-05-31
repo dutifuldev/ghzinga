@@ -92,6 +92,7 @@ Mouse:
 - click tabs to switch views
 - click `[more]` and `[less]` controls to expand or collapse content
 - click GitHub issue/PR references to navigate
+- click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
 - click `[refresh]`, `[open]`, `[help]`, and `[quit]`
 - use the mouse wheel to scroll
 

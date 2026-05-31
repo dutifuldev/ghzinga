@@ -8,6 +8,7 @@ pub enum HitTarget {
     Tab(Tab),
     ToggleBlock(BlockId),
     Navigate(ResourceId),
+    OpenUrl(String),
     Refresh,
     OpenCurrent,
     Quit,
@@ -16,7 +17,10 @@ pub enum HitTarget {
 
 impl HitTarget {
     pub fn is_content_action(&self) -> bool {
-        matches!(self, Self::ToggleBlock(_) | Self::Navigate(_))
+        matches!(
+            self,
+            Self::ToggleBlock(_) | Self::Navigate(_) | Self::OpenUrl(_)
+        )
     }
 }
 
