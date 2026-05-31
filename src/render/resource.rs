@@ -927,7 +927,7 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
     rows.push(heading_row("Spacing", palette));
     rows.push(settings_option_row(
         "comfortable",
-        "gh-dash-like row spacing and content gutter",
+        "Gmail-style density with gh-dash-like spacing",
         state.spacing == SpacingMode::Comfortable,
         HitTarget::SetSpacing("comfortable".into()),
         palette,

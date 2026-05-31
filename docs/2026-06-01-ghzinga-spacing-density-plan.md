@@ -12,6 +12,8 @@ one blank row after section rules.
 
 ## Design Goal
 
+The spacing control should behave like Gmail's density setting: users can pick a
+readable default or a denser screen without changing what the TUI can render.
 The default `comfortable` mode should read closer to `gh dash`: list rows still
 fit in a terminal, but each review item, file, check, or commit has enough
 breathing room that the eye can re-anchor while scanning. `compact` should keep
@@ -55,8 +57,8 @@ count.
 
 The settings view should explain the tradeoff directly:
 
-- `comfortable`: gh-dash-like row spacing and content gutter for long review
-  sessions
+- `comfortable`: Gmail-style comfortable density with gh-dash-like row spacing
+  and content gutter for long review sessions
 - `compact`: dense rows for smaller terminals
 
 ## Verification
