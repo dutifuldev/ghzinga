@@ -139,6 +139,12 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, wide: bool
                 &format!("Review: {}", review_summary(pr)),
                 width,
             )));
+            if let Some(threads) = review_threads_summary(resource) {
+                lines.push(Line::from(truncate_ascii(
+                    &format!("Threads: {threads}"),
+                    width,
+                )));
+            }
             lines.push(Line::from(truncate_ascii(
                 &format!("Reviewers: {}", people_summary(&pr.requested_reviewers)),
                 width,
@@ -182,6 +188,9 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, wide: bool
         }
         if resource.is_pull_request() {
             line.push_str(&format!(" | checks {}", checks_summary(resource)));
+            if let Some(threads) = review_threads_summary(resource) {
+                line.push_str(&format!(" | threads {threads}"));
+            }
         }
         if !resource.warnings.is_empty() {
             line.push_str(&format!(" | warnings {}", resource.warnings.len()));
@@ -339,6 +348,9 @@ fn overview_rows(state: &mut AppState, width: usize) -> Vec<ContentRow> {
         rows.push(ContentRow::plain(""));
         rows.push(ContentRow::plain("Change summary"));
         rows.push(ContentRow::plain(format!("Review: {}", review_summary(pr))));
+        if let Some(threads) = review_threads_summary(&state.resource) {
+            rows.push(ContentRow::plain(format!("Threads: {threads}")));
+        }
         rows.push(ContentRow::plain(format!(
             "Reviewers: {}",
             people_summary(&pr.requested_reviewers)
@@ -943,6 +955,45 @@ fn review_summary(pr: &crate::domain::PullRequest) -> String {
         .as_deref()
         .map(format_github_state)
         .unwrap_or_else(|| "None requested".to_string())
+}
+
+fn review_threads_summary(resource: &Resource) -> Option<String> {
+    #[derive(Default)]
+    struct ThreadState {
+        resolved: Option<bool>,
+        outdated: bool,
+    }
+
+    let mut threads = std::collections::HashMap::<String, ThreadState>::new();
+    for entry in &resource.activity {
+        if entry.kind != crate::domain::ActivityKind::ReviewComment {
+            continue;
+        }
+        let key = entry.thread_id.clone().unwrap_or_else(|| entry.id.clone());
+        let state = threads.entry(key).or_default();
+        if entry.thread_resolved == Some(false) {
+            state.resolved = Some(false);
+        } else if state.resolved.is_none() {
+            state.resolved = entry.thread_resolved;
+        }
+        state.outdated |= entry.thread_outdated.unwrap_or(false);
+    }
+
+    if threads.is_empty() {
+        return None;
+    }
+    let total = threads.len();
+    let unresolved = threads
+        .values()
+        .filter(|state| state.resolved == Some(false))
+        .count();
+    let outdated = threads.values().filter(|state| state.outdated).count();
+    let noun = if total == 1 { "thread" } else { "threads" };
+    let mut summary = format!("{unresolved} unresolved / {total} {noun}");
+    if outdated > 0 {
+        summary.push_str(&format!(", {outdated} outdated"));
+    }
+    Some(summary)
 }
 
 fn review_thread_summary(entry: &crate::domain::ActivityEntry) -> Option<String> {
@@ -1872,6 +1923,86 @@ mod tests {
         assert!(
             content.contains("url: https://github.com/openclaw/openclaw/pull/81834#discussion_r1")
         );
+    }
+
+    #[test]
+    fn review_threads_summary_counts_unique_unresolved_and_outdated_threads() {
+        let mut resource = pr_resource();
+        resource.activity = vec![
+            ActivityEntry {
+                id: "r1-c1".into(),
+                kind: ActivityKind::ReviewComment,
+                author: "alice".into(),
+                body: "please fix".into(),
+                updated_at: "now".into(),
+                path: Some("src/lib.rs".into()),
+                line: Some(1),
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: Some("thread-1".into()),
+                thread_resolved: Some(false),
+                thread_outdated: Some(true),
+            },
+            ActivityEntry {
+                id: "r1-c2".into(),
+                kind: ActivityKind::ReviewComment,
+                author: "bob".into(),
+                body: "reply".into(),
+                updated_at: "now".into(),
+                path: Some("src/lib.rs".into()),
+                line: Some(1),
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: Some("thread-1".into()),
+                thread_resolved: Some(false),
+                thread_outdated: Some(false),
+            },
+            ActivityEntry {
+                id: "r2-c1".into(),
+                kind: ActivityKind::ReviewComment,
+                author: "alice".into(),
+                body: "resolved".into(),
+                updated_at: "now".into(),
+                path: Some("src/main.rs".into()),
+                line: Some(2),
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: Some("thread-2".into()),
+                thread_resolved: Some(true),
+                thread_outdated: Some(false),
+            },
+        ];
+
+        assert_eq!(
+            review_threads_summary(&resource).as_deref(),
+            Some("1 unresolved / 2 threads, 1 outdated")
+        );
+    }
+
+    #[test]
+    fn renders_review_thread_summary_in_pr_status() {
+        let mut resource = pr_resource();
+        resource.activity[0].kind = ActivityKind::ReviewComment;
+        resource.activity[0].thread_id = Some("thread-1".into());
+        resource.activity[0].thread_resolved = Some(false);
+        resource.activity[0].thread_outdated = Some(true);
+        let mut state = AppState::new(resource);
+
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("Threads: 1 unresolved / 1 thread, 1 outdated"));
     }
 
     #[test]
