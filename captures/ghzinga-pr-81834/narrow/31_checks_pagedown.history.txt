@@ -20,5 +20,5 @@ warn Warnings: 1
 [OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]       
 [OK PASS] Dependency Guard/dependency-guard-detect [+ more]                     
 [OK PASS] Labeler/label [+ more]                                                
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

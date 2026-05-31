@@ -11,14 +11,14 @@ openai-responses provider: 404 on previous_response_id when store=false
 - Click tabs to switch sections.                                                
 - Click [+ more] or [- less] to expand or collapse long text, checks, and files.
 - Click visible GitHub issue or PR references to navigate.                      
+- Click settings rows to apply theme and symbol preferences.                    
 - Use the mouse wheel to scroll the current view.                               
                                                                                 
 [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                        
 - q: quit                                                                       
 - ?: toggle this help                                                           
+- s: open or close settings                                                     
+- t / y in settings: cycle theme / symbol style                                 
 - r: refresh now                                                                
-- o: open current resource in browser through gh                                
-- Tab / Shift-Tab / Left / Right: switch tabs                                   
-- Up / Down / PageUp / PageDown / Home / End: scroll                            
-[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                  
-[38;2;169;177;214mr refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m                                       
+[38;2;169;177;214mr refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |[38;2;192;202;245m      

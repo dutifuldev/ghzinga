@@ -5,20 +5,20 @@ openai-responses provider: 404 on previous_response_id when store=false
 OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                  
                                                                                 
                                                                                 
+Activity (4 entries)                                                            
+--------------------------------------------------------------------------------
+Comment by @clawsweeper 2026-05-31T02:28:16Z                                    
+meta: association CONTRIBUTOR, edited                                           
+[details]                                                                       
+Codex review: keeping this open for maintainer follow-up; there is still a      
+little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._       
+                                                                                
+Summary                                                                         
+Keep this open: current main still has a plausible Responses replay failure for 
 custom openai-responses providers because generic Responses payloads can be     
 unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes  
 have a newer store-aware wrapper, but the reported custom proxy route is not    
 [+ more]                                                                        
                                                                                 
-Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                          
-meta: association CONTRIBUTOR                                                   
-[details]                                                                       
-Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this 
-issue class.                                                                    
-                                                                                
-Environment:                                                                    
-- OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                     
-- OS: macOS arm64                                                               
-- Channel: Slack, channel-scoped session                                        
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

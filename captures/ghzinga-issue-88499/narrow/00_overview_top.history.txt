@@ -20,5 +20,5 @@ Since that response was never persisted server-side, the API returns a 404:
 HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store 
 is set to false. Try again with store set to true, or remove this item from your
 input.                                                                          
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

@@ -20,5 +20,5 @@ Passing (97)
 [OK PASS] suite/OpenGrep — PR Diff [+ more]                                     
 [OK PASS] suite/Real behavior proof [+ more]                                    
 [OK PASS] suite/Socket Security [+ more]                                        
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

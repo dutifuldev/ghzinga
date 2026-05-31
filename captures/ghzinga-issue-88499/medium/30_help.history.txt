@@ -10,11 +10,14 @@ Mouse
 - Click tabs to switch sections.                                                                                        
 - Click [+ more] or [- less] to expand or collapse long text, checks, and files.                                        
 - Click visible GitHub issue or PR references to navigate.                                                              
+- Click settings rows to apply theme and symbol preferences.                                                            
 - Use the mouse wheel to scroll the current view.                                                                       
                                                                                                                         
 Keyboard                                                                                                                
 - q: quit                                                                                                               
 - ?: toggle this help                                                                                                   
+- s: open or close settings                                                                                             
+- t / y in settings: cycle theme / symbol style                                                                         
 - r: refresh now                                                                                                        
 - o: open current resource in browser through gh                                                                        
 - Tab / Shift-Tab / Left / Right: switch tabs                                                                           
@@ -30,7 +33,4 @@ Refresh
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-[refresh] [open] [help] [quit] ...                                                                                      
+[refresh] [open] [settings] [help] [quit] ...                                                                           

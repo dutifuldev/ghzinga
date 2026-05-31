@@ -20,5 +20,5 @@ MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_cod
 - What did NOT change: no core code; ASR untouched; streaming, telephony, voice 
 cloning, text-generated voices out of scope.                                    
                                                                                 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

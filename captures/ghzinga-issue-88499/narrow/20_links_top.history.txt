@@ -20,5 +20,5 @@ https://github.com/openclaw/openclaw/issues/87310#issuecomment-4585747111
                                                                                 
                                                                                 
                                                                                 
-[refresh] [open] [help] [quit]                                                  
-r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll
+[refresh] [open] [settings] [help] [quit]                                       
+r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

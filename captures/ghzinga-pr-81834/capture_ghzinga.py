@@ -495,7 +495,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         )
 
     frames = expected_frames(mode)
-    markers = expected_markers(mode) + ["[refresh]", "[open]", "[help]", "[quit]"]
+    markers = expected_markers(mode) + ["[refresh]", "[open]", "[settings]", "[help]", "[quit]"]
     content_markers = expected_content_markers(mode, target)
     for label, cols, rows in SIZES:
         size_dir = root / label
@@ -538,6 +538,11 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
                 text = txt_path.read_text()
                 frame_text[frame] = text
                 combined_text.append(text)
+            history_path = size_dir / f"{frame}.history.txt"
+            if history_path.exists():
+                frame_text[frame] = "\n".join(
+                    [frame_text.get(frame, ""), history_path.read_text()]
+                )
         combined = "\n".join(combined_text)
         for marker in markers:
             if marker not in combined:
