@@ -237,6 +237,7 @@ mod tests {
             activity: vec![],
             related_resources: vec![],
             metadata: vec![],
+            warnings: vec![],
             pull_request: None,
         }
     }

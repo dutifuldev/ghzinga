@@ -177,6 +177,8 @@ pub struct Resource {
     pub related_resources: Vec<ResourceId>,
     #[serde(default)]
     pub metadata: Vec<MetadataItem>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
     pub pull_request: Option<PullRequest>,
 }
 
@@ -271,6 +273,7 @@ impl Resource {
                 || self.related_resources != other.related_resources
                 || self.metadata != other.metadata,
         );
+        push_changed(&mut sections, "warnings", self.warnings != other.warnings);
         push_changed(&mut sections, "activity", self.activity != other.activity);
         match (&self.pull_request, &other.pull_request) {
             (Some(left), Some(right)) => {
@@ -610,6 +613,7 @@ mod tests {
             }],
             related_resources: Vec::new(),
             metadata: Vec::new(),
+            warnings: Vec::new(),
             pull_request: None,
         };
         let before = resource.fingerprint();
