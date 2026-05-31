@@ -738,7 +738,7 @@ src/
   config.rs
   github/
     mod.rs
-    gh_cli.rs
+    api.rs
     models.rs
   input/
     mod.rs

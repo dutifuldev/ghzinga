@@ -4,7 +4,7 @@ use anyhow::Context;
 
 use crate::domain::Resource;
 
-pub mod gh_cli;
+pub mod api;
 
 pub fn load_fixture(path: &Path) -> anyhow::Result<Resource> {
     let raw = fs::read_to_string(path)

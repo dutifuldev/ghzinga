@@ -28,9 +28,9 @@ pub trait GithubGateway {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct GhCliGateway;
+pub struct GithubApiGateway;
 
-impl GithubGateway for GhCliGateway {
+impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         match id.kind_hint {
             Some(ResourceKind::PullRequest) => fetch_pr(id).await,

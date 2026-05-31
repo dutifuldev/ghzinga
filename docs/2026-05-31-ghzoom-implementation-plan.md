@@ -111,7 +111,7 @@ src/
     navigation.rs         link target and history handling
   github/
     mod.rs                GitHub gateway trait
-    gh_cli.rs             historical filename; direct GraphQL/REST data transport
+    api.rs                direct GraphQL/REST data transport
     queries.rs            GraphQL query strings
     types.rs              API response DTOs
     normalize.rs          DTO -> domain model
