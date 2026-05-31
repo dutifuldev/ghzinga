@@ -5,6 +5,8 @@ openai-responses provider: 404 on previous_response_id when store=false
 OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                  
                                                                                 
                                                                                 
+                                                                                
+Summary                                                                         
 Keep this open: current main still has a plausible Responses replay failure for 
 custom openai-responses providers because generic Responses payloads can be     
 unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes  
@@ -18,7 +20,5 @@ Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this
 issue class.                                                                    
                                                                                 
 Environment:                                                                    
-- OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                     
-- OS: macOS arm64                                                               
 [refresh] [open] [settings] [help] [quit]                                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

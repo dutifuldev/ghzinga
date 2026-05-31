@@ -7,6 +7,8 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
 Conversation                                                                                                                                                    
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                                                                                                                 
+[expand all]                                                                                                                                                    
+                                                                                                                                                                
 * @xneone opened 2026-05-31T02:21:19Z                                                                                                                           
 Bug Description                                                                                                                                                 
                                                                                                                                                                 
@@ -45,6 +47,4 @@ Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this 
 Environment:                                                                                                                                                    
 - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                     
 - OS: macOS arm64                                                                                                                                               
-- Channel: Slack, channel-scoped session                                                                                                                        
-- Provider/API path: openai / openai-responses                                                                                                                  
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   

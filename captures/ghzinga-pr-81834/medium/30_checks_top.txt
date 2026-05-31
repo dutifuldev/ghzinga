@@ -9,6 +9,8 @@ Checks: PASS (97 pass, 0 pending, 0 fail)
                                                                                                                         
 142 total: 97 pass, 0 pending, 0 fail, 43 skipped, 2 neutral, 0 unknown                                                 
                                                                                                                         
+[expand all]                                                                                                            
+                                                                                                                        
 Passing (97)                                                                                                            
 [OK PASS] suite/Auto response [+ more]                                                                                  
 [OK PASS] suite/CI [+ more]                                                                                             
@@ -31,6 +33,4 @@ Passing (97)
 [OK PASS] Dependency Guard/dependency-guard-detect [+ more]                                                             
 [OK PASS] Labeler/label [+ more]                                                                                        
 [OK PASS] OpenGrep — PR Diff/Scan changed paths (precise) [+ more]                                                      
-[OK PASS] Real behavior proof [+ more]                                                                                  
-[OK PASS] Real behavior proof [+ more]                                                                                  
 [refresh] [open] [settings] [help] [quit] ...                                                                           

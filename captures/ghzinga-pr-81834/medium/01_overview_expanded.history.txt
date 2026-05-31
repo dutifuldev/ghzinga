@@ -7,6 +7,8 @@ warn Warnings: 1
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
                                                                                                                         
+[expand all]                                                                                                            
+                                                                                                                        
 * @KLilyZ opened 2026-05-14T14:05:46Z                                                                                   
 Summary                                                                                                                 
                                                                                                                         
@@ -31,6 +33,4 @@ meta: association CONTRIBUTOR
 Dependency Changes Detected                                                                                             
                                                                                                                         
 This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
-                                                                                                                        
-Changed files:                                                                                                          
 [refresh] [open] [settings] [help] [quit] ...                                                                           

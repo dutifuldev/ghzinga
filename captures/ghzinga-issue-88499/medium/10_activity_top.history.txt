@@ -7,6 +7,8 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
 Activity (4 entries)                                                                                                    
 ------------------------------------------------------------------------------------------------------------------------
                                                                                                                         
+[expand all]                                                                                                            
+                                                                                                                        
 Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                            
 meta: association CONTRIBUTOR, edited                                                                                   
 [details]                                                                                                               
@@ -31,6 +33,4 @@ Environment:
 - Channel: Slack, channel-scoped session                                                                                
 - Provider/API path: openai / openai-responses                                                                          
 - Model: gpt-5.5                                                                                                        
-[+ more]                                                                                                                
-                                                                                                                        
 [refresh] [open] [settings] [help] [quit] ...                                                                           

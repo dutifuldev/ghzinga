@@ -7,6 +7,8 @@ OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1
 Conversation                                                                                                            
 ------------------------------------------------------------------------------------------------------------------------
                                                                                                                         
+[expand all]                                                                                                            
+                                                                                                                        
 * @xneone opened 2026-05-31T02:21:19Z                                                                                   
 Bug Description                                                                                                         
                                                                                                                         
@@ -31,6 +33,4 @@ json
 "baseUrl": "https://api.example.com/v1",                                                                                
 "api": "openai-responses",                                                                                              
 "models": [{"id": "gpt-5.5"}]                                                                                           
-}                                                                                                                       
-                                                                                                                        
 [refresh] [open] [settings] [help] [quit] ...                                                                           

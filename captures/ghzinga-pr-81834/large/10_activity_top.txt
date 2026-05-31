@@ -7,6 +7,8 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
 Activity (7 entries)                                                                                                                                            
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                                                                                                                 
+[expand all]                                                                                                                                                    
+                                                                                                                                                                
 Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                                 
 meta: association CONTRIBUTOR                                                                                                                                   
 [details]                                                                                                                                                       
@@ -45,6 +47,4 @@ meta: association MEMBER
 <!-- dependency-guard-rebase-needed-backfill -->                                                                                                                
 Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.                                             
                                                                                                                                                                 
-Comment by @clawsweeper 2026-05-30T03:28:55Z                                                                                                                    
-meta: association CONTRIBUTOR, edited                                                                                                                           
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   

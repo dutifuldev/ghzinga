@@ -7,6 +7,8 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
 Files changed (14)                                                                                                                                              
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
                                                                                                                                                                 
+[expand all]                                                                                                                                                    
+                                                                                                                                                                
 +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                                                                  
 +1    -1    MODIFIED docs/plugins/reference.md [+ more]                                                                                                         
 +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [+ more]                                                                                              
@@ -21,8 +23,6 @@ Files changed (14)
 +296  -0    ADDED    extensions/senseaudio/tts.test.ts [+ more]                                                                                                 
 +160  -0    ADDED    extensions/senseaudio/tts.ts [+ more]                                                                                                      
 +2    -0    MODIFIED src/plugin-sdk/test-helpers/plugin-registration-contract-cases.ts [+ more]                                                                 
-                                                                                                                                                                
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

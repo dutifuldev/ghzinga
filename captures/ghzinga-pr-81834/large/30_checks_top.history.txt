@@ -9,6 +9,8 @@ Checks: PASS (97 pass, 0 pending, 0 fail)
                                                                                                                                                                 
 142 total: 97 pass, 0 pending, 0 fail, 43 skipped, 2 neutral, 0 unknown                                                                                         
                                                                                                                                                                 
+[expand all]                                                                                                                                                    
+                                                                                                                                                                
 Passing (97)                                                                                                                                                    
 [OK PASS] suite/Auto response [+ more]                                                                                                                          
 [OK PASS] suite/CI [+ more]                                                                                                                                     
@@ -45,6 +47,4 @@ Passing (97)
 [OK PASS] CI/pnpm-store-warmup [+ more]                                                                                                                         
 [OK PASS] Dependency Guard/dependency-guard [+ more]                                                                                                            
 [OK PASS] CI/build-artifacts [+ more]                                                                                                                           
-[OK PASS] CI/checks-fast-bundled-protocol [+ more]                                                                                                              
-[OK PASS] CI/checks-fast-bun-launcher [+ more]                                                                                                                  
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   
