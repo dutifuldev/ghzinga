@@ -51,17 +51,27 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = run_view_command("pr", id, PR_FIELDS).await?;
     let dto: PrView = serde_json::from_slice(&output).context("failed to parse gh pr view JSON")?;
     let mut resource = dto.into_resource(id);
-    let review_comments = fetch_review_thread_activity(id).await?;
-    resource.activity.extend(review_comments);
-    let timeline = fetch_timeline_activity(id, ResourceKind::PullRequest).await?;
-    resource.activity.extend(timeline);
+    match fetch_review_thread_activity(id).await {
+        Ok(review_comments) => resource.activity.extend(review_comments),
+        Err(error) => push_enrichment_warning(&mut resource, "review threads unavailable", &error),
+    }
+    match fetch_timeline_activity(id, ResourceKind::PullRequest).await {
+        Ok(timeline) => resource.activity.extend(timeline),
+        Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
+    }
     sort_activity(&mut resource.activity);
+    let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
-        pr.files = fetch_changed_files(id).await?;
-        if let Ok(patches) = fetch_file_patches(id).await {
-            apply_file_patches(&mut pr.files, patches);
+        match fetch_changed_files(id).await {
+            Ok(files) => pr.files = files,
+            Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
+        }
+        match fetch_file_patches(id).await {
+            Ok(patches) => apply_file_patches(&mut pr.files, patches),
+            Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
         }
     }
+    resource.warnings.extend(warnings);
     Ok(resource)
 }
 
@@ -70,10 +80,16 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let dto: IssueView =
         serde_json::from_slice(&output).context("failed to parse gh issue view JSON")?;
     let mut resource = dto.into_resource(id);
-    let timeline = fetch_timeline_activity(id, ResourceKind::Issue).await?;
-    resource.activity.extend(timeline);
+    match fetch_timeline_activity(id, ResourceKind::Issue).await {
+        Ok(timeline) => resource.activity.extend(timeline),
+        Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
+    }
     sort_activity(&mut resource.activity);
     Ok(resource)
+}
+
+fn push_enrichment_warning(resource: &mut Resource, label: &str, error: &anyhow::Error) {
+    resource.warnings.push(format!("{label}: {error}"));
 }
 
 async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::Result<Vec<u8>> {
@@ -705,6 +721,7 @@ impl PrView {
                 requested,
             ),
             metadata: resource_metadata,
+            warnings: Vec::new(),
             pull_request: Some(PullRequest {
                 base_ref: self.base_ref_name,
                 head_ref: self.head_ref_name,
@@ -782,6 +799,7 @@ impl IssueView {
                 requested,
             ),
             metadata,
+            warnings: Vec::new(),
             pull_request: None,
         }
     }
@@ -1475,6 +1493,36 @@ mod tests {
                 "--json",
                 PR_FIELDS,
             ]
+        );
+    }
+
+    #[test]
+    fn enrichment_warning_records_label_and_error() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
+            title: "title".into(),
+            url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: Vec::new(),
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: None,
+        };
+        let error = anyhow::anyhow!("permission denied");
+
+        push_enrichment_warning(&mut resource, "timeline unavailable", &error);
+
+        assert_eq!(
+            resource.warnings,
+            vec!["timeline unavailable: permission denied"]
         );
     }
 

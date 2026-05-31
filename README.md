@@ -7,6 +7,8 @@ It uses Ratatui and Crossterm for the TUI, and the GitHub CLI for GitHub access.
 There is no separate login flow: if `gh auth status` works, `ghzoom` can fetch
 the resource. If `gh` is missing or unauthenticated, `ghzoom` reports the `gh`
 command that failed and the `gh auth status` / `gh auth login` next step.
+The primary PR or issue view is fetched first; optional enrichment failures are
+shown as warnings instead of preventing the resource from rendering.
 
 ## Install
 
@@ -115,7 +117,8 @@ The status panel shows the last refresh time and whether the fetched resource
 changed. Change detection includes comment/review bodies and review-thread
 state, not just top-level PR or issue fields. When a refresh changes data, the
 status panel lists the changed surfaces, such as `activity`, `checks`, `files`,
-or `commits`.
+or `commits`. If an optional enrichment call fails, the status and overview
+areas show a warning while keeping the base resource visible.
 
 ## Verification
 
