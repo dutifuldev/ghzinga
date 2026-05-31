@@ -13,9 +13,10 @@ use crate::domain::{
 };
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
-    comments_query, commit_deployments_query, commits_query, labels_query, linked_resources_query,
-    project_items_query, review_requests_query, review_thread_comments_query, review_threads_query,
-    reviews_query, status_rollup_query, timeline_query,
+    comments_query, commit_authors_query, commit_deployments_query, commits_query, labels_query,
+    linked_resources_query, project_items_query, review_requests_query,
+    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
+    timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -310,6 +311,23 @@ async fn run_graphql_changed_files(
 
 async fn run_graphql_commits(id: &ResourceId, after: Option<&str>) -> anyhow::Result<Vec<u8>> {
     run_graphql_query(commits_query(), owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_commit_authors(
+    id: &ResourceId,
+    oid: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        commit_authors_query(),
+        json!({
+            "owner": id.owner,
+            "name": id.repo,
+            "oid": oid,
+            "after": after,
+        }),
+    )
+    .await
 }
 
 async fn run_graphql_timeline(
@@ -874,6 +892,7 @@ struct CommitWithAuthorsConnectionDto {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CommitAuthorsConnection {
+    page_info: PageInfoDto,
     nodes: Vec<CommitAuthorDto>,
 }
 
@@ -882,6 +901,30 @@ struct CommitAuthorsConnection {
 struct CommitAuthorDto {
     name: Option<String>,
     user: Option<UserDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorsResponse {
+    data: CommitAuthorsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorsData {
+    repository: Option<CommitAuthorsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorsRepository {
+    object: Option<CommitAuthorsObject>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitAuthorsObject {
+    authors: CommitAuthorsConnection,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2133,15 +2176,67 @@ async fn fetch_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit>> {
         let output = run_graphql_commits(id, after.as_deref()).await?;
         let response: CommitsResponse =
             serde_json::from_slice(&output).context("failed to parse commits GraphQL JSON")?;
-        let Some(page) = commits_page(response) else {
+        let Some(mut page) = commits_page(response) else {
             return Ok(commits);
         };
+        enrich_remaining_commit_authors(id, &mut page.commits, page.author_continuations).await?;
         commits.extend(page.commits);
         if !page.has_next_page {
             return Ok(commits);
         }
         let Some(cursor) = page.end_cursor else {
             anyhow::bail!("commits page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+async fn enrich_remaining_commit_authors(
+    id: &ResourceId,
+    commits: &mut [Commit],
+    continuations: Vec<CommitAuthorContinuation>,
+) -> anyhow::Result<()> {
+    for continuation in continuations {
+        let authors = fetch_remaining_commit_authors(
+            id,
+            &continuation.commit_oid,
+            continuation.after.as_deref(),
+        )
+        .await?;
+        if let Some(commit) = commits
+            .iter_mut()
+            .find(|commit| commit.oid == continuation.commit_oid)
+        {
+            commit.authors.extend(authors);
+            commit.authors = deduped_nonempty_strings(std::mem::take(&mut commit.authors));
+        }
+    }
+    Ok(())
+}
+
+async fn fetch_remaining_commit_authors(
+    id: &ResourceId,
+    oid: &str,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<String>> {
+    let mut authors = Vec::new();
+    let Some(initial_after) = after else {
+        anyhow::bail!("commit authors page reported next page without an end cursor");
+    };
+    let mut after = Some(initial_after.to_string());
+    loop {
+        let output = run_graphql_commit_authors(id, oid, after.as_deref()).await?;
+        let response: CommitAuthorsResponse = serde_json::from_slice(&output)
+            .context("failed to parse commit authors GraphQL JSON")?;
+        let Some(page) = commit_authors_page(response) else {
+            return Ok(authors);
+        };
+        authors.extend(page.authors);
+        if !page.has_next_page {
+            return Ok(authors);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("commit authors page reported next page without an end cursor");
         };
         after = Some(cursor);
     }
@@ -2262,6 +2357,18 @@ fn replace_pr_commits(pr: &mut PullRequest, commits: Vec<Commit>) {
 
 struct CommitsPage {
     commits: Vec<Commit>,
+    author_continuations: Vec<CommitAuthorContinuation>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct CommitAuthorContinuation {
+    commit_oid: String,
+    after: Option<String>,
+}
+
+struct CommitAuthorsPage {
+    authors: Vec<String>,
     has_next_page: bool,
     end_cursor: Option<String>,
 }
@@ -2283,14 +2390,23 @@ fn commits_page(response: CommitsResponse) -> Option<CommitsPage> {
     let repository = response.data.repository?;
     let pull_request = repository.pull_request?;
     let page_info = pull_request.commits.page_info;
-    let commits = pull_request
-        .commits
-        .nodes
-        .into_iter()
-        .map(|node| commit_from_dto(commit_dto_from_connection(node.commit)))
-        .collect();
+    let mut commits = Vec::new();
+    let mut author_continuations = Vec::new();
+    for node in pull_request.commits.nodes {
+        let commit = node.commit;
+        if let Some(authors) = &commit.authors {
+            if authors.page_info.has_next_page {
+                author_continuations.push(CommitAuthorContinuation {
+                    commit_oid: commit.oid.clone(),
+                    after: authors.page_info.end_cursor.clone(),
+                });
+            }
+        }
+        commits.push(commit_from_dto(commit_dto_from_connection(commit)));
+    }
     Some(CommitsPage {
         commits,
+        author_continuations,
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
@@ -2313,6 +2429,24 @@ fn commit_dto_from_connection(commit: CommitWithAuthorsConnectionDto) -> CommitD
     }
 }
 
+#[cfg(test)]
+fn commit_authors_from_response(response: CommitAuthorsResponse) -> Vec<String> {
+    commit_authors_page(response)
+        .map(|page| page.authors)
+        .unwrap_or_default()
+}
+
+fn commit_authors_page(response: CommitAuthorsResponse) -> Option<CommitAuthorsPage> {
+    let repository = response.data.repository?;
+    let object = repository.object?;
+    let page_info = object.authors.page_info;
+    Some(CommitAuthorsPage {
+        authors: names_from_commit_authors(object.authors.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
 fn author_from_commit_author(author: CommitAuthorDto) -> UserDto {
     if let Some(user) = author.user {
         return user;
@@ -2322,6 +2456,10 @@ fn author_from_commit_author(author: CommitAuthorDto) -> UserDto {
         login: Some(name.clone()),
         name: Some(name),
     }
+}
+
+fn names_from_commit_authors(authors: Vec<CommitAuthorDto>) -> Vec<String> {
+    names_from_users(authors.into_iter().map(author_from_commit_author).collect())
 }
 
 struct CheckSuitesPage {
@@ -3878,6 +4016,22 @@ mod tests {
         assert!(query.contains("committedDate"));
         assert!(query.contains("authoredDate"));
         assert!(query.contains("authors(first: 100)"));
+        assert!(query.contains("authors(first: 100) {\n              pageInfo"));
+        assert!(query.contains("user { login name }"));
+    }
+
+    #[test]
+    fn commit_authors_query_requests_commit_object_and_pagination_state() {
+        let query = commit_authors_query();
+
+        assert!(query.contains("$oid: GitObjectID!"));
+        assert!(query.contains("object(oid: $oid)"));
+        assert!(query.contains("... on Commit"));
+        assert!(query.contains("authors(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("user { login name }"));
     }
 
     #[test]
@@ -4327,6 +4481,10 @@ mod tests {
                                     committed_date: Some("2026-05-30T03:18:51Z".into()),
                                     authored_date: Some("2026-05-14T13:10:00Z".into()),
                                     authors: Some(CommitAuthorsConnection {
+                                        page_info: PageInfoDto {
+                                            has_next_page: true,
+                                            end_cursor: Some("author-cursor-2".into()),
+                                        },
                                         nodes: vec![
                                             CommitAuthorDto {
                                                 name: Some("fallback-name".into()),
@@ -4356,6 +4514,12 @@ mod tests {
         assert_eq!(page.commits[0].oid, "abcdef123");
         assert_eq!(page.commits[0].body, "body");
         assert_eq!(page.commits[0].authors, vec!["fallback-name", "alice"]);
+        assert_eq!(page.author_continuations.len(), 1);
+        assert_eq!(page.author_continuations[0].commit_oid, "abcdef123");
+        assert_eq!(
+            page.author_continuations[0].after.as_deref(),
+            Some("author-cursor-2")
+        );
     }
 
     #[test]
@@ -4365,6 +4529,48 @@ mod tests {
         });
 
         assert!(commits.is_empty());
+    }
+
+    #[test]
+    fn commit_authors_page_preserves_pagination_state_and_display_names() {
+        let page = commit_authors_page(CommitAuthorsResponse {
+            data: CommitAuthorsData {
+                repository: Some(CommitAuthorsRepository {
+                    object: Some(CommitAuthorsObject {
+                        authors: CommitAuthorsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("author-cursor-3".into()),
+                            },
+                            nodes: vec![
+                                CommitAuthorDto {
+                                    name: Some("fallback-name".into()),
+                                    user: None,
+                                },
+                                CommitAuthorDto {
+                                    name: None,
+                                    user: Some(UserDto {
+                                        login: Some("alice".into()),
+                                        name: None,
+                                    }),
+                                },
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("commit authors page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("author-cursor-3"));
+        assert_eq!(page.authors, vec!["fallback-name", "alice"]);
+
+        let authors = commit_authors_from_response(CommitAuthorsResponse {
+            data: CommitAuthorsData { repository: None },
+        });
+
+        assert!(authors.is_empty());
     }
 
     #[test]
