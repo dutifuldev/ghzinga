@@ -90,7 +90,7 @@ For pull requests:
   status, GitHub Actions check runs, and legacy status contexts, with
   status/conclusion, timestamps, and details URLs on expanded check rows
 - changed files, with separately expandable patch context when a file row is expanded
-- detected issue/PR links, including GitHub relationship links
+- detected issue/PR links, including paginated GitHub relationship links
 
 For issues:
 
@@ -103,7 +103,7 @@ For issues:
   comments and timeline events are paginated so long histories are not capped at
   the first page
 - comment author association, edit/minimized flags, reactions, and permalinks
-- detected issue/PR links, including GitHub relationship links
+- detected issue/PR links, including paginated GitHub relationship links
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse

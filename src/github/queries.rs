@@ -261,6 +261,34 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
 "#
 }
 
+pub(crate) fn linked_resources_query(kind: ResourceKind) -> String {
+    let selector = selector(kind);
+    let connection = match kind {
+        ResourceKind::Issue => "closedByPullRequestsReferences",
+        ResourceKind::PullRequest => "closingIssuesReferences",
+    };
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      {connection}(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          number
+          url
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
+}
+
 pub(crate) fn comments_query(kind: ResourceKind) -> String {
     let selector = selector(kind);
     format!(
