@@ -38,7 +38,7 @@ pub(crate) trait GithubHttpTransport {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-struct ReqwestGithubHttpTransport;
+pub(crate) struct ReqwestGithubHttpTransport;
 
 impl GithubHttpTransport for ReqwestGithubHttpTransport {
     fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
@@ -154,10 +154,6 @@ fn compact_whitespace(value: &str) -> String {
 pub(crate) async fn run_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
     let token = github_token().await?;
     run_rest_get_with(&ReqwestGithubHttpTransport, Some(&token), path, accept).await
-}
-
-pub(crate) async fn run_public_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
-    run_rest_get_with(&ReqwestGithubHttpTransport, None, path, accept).await
 }
 
 pub(crate) async fn run_rest_get_with(

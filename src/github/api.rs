@@ -20,12 +20,13 @@ use crate::github::queries::{
     timeline_query,
 };
 use crate::github::transport::{
-    run_graphql_query, run_public_rest_get, run_rest_get, GITHUB_GRAPHQL_URL, GITHUB_JSON_ACCEPT,
+    run_graphql_query, run_rest_get, run_rest_get_with, GithubHttpTransport,
+    ReqwestGithubHttpTransport, GITHUB_GRAPHQL_URL, GITHUB_JSON_ACCEPT,
 };
 #[cfg(test)]
 use crate::github::transport::{
-    run_graphql_query_with, run_rest_get_with, GithubHttpFuture, GithubHttpMethod,
-    GithubHttpRequest, GithubHttpResponse, GithubHttpTransport,
+    run_graphql_query_with, GithubHttpFuture, GithubHttpMethod, GithubHttpRequest,
+    GithubHttpResponse,
 };
 
 pub trait GithubGateway {
@@ -254,15 +255,53 @@ async fn fetch_public_rest_issue(
     Ok(resource)
 }
 
+const REST_PAGE_SIZE: usize = 100;
+
 async fn run_public_rest_json<T: serde::de::DeserializeOwned>(path: &str) -> anyhow::Result<T> {
-    let output = run_public_rest_get(path, GITHUB_JSON_ACCEPT).await?;
+    run_public_rest_json_with(&ReqwestGithubHttpTransport, path).await
+}
+
+async fn run_public_rest_json_with<T: serde::de::DeserializeOwned>(
+    transport: &impl GithubHttpTransport,
+    path: &str,
+) -> anyhow::Result<T> {
+    let output = run_rest_get_with(transport, None, path, GITHUB_JSON_ACCEPT).await?;
     serde_json::from_slice(&output)
         .with_context(|| format!("failed to parse public REST JSON from {path}"))
 }
 
+async fn fetch_public_rest_pages<T: serde::de::DeserializeOwned>(
+    base_path: &str,
+) -> anyhow::Result<Vec<T>> {
+    fetch_public_rest_pages_with(&ReqwestGithubHttpTransport, base_path).await
+}
+
+async fn fetch_public_rest_pages_with<T: serde::de::DeserializeOwned>(
+    transport: &impl GithubHttpTransport,
+    base_path: &str,
+) -> anyhow::Result<Vec<T>> {
+    let mut page = 1;
+    let mut items = Vec::new();
+    loop {
+        let path = public_rest_page_path(base_path, page);
+        let mut current_page: Vec<T> = run_public_rest_json_with(transport, &path).await?;
+        let is_last_page = current_page.len() < REST_PAGE_SIZE;
+        items.append(&mut current_page);
+        if is_last_page {
+            return Ok(items);
+        }
+        page += 1;
+    }
+}
+
+fn public_rest_page_path(base_path: &str, page: u64) -> String {
+    let separator = if base_path.contains('?') { '&' } else { '?' };
+    format!("{base_path}{separator}per_page={REST_PAGE_SIZE}&page={page}")
+}
+
 async fn fetch_public_rest_comments(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
-    let comments = run_public_rest_json::<Vec<RestCommentDto>>(&format!(
-        "/repos/{}/{}/issues/{}/comments?per_page=100",
+    let comments = fetch_public_rest_pages::<RestCommentDto>(&format!(
+        "/repos/{}/{}/issues/{}/comments",
         id.owner, id.repo, id.number
     ))
     .await?;
@@ -274,8 +313,8 @@ async fn fetch_public_rest_comments(id: &ResourceId) -> anyhow::Result<Vec<Activ
 }
 
 async fn fetch_public_rest_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit>> {
-    let commits = run_public_rest_json::<Vec<RestCommitDto>>(&format!(
-        "/repos/{}/{}/pulls/{}/commits?per_page=100",
+    let commits = fetch_public_rest_pages::<RestCommitDto>(&format!(
+        "/repos/{}/{}/pulls/{}/commits",
         id.owner, id.repo, id.number
     ))
     .await?;
@@ -283,8 +322,8 @@ async fn fetch_public_rest_commits(id: &ResourceId) -> anyhow::Result<Vec<Commit
 }
 
 async fn fetch_public_rest_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedFile>> {
-    let files = run_public_rest_json::<Vec<RestFileDto>>(&format!(
-        "/repos/{}/{}/pulls/{}/files?per_page=100",
+    let files = fetch_public_rest_pages::<RestFileDto>(&format!(
+        "/repos/{}/{}/pulls/{}/files",
         id.owner, id.repo, id.number
     ))
     .await?;
@@ -4340,21 +4379,25 @@ fn parse_diff_header_path(line: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::{collections::VecDeque, sync::Mutex};
 
     use super::*;
 
     #[derive(Debug)]
     struct FakeGithubHttpTransport {
         requests: Mutex<Vec<GithubHttpRequest>>,
-        response: Mutex<Option<GithubHttpResponse>>,
+        responses: Mutex<VecDeque<GithubHttpResponse>>,
     }
 
     impl FakeGithubHttpTransport {
         fn new(response: GithubHttpResponse) -> Self {
+            Self::from_responses(vec![response])
+        }
+
+        fn from_responses(responses: Vec<GithubHttpResponse>) -> Self {
             Self {
                 requests: Mutex::new(Vec::new()),
-                response: Mutex::new(Some(response)),
+                responses: Mutex::new(responses.into()),
             }
         }
 
@@ -4367,11 +4410,11 @@ mod tests {
         fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
             Box::pin(async move {
                 self.requests.lock().expect("requests lock").push(request);
-                self.response
+                self.responses
                     .lock()
-                    .expect("response lock")
-                    .take()
-                    .context("fake response already used")
+                    .expect("responses lock")
+                    .pop_front()
+                    .context("fake response queue is empty")
             })
         }
     }
@@ -4509,6 +4552,63 @@ mod tests {
         let requests = transport.requests();
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_pages_until_short_page_without_auth() {
+        let first_page = (1..=100).map(rest_comment_json).collect::<Vec<_>>();
+        let second_page = (101..=102).map(rest_comment_json).collect::<Vec<_>>();
+        let transport = FakeGithubHttpTransport::from_responses(vec![
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&first_page).unwrap(),
+            },
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&second_page).unwrap(),
+            },
+        ]);
+
+        let comments = fetch_public_rest_pages_with::<RestCommentDto>(
+            &transport,
+            "/repos/openclaw/openclaw/issues/88499/comments",
+        )
+        .await
+        .expect("paginated public REST comments");
+
+        assert_eq!(comments.len(), 102);
+        assert_eq!(comments[0].id, 1);
+        assert_eq!(comments[101].id, 102);
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/issues/88499/comments?per_page=100&page=1"
+        );
+        assert_eq!(
+            requests[1].url,
+            "https://api.github.com/repos/openclaw/openclaw/issues/88499/comments?per_page=100&page=2"
+        );
+        assert_eq!(requests[0].token, None);
+        assert_eq!(requests[1].token, None);
+    }
+
+    #[test]
+    fn public_rest_page_path_uses_ampersand_when_query_already_exists() {
+        assert_eq!(
+            public_rest_page_path("/repos/owner/repo/issues/1/comments?since=2026-01-01", 3),
+            "/repos/owner/repo/issues/1/comments?since=2026-01-01&per_page=100&page=3"
+        );
+    }
+
+    fn rest_comment_json(id: u64) -> Value {
+        json!({
+            "id": id,
+            "user": {"login": "alice"},
+            "body": format!("comment {id}"),
+            "created_at": "2026-05-31T00:00:00Z",
+            "updated_at": "2026-05-31T00:00:00Z"
+        })
     }
 
     #[test]
