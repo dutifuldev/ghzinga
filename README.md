@@ -59,8 +59,10 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
 accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
-`emoji`. `--spacing` accepts `comfortable` and `compact`. CLI theme, symbol, and
-spacing flags override saved config for that run only.
+`emoji`. `--spacing` accepts `comfortable` and `compact`. Comfortable is the
+default and adds gh-dash-like breathing room between repeated rows; compact keeps
+more rows visible in small terminals. CLI theme, symbol, and spacing flags
+override saved config for that run only.
 
 ## Configuration
 
@@ -87,7 +89,7 @@ The app works without a config file. Invalid known values fall back to safe
 defaults and show a warning in the status band. Unknown fields are ignored so
 future config additions do not break older files.
 
-Open settings inside the TUI with `s` or the footer `[settings]` control. Theme
+Open settings inside the TUI with `s` or the footer `[settings]` control. Theme,
 symbol, and spacing changes apply live and are saved back to `config.toml`;
 write errors are shown in the status band without crashing the app.
 

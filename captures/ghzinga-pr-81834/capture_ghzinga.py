@@ -367,6 +367,7 @@ def capture_size(label: str, cols: int, rows: int):
             ("30_checks_top", "checks", []),
             ("31_checks_pagedown", "checks", ["PageDown"]),
             ("40_files_top", "files", []),
+            ("41_files_pagedown", "files", ["PageDown"]),
             ("50_links_top", "links", []),
             ("60_help", "links", ["?"]),
         ]
@@ -396,6 +397,7 @@ def expected_frames(mode: str) -> list[str]:
         "30_checks_top",
         "31_checks_pagedown",
         "40_files_top",
+        "41_files_pagedown",
         "50_links_top",
         "60_help",
     ]
@@ -436,6 +438,9 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "40_files_top": [
                 "Files changed (14)",
+                "extensions/senseaudio/index.ts",
+            ],
+            "41_files_pagedown": [
                 "extensions/senseaudio/speech-provider.ts",
                 "extensions/senseaudio/speech-provider.test.ts",
             ],

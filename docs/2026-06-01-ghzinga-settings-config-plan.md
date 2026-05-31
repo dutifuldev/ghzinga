@@ -8,8 +8,8 @@ date: 2026-06-01
 
 `ghzinga` should have a small in-app settings surface for preferences that users
 expect to change while reading a PR or issue. The first version should focus on
-theme and symbol style because those already exist as CLI flags and are safe to
-apply live.
+theme, symbol style, and spacing density because those options are safe to apply
+live.
 
 ## Config Convention
 
@@ -100,7 +100,8 @@ Saving behavior:
 - Add settings hit targets and reducer intents for save requests.
 - Render settings rows with existing Ratatui text, button, and wrapping helpers.
 - Apply comfortable spacing by inserting breathing room after section rules and
-  keeping compact mode equivalent to the previous dense layout.
+  between repeated rows such as files, checks, commits, links, and timeline
+  groups. Keep compact mode dense for small terminals.
 - Add unit tests for config parsing/path overrides, CLI override behavior,
   settings keyboard changes, settings mouse hit targets, and persistence intent.
 - Update capture evidence after source changes.
