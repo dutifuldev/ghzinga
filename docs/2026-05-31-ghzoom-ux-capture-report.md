@@ -97,6 +97,10 @@ It also checks that no app/rendering source paths changed since the manifest
 revision. Use `--allow-stale-revision` only when intentionally inspecting
 historical captures.
 
+For this checked-in PR evidence set, the validator also checks content markers
+in every terminal size: opening body text, dependency-warning comment content,
+review activity, commits, aggregate checks, changed files, and detected links.
+
 The PR rendered frames also show:
 
 - status summary with PR state, author, reactions, review, merge, checks, files,
@@ -145,7 +149,9 @@ It checks that every size contains:
 - `[quit]`
 
 Like the PR validator, it rejects captures when app/rendering code has changed
-since the recorded manifest revision.
+since the recorded manifest revision. For this checked-in issue evidence set,
+it also checks content markers for the issue body, activity comments, and
+detected issue/comment links in every terminal size.
 
 The rendered frames also show:
 
