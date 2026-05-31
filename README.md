@@ -190,6 +190,12 @@ Regenerate PR captures:
 python3 captures/ghzoom-pr-81834/capture_ghzoom.py
 ```
 
+Validate saved PR captures:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only
+```
+
 Regenerate issue captures:
 
 ```sh
@@ -199,4 +205,13 @@ python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
   --title 'openai-responses provider: 404 on previous_response_id when store=false (default)' \
   --load-needle openai-responses \
   --mode issue
+```
+
+Validate saved issue captures:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
+  --root captures/ghzoom-issue-88499 \
+  --mode issue \
+  --validate-only
 ```

@@ -46,7 +46,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, Enter for first visible content action, `r`, `?`, `q`, `o`, Backspace; no Ctrl-b/Ctrl-a/Ctrl-d/Ctrl-u primary shortcuts |
 | No special UI fonts required | renderer defaults to `--symbols ascii`, with ASCII chrome and symbols such as `[+ more]`, `[- less]`, `[refresh]`, `[open]`, `[quit]`, `[help]`, `OK`, `!!`, `..`, `*`, and `-` rules; `renders_pr_overview_in_ascii_chrome` rejects box-drawing separators, the default fixture smoke prints no non-ASCII lines, and `--symbols emoji` is opt-in with `once_can_render_emoji_symbols_when_requested` |
 | Responsive TUI wrapping | `docs/2026-05-31-ghzoom-responsive-chrome-plan.md` documents the gh-dash-inspired wrapping strategy; `ViewRects::compute` tests verify narrow chrome row reservations and cramped content preservation; `narrow_render_wraps_chrome_without_losing_click_targets` verifies wrapped tabs/footer controls keep hit areas; `oversized_status_pieces_wrap_without_early_ellipsis` verifies long status chips wrap before truncation; `extremely_narrow_tabs_fit_visible_width` and `extremely_narrow_footer_controls_fit_visible_width` verify clipped labels keep hit areas aligned with visible controls; `content_rows_wrap_long_text_and_preserve_click_targets` verifies the final content wrapping pass keeps wrapped clickable rows clickable; `narrow_content_wraps_metadata_without_clipping` verifies long metadata wraps in a narrow viewport; `wrap_display_text` tests preserve markup characters while splitting wide/emoji text by display width |
-| Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories |
+| Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories; `captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only` verifies PR frame coverage, markers, footer controls, generated files, and actual tmux dimensions; the same script with `--root captures/ghzoom-issue-88499 --mode issue --validate-only` verifies issue captures |
 | Current-resource browser open | reducer tests for `o` and `[open]`; smoke checks with `BROWSER=echo gh pr view ... --web` and `gh issue view ... --web` |
 
 ## Capture Evidence
@@ -63,12 +63,13 @@ Issue captures:
 captures/ghzoom-issue-88499/
 ```
 
-Each size directory contains `.txt`, `.ansi`, and `.png` frames. The current
-marker check verifies:
+Each size directory contains `.txt`, `.ansi`, and `.png` frames. Manifests record
+the source revision, target, command, tab, keys, and actual tmux dimensions for
+each frame. The current marker check verifies:
 
 - PR: Activity, Commits, Checks, Files, Links, Help at narrow/medium/large sizes
 - Issue: Overview, Activity, Links, Help at narrow/medium/large sizes
-- footer control `[open]` appears in every checked frame
+- footer controls `[refresh]`, `[open]`, `[help]`, and `[quit]` appear in every checked size set
 
 ## Click Coverage
 

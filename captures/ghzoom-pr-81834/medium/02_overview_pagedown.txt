@@ -1,36 +1,36 @@
 openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider               
+feat(senseaudio): add SenseAudio TTS provider                                                                           
 ------------------------------------------------------------------------------------------------------------------------
-[Overview] Activity  Commits  Checks  Files  Links          
-Status                         Overview                     
------------------------------- -----------------------------------------------------------------------------------------
-Type: PR                       Labels: docs, size: L, extensions: senseaudio, proof: supplied, proof: sufficient, P3, ra
-State: OPEN                    Assignees: none              
-Author: @KLilyZ                Reactions: +1:3 eyes:1       
-Assignees: none               
-Reactions: +1:3 eyes:1         Body                         
-Activity: 33                   Summary                      
-Closed: no                    
-Draft: no                      - Problem: senseaudio bundled plugin only has ASR; no TTS.                               
-Cross repository: yes          - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is
-Maintainer can modify: yes     solid TTS and pairs with the ASR added in #66943.                                        
-Branches: main <- feat/sens... - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via    
-Review: None requested         /v1/t2a_v2, lists system voices via /v1/get_voice, transcodes MP3→opus for voice-note    
-Reviewers: none                targets. Errors split into HTTP / base_resp.status_code / missing-audio buckets.         
-Merge: Clean                   - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, 
-Checks: PASS (97 pass, 0 pe... text-generated voices out of scope.                                                      
-Files: 14                     
-Lines: +1057 -22               Change Type (select all)     
-Base ref OID: a1c6882777ba6... [more]                       
-Head ref OID: fb4165fe62f1d...
-Head repository: openclaw      Change summary               
-                               Review: None requested       
-                               Reviewers: none              
-                               Merge: Clean                 
-                               14 files, 5 commits, +1057 -22                                                           
-                               Checks: PASS (97 pass, 0 pending, 0 fail)                                                
-
-                               PR metadata                  
-                               Base ref OID: a1c6882777ba6921d634be88d03c6cb7dda7c0fc                                   
-                               Head ref OID: fb4165fe62f1d126ba8c4bde3abe10fd7e985778                                   
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...
+[Overview] Activity  Commits  Checks  Files  Links                                                                      
+OK OPEN  by @KLilyZ  comments 43  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22          
+                                                                                                                        
+Conversation                                                                                                            
+------------------------------------------------------------------------------------------------------------------------
+* @KLilyZ opened 2026-05-14T14:05:46Z                                                                                   
+Summary                                                                                                                 
+                                                                                                                        
+- Problem: senseaudio bundled plugin only has ASR; no TTS.                                                              
+- Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with the  
+ASR added in #66943.                                                                                                    
+- What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices   
+via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code /         
+missing-audio buckets.                                                                                                  
+- What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of   
+scope.                                                                                                                  
+                                                                                                                        
+Change Type (select all)                                                                                                
+[+ more]                                                                                                                
+------------------------------------------------------------------------------------------------------------------------
+- Timeline by @github-actions 2026-05-14T14:05:56Z                                                                      
+added label dependencies-changed                                                                                        
+------------------------------------------------------------------------------------------------------------------------
+comment Comment by @github-actions 2026-05-14T14:05:57Z                                                                 
+meta: association CONTRIBUTOR                                                                                           
+[details]                                                                                                               
+<!-- openclaw:dependency-change-awareness -->                                                                           
+                                                                                                                        
+Dependency Changes Detected                                                                                             
+                                                                                                                        
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
+                                                                                                                        
+[refresh] [open] [help] [quit] ...                                                                                      

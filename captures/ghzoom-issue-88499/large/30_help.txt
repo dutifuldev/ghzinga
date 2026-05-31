@@ -1,50 +1,50 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
+openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                                                               
 openai-responses provider: 404 on previous_response_id when store=false (default)                                                                               
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Overview  Activity [Links]             
-Status                         Help     
-------------------------------                                                                                                                                  
-Type: Issue                    Mouse                                            
-State: OPEN                    - Click tabs to switch sections.                 
-Author: @xneone                - Click [more] or [less] to expand or collapse long text, checks, and files.                                                     
-Assignees: none                - Click visible GitHub issue or PR references to navigate.                                                                       
-Reactions: +1:1                - Use the mouse wheel to scroll the current view.
-Activity: 9                             
-Closed: no                     Keyboard 
-Pinned: no                     - q: quit
-                               - ?: toggle this help                            
-                               - r: refresh now                                 
-                               - o: open current resource in browser through gh 
-                               - Tab / Shift-Tab / Left / Right: switch tabs    
-                               - Up / Down / PageUp / PageDown / Home / End: scroll                                                                             
-                               - e: expand or collapse the main body            
-                               - Backspace: return after following a link       
-
-                               Refresh  
-                               - Live mode refreshes automatically on the configured interval.                                                                  
-                               - The status panel shows the last refresh time and whether content changed.                                                      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab Links | scroll 0          
+ Overview  Activity [Links]                                                                                                                                     
+OK OPEN  by @xneone  comments 9  reactions 1                                                                                                                    
+                                                                                                                                                                
+Help                                                                                                                                                            
+                                                                                                                                                                
+Mouse                                                                                                                                                           
+- Click tabs to switch sections.                                                                                                                                
+- Click [+ more] or [- less] to expand or collapse long text, checks, and files.                                                                                
+- Click visible GitHub issue or PR references to navigate.                                                                                                      
+- Use the mouse wheel to scroll the current view.                                                                                                               
+                                                                                                                                                                
+Keyboard                                                                                                                                                        
+- q: quit                                                                                                                                                       
+- ?: toggle this help                                                                                                                                           
+- r: refresh now                                                                                                                                                
+- o: open current resource in browser through gh                                                                                                                
+- Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                   
+- Up / Down / PageUp / PageDown / Home / End: scroll                                                                                                            
+- e: expand or collapse the main body                                                                                                                           
+- Backspace: return after following a link                                                                                                                      
+                                                                                                                                                                
+Refresh                                                                                                                                                         
+- Live mode refreshes automatically on the configured interval.                                                                                                 
+- The status band shows the last refresh time and whether content changed.                                                                                      
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+[refresh] [open] [help] [quit] ...                                                                                                                              

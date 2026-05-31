@@ -3,6 +3,7 @@
   "title": "feat(senseaudio): add SenseAudio TTS provider",
   "mode": "pr",
   "binary": "/home/bob/repos/ghzoom/target/debug/ghzoom",
+  "git_commit": "1f5e210b07f63a624544f9d122902d782b7d2c71",
   "sizes": [
     {
       "label": "narrow",

@@ -1,50 +1,50 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
+openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                                                               
 openai-responses provider: 404 on previous_response_id when store=false (default)                                                                               
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Links              
-Status                         wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.                                     
-------------------------------                                                                                                                                  
-Type: Issue                    [more]                                           
-State: OPEN                                                                     
-Author: @xneone                Timeline by @clawsweeper 2026-05-31T02:28:11Z                                                                                    
-Assignees: none                added label P2                                   
-Reactions: +1:1                         
-Activity: 9                    Timeline by @clawsweeper 2026-05-31T02:28:12Z    
-Closed: no                     added label impact:session-state                                                                                                 
-Pinned: no                                                                                                                                                      
-                               Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                                    
-                               added label issue-rating: 🐚 platinum hermit     
-                                        
-                               Timeline by @clawsweeper 2026-05-31T02:28:15Z    
-                               added label clawsweeper:needs-live-repro         
-                                                                                
-                               Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                           
-                               meta: association CONTRIBUTOR                    
-                               Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                     
-
-                               Environment:                                     
-                               - OpenClaw CLI/Gateway: 2026.5.28 (e932160)      
-                               - OS: macOS arm64                                
-                               - Channel: Slack, channel-scoped session         
-                               - Provider/API path: openai / openai-responses   
-                               - Model: gpt-5.5                                 
-                               [more]                                                                                                                           
-                                                                                
-                               Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                     
-                               meta: association NONE                           
-                               The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design.           
-                               Server-side response chaining only works when the response was persisted, which is exactly what store=false turns off. So        
-                               previous_response_id should not be on the request at all when store is false.                                                    
-                                                                                
-                               There are two separate defects here and the fix needs both.                                                                      
-                                                                                
-                               The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side with       
-                               previous_response_id (requires store=true), or resend the conversation context inline on each turn (works with store=false). With
-                               [more]                                           
-                                                                                
-                               Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                           
-                               meta: association CONTRIBUTOR                                                                                                    
-                               Follow-up after the local recovery investigation: the durable fix likely needs the transport/payload layer plus a reset/recovery 
-                               cleanup layer.                                   
+ Overview [Activity] Links                                                                                                                                      
+OK OPEN  by @xneone  comments 9  reactions 1                                                                                                                    
                                                                                                                                                                 
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab Activity | scroll 10      
+Activity (9 entries)                                                                                                                                            
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Timeline by @clawsweeper 2026-05-31T02:28:11Z                                                                                                                   
+added label P2                                                                                                                                                  
+                                                                                                                                                                
+Timeline by @clawsweeper 2026-05-31T02:28:12Z                                                                                                                   
+added label impact:session-state                                                                                                                                
+                                                                                                                                                                
+Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                                                                   
+added label issue-rating: 🐚 platinum hermit                                                                                                                    
+                                                                                                                                                                
+Timeline by @clawsweeper 2026-05-31T02:28:15Z                                                                                                                   
+added label clawsweeper:needs-live-repro                                                                                                                        
+                                                                                                                                                                
+Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
+meta: association CONTRIBUTOR, edited                                                                                                                           
+[details]                                                                                                                                                       
+Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._            
+                                                                                                                                                                
+Summary                                                                                                                                                         
+Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers because generic Responses payloads can be     
+unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes have a newer store-aware wrapper, but the reported custom proxy route is not     
+covered by that direct-OpenAI-only path.                                                                                                                        
+                                                                                                                                                                
+Reproducibility: no. high-confidence live repro was run. Source inspection shows the risky shape on current main: generic openai-responses sends unstored       
+[+ more]                                                                                                                                                        
+                                                                                                                                                                
+Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                          
+meta: association CONTRIBUTOR                                                                                                                                   
+[details]                                                                                                                                                       
+Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                    
+                                                                                                                                                                
+Environment:                                                                                                                                                    
+- OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                     
+- OS: macOS arm64                                                                                                                                               
+- Channel: Slack, channel-scoped session                                                                                                                        
+- Provider/API path: openai / openai-responses                                                                                                                  
+- Model: gpt-5.5                                                                                                                                                
+[+ more]                                                                                                                                                        
+                                                                                                                                                                
+Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                                                    
+meta: association NONE                                                                                                                                          
+[details]                                                                                                                                                       
+[refresh] [open] [help] [quit] ...                                                                                                                              
