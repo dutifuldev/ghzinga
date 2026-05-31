@@ -267,7 +267,14 @@ query($owner: String!, $name: String!, $number: Int!) {{
         CROSS_REFERENCED_EVENT,
         RENAMED_TITLE_EVENT,
         MILESTONED_EVENT,
-        DEMILESTONED_EVENT
+        DEMILESTONED_EVENT,
+        MERGED_EVENT,
+        REVIEW_REQUESTED_EVENT,
+        REVIEW_REQUEST_REMOVED_EVENT,
+        READY_FOR_REVIEW_EVENT,
+        CONVERT_TO_DRAFT_EVENT,
+        AUTO_MERGE_ENABLED_EVENT,
+        AUTO_MERGE_DISABLED_EVENT
       ]) {{
         nodes {{
           __typename
@@ -301,6 +308,29 @@ query($owner: String!, $name: String!, $number: Int!) {{
           ... on RenamedTitleEvent {{ id createdAt actor {{ login }} previousTitle currentTitle }}
           ... on MilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
           ... on DemilestonedEvent {{ id createdAt actor {{ login }} milestoneTitle }}
+          ... on MergedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            mergeRefName
+            commit {{ oid }}
+          }}
+          ... on ReviewRequestedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            requestedReviewer {{ __typename ... on User {{ login }} ... on Team {{ name slug }} }}
+          }}
+          ... on ReviewRequestRemovedEvent {{
+            id
+            createdAt
+            actor {{ login }}
+            requestedReviewer {{ __typename ... on User {{ login }} ... on Team {{ name slug }} }}
+          }}
+          ... on ReadyForReviewEvent {{ id createdAt actor {{ login }} }}
+          ... on ConvertToDraftEvent {{ id createdAt actor {{ login }} }}
+          ... on AutoMergeEnabledEvent {{ id createdAt actor {{ login }} }}
+          ... on AutoMergeDisabledEvent {{ id createdAt actor {{ login }} reason }}
         }}
       }}
     }}
@@ -1472,6 +1502,31 @@ fn timeline_body(typename: &str, node: &Value) -> String {
             "removed milestone {}",
             string_field(node, "milestoneTitle").unwrap_or("unknown")
         ),
+        "MergedEvent" => {
+            let commit = string_field_at(node, &["commit", "oid"])
+                .map(|oid| oid.chars().take(12).collect::<String>())
+                .unwrap_or_else(|| "unknown".to_string());
+            let branch = string_field(node, "mergeRefName").unwrap_or("base branch");
+            format!("merged into {branch} at {commit}")
+        }
+        "ReviewRequestedEvent" => {
+            format!("requested review from {}", requested_reviewer_name(node))
+        }
+        "ReviewRequestRemovedEvent" => {
+            format!(
+                "removed review request from {}",
+                requested_reviewer_name(node)
+            )
+        }
+        "ReadyForReviewEvent" => "marked ready for review".to_string(),
+        "ConvertToDraftEvent" => "converted to draft".to_string(),
+        "AutoMergeEnabledEvent" => "enabled auto-merge".to_string(),
+        "AutoMergeDisabledEvent" => format!(
+            "disabled auto-merge{}",
+            string_field(node, "reason")
+                .map(|reason| format!(": {reason}"))
+                .unwrap_or_default()
+        ),
         other => format!("{other} event"),
     }
 }
@@ -1505,6 +1560,15 @@ fn actor_login(node: &Value) -> Option<String> {
 fn assignee_name(node: &Value) -> String {
     string_field_at(node, &["assignee", "login"])
         .or_else(|| string_field_at(node, &["assignee", "__typename"]))
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn requested_reviewer_name(node: &Value) -> String {
+    string_field_at(node, &["requestedReviewer", "login"])
+        .or_else(|| string_field_at(node, &["requestedReviewer", "slug"]))
+        .or_else(|| string_field_at(node, &["requestedReviewer", "name"]))
+        .or_else(|| string_field_at(node, &["requestedReviewer", "__typename"]))
         .unwrap_or("unknown")
         .to_string()
 }
@@ -2321,6 +2385,27 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         "repository": {"nameWithOwner": "openclaw/openclaw"}
                                     }
                                 }),
+                                serde_json::json!({
+                                    "__typename": "ReviewRequestedEvent",
+                                    "id": "review-requested",
+                                    "createdAt": "2026-05-31T07:02:12Z",
+                                    "actor": {"login": "alice"},
+                                    "requestedReviewer": {"__typename": "User", "login": "maintainer"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "ReadyForReviewEvent",
+                                    "id": "ready",
+                                    "createdAt": "2026-05-31T07:03:12Z",
+                                    "actor": {"login": "alice"}
+                                }),
+                                serde_json::json!({
+                                    "__typename": "MergedEvent",
+                                    "id": "merged",
+                                    "createdAt": "2026-05-31T07:04:12Z",
+                                    "actor": {"login": "alice"},
+                                    "mergeRefName": "main",
+                                    "commit": {"oid": "abcdef1234567890"}
+                                }),
                             ],
                         },
                     }),
@@ -2329,7 +2414,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             },
         });
 
-        assert_eq!(activity.len(), 2);
+        assert_eq!(activity.len(), 5);
         assert_eq!(activity[0].kind, ActivityKind::Timeline);
         assert_eq!(activity[0].author, "clawsweeper");
         assert_eq!(activity[0].body, "added label P2");
@@ -2341,6 +2426,9 @@ diff --git a/docs/two.md b/docs/two.md\n\
             activity[1].url.as_deref(),
             Some("https://github.com/openclaw/openclaw/issues/88538")
         );
+        assert_eq!(activity[2].body, "requested review from maintainer");
+        assert_eq!(activity[3].body, "marked ready for review");
+        assert_eq!(activity[4].body, "merged into main at abcdef123456");
     }
 
     #[test]

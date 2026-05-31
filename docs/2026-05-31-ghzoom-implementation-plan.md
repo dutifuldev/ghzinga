@@ -184,8 +184,9 @@ Data loaded for PR:
 - comments, reviews, and review threads, including author association,
   comment/review reactions, edit/minimized metadata, permalinks, and
   review-thread resolved/outdated state
-- timeline events for labels, references, assignments, title changes,
-  milestones, close, and reopen events
+- timeline events for labels, references, assignments, review requests,
+  draft/ready state, auto-merge changes, merges, title changes, milestones,
+  close, and reopen events
 - reviews and review states
 - mergeability and review decision where exposed
 
