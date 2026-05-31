@@ -58,6 +58,10 @@ query($owner: String!, $name: String!, $number: Int!) {
             committedDate
             authoredDate
             authors(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 name
                 user { login name }
@@ -343,11 +347,38 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
             committedDate
             authoredDate
             authors(first: 100) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 name
                 user { login name }
               }
             }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
+pub(crate) fn commit_authors_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $oid: GitObjectID!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    object(oid: $oid) {
+      ... on Commit {
+        authors(first: 100, after: $after) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            name
+            user { login name }
           }
         }
       }
