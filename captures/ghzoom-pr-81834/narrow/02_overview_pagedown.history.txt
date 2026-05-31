@@ -1,0 +1,24 @@
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
+--------------------------------------------------------------------------------
+[Overview] Activity  Commits  Checks  Files  Links                              
+PR OPEN | comments 33 | reactions +1:3 eyes:1 | checks PASS (86 pass, 0 pendi...
+--------------------------------------------------------------------------------
+Overview            
+--------------------------------------------------------------------------------
+Labels: docs, size: L, extensions: senseaudio, proof: supplied, proof: sufficien
+Assignees: none     
+Reactions: +1:3 eyes:1                  
+
+Body                
+Summary             
+
+- Problem: senseaudio bundled plugin only has ASR; no TTS.                      
+- Why it matters: completes the round trip in the same plugin; SenseAudio's     
+/v1/t2a_v2 is solid TTS and pairs with the ASR added in #66943.                 
+- What changed: registers a speechProvider in extensions/senseaudio/.           
+Synthesizes via /v1/t2a_v2, lists system voices via /v1/get_voice, transcodes   
+MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code 
+/ missing-audio buckets.                
+- What did NOT change: no core code; ASR untouched; streaming, telephony, voice 
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/s...

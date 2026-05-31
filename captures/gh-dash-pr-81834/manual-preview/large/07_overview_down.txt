@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  ## Diagram (if applicable)
+ ╰────────────────────────────────────────────────────────────────────╯ │  audio-file target:
+    Title        Base         󰯢                    󱦻           󱡢    │    tts.convert -> senseaudio.synthesize
+                                                                        │                -> POST /v1/t2a_v2 -> hex audio
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │                -> Buffer.from(hex) -> MP3 (voiceCompatible=false)
+     feat(sensea                                                        │
+ ────────────────────────────────────────────────────────────────────── │  voice-note target:
+                                                                        │    tts.convert (channel=voice-note) -> senseaudio.synthesize
+                                                                        │                -> POST /v1/t2a_v2 -> MP3
+                                                                        │                -> transcodeAudioBufferToOpus (ffmpeg)
+                                                                        │                -> opus (voiceCompatible=true) -> messenger voice-note bubble
+                                                                        │
+                                                                        │  voice picker:
+                                                                        │    talk UI -> senseaudio.listVoices
+                                                                        │            -> POST /v1/get_voice {voice_type: "system"}
+                                                                        │            -> map system_voice[] -> SpeechVoiceOption[]
+                                                                        │
+                                                                        │  ## Security Impact (required)
+                                                                        │  • New permissions/capabilities? `No`
+                                                                        │  • Secrets/tokens handling changed? `No` (reuses `SENSEAUDIO_API_KEY`; configured
+                                                                        │  values go through `normalizeResolvedSecretInputString`; key never logged).
+                                                                        │  • New/changed network calls? `Yes`
+                                                                        │  • Command/tool execution surface changed? `No`
+                                                                        │  • Data access scope changed? `No`
+                                                                        │  • If any `Yes`, explain risk + mitigation: Two new outbound HTTPS calls to `api.
+                                                                        │  senseaudio.cn` (`/v1/t2a_v2`, `/v1/get_voice`). Both routed through
+                                                                        │  `fetchWithSsrFGuard` + `ssrfPolicyFromHttpBaseUrlAllowedHostname`. HTTP errors via
+                                                                        │  `assertOkOrThrowProviderError`. Business errors surface `status_msg`, never the
+                                                                        │  request key. `voice-note` transcoding reuses the SDK-managed
+                                                                        │  `transcodeAudioBufferToOpus`. `listVoices` enforces a 15s timeout.
+                                                                        │
+                                                                        │  ## Repro + Verification
+                                                                        │  ### Environment
+                                                                        │  • OS: Linux (5.14.0-284.25.1.el9_2.x86_64)
+                                                                        │  • Runtime/container: Node 22.22.3 (nvm); pnpm 11.1.0
+                                                                        │  • Model/provider: SenseAudio `senseaudio-tts-1.5-260319`
+                                                                        │  • Integration/channel (if any): N/A for the CLI repro
+                                                                        │  • Relevant config (redacted): `SENSEAUDIO_API_KEY=sk-...` in env; no config-file
+                                                                        │  changes required
+                                                                        │
+                                                                        │  ### Steps
+                                                                        │  1. `export SENSEAUDIO_API_KEY=sk-...`
+                                                                        │  2. `pnpm openclaw infer tts convert --text "Hello, OpenClaw" --model
+                                                                        │  senseaudio/senseaudio-tts-1.5-260319 --voice female_0033_b --output ./hello.mp3 --
+                                                                        │61%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~13s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

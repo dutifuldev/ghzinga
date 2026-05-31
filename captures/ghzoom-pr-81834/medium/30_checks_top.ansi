@@ -1,0 +1,36 @@
+[1mopenclaw/openclaw#81834[0m [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
+feat(senseaudio): add SenseAudio TTS provider               
+------------------------------------------------------------------------------------------------------------------------
+ Overview  Activity  Commits [Checks] Files  Links          
+Status                         Checks: PASS (86 pass, 0 pending, 0 fail)                                                
+------------------------------ -----------------------------------------------------------------------------------------
+Type: PR                       129 total: 86 pass, 0 pending, 0 fail, 41 skipped, 2 neutral, 0 unknown                  
+State: OPEN                   
+Author: @KLilyZ                Passing (86)                 
+Assignees: none                [PASS] Auto response/auto-response [more]                                                
+Reactions: +1:3 eyes:1         [PASS] Auto response/auto-response [more]                                                
+Activity: 33                   [PASS] Auto response/auto-response [more]                                                
+Closed: no                     [PASS] CI/preflight [more]   
+Draft: no                      [PASS] ClawSweeper Dispatch/dispatch [more]                                              
+Cross repository: yes          [PASS] CodeQL/Security High (core-auth-secrets) [more]                                   
+Maintainer can modify: yes     [PASS] CodeQL Critical Quality/Select Critical Quality shards [more]                     
+Branches: main <- feat/sens... [PASS] Dependency Guard/dependency-guard-detect [more]                                   
+Review: None requested         [PASS] Labeler/label [more]  
+Reviewers: none                [PASS] OpenGrep — PR Diff/Scan changed paths (precise) [more]                            
+Merge: Clean                   [PASS] Real behavior proof [more]                                                        
+Checks: PASS (86 pass, 0 pe... [PASS] Real behavior proof [more]                                                        
+Files: 14                      [PASS] Real behavior proof [more]                                                        
+Lines: +1057 -22               [PASS] Workflow Sanity/no-tabs [more]                                                    
+Base ref OID: a1c6882777ba6... [PASS] CodeQL/Security High (channel-runtime-boundary) [more]                            
+Head ref OID: fb4165fe62f1d... [PASS] CodeQL/Security High (network-ssrf-boundary) [more]                               
+Head repository: openclaw      [PASS] CodeQL/Security High (mcp-process-tool-boundary) [more]                           
+                               [PASS] CodeQL/Security High (plugin-trust-boundary) [more]                               
+                               [PASS] CodeQL/Security High (actions) [more]                                             
+                               [PASS] CI/security-fast [more]                                                           
+                               [PASS] Workflow Sanity/actionlint [more]                                                 
+                               [PASS] CI/pnpm-store-warmup [more]                                                       
+                               [PASS] Dependency Guard/dependency-guard [more]                                          
+                               [PASS] CI/build-artifacts [more]                                                         
+                               [PASS] CI/checks-fast-bundled-protocol [more]                                            
+                               [PASS] CI/checks-fast-bun-launcher [more]                                                
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...

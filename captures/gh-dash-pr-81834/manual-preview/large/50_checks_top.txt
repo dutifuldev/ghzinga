@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │ openclaw/openclaw · #81834
+ │ is:pr repo:openclaw/openclaw 81834                                │ │
+ ╰────────────────────────────────────────────────────────────────────╯ │ feat(senseaudio): add SenseAudio TTS provider
+    Title        Base         󰯢                    󱦻           󱡢    │
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  Open main  feat/senseaudio-tts
+     feat(sensea                                                        │
+ ────────────────────────────────────────────────────────────────────── │ by @KLilyZ ⋅ 1mo ago ⋅ 󰎔 none
+                                                                        │
+                                                                        │  Overview   Activity   Commits   Checks   Files Changed
+                                                                        │───────────────────────────────────────────────────────────────────────────────────────
+                                                                        │
+                                                                        │  ╭─────────────────────────────────────────────────────────────────────────────────╮
+                                                                        │  │                                                                                 │
+                                                                        │  │  Reviews                                                                       │
+                                                                        │  │   None requested                                                                │
+                                                                        │  │                                                                                 │
+                                                                        │  │─────────────────────────────────────────────────────────────────────────────────│
+                                                                        │  │                                                                                 │
+                                                                        │  │  All checks have passed                                                        │
+                                                                        │  │   38 skipped, 2 neutral, 86 successful                                          │
+                                                                        │  │   ▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃ ▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃  │
+                                                                        │  │                                                                                 │
+                                                                        │  │─────────────────────────────────────────────────────────────────────────────────│
+                                                                        │  │                                                                                 │
+                                                                        │  │ 󰅙 Merging is blocked                                                            │
+                                                                        │  │                                                                                 │
+                                                                        │  ╰─────────────────────────────────────────────────────────────────────────────────╯
+                                                                        │
+                                                                        │   All Checks
+                                                                        │
+                                                                        │     KLilyZ/Dependency Guard/dependency-guard-autoscrub
+                                                                        │     KLilyZ/Labeler/backfill-pr-labels
+                                                                        │     clawsweeper[bot]/Mantis Telegram Desktop Proof/Resolve Mantis request
+                                                                        │     clawsweeper[bot]/Mantis Telegram Desktop Proof/Resolve Mantis request
+                                                                        │     KLilyZ/CI/security-fast
+                                                                        │     KLilyZ/Workflow Sanity/actionlint
+                                                                        │     KLilyZ/CodeQL Critical Quality/Critical Quality (web-media-runtime-boundary)
+                                                                        │     KLilyZ/Labeler/label-issues
+                                                                        │     clawsweeper[bot]/Mantis Telegram Desktop Proof/Validate selected refs
+                                                                        │     clawsweeper[bot]/Mantis Telegram Desktop Proof/Validate selected refs
+                                                                        │     KLilyZ/Workflow Sanity/generated-doc-baselines
+                                                                        │     KLilyZ/CI/pnpm-store-warmup
+                                                                        │     KLilyZ/Dependency Guard/dependency-guard
+                                                                        │     KLilyZ/CodeQL Critical Quality/Critical Quality (core-auth-secrets)
+                                                                        │0%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~24s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

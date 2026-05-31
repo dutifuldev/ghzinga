@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │
+  │ • [P2] Use the required provider flag in the TTS docs — `docs/providers/senseaudio.md:95`
+  │
+  │ Review details Re-review progress:
+  │
+  │ • State: Review in progress
+  │ • Detail: Targeted re-review run started; Codex is reviewing the item.
+  │ • Run: 
+  │ • Updated: 2026-05-15T07:02:21.380Z
+
+  @clawsweeper Re: docs line 95 / "missing required `--provider` flag" — `tts convert` does not have a `--provider`
+  flag. The CLI selects the provider through `--model <provider>/<model>`, as defined in `src/cli/capability-
+  cli.ts:1994-2003` (the only options are `--text/--channel/--voice/--model/--output/--local/--gateway/--json`). The
+  docs example `--model senseaudio/senseaudio-tts-1.5-260319` is the correct invocation form. The sibling `tts voices`
+  and `tts providers` subcommands do accept `--provider`, but `tts convert` does not.
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+15%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~22s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

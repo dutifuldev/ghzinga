@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  │
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  │ Reproducibility: not applicable. for the requested feature because current main
+ ╰────────────────────────────────────────────────────────────────────╯ │  │ simply lacks SenseAudio TTS. The remaining docs bug is source-reproducible from
+    Title        Base         󰯢                    󱦻           󱡢    │  │ the PR docs line 95 and the current CLI contract requiring `--provider <id>`.
+                                                                        │  │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  │ Real behavior proof Sufficient (terminal): The PR body now includes after-fix
+     feat(sensea                                                        │  │ copied live JSON plus terminal/player screenshots showing a real `tts.convert`
+ ────────────────────────────────────────────────────────────────────── │  run
+                                                                        │  │ that produced an MP3 with provider `senseaudio`.
+                                                                        │  │
+                                                                        │  │ Next step before merge A narrow automated repair can fix the invalid docs command,
+                                                                        │  │ but maintainers still need to approve bundled provider ownership before merge.
+                                                                        │  │
+                                                                        │  │ Security Cleared: No concrete security or supply-chain regression found; the
+                                                                        │  │ package change is descriptive and the new network calls use the existing API key
+                                                                        │  │ path, guarded fetch, and hostname SSRF policy.
+                                                                        │  │
+                                                                        │  │ Review findings
+                                                                        │  │
+                                                                        │  │ • [P2] Use the required provider flag in the TTS docs —
+                                                                        │  │ `docs/providers/senseaudio.md:95`
+                                                                        │  │
+                                                                        │  │ Review details Re-review progress:
+                                                                        │  │
+                                                                        │  │ • State: Review in progress
+                                                                        │  │ • Detail: Targeted re-review run started; Codex is reviewing the item.
+                                                                        │  │ • Run: 
+                                                                        │  │ • Updated: 2026-05-15T07:02:21.380Z
+                                                                        │
+                                                                        │  @clawsweeper Re: docs line 95 / "missing required `--provider` flag" — `tts
+                                                                        │  convert` does not have a `--provider` flag. The CLI selects the provider through `-
+                                                                        │  -model <provider>/<model>`, as defined in `src/cli/capability-cli.ts:1994-2003`
+                                                                        │  (the only options are `--text/--channel/--voice/--model/--output/--local/--
+                                                                        │  gateway/--json`). The docs example `--model senseaudio/senseaudio-tts-1.5-260319`
+                                                                        │  is the correct invocation form. The sibling `tts voices` and `tts providers`
+                                                                        │  subcommands do accept `--provider`, but `tts convert` does not.
+                                                                        │
+                                                                        │  ╭─────────────────────────────────────────────────────────────────────────────────╮
+                                                                        │  │KLilyZ 2w                                                                        │
+                                                                        │  ╰─────────────────────────────────────────────────────────────────────────────────╯
+                                                                        │  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared
+                                                                        │  (proof: sufficient, no contributor-facing blockers left) and the PR has been
+                                                                        │  waiting since the 15th. Happy to address any feedback. No rush, just flagging it in
+                                                                        │  case it slipped past the queue.
+                                                                        │
+                                                                        │11%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~18s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

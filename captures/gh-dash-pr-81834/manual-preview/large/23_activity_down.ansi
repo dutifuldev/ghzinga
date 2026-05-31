@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m  │ Review details Re-review progress:
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  │
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  │ • State: Review in progress
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m  │ • Detail: Targeted re-review run started; Codex is reviewing the item.
+                                                                        [38;5;244m│[39m  │ • Run: [38;5;61m[39m
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  │ • Updated: 2026-05-15T07:02:21.380Z
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m  @clawsweeper Re: docs line 95 / "missing required [38;5;189m`--provider`[39m flag" — [38;5;189m`tts[39m
+                                                                        [38;5;244m│[39m  [38;5;189mconvert`[39m does not have a [38;5;189m`--provider`[39m flag. The CLI selects the provider through [38;5;189m`-[39m
+                                                                        [38;5;244m│[39m  [38;5;189m-model <provider>/<model>`[39m, as defined in [38;5;189m`src/cli/capability-cli.ts:1994-2003`[39m
+                                                                        [38;5;244m│[39m  (the only options are [38;5;189m`--text/--channel/--voice/--model/--output/--local/--[39m
+                                                                        [38;5;244m│[39m  [38;5;189mgateway/--json`[39m). The docs example [38;5;189m`--model senseaudio/senseaudio-tts-1.5-260319`[39m
+                                                                        [38;5;244m│[39m  is the correct invocation form. The sibling [38;5;189m`tts voices`[39m and [38;5;189m`tts providers`[39m
+                                                                        [38;5;244m│[39m  subcommands do accept [38;5;189m`--provider`[39m, but [38;5;189m`tts convert`[39m does not.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╭─────────────────────────────────────────────────────────────────────────────────╮[39m
+                                                                        [38;5;244m│[39m  [38;5;234m│[1m[38;5;231mKLilyZ[0m [38;5;245m2w[39m                                                                        [38;5;234m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╰─────────────────────────────────────────────────────────────────────────────────╯[39m
+                                                                        [38;5;244m│[39m  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared
+                                                                        [38;5;244m│[39m  (proof: sufficient, no contributor-facing blockers left) and the PR has been
+                                                                        [38;5;244m│[39m  waiting since the 15th. Happy to address any feedback. No rush, just flagging it in
+                                                                        [38;5;244m│[39m  case it slipped past the queue.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╭─────────────────────────────────────────────────────────────────────────────────╮[39m
+                                                                        [38;5;244m│[39m  [38;5;234m│[1m[38;5;231mRomneyDa[0m [38;5;245m2d[39m                                                                      [38;5;234m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╰─────────────────────────────────────────────────────────────────────────────────╯[39m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Heads up: this PR needs to be updated against current [38;5;189m`main`[39m before the new
+                                                                        [38;5;244m│[39m  required Dependency Guard check can pass.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╭─────────────────────────────────────────────────────────────────────────────────╮[39m
+                                                                        [38;5;244m│[39m  [38;5;234m│[1m[38;5;231mclawsweeper[0m [38;5;245m1d[39m                                                                   [38;5;234m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╰─────────────────────────────────────────────────────────────────────────────────╯[39m
+                                                                        [38;5;244m│[39m  Codex review: needs changes before merge. [3mReviewed May 29, 2026, 11:28 PM ET /[0m
+                                                                        [38;5;244m│[39m  [3m03:28 UTC.[0m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mSummary[0m The PR adds a SenseAudio speech provider to the bundled senseaudio plugin,
+                                                                        [38;5;244m│[39m  with TTS HTTP helpers, voice listing, voice-note opus transcoding, docs, manifest
+                                                                        [38;5;244m│[39m  metadata, contract coverage, unit tests, and a gated live test.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14
+                                                                        [38;5;244m│[39m  files.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Reproducibility: not applicable. as a bug report; this is a new provider feature.
+                                                                        [38;5;244m│[39m  The review blockers are source-reproducible from the CLI required option and the
+                                                                        [38;5;244m│[1m[38;5;245m16%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~18s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

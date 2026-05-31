@@ -1,0 +1,24 @@
+openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
+openai-responses provider: 404 on previous_response_id when store=false (default
+--------------------------------------------------------------------------------
+[Overview] Activity  Links              
+Issue OPEN | comments 9 | reactions +1:1
+--------------------------------------------------------------------------------
+Overview            
+--------------------------------------------------------------------------------
+Labels: P2, clawsweeper:needs-live-repro, impact:session-state, issue-rating: 🐚
+Assignees: none     
+Reactions: +1:1     
+
+Body                
+Bug Description     
+
+When using a provider configured with api: openai-responses (e.g. a GPT-5.5     
+proxy), the gateway sends store=false (or omits store, which defaults to false) 
+in responses API requests. However, on subsequent turns within the same session,
+the gateway includes previous_response_id referencing the previous response.    
+Since that response was never persisted server-side, the API returns a 404:     
+
+
+HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store 
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/s...

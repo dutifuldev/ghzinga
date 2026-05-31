@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m  • Why it matters: completes the round trip in the same plugin; SenseAudio's
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  [38;5;189m`/v1/t2a_v2`[39m is solid TTS and pairs with the ASR added in #66943.
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  • What changed: registers a [38;5;189m`speechProvider`[39m in [38;5;189m`extensions/senseaudio/`[39m.
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m  Synthesizes via [38;5;189m`/v1/t2a_v2`[39m, lists system voices via [38;5;189m`/v1/get_voice`[39m, transcodes
+                                                                        [38;5;244m│[39m  MP3→opus for [38;5;189m`voice-note`[39m targets. Errors split into HTTP / [38;5;189m`base_resp.status_code`[39m
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  / missing-audio buckets.
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m  • What did NOT change: no core code; ASR untouched; streaming, telephony, voice
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m  cloning, text-generated voices out of scope.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Change Type (select all)[0m
+                                                                        [38;5;244m│[39m  [ ] Bug fix
+                                                                        [38;5;244m│[39m  [✓] Feature
+                                                                        [38;5;244m│[39m  [ ] Refactor required for the fix
+                                                                        [38;5;244m│[39m  [ ] Docs
+                                                                        [38;5;244m│[39m  [ ] Security hardening
+                                                                        [38;5;244m│[39m  [ ] Chore/infra
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Scope (select all touched areas)[0m
+                                                                        [38;5;244m│[39m  [ ] Gateway / orchestration
+                                                                        [38;5;244m│[39m  [ ] Skills / tool execution
+                                                                        [38;5;244m│[39m  [ ] Auth / tokens
+                                                                        [38;5;244m│[39m  [ ] Memory / storage
+                                                                        [38;5;244m│[39m  [✓] Integrations
+                                                                        [38;5;244m│[39m  [✓] API / contracts
+                                                                        [38;5;244m│[39m  [ ] UI / DX
+                                                                        [38;5;244m│[39m  [ ] CI/CD / infra
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Linked Issue/PR[0m
+                                                                        [38;5;244m│[39m  • Closes #
+                                                                        [38;5;244m│[39m  • Related # 66943
+                                                                        [38;5;244m│[39m  [ ] This PR fixes a bug or regression
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Real Behavior Proof[0m
+                                                                        [38;5;244m│[39m  • [1mBehavior addressed:[0m SenseAudio bundled plugin now registers a [38;5;189m`speechProvider`[39m
+                                                                        [38;5;244m│[39m  alongside the existing ASR provider. With [38;5;189m`SENSEAUDIO_API_KEY`[39m set, [38;5;189m`isConfigured`[39m
+                                                                        [38;5;244m│[39m  returns true, [38;5;189m`listVoices`[39m surfaces the upstream [38;5;189m`system_voice`[39m set via [38;5;189m`POST[39m
+                                                                        [38;5;244m│[39m  [38;5;189m/v1/get_voice`[39m, and [38;5;189m`synthesize`[39m returns a real MP3 (or transcoded opus on [38;5;189m`voice-[39m
+                                                                        [38;5;244m│[39m  [38;5;189mnote`[39m targets).
+                                                                        [38;5;244m│[39m  • [1mReal environment tested:[0m Yes (Linux 5.14.0, Node 22.22.3, production
+                                                                        [38;5;244m│[39m  [38;5;189m`https://api.senseaudio.cn`[39m with a valid [38;5;189m`SENSEAUDIO_API_KEY`[39m, commit
+                                                                        [38;5;244m│[39m  [38;5;189m`cf9d686a66`[39m).
+                                                                        [38;5;244m│[39m  • [1mExact steps or command run after this patch:[0m
+                                                                        [38;5;244m│[39m  [38;5;212mexport[38;5;251m SENSEAUDIO_API_KEY[38;5;210m=[38;5;251m...   [38;5;241m# redacted[39m
+                                                                        [38;5;244m│[39m  [38;5;251mpnpm openclaw infer tts convert [38;5;158m\[39m
+                                                                        [38;5;244m│[39m  [38;5;251m  --text [38;5;173m"Hello, OpenClaw, this is senseaudio TTS provider"[38;5;251m [38;5;158m\[39m
+                                                                        [38;5;244m│[1m[38;5;245m8%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~10s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

@@ -1,0 +1,36 @@
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
+feat(senseaudio): add SenseAudio TTS provider               
+------------------------------------------------------------------------------------------------------------------------
+ Overview  Activity  Commits  Checks  Files [Links]         
+Status                         Help                         
+------------------------------                                                                                          
+Type: PR                       Mouse                        
+State: OPEN                    - Click tabs to switch sections.                                                         
+Author: @KLilyZ                - Click [more] or [less] to expand or collapse long text, checks, and files.             
+Assignees: none                - Click visible GitHub issue or PR references to navigate.                               
+Reactions: +1:3 eyes:1         - Use the mouse wheel to scroll the current view.                                        
+Activity: 33                  
+Closed: no                     Keyboard                     
+Draft: no                      - q: quit                    
+Cross repository: yes          - ?: toggle this help        
+Maintainer can modify: yes     - r: refresh now             
+Branches: main <- feat/sens... - o: open current resource in browser through gh                                         
+Review: None requested         - Tab / Shift-Tab / Left / Right: switch tabs                                            
+Reviewers: none                - Up / Down / PageUp / PageDown / Home / End: scroll                                     
+Merge: Clean                   - e: expand or collapse the main body                                                    
+Checks: PASS (86 pass, 0 pe... - Backspace: return after following a link                                               
+Files: 14                     
+Lines: +1057 -22               Refresh                      
+Base ref OID: a1c6882777ba6... - Live mode refreshes automatically on the configured interval.                          
+Head ref OID: fb4165fe62f1d... - The status panel shows the last refresh time and whether content changed.              
+Head repository: openclaw     
+
+
+
+
+
+
+
+
+
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...

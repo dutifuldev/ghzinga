@@ -1,0 +1,24 @@
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
+--------------------------------------------------------------------------------
+ Overview  Activity  Commits  Checks  Files [Links]                             
+PR OPEN | comments 33 | reactions +1:3 eyes:1 | checks PASS (86 pass, 0 pendi...
+--------------------------------------------------------------------------------
+Help                
+                                                                                
+Mouse                                   
+- Click tabs to switch sections.        
+- Click [more] or [less] to expand or collapse long text, checks, and files.    
+- Click visible GitHub issue or PR references to navigate.                      
+- Use the mouse wheel to scroll the current view.                               
+
+Keyboard            
+- q: quit           
+- ?: toggle this help                   
+- r: refresh now    
+- o: open current resource in browser through gh                                
+- Tab / Shift-Tab / Left / Right: switch tabs                                   
+- Up / Down / PageUp / PageDown / Home / End: scroll                            
+- e: expand or collapse the main body   
+- Backspace: return after following a link                                      
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/s...

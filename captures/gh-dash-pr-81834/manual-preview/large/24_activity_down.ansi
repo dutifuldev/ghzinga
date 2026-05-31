@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  [38;5;234m╭─────────────────────────────────────────────────────────────────────────────────╮[39m
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  [38;5;234m│[1m[38;5;231mRomneyDa[0m [38;5;245m2d[39m                                                                      [38;5;234m│[39m
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m  [38;5;234m╰─────────────────────────────────────────────────────────────────────────────────╯[39m
+                                                                        [38;5;244m│[39m
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  Heads up: this PR needs to be updated against current [38;5;189m`main`[39m before the new
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m  required Dependency Guard check can pass.
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╭─────────────────────────────────────────────────────────────────────────────────╮[39m
+                                                                        [38;5;244m│[39m  [38;5;234m│[1m[38;5;231mclawsweeper[0m [38;5;245m1d[39m                                                                   [38;5;234m│[39m
+                                                                        [38;5;244m│[39m  [38;5;234m╰─────────────────────────────────────────────────────────────────────────────────╯[39m
+                                                                        [38;5;244m│[39m  Codex review: needs changes before merge. [3mReviewed May 29, 2026, 11:28 PM ET /[0m
+                                                                        [38;5;244m│[39m  [3m03:28 UTC.[0m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mSummary[0m The PR adds a SenseAudio speech provider to the bundled senseaudio plugin,
+                                                                        [38;5;244m│[39m  with TTS HTTP helpers, voice listing, voice-note opus transcoding, docs, manifest
+                                                                        [38;5;244m│[39m  metadata, contract coverage, unit tests, and a gated live test.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14
+                                                                        [38;5;244m│[39m  files.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Reproducibility: not applicable. as a bug report; this is a new provider feature.
+                                                                        [38;5;244m│[39m  The review blockers are source-reproducible from the CLI required option and the
+                                                                        [38;5;244m│[39m  new unbounded TTS JSON/audio decode path.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mReview metrics:[0m 2 noteworthy metrics.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • [1mProvider/config surface:[0m 1 speech provider added, 4 documented config keys, 0 new
+                                                                        [38;5;244m│[39m  env vars. This is a new bundled runtime provider surface, and config/default
+                                                                        [38;5;244m│[39m  behavior needs upgrade-aware review.
+                                                                        [38;5;244m│[39m  • [1mNew outbound endpoints:[0m 2 POST endpoints added. The PR adds provider network
+                                                                        [38;5;244m│[39m  calls for synthesis and voice listing, so SSRF, timeout, and response-size handling
+                                                                        [38;5;244m│[39m  matter before merge.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mMerge readiness[0m Overall: 🦐 gold shrimp Proof: 🦞 diamond lobster Patch quality: 🦐
+                                                                        [38;5;244m│[39m  gold shrimp Result: needs maintainer review before merge.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Overall follows the weaker of proof and patch quality, so missing proof can cap an
+                                                                        [38;5;244m│[39m  otherwise strong patch.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Rank-up moves:
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • [P2] Fix the [38;5;189m`set-provider`[39m example to include [38;5;189m`--provider senseaudio`[39m.
+                                                                        [38;5;244m│[39m  • [P2] Add a bounded response/decoded-byte guard for SenseAudio TTS audio and cover
+                                                                        [38;5;244m│[39m  the oversized case in [38;5;189m`extensions/senseaudio/tts.test.ts`[39m.
+                                                                        [38;5;244m│[1m[38;5;245m22%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~19s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

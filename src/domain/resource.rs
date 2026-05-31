@@ -1,0 +1,627 @@
+use std::fmt;
+
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ResourceIdError {
+    #[error("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")]
+    Invalid,
+    #[error("resource number must be positive")]
+    InvalidNumber,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResourceKind {
+    PullRequest,
+    Issue,
+}
+
+impl fmt::Display for ResourceKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PullRequest => f.write_str("PR"),
+            Self::Issue => f.write_str("Issue"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ResourceId {
+    pub owner: String,
+    pub repo: String,
+    pub number: u64,
+    pub kind_hint: Option<ResourceKind>,
+}
+
+impl ResourceId {
+    pub fn parse(input: &str) -> Result<Self, ResourceIdError> {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Err(ResourceIdError::Invalid);
+        }
+
+        if let Some(parsed) = Self::parse_url(trimmed)? {
+            return Ok(parsed);
+        }
+
+        if let Some(parsed) = Self::parse_owner_repo_hash(trimmed)? {
+            return Ok(parsed);
+        }
+
+        Err(ResourceIdError::Invalid)
+    }
+
+    pub fn from_owner_repo_number(owner_repo: &str, number: &str) -> Result<Self, ResourceIdError> {
+        let (owner, repo) = owner_repo.split_once('/').ok_or(ResourceIdError::Invalid)?;
+        let number = parse_number(number)?;
+        if owner.is_empty() || repo.is_empty() {
+            return Err(ResourceIdError::Invalid);
+        }
+        Ok(Self {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            number,
+            kind_hint: None,
+        })
+    }
+
+    pub fn repo_name_with_owner(&self) -> String {
+        format!("{}/{}", self.owner, self.repo)
+    }
+
+    pub fn canonical_name(&self) -> String {
+        format!("{}/{}#{}", self.owner, self.repo, self.number)
+    }
+
+    pub fn relative_to_repo(
+        owner: &str,
+        repo: &str,
+        number: &str,
+    ) -> Result<Self, ResourceIdError> {
+        Ok(Self {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            number: parse_number(number)?,
+            kind_hint: None,
+        })
+    }
+
+    fn parse_url(input: &str) -> Result<Option<Self>, ResourceIdError> {
+        let re = Regex::new(
+            r"^https://github\.com/([^/\s]+)/([^/\s]+)/(pull|issues)/([0-9]+)(?:[/?#].*)?$",
+        )
+        .expect("valid GitHub URL regex");
+        let Some(caps) = re.captures(input) else {
+            return Ok(None);
+        };
+        let kind_hint = match &caps[3] {
+            "pull" => Some(ResourceKind::PullRequest),
+            "issues" => Some(ResourceKind::Issue),
+            _ => None,
+        };
+        Ok(Some(Self {
+            owner: caps[1].to_string(),
+            repo: caps[2].to_string(),
+            number: parse_number(&caps[4])?,
+            kind_hint,
+        }))
+    }
+
+    fn parse_owner_repo_hash(input: &str) -> Result<Option<Self>, ResourceIdError> {
+        let re =
+            Regex::new(r"^([^/\s#]+)/([^/\s#]+)#([0-9]+)$").expect("valid owner repo hash regex");
+        let Some(caps) = re.captures(input) else {
+            return Ok(None);
+        };
+        Ok(Some(Self {
+            owner: caps[1].to_string(),
+            repo: caps[2].to_string(),
+            number: parse_number(&caps[3])?,
+            kind_hint: None,
+        }))
+    }
+}
+
+fn parse_number(input: &str) -> Result<u64, ResourceIdError> {
+    let number = input.parse::<u64>().map_err(|_| ResourceIdError::Invalid)?;
+    if number == 0 {
+        return Err(ResourceIdError::InvalidNumber);
+    }
+    Ok(number)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReactionCounts {
+    pub thumbs_up: u64,
+    pub thumbs_down: u64,
+    pub laugh: u64,
+    pub hooray: u64,
+    pub confused: u64,
+    pub heart: u64,
+    pub rocket: u64,
+    pub eyes: u64,
+}
+
+impl ReactionCounts {
+    pub fn total(&self) -> u64 {
+        self.thumbs_up
+            + self.thumbs_down
+            + self.laugh
+            + self.hooray
+            + self.confused
+            + self.heart
+            + self.rocket
+            + self.eyes
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Resource {
+    pub id: ResourceId,
+    pub title: String,
+    pub url: String,
+    pub state: String,
+    pub author: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub labels: Vec<String>,
+    #[serde(default)]
+    pub assignees: Vec<String>,
+    pub reactions: ReactionCounts,
+    pub body: String,
+    pub activity: Vec<ActivityEntry>,
+    #[serde(default)]
+    pub related_resources: Vec<ResourceId>,
+    #[serde(default)]
+    pub metadata: Vec<MetadataItem>,
+    pub pull_request: Option<PullRequest>,
+}
+
+impl Resource {
+    pub fn kind(&self) -> ResourceKind {
+        if self.pull_request.is_some() {
+            ResourceKind::PullRequest
+        } else {
+            ResourceKind::Issue
+        }
+    }
+
+    pub fn is_pull_request(&self) -> bool {
+        self.pull_request.is_some()
+    }
+
+    pub fn fingerprint(&self) -> String {
+        let pr_fingerprint = self.pull_request.as_ref().map_or_else(String::new, |pr| {
+            format!(
+                "{}:{}:{}:{}:{}:{}:{}",
+                pr.additions,
+                pr.deletions,
+                pr.commits
+                    .iter()
+                    .map(|commit| {
+                        format!(
+                            "{}:{}:{}:{}:{}:{:?}:{}",
+                            commit.oid,
+                            commit.message,
+                            commit.body,
+                            commit.author,
+                            commit.authors.join(","),
+                            commit.authored_at,
+                            commit.committed_at
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("|"),
+                pr.checks
+                    .iter()
+                    .map(|check| {
+                        format!(
+                            "{}:{:?}:{:?}:{:?}:{:?}:{:?}:{:?}",
+                            check.name,
+                            check.status,
+                            check.summary,
+                            check.details_url,
+                            check.started_at,
+                            check.completed_at,
+                            check.raw_conclusion
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("|"),
+                pr.files.len(),
+                pr.requested_reviewers.join("|"),
+                metadata_fingerprint(&pr.metadata)
+            )
+        });
+        format!(
+            "{}:{}:{}:{}:{}:{}:{}:{}:{}",
+            self.id.canonical_name(),
+            self.title,
+            self.state,
+            self.updated_at,
+            self.activity_fingerprint(),
+            self.assignees.join("|"),
+            self.related_resources
+                .iter()
+                .map(ResourceId::canonical_name)
+                .collect::<Vec<_>>()
+                .join("|"),
+            metadata_fingerprint(&self.metadata),
+            pr_fingerprint
+        )
+    }
+
+    pub fn changed_sections(&self, other: &Self) -> Vec<String> {
+        let mut sections = Vec::new();
+        push_changed(&mut sections, "identity", self.id != other.id);
+        push_changed(
+            &mut sections,
+            "summary",
+            self.title != other.title || self.state != other.state || self.body != other.body,
+        );
+        push_changed(
+            &mut sections,
+            "metadata",
+            self.labels != other.labels
+                || self.assignees != other.assignees
+                || self.reactions != other.reactions
+                || self.related_resources != other.related_resources
+                || self.metadata != other.metadata,
+        );
+        push_changed(&mut sections, "activity", self.activity != other.activity);
+        match (&self.pull_request, &other.pull_request) {
+            (Some(left), Some(right)) => {
+                push_changed(
+                    &mut sections,
+                    "review",
+                    left.requested_reviewers != right.requested_reviewers
+                        || left.review_decision != right.review_decision,
+                );
+                push_changed(
+                    &mut sections,
+                    "merge",
+                    left.base_ref != right.base_ref
+                        || left.head_ref != right.head_ref
+                        || left.merge_state != right.merge_state,
+                );
+                push_changed(
+                    &mut sections,
+                    "diff",
+                    left.additions != right.additions || left.deletions != right.deletions,
+                );
+                push_changed(&mut sections, "commits", left.commits != right.commits);
+                push_changed(&mut sections, "checks", left.checks != right.checks);
+                push_changed(&mut sections, "files", left.files != right.files);
+                push_changed(
+                    &mut sections,
+                    "pr metadata",
+                    left.metadata != right.metadata,
+                );
+            }
+            (None, None) => {}
+            _ => sections.push("kind".to_string()),
+        }
+        sections
+    }
+
+    fn activity_fingerprint(&self) -> String {
+        self.activity
+            .iter()
+            .map(|entry| {
+                format!(
+                    "{}:{:?}:{}:{}:{:?}:{:?}:{:?}:{:?}:{:?}:{:?}:{}:{}:{}:{:?}",
+                    entry.id,
+                    entry.kind,
+                    entry.updated_at,
+                    entry.body,
+                    entry.path,
+                    entry.line,
+                    entry.thread_resolved,
+                    entry.thread_outdated,
+                    entry.url,
+                    entry.author_association,
+                    entry.reactions.total(),
+                    entry.includes_created_edit,
+                    entry.is_minimized,
+                    entry.minimized_reason
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("|")
+    }
+}
+
+fn push_changed(sections: &mut Vec<String>, label: &str, changed: bool) {
+    if changed {
+        sections.push(label.to_string());
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MetadataItem {
+    pub label: String,
+    pub value: String,
+}
+
+fn metadata_fingerprint(items: &[MetadataItem]) -> String {
+    items
+        .iter()
+        .map(|item| format!("{}={}", item.label, item.value))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PullRequest {
+    pub base_ref: String,
+    pub head_ref: String,
+    #[serde(default)]
+    pub requested_reviewers: Vec<String>,
+    pub review_decision: Option<String>,
+    pub merge_state: Option<String>,
+    pub additions: u64,
+    pub deletions: u64,
+    pub commits: Vec<Commit>,
+    pub checks: Vec<CheckRun>,
+    pub files: Vec<ChangedFile>,
+    #[serde(default)]
+    pub metadata: Vec<MetadataItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivityEntry {
+    pub id: String,
+    #[serde(default)]
+    pub kind: ActivityKind,
+    pub author: String,
+    pub body: String,
+    pub updated_at: String,
+    pub path: Option<String>,
+    pub line: Option<u64>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub author_association: Option<String>,
+    #[serde(default)]
+    pub reactions: ReactionCounts,
+    #[serde(default)]
+    pub includes_created_edit: bool,
+    #[serde(default)]
+    pub is_minimized: bool,
+    #[serde(default)]
+    pub minimized_reason: Option<String>,
+    #[serde(default)]
+    pub thread_id: Option<String>,
+    #[serde(default)]
+    pub thread_resolved: Option<bool>,
+    #[serde(default)]
+    pub thread_outdated: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityKind {
+    #[default]
+    Comment,
+    Review,
+    ReviewComment,
+    Timeline,
+}
+
+impl ActivityKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Comment => "Comment",
+            Self::Review => "Review",
+            Self::ReviewComment => "Review comment",
+            Self::Timeline => "Timeline",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Commit {
+    pub oid: String,
+    pub message: String,
+    #[serde(default)]
+    pub body: String,
+    pub author: String,
+    #[serde(default)]
+    pub authors: Vec<String>,
+    #[serde(default)]
+    pub authored_at: Option<String>,
+    pub committed_at: String,
+    pub status: CheckStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckStatus {
+    Success,
+    Failure,
+    Pending,
+    Skipped,
+    Neutral,
+    Unknown,
+}
+
+impl CheckStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Success => "PASS",
+            Self::Failure => "FAIL",
+            Self::Pending => "PENDING",
+            Self::Skipped => "SKIP",
+            Self::Neutral => "NEUTRAL",
+            Self::Unknown => "UNKNOWN",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CheckRun {
+    pub name: String,
+    pub status: CheckStatus,
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub details_url: Option<String>,
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub completed_at: Option<String>,
+    #[serde(default)]
+    pub raw_status: Option<String>,
+    #[serde(default)]
+    pub raw_conclusion: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CheckCounts {
+    pub success: usize,
+    pub failure: usize,
+    pub pending: usize,
+    pub skipped: usize,
+    pub neutral: usize,
+    pub unknown: usize,
+}
+
+impl CheckCounts {
+    pub fn total(self) -> usize {
+        self.success + self.failure + self.pending + self.skipped + self.neutral + self.unknown
+    }
+}
+
+impl PullRequest {
+    pub fn check_counts(&self) -> CheckCounts {
+        let mut counts = CheckCounts::default();
+        for check in &self.checks {
+            match check.status {
+                CheckStatus::Success => counts.success += 1,
+                CheckStatus::Failure => counts.failure += 1,
+                CheckStatus::Pending => counts.pending += 1,
+                CheckStatus::Skipped => counts.skipped += 1,
+                CheckStatus::Neutral => counts.neutral += 1,
+                CheckStatus::Unknown => counts.unknown += 1,
+            }
+        }
+        counts
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChangedFile {
+    pub path: String,
+    pub additions: u64,
+    pub deletions: u64,
+    pub change_type: String,
+    #[serde(default)]
+    pub patch: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_pull_request_url() {
+        let id = ResourceId::parse("https://github.com/openclaw/openclaw/pull/81834").unwrap();
+
+        assert_eq!(id.owner, "openclaw");
+        assert_eq!(id.repo, "openclaw");
+        assert_eq!(id.number, 81834);
+        assert_eq!(id.kind_hint, Some(ResourceKind::PullRequest));
+    }
+
+    #[test]
+    fn parses_issue_url_with_query() {
+        let id =
+            ResourceId::parse("https://github.com/openclaw/openclaw/issues/42#comment").unwrap();
+
+        assert_eq!(id.canonical_name(), "openclaw/openclaw#42");
+        assert_eq!(id.kind_hint, Some(ResourceKind::Issue));
+    }
+
+    #[test]
+    fn parses_owner_repo_hash() {
+        let id = ResourceId::parse("openclaw/openclaw#81834").unwrap();
+
+        assert_eq!(id.repo_name_with_owner(), "openclaw/openclaw");
+        assert_eq!(id.number, 81834);
+        assert_eq!(id.kind_hint, None);
+    }
+
+    #[test]
+    fn parses_owner_repo_number_args() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+
+        assert_eq!(id.canonical_name(), "openclaw/openclaw#81834");
+    }
+
+    #[test]
+    fn rejects_zero_number() {
+        assert_eq!(
+            ResourceId::parse("openclaw/openclaw#0").unwrap_err(),
+            ResourceIdError::InvalidNumber
+        );
+    }
+
+    #[test]
+    fn builds_relative_resource_ids() {
+        let id = ResourceId::relative_to_repo("openclaw", "openclaw", "66943").unwrap();
+
+        assert_eq!(id.canonical_name(), "openclaw/openclaw#66943");
+    }
+
+    #[test]
+    fn fingerprint_changes_when_activity_content_or_metadata_changes() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "1").unwrap();
+        let mut resource = Resource {
+            id,
+            title: "title".into(),
+            url: "https://github.com/openclaw/openclaw/issues/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: vec![ActivityEntry {
+                id: "comment".into(),
+                kind: ActivityKind::Comment,
+                author: "bob".into(),
+                body: "before".into(),
+                updated_at: "time".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            }],
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            pull_request: None,
+        };
+        let before = resource.fingerprint();
+
+        resource.activity[0].body = "after".into();
+        let after_body = resource.fingerprint();
+
+        assert_ne!(before, after_body);
+
+        resource.activity[0].body = "before".into();
+        resource.activity[0].reactions.eyes = 1;
+
+        assert_ne!(before, resource.fingerprint());
+    }
+}

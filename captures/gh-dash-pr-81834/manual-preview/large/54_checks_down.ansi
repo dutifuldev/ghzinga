@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-commands-doctor
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-commands-doctor-shared
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-commands-models
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-commands-onboard-config
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-commands-status-tools
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-agents-core
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-agents-embedded
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-agents-support
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-agents-tools
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-gateway-core
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-gateway-methods
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-agentic-plugin-sdk
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-core-top-level
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-reply-agent-runner
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-reply-commands
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-reply-dispatch
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-reply-session
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/checks-node-auto-reply-reply-state-routing
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (mcp-process-runtime-boundary)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-guards
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-prod-types
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-lint
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-dependencies
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-test-types
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (memory-runtime-boundary)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-boundaries-a
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-boundaries-bcd
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-extension-channels
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-extension-bundled
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-extension-package-boundary
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-additional-runtime-topology-architecture
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (session-diagnostics-boundary)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/check-docs
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/skills-python
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (plugin-sdk-reply-runtime)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/matrix.check_name
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (provider-runtime-boundary)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/matrix.check_name
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (plugin-boundary)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/macos-swift
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CodeQL Critical Quality/Critical Quality (plugin-sdk-package-contract)
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/matrix.check_name
+                                                                        [38;5;244m│[39m    [38;5;46m[39m KLilyZ/CI/ci-timings-summary
+                                                                        [38;5;244m│[39m    [38;5;46m[39m CodeQL
+                                                                        [38;5;244m│[39m    [38;5;46m[39m Socket Security: Pull Request Alerts
+                                                                        [38;5;244m│[1m[38;5;245m97%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~29s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

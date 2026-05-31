@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  env-var fallback / `isConfigured` / minimal `parseDirectiveToken` / both
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  `synthesize` paths; live test guards the production round trip.
+ ╰────────────────────────────────────────────────────────────────────╯ │  • Why this is the smallest reliable guardrail: those are the only surfaces
+    Title        Base         󰯢                    󱦻           󱡢    │  refactors can plausibly break — upstream contract drift, talk-voice wiring,
+                                                                        │  registered-capability loss.
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  • Existing test that already covers this (if any): N/A — tests added by this PR.
+     feat(sensea                                                        │  • If no new test is added, why not: tests are included in this PR.
+ ────────────────────────────────────────────────────────────────────── │
+                                                                        │  ## User-visible / Behavior Changes
+                                                                        │  • `senseaudio` appears in `openclaw infer tts providers`, "configured" when
+                                                                        │  `SENSEAUDIO_API_KEY` is in env or `messages.tts.providers.senseaudio.apiKey`.
+                                                                        │  • `openclaw infer tts voices --provider senseaudio` lists the upstream system
+                                                                        │  voices.
+                                                                        │  • `openclaw infer tts convert --model senseaudio/senseaudio-tts-1.5-260319 ...`
+                                                                        │  returns MP3 (or opus for voice-note channel targets).
+                                                                        │  • `autoSelectOrder: 45` — strictly behind ElevenLabs (20), Azure (30), MiniMax
+                                                                        │  (40).
+                                                                        │  Existing user defaults are not displaced.
+                                                                        │  • Defaults: voice `female_0033_b`, model `senseaudio-tts-1.5-260319`, base URL
+                                                                        │  `https://api.senseaudio.cn`, MP3 32 kHz / 128 kbps / stereo.
+                                                                        │  • No new env vars / config keys / CLI flags. `SENSEAUDIO_API_KEY` was already
+                                                                        │  declared by the ASR side.
+                                                                        │
+                                                                        │  ## Diagram (if applicable)
+                                                                        │  audio-file target:
+                                                                        │    tts.convert -> senseaudio.synthesize
+                                                                        │                -> POST /v1/t2a_v2 -> hex audio
+                                                                        │                -> Buffer.from(hex) -> MP3 (voiceCompatible=false)
+                                                                        │
+                                                                        │  voice-note target:
+                                                                        │    tts.convert (channel=voice-note) -> senseaudio.synthesize
+                                                                        │                -> POST /v1/t2a_v2 -> MP3
+                                                                        │                -> transcodeAudioBufferToOpus (ffmpeg)
+                                                                        │                -> opus (voiceCompatible=true) -> messenger voice-note bubble
+                                                                        │
+                                                                        │  voice picker:
+                                                                        │    talk UI -> senseaudio.listVoices
+                                                                        │            -> POST /v1/get_voice {voice_type: "system"}
+                                                                        │            -> map system_voice[] -> SpeechVoiceOption[]
+                                                                        │
+                                                                        │  ## Security Impact (required)
+                                                                        │  • New permissions/capabilities? `No`
+                                                                        │  • Secrets/tokens handling changed? `No` (reuses `SENSEAUDIO_API_KEY`; configured
+                                                                        │  values go through `normalizeResolvedSecretInputString`; key never logged).
+                                                                        │  • New/changed network calls? `Yes`
+                                                                        │53%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~12s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

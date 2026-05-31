@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  ╭─────────────────────────────────────────────────────────────────────────────────╮
+ ╰────────────────────────────────────────────────────────────────────╯ │  │RomneyDa 2d                                                                      │
+    Title        Base         󰯢                    󱦻           󱡢    │  ╰─────────────────────────────────────────────────────────────────────────────────╯
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  Heads up: this PR needs to be updated against current `main` before the new
+     feat(sensea                                                        │  required Dependency Guard check can pass.
+ ────────────────────────────────────────────────────────────────────── │
+                                                                        │  ╭─────────────────────────────────────────────────────────────────────────────────╮
+                                                                        │  │clawsweeper 1d                                                                   │
+                                                                        │  ╰─────────────────────────────────────────────────────────────────────────────────╯
+                                                                        │  Codex review: needs changes before merge. Reviewed May 29, 2026, 11:28 PM ET /
+                                                                        │  03:28 UTC.
+                                                                        │
+                                                                        │  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin,
+                                                                        │  with TTS HTTP helpers, voice listing, voice-note opus transcoding, docs, manifest
+                                                                        │  metadata, contract coverage, unit tests, and a gated live test.
+                                                                        │
+                                                                        │  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14
+                                                                        │  files.
+                                                                        │
+                                                                        │  Reproducibility: not applicable. as a bug report; this is a new provider feature.
+                                                                        │  The review blockers are source-reproducible from the CLI required option and the
+                                                                        │  new unbounded TTS JSON/audio decode path.
+                                                                        │
+                                                                        │  Review metrics: 2 noteworthy metrics.
+                                                                        │
+                                                                        │  • Provider/config surface: 1 speech provider added, 4 documented config keys, 0 new
+                                                                        │  env vars. This is a new bundled runtime provider surface, and config/default
+                                                                        │  behavior needs upgrade-aware review.
+                                                                        │  • New outbound endpoints: 2 POST endpoints added. The PR adds provider network
+                                                                        │  calls for synthesis and voice listing, so SSRF, timeout, and response-size handling
+                                                                        │  matter before merge.
+                                                                        │
+                                                                        │  Merge readiness Overall: 🦐 gold shrimp Proof: 🦞 diamond lobster Patch quality: 🦐
+                                                                        │  gold shrimp Result: needs maintainer review before merge.
+                                                                        │
+                                                                        │  Overall follows the weaker of proof and patch quality, so missing proof can cap an
+                                                                        │  otherwise strong patch.
+                                                                        │
+                                                                        │  Rank-up moves:
+                                                                        │
+                                                                        │  • [P2] Fix the `set-provider` example to include `--provider senseaudio`.
+                                                                        │  • [P2] Add a bounded response/decoded-byte guard for SenseAudio TTS audio and cover
+                                                                        │  the oversized case in `extensions/senseaudio/tts.test.ts`.
+                                                                        │22%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~19s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

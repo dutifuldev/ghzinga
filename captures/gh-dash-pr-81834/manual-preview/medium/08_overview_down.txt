@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    --output ./hello.mp3 \
+    --local --json
+
+  • Evidence after fix: Captured live stdout from running the `openclaw` command above on head commit `cf9d686a66`:
+  {
+    "ok": true,
+    "capability": "tts.convert",
+    "transport": "local",
+    "provider": "senseaudio",
+    "attempts": [
+      {
+        "provider": "senseaudio",
+        "outcome": "success",
+        "reasonCode": "success",
+        "personaBinding": "none",
+        "latencyMs": 3595
+      }
+25%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~12s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  • New/changed network calls? `Yes`
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  • Command/tool execution surface changed? `No`
+ ╰────────────────────────────────────────────────────────────────────╯ │  • Data access scope changed? `No`
+    Title        Base         󰯢                    󱦻           󱡢    │  • If any `Yes`, explain risk + mitigation: Two new outbound HTTPS calls to `api.
+                                                                        │  senseaudio.cn` (`/v1/t2a_v2`, `/v1/get_voice`). Both routed through
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  `fetchWithSsrFGuard` + `ssrfPolicyFromHttpBaseUrlAllowedHostname`. HTTP errors via
+     feat(sensea                                                        │  `assertOkOrThrowProviderError`. Business errors surface `status_msg`, never the
+ ────────────────────────────────────────────────────────────────────── │  request key. `voice-note` transcoding reuses the SDK-managed
+                                                                        │  `transcodeAudioBufferToOpus`. `listVoices` enforces a 15s timeout.
+                                                                        │
+                                                                        │  ## Repro + Verification
+                                                                        │  ### Environment
+                                                                        │  • OS: Linux (5.14.0-284.25.1.el9_2.x86_64)
+                                                                        │  • Runtime/container: Node 22.22.3 (nvm); pnpm 11.1.0
+                                                                        │  • Model/provider: SenseAudio `senseaudio-tts-1.5-260319`
+                                                                        │  • Integration/channel (if any): N/A for the CLI repro
+                                                                        │  • Relevant config (redacted): `SENSEAUDIO_API_KEY=sk-...` in env; no config-file
+                                                                        │  changes required
+                                                                        │
+                                                                        │  ### Steps
+                                                                        │  1. `export SENSEAUDIO_API_KEY=sk-...`
+                                                                        │  2. `pnpm openclaw infer tts convert --text "Hello, OpenClaw" --model
+                                                                        │  senseaudio/senseaudio-tts-1.5-260319 --voice female_0033_b --output ./hello.mp3 --
+                                                                        │  local --json`
+                                                                        │  3. Inspect the JSON envelope and play `./hello.mp3`.
+                                                                        │
+                                                                        │  ### Expected
+                                                                        │  • Envelope: `provider: "senseaudio"`, `outputs[0].format: "mp3"`, writable `path`.
+                                                                        │  • `./hello.mp3` is a valid MP3 that plays back the input text.
+                                                                        │
+                                                                        │  ### Actual
+                                                                        │  • Envelope exactly as expected.
+                                                                        │  • `./hello.mp3` plays back as the input.
+                                                                        │
+                                                                        │  ## Evidence
+                                                                        │  [✓] Failing test/log before + passing after
+                                                                        │  [✓] Trace/log snippets
+                                                                        │  [✓] Screenshot/recording
+                                                                        │  [ ] Perf numbers (if relevant)
+                                                                        │
+                                                                        │  ## Human Verification (required)
+                                                                        │  • Verified scenarios: live `tts convert` returns a playable MP3; `pnpm
+                                                                        │  test:extension senseaudio` 31/31; three boundary inventories 0 violations;
+                                                                        │  tsgo/oxlint/oxfmt clean; senseaudio plugin-registration contract passes.
+                                                                        │  • Edge cases checked: `base_resp.status_code != 0` surfaces `status_msg`; missing
+                                                                        │70%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~13s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

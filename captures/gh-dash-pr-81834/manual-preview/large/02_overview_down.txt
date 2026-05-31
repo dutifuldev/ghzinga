@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  [✓] Integrations
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  [✓] API / contracts
+ ╰────────────────────────────────────────────────────────────────────╯ │  [ ] UI / DX
+    Title        Base         󰯢                    󱦻           󱡢    │  [ ] CI/CD / infra
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  ## Linked Issue/PR
+     feat(sensea                                                        │  • Closes #
+ ────────────────────────────────────────────────────────────────────── │  • Related # 66943
+                                                                        │  [ ] This PR fixes a bug or regression
+                                                                        │
+                                                                        │  ## Real Behavior Proof
+                                                                        │  • Behavior addressed: SenseAudio bundled plugin now registers a `speechProvider`
+                                                                        │  alongside the existing ASR provider. With `SENSEAUDIO_API_KEY` set, `isConfigured`
+                                                                        │  returns true, `listVoices` surfaces the upstream `system_voice` set via `POST
+                                                                        │  /v1/get_voice`, and `synthesize` returns a real MP3 (or transcoded opus on `voice-
+                                                                        │  note` targets).
+                                                                        │  • Real environment tested: Yes (Linux 5.14.0, Node 22.22.3, production
+                                                                        │  `https://api.senseaudio.cn` with a valid `SENSEAUDIO_API_KEY`, commit
+                                                                        │  `cf9d686a66`).
+                                                                        │  • Exact steps or command run after this patch:
+                                                                        │  export SENSEAUDIO_API_KEY=...   # redacted
+                                                                        │  pnpm openclaw infer tts convert \
+                                                                        │    --text "Hello, OpenClaw, this is senseaudio TTS provider" \
+                                                                        │    --model senseaudio/senseaudio-tts-1.5-260319 \
+                                                                        │    --voice female_0033_b \
+                                                                        │    --output ./hello.mp3 \
+                                                                        │    --local --json
+                                                                        │
+                                                                        │  • Evidence after fix: Captured live stdout from running the `openclaw` command
+                                                                        │  above on head commit `cf9d686a66`:
+                                                                        │  {
+                                                                        │    "ok": true,
+                                                                        │    "capability": "tts.convert",
+                                                                        │    "transport": "local",
+                                                                        │    "provider": "senseaudio",
+                                                                        │    "attempts": [
+                                                                        │      {
+                                                                        │        "provider": "senseaudio",
+                                                                        │        "outcome": "success",
+                                                                        │        "reasonCode": "success",
+                                                                        │        "personaBinding": "none",
+                                                                        │        "latencyMs": 3595
+                                                                        │      }
+                                                                        │    ],
+                                                                        │    "outputs": [
+                                                                        │17%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~11s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

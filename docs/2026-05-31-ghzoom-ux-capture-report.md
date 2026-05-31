@@ -1,0 +1,156 @@
+---
+title: ghzoom UX Capture Report
+author: Bob <dutifulbob@gmail.com>
+date: 2026-05-31
+---
+
+# ghzoom UX Capture Report
+
+This report records tmux verification runs for `ghzoom` against a live PR and a
+live issue.
+
+PR capture directory:
+
+```text
+captures/ghzoom-pr-81834/
+```
+
+Issue capture directory:
+
+```text
+captures/ghzoom-issue-88499/
+```
+
+The PR captures were generated with:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py
+```
+
+The issue captures were generated with:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
+  --root captures/ghzoom-issue-88499 \
+  --target https://github.com/openclaw/openclaw/issues/88499 \
+  --title 'openai-responses provider: 404 on previous_response_id when store=false (default)' \
+  --load-needle openai-responses \
+  --mode issue
+```
+
+## Sizes
+
+The run covers the required terminal sizes:
+
+| Size | Geometry | Directory |
+| --- | ---: | --- |
+| Narrow | `80x24` | `captures/ghzoom-pr-81834/narrow/` |
+| Medium | `120x36` | `captures/ghzoom-pr-81834/medium/` |
+| Large | `160x50` | `captures/ghzoom-pr-81834/large/` |
+
+Each size directory includes `.txt`, `.ansi`, and `.png` frames, plus
+`manifest.json`.
+
+## PR Captured Views
+
+The capture set proves that the core PR dashboard surfaces render at all three
+sizes:
+
+| Frame | Purpose |
+| --- | --- |
+| `00_overview_top` | resource header, status summary, body start, reactions |
+| `01_overview_expanded` | visible body expansion control path |
+| `02_overview_pagedown` | long body scroll path |
+| `10_activity_top` | comments and bot activity |
+| `11_activity_pagedown` | long activity scroll path |
+| `20_commits_top` | commit list |
+| `30_checks_top` | CI/check aggregate and detailed check rows |
+| `31_checks_pagedown` | check-list scroll path |
+| `40_files_top` | changed files and file expansion controls |
+| `50_links_top` | detected linked issue/PR navigation targets |
+| `60_help` | built-in keyboard and mouse help |
+
+## Validation
+
+The PR capture validation checked that every size contains:
+
+- `[Activity]`
+- `[Commits]`
+- `[Checks]`
+- `[Files]`
+- `[Links]`
+- `Help`
+
+The PR rendered frames also show:
+
+- status summary with PR state, author, reactions, review, merge, checks, files,
+  and line counts
+- assignee and requested-reviewer summaries
+- body truncation with visible `[more]`
+- activity entries with visible `[more]`
+- check rows grouped under `Passing`
+- file rows with visible `[more]`
+- the linked issue `openclaw/openclaw#66943`
+- footer controls `[refresh] [open] [quit] [help]`
+
+## Issue Captured Views
+
+The issue capture set uses `openclaw/openclaw#88499`, a live issue with four
+comments at the time of capture.
+
+| Frame | Purpose |
+| --- | --- |
+| `00_overview_top` | issue header, labels, reactions, body start |
+| `01_overview_expanded` | body expansion path |
+| `02_overview_pagedown` | long issue body scroll path |
+| `10_activity_top` | issue comments |
+| `11_activity_pagedown` | long activity scroll path |
+| `20_links_top` | detected linked issue/PR navigation targets |
+| `30_help` | built-in keyboard and mouse help |
+
+The issue capture validation checked that every size contains:
+
+- `[Overview]`
+- `[Activity]`
+- `[Links]`
+- `Help`
+
+The rendered frames also show:
+
+- issue-only tab set: Overview, Activity, Links
+- issue state, author, reactions, and comment count
+- assignee summary
+- comment rendering with visible `[more]`
+- detected links including `openclaw/openclaw#84904` and
+  `https://github.com/openclaw/openclaw/issues/87310#issuecomment-4585747111`
+- footer controls `[refresh] [open] [quit] [help]`
+
+## tmux Key Finding
+
+During capture work, synthetic `tmux send-keys Tab` did not reliably advance the
+TUI tabs. A direct tmux smoke test confirmed that `Right` advances tabs, and the
+capture script now starts fresh sessions with `--tab` for deterministic tab
+frames.
+
+The app was still updated for tmux compatibility:
+
+- `KeyCode::Tab`
+- literal `'\t'`
+- `Ctrl+i`
+
+all advance the active tab in the reducer. This behavior is covered by unit
+tests, and `Right` remains a documented fallback that works under tmux.
+
+## Mouse Coverage
+
+The capture runs verify rendered views and keyboard-driven navigation evidence.
+Mouse click routing is covered through render-to-click integration tests that
+render the actual Ratatui UI, click the registered hit rectangles, and verify:
+
+- tab switching
+- body expansion
+- file expansion
+- issue/PR link navigation intent
+- refresh
+- help
+- quit

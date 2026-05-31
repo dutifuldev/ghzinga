@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │ openclaw/openclaw · #81834
+ │ is:pr repo:openclaw/openclaw 81834                                │ │
+ ╰────────────────────────────────────────────────────────────────────╯ │ feat(senseaudio): add SenseAudio TTS provider
+    Title        Base         󰯢                    󱦻           󱡢    │
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  Open main  feat/senseaudio-tts
+     feat(sensea                                                        │
+ ────────────────────────────────────────────────────────────────────── │ by @KLilyZ ⋅ 1mo ago ⋅ 󰎔 none
+                                                                        │
+                                                                        │  Overview   Activity   Commits   Checks   Files Changed
+                                                                        │───────────────────────────────────────────────────────────────────────────────────────
+                                                                        │
+                                                                        │  󰌖 Labels
+                                                                        │
+                                                                        │  docs size: L extensions: senseaudio proof: supplied proof: sufficient
+                                                                        │
+                                                                        │  P3
+                                                                        │
+                                                                        │   Summary
+                                                                        │
+                                                                        │  ## Summary
+                                                                        │  • Problem: `senseaudio` bundled plugin only has ASR; no TTS.
+                                                                        │  • Why it matters: completes the round trip in the same plugin; SenseAudio's
+                                                                        │  `/v1/t2a_v2` is solid TTS and pairs with the ASR added in #66943.
+                                                                        │  • What changed: registers a `speechProvider` in `extensions/senseaudio/`.
+                                                                        │  Synthesizes via `/v1/t2a_v2`, lists system voices via `/v1/get_voice`, transcodes
+                                                                        │  MP3→opus for `voice-note` targets. Errors split into HTTP / `base_resp.status_code`
+                                                                        │  / missing-audio buckets.
+                                                                        │  • What did NOT change: no core code; ASR untouched; streaming, telephony, voice
+                                                                        │  cloning, text-generated voices out of scope.
+                                                                        │
+                                                                        │  ## Change Type (select all)
+                                                                        │  [ ] Bug fix
+                                                                        │  [✓] Feature
+                                                                        │  [ ] Refactor required for the fix
+                                                                        │  [ ] Docs
+                                                                        │  [ ] Security hardening
+                                                                        │  [ ] Chore/infra
+                                                                        │
+                                                                        │  ## Scope (select all touched areas)
+                                                                        │  [ ] Gateway / orchestration
+                                                                        │  [ ] Skills / tool execution
+                                                                        │  [ ] Auth / tokens
+                                                                        │  [ ] Memory / storage
+                                                                        │  [✓] Integrations
+                                                                        │0%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~14s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

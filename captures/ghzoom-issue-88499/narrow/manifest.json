@@ -1,0 +1,49 @@
+{
+  "label": "narrow",
+  "requested_columns": 80,
+  "requested_rows": 24,
+  "captures": [
+    {
+      "name": "00_overview_top",
+      "txt": "00_overview_top.txt",
+      "ansi": "00_overview_top.ansi",
+      "png": "00_overview_top.png"
+    },
+    {
+      "name": "01_overview_expanded",
+      "txt": "01_overview_expanded.txt",
+      "ansi": "01_overview_expanded.ansi",
+      "png": "01_overview_expanded.png"
+    },
+    {
+      "name": "02_overview_pagedown",
+      "txt": "02_overview_pagedown.txt",
+      "ansi": "02_overview_pagedown.ansi",
+      "png": "02_overview_pagedown.png"
+    },
+    {
+      "name": "10_activity_top",
+      "txt": "10_activity_top.txt",
+      "ansi": "10_activity_top.ansi",
+      "png": "10_activity_top.png"
+    },
+    {
+      "name": "11_activity_pagedown",
+      "txt": "11_activity_pagedown.txt",
+      "ansi": "11_activity_pagedown.ansi",
+      "png": "11_activity_pagedown.png"
+    },
+    {
+      "name": "20_links_top",
+      "txt": "20_links_top.txt",
+      "ansi": "20_links_top.ansi",
+      "png": "20_links_top.png"
+    },
+    {
+      "name": "30_help",
+      "txt": "30_help.txt",
+      "ansi": "30_help.ansi",
+      "png": "30_help.png"
+    }
+  ]
+}

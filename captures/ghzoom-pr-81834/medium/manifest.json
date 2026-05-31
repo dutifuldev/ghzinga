@@ -1,0 +1,73 @@
+{
+  "label": "medium",
+  "requested_columns": 120,
+  "requested_rows": 36,
+  "captures": [
+    {
+      "name": "00_overview_top",
+      "txt": "00_overview_top.txt",
+      "ansi": "00_overview_top.ansi",
+      "png": "00_overview_top.png"
+    },
+    {
+      "name": "01_overview_expanded",
+      "txt": "01_overview_expanded.txt",
+      "ansi": "01_overview_expanded.ansi",
+      "png": "01_overview_expanded.png"
+    },
+    {
+      "name": "02_overview_pagedown",
+      "txt": "02_overview_pagedown.txt",
+      "ansi": "02_overview_pagedown.ansi",
+      "png": "02_overview_pagedown.png"
+    },
+    {
+      "name": "10_activity_top",
+      "txt": "10_activity_top.txt",
+      "ansi": "10_activity_top.ansi",
+      "png": "10_activity_top.png"
+    },
+    {
+      "name": "11_activity_pagedown",
+      "txt": "11_activity_pagedown.txt",
+      "ansi": "11_activity_pagedown.ansi",
+      "png": "11_activity_pagedown.png"
+    },
+    {
+      "name": "20_commits_top",
+      "txt": "20_commits_top.txt",
+      "ansi": "20_commits_top.ansi",
+      "png": "20_commits_top.png"
+    },
+    {
+      "name": "30_checks_top",
+      "txt": "30_checks_top.txt",
+      "ansi": "30_checks_top.ansi",
+      "png": "30_checks_top.png"
+    },
+    {
+      "name": "31_checks_pagedown",
+      "txt": "31_checks_pagedown.txt",
+      "ansi": "31_checks_pagedown.ansi",
+      "png": "31_checks_pagedown.png"
+    },
+    {
+      "name": "40_files_top",
+      "txt": "40_files_top.txt",
+      "ansi": "40_files_top.ansi",
+      "png": "40_files_top.png"
+    },
+    {
+      "name": "50_links_top",
+      "txt": "50_links_top.txt",
+      "ansi": "50_links_top.ansi",
+      "png": "50_links_top.png"
+    },
+    {
+      "name": "60_help",
+      "txt": "60_help.txt",
+      "ansi": "60_help.ansi",
+      "png": "60_help.png"
+    }
+  ]
+}

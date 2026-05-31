@@ -1,0 +1,24 @@
+                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                        │
+ ╰────────────────────────────────────────────────────────────────────────────╯
+    Title                Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw    main      7         +1.1k -22      1d          1mo
+     feat(senseaudio):
+ ──────────────────────────────────────────────────────────────────────────────
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  @clawsweeper Re: docs line 95 / "missing required `--provider` flag" — `tts
+  convert` does not have a `--provider` flag. The CLI selects the provider
+  through `--model <provider>/<model>`, as defined in `src/cli/capability-
+  cli.ts:1994-2003` (the only options are `--text/--channel/--voice/--model/--
+  output/--local/--gateway/--json`). The docs example `--model
+  senseaudio/senseaudio-tts-1.5-260319` is the correct invocation form. The
+  sibling `tts voices` and `tts providers` subcommands do accept `--provider`,
+  but `tts convert` does not.
+
+  ╭──────────────────────────────────────────────────────────────────────────╮
+16%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~27s ago • PR 1/1 (fetche

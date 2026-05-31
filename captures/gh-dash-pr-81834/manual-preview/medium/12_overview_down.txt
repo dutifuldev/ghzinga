@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    • Telephony, streaming, voice cloning, and text-generated voices (intentionally out of scope).
+    • Full `pnpm test` / `pnpm test:contracts:channels` suites — only targeted `pnpm test:extension senseaudio` and
+    `pnpm test:contracts:plugins` lanes were executed.
+
+
+  ## Root Cause (if applicable)
+  • Root cause: N/A (feature, not a bug fix).
+  • Missing detection / guardrail: N/A
+  • Contributing context (if known): N/A
+
+  ## Regression Test Plan (if applicable)
+  N/A — new feature, no regression surface.
+
+  • Coverage level that should have caught this:
+    [ ] Unit test
+    [ ] Seam / integration test
+    [ ] End-to-end test
+38%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~14s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

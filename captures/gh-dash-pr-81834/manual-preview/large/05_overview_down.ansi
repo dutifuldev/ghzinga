@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m  [1m[38;5;252m## Root Cause (if applicable)[0m
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  • Root cause: N/A (feature, not a bug fix).
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  • Missing detection / guardrail: N/A
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m  • Contributing context (if known): N/A
+                                                                        [38;5;244m│[39m
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  [1m[38;5;252m## Regression Test Plan (if applicable)[0m
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m  N/A — new feature, no regression surface.
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • Coverage level that should have caught this:
+                                                                        [38;5;244m│[39m    [ ] Unit test
+                                                                        [38;5;244m│[39m    [ ] Seam / integration test
+                                                                        [38;5;244m│[39m    [ ] End-to-end test
+                                                                        [38;5;244m│[39m    [✓] Existing coverage already sufficient
+                                                                        [38;5;244m│[39m  • Target test or file: [38;5;189m`extensions/senseaudio/tts.test.ts`[39m,
+                                                                        [38;5;244m│[39m  [38;5;189m`extensions/senseaudio/speech-provider.test.ts`[39m, [38;5;189m`extensions/senseaudio/senseaudio.[39m
+                                                                        [38;5;244m│[39m  [38;5;189mlive.test.ts`[39m, and [38;5;189m`src/plugins/contracts/plugin-registration.senseaudio.contract.[39m
+                                                                        [38;5;244m│[39m  [38;5;189mtest.ts`[39m (driven by the new entry in [38;5;189m`src/plugin-sdk/test-helpers/plugin-[39m
+                                                                        [38;5;244m│[39m  [38;5;189mregistration-contract-cases.ts`[39m).
+                                                                        [38;5;244m│[39m  • Scenario the test should lock in: registration contract guards the
+                                                                        [38;5;244m│[39m  [38;5;189m`speechProvider`[39m id and [38;5;189m`listVoices`[39m requirement; network-layer tests lock in the
+                                                                        [38;5;244m│[39m  [38;5;189m`/v1/t2a_v2`[39m body shape, the three error buckets, the hex decode, and the
+                                                                        [38;5;244m│[39m  [38;5;189m`/v1/get_voice`[39m "only system voices" mapping; adapter-layer tests lock in config /
+                                                                        [38;5;244m│[39m  env-var fallback / [38;5;189m`isConfigured`[39m / minimal [38;5;189m`parseDirectiveToken`[39m / both
+                                                                        [38;5;244m│[39m  [38;5;189m`synthesize`[39m paths; live test guards the production round trip.
+                                                                        [38;5;244m│[39m  • Why this is the smallest reliable guardrail: those are the only surfaces
+                                                                        [38;5;244m│[39m  refactors can plausibly break — upstream contract drift, talk-voice wiring,
+                                                                        [38;5;244m│[39m  registered-capability loss.
+                                                                        [38;5;244m│[39m  • Existing test that already covers this (if any): N/A — tests added by this PR.
+                                                                        [38;5;244m│[39m  • If no new test is added, why not: tests are included in this PR.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## User-visible / Behavior Changes[0m
+                                                                        [38;5;244m│[39m  • [38;5;189m`senseaudio`[39m appears in [38;5;189m`openclaw infer tts providers`[39m, "configured" when
+                                                                        [38;5;244m│[39m  [38;5;189m`SENSEAUDIO_API_KEY`[39m is in env or [38;5;189m`messages.tts.providers.senseaudio.apiKey`[39m.
+                                                                        [38;5;244m│[39m  • [38;5;189m`openclaw infer tts voices --provider senseaudio`[39m lists the upstream system
+                                                                        [38;5;244m│[39m  voices.
+                                                                        [38;5;244m│[39m  • [38;5;189m`openclaw infer tts convert --model senseaudio/senseaudio-tts-1.5-260319 ...`[39m
+                                                                        [38;5;244m│[39m  returns MP3 (or opus for voice-note channel targets).
+                                                                        [38;5;244m│[39m  • [38;5;189m`autoSelectOrder: 45`[39m — strictly behind ElevenLabs (20), Azure (30), MiniMax
+                                                                        [38;5;244m│[39m  (40).
+                                                                        [38;5;244m│[39m  Existing user defaults are not displaced.
+                                                                        [38;5;244m│[39m  • Defaults: voice [38;5;189m`female_0033_b`[39m, model [38;5;189m`senseaudio-tts-1.5-260319`[39m, base URL
+                                                                        [38;5;244m│[39m  [38;5;189m`https://api.senseaudio.cn`[39m, MP3 32 kHz / 128 kbps / stereo.
+                                                                        [38;5;244m│[39m  • No new env vars / config keys / CLI flags. [38;5;189m`SENSEAUDIO_API_KEY`[39m was already
+                                                                        [38;5;244m│[39m  declared by the ASR side.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[1m[38;5;245m44%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~12s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m
