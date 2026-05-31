@@ -63,9 +63,9 @@ For pull requests:
 - GitHub metadata such as draft/cross-repository state, mergeability, changed-file count, milestones, projects, ref OIDs, and merge commits where available
 - comments, reviews, review comments, and timeline events such as labels,
   references, assignments, locks, pins, duplicate markers, transfers, review
-  requests, draft/ready state, merges, title changes, and milestones; timeline
-  events, review threads, and review-thread comments are paginated so long
-  histories are not capped at the first page
+  requests, draft/ready state, merges, title changes, and milestones; comments,
+  timeline events, review threads, and review-thread comments are paginated so
+  long histories are not capped at the first page
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, and review-thread resolved/outdated state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
@@ -80,8 +80,9 @@ For issues:
 - body, labels, reactions, assignees, author, and state
 - GitHub metadata such as pinned state, state reason, closed time, milestones, and projects where available
 - comments and timeline events such as labels, references, assignments, title
-  changes, locks, pins, duplicate markers, transfers, and milestones; timeline
-  events are paginated so long histories are not capped at the first page
+  changes, locks, pins, duplicate markers, transfers, and milestones; comments
+  and timeline events are paginated so long histories are not capped at the
+  first page
 - comment author association, edit/minimized flags, reactions, and permalinks
 - detected issue/PR links, including GitHub relationship links
 
