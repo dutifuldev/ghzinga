@@ -14,8 +14,8 @@ use crate::domain::{
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
     comments_query, commit_deployments_query, commits_query, labels_query, project_items_query,
-    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
-    timeline_query,
+    review_requests_query, review_thread_comments_query, review_threads_query, reviews_query,
+    status_rollup_query, timeline_query,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 #[cfg(test)]
@@ -63,6 +63,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let mut resource = dto.into_resource(id);
     enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
     enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
+    enrich_review_requests(&mut resource, id).await;
     match fetch_comment_activity(id, ResourceKind::PullRequest).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -166,6 +167,17 @@ async fn enrich_labels_and_assignees(resource: &mut Resource, id: &ResourceId, k
     }
 }
 
+async fn enrich_review_requests(resource: &mut Resource, id: &ResourceId) {
+    match fetch_review_requests(id).await {
+        Ok(review_requests) => {
+            if let Some(pr) = &mut resource.pull_request {
+                pr.requested_reviewers = review_requests;
+            }
+        }
+        Err(error) => push_enrichment_warning(resource, "review requests unavailable", &error),
+    }
+}
+
 fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
     json!({
         "owner": id.owner,
@@ -208,6 +220,17 @@ async fn run_graphql_assignees(
 ) -> anyhow::Result<Vec<u8>> {
     let query = assignees_query(kind);
     run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_review_requests(
+    id: &ResourceId,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        review_requests_query(),
+        owner_repo_number_variables(id, after),
+    )
+    .await
 }
 
 fn graphql_preview(selector: &str, id: &ResourceId) -> Vec<String> {
@@ -398,6 +421,37 @@ struct AssigneesResource {
 struct AssigneesConnection {
     page_info: PageInfoDto,
     nodes: Vec<UserDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewRequestsResponse {
+    data: ReviewRequestsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewRequestsData {
+    repository: Option<ReviewRequestsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewRequestsRepository {
+    pull_request: Option<ReviewRequestsPullRequest>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewRequestsPullRequest {
+    review_requests: ReviewRequestsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewRequestsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1493,6 +1547,27 @@ async fn fetch_assignees(id: &ResourceId, kind: ResourceKind) -> anyhow::Result<
     }
 }
 
+async fn fetch_review_requests(id: &ResourceId) -> anyhow::Result<Vec<String>> {
+    let mut reviewers = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_review_requests(id, after.as_deref()).await?;
+        let response: ReviewRequestsResponse = serde_json::from_slice(&output)
+            .context("failed to parse review requests GraphQL JSON")?;
+        let Some(page) = review_requests_page(response) else {
+            return Ok(reviewers);
+        };
+        reviewers.extend(page.reviewers);
+        if !page.has_next_page {
+            return Ok(reviewers);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("review requests page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 struct LabelsPage {
     labels: Vec<String>,
     has_next_page: bool,
@@ -1501,6 +1576,12 @@ struct LabelsPage {
 
 struct AssigneesPage {
     assignees: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+struct ReviewRequestsPage {
+    reviewers: Vec<String>,
     has_next_page: bool,
     end_cursor: Option<String>,
 }
@@ -1516,6 +1597,13 @@ fn labels_from_response(response: LabelsResponse) -> Vec<String> {
 fn assignees_from_response(response: AssigneesResponse) -> Vec<String> {
     assignees_page(response)
         .map(|page| page.assignees)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn review_requests_from_response(response: ReviewRequestsResponse) -> Vec<String> {
+    review_requests_page(response)
+        .map(|page| page.reviewers)
         .unwrap_or_default()
 }
 
@@ -1542,6 +1630,17 @@ fn assignees_page(response: AssigneesResponse) -> Option<AssigneesPage> {
     let page_info = resource.assignees.page_info;
     Some(AssigneesPage {
         assignees: names_from_users(resource.assignees.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn review_requests_page(response: ReviewRequestsResponse) -> Option<ReviewRequestsPage> {
+    let repository = response.data.repository?;
+    let pull_request = repository.pull_request?;
+    let page_info = pull_request.review_requests.page_info;
+    Some(ReviewRequestsPage {
+        reviewers: review_request_names(pull_request.review_requests.nodes),
         has_next_page: page_info.has_next_page,
         end_cursor: page_info.end_cursor,
     })
@@ -3201,6 +3300,20 @@ mod tests {
     }
 
     #[test]
+    fn review_requests_query_requests_pagination_state_and_reviewer_fragments() {
+        let query = review_requests_query();
+
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("pullRequest(number: $number)"));
+        assert!(query.contains("reviewRequests(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("... on User { login name }"));
+        assert!(query.contains("... on Team { name slug }"));
+    }
+
+    #[test]
     fn reviews_query_requests_pagination_state_and_reaction_fields() {
         let query = reviews_query();
 
@@ -3356,6 +3469,66 @@ mod tests {
         });
 
         assert!(assignees.is_empty());
+    }
+
+    #[test]
+    fn review_requests_page_preserves_pagination_state_and_display_names() {
+        let page = review_requests_page(ReviewRequestsResponse {
+            data: ReviewRequestsData {
+                repository: Some(ReviewRequestsRepository {
+                    pull_request: Some(ReviewRequestsPullRequest {
+                        review_requests: ReviewRequestsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("review-request-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                json!({
+                                    "requestedReviewer": {
+                                        "__typename": "User",
+                                        "login": "maintainer",
+                                        "name": null
+                                    }
+                                }),
+                                json!({
+                                    "requestedReviewer": {
+                                        "__typename": "Team",
+                                        "name": "Docs Team",
+                                        "slug": "docs-team"
+                                    }
+                                }),
+                                json!({
+                                    "requestedReviewer": null
+                                }),
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("review requests page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("review-request-cursor-2"));
+        assert_eq!(page.reviewers, vec!["maintainer", "Docs Team"]);
+
+        let reviewers = review_requests_from_response(ReviewRequestsResponse {
+            data: ReviewRequestsData {
+                repository: Some(ReviewRequestsRepository {
+                    pull_request: Some(ReviewRequestsPullRequest {
+                        review_requests: ReviewRequestsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: false,
+                                end_cursor: None,
+                            },
+                            nodes: Vec::new(),
+                        },
+                    }),
+                }),
+            },
+        });
+
+        assert!(reviewers.is_empty());
     }
 
     #[test]
