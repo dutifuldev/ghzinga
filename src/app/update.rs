@@ -9,6 +9,7 @@ pub enum AppIntent {
     Refresh,
     Navigate(crate::domain::ResourceId),
     OpenResource(crate::domain::ResourceId),
+    OpenUrl(String),
     Back,
     Quit,
 }
@@ -132,6 +133,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             AppIntent::None
         }
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
+        HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::OpenCurrent => AppIntent::OpenResource(state.resource.id.clone()),
         HitTarget::Refresh => {
             state.refresh_requested = true;
@@ -334,6 +336,25 @@ mod tests {
     }
 
     #[test]
+    fn keyboard_enter_opens_first_visible_url_action() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::OpenUrl("https://github.com/owner/repo/actions/runs/1".into()),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/owner/repo/actions/runs/1".into())
+        );
+    }
+
+    #[test]
     fn mouse_click_on_open_target_requests_open_current_resource() {
         let mut state = AppState::new(resource());
         state
@@ -354,6 +375,30 @@ mod tests {
             intent,
             AppIntent::OpenResource(id) if id.canonical_name() == "owner/repo#1"
         ));
+    }
+
+    #[test]
+    fn mouse_click_on_url_target_requests_open_url() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 20, 1),
+            HitTarget::OpenUrl("https://github.com/owner/repo/actions/runs/1".into()),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/owner/repo/actions/runs/1".into())
+        );
     }
 
     #[test]
