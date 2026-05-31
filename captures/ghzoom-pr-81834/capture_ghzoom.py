@@ -60,8 +60,29 @@ def run(cmd, check=True):
     return subprocess.run(cmd, text=True, capture_output=True, check=check)
 
 
+def git_commit() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return result.stdout.strip() or "unknown"
+
+
 def tmux(*args, check=True):
     return run(["tmux", *args], check=check)
+
+
+def tmux_size(session: str) -> str:
+    return tmux(
+        "display-message",
+        "-p",
+        "-t",
+        session,
+        "#{window_width}x#{window_height}",
+    ).stdout.strip()
 
 
 def wait_for_loaded(session: str, timeout: float = 45.0):
@@ -88,20 +109,22 @@ def send(session: str, *keys: str):
     time.sleep(1.0)
 
 
-def write_capture(session: str, out_dir: Path, name: str, meta: dict):
+def write_capture(session: str, out_dir: Path, name: str, meta: dict, frame_meta: dict):
     plain = capture_plain(session)
     ansi = capture_ansi(session)
     (out_dir / f"{name}.txt").write_text(plain + "\n")
     (out_dir / f"{name}.ansi").write_text(ansi + "\n")
     render_ansi_png(ansi, out_dir / f"{name}.png")
-    meta["captures"].append(
-        {
-            "name": name,
-            "txt": f"{name}.txt",
-            "ansi": f"{name}.ansi",
-            "png": f"{name}.png",
-        }
-    )
+    record = {
+        "name": name,
+        "txt": f"{name}.txt",
+        "ansi": f"{name}.ansi",
+        "png": f"{name}.png",
+        "history_txt": f"{name}.history.txt",
+        "history_ansi": f"{name}.history.ansi",
+    }
+    record.update(frame_meta)
+    meta["captures"].append(record)
 
 
 def apply_sgr(style: Style, params: list[int]) -> Style:
@@ -195,10 +218,23 @@ def capture_frame(
     command = f"TERM=xterm-256color {BIN} {TARGET}{tab_arg} --refresh-seconds 0"
     tmux("new-session", "-d", "-x", str(cols), "-y", str(rows), "-s", session, command)
     tmux("resize-window", "-t", session, "-x", str(cols), "-y", str(rows))
+    actual_size = tmux_size(session)
+    meta.setdefault("actual_tmux_size", actual_size)
     wait_for_loaded(session)
     for key in keys or []:
         send(session, key)
-    write_capture(session, out_dir, name, meta)
+    write_capture(
+        session,
+        out_dir,
+        name,
+        meta,
+        {
+            "command": command,
+            "tab": tab or "overview",
+            "keys": keys or [],
+            "actual_tmux_size": actual_size,
+        },
+    )
     history_plain = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-p").stdout
     history_ansi = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-e", "-p").stdout
     (out_dir / f"{name}.history.txt").write_text(history_plain)
@@ -211,6 +247,11 @@ def capture_size(label: str, cols: int, rows: int):
     out_dir.mkdir(parents=True, exist_ok=True)
     meta = {
         "label": label,
+        "target": TARGET,
+        "title": TITLE,
+        "mode": MODE,
+        "binary": str(BIN),
+        "git_commit": git_commit(),
         "requested_columns": cols,
         "requested_rows": rows,
         "captures": [],
@@ -244,6 +285,95 @@ def capture_size(label: str, cols: int, rows: int):
     (out_dir / "manifest.json").write_text(json.dumps(meta, indent=2) + "\n")
 
 
+def expected_frames(mode: str) -> list[str]:
+    if mode == "issue":
+        return [
+            "00_overview_top",
+            "01_overview_expanded",
+            "02_overview_pagedown",
+            "10_activity_top",
+            "11_activity_pagedown",
+            "20_links_top",
+            "30_help",
+        ]
+    return [
+        "00_overview_top",
+        "01_overview_expanded",
+        "02_overview_pagedown",
+        "10_activity_top",
+        "11_activity_pagedown",
+        "20_commits_top",
+        "30_checks_top",
+        "31_checks_pagedown",
+        "40_files_top",
+        "50_links_top",
+        "60_help",
+    ]
+
+
+def expected_markers(mode: str) -> list[str]:
+    if mode == "issue":
+        return ["[Overview]", "[Activity]", "[Links]", "Help"]
+    return ["[Activity]", "[Commits]", "[Checks]", "[Files]", "[Links]", "Help"]
+
+
+def read_json(path: Path) -> dict:
+    return json.loads(path.read_text())
+
+
+def validate_capture_root(root: Path, mode: str):
+    errors = []
+    root_manifest = root / "manifest.json"
+    if not root_manifest.exists():
+        errors.append(f"missing {root_manifest}")
+    else:
+        manifest = read_json(root_manifest)
+        if manifest.get("mode") != mode:
+            errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
+
+    frames = expected_frames(mode)
+    markers = expected_markers(mode) + ["[refresh]", "[open]", "[help]", "[quit]"]
+    for label, cols, rows in SIZES:
+        size_dir = root / label
+        manifest_path = size_dir / "manifest.json"
+        if not manifest_path.exists():
+            errors.append(f"missing {manifest_path}")
+            continue
+        manifest = read_json(manifest_path)
+        expected_size = f"{cols}x{rows}"
+        if manifest.get("actual_tmux_size") != expected_size:
+            errors.append(
+                f"{manifest_path} actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {expected_size!r}"
+            )
+        captures = {capture.get("name"): capture for capture in manifest.get("captures", [])}
+        missing_frames = [frame for frame in frames if frame not in captures]
+        if missing_frames:
+            errors.append(f"{manifest_path} missing frames: {', '.join(missing_frames)}")
+
+        combined_text = []
+        for frame in frames:
+            capture = captures.get(frame, {})
+            for key in ("txt", "ansi", "png", "history_txt", "history_ansi"):
+                value = capture.get(key)
+                if not value:
+                    errors.append(f"{manifest_path} frame {frame} missing {key}")
+                    continue
+                path = size_dir / value
+                if not path.exists():
+                    errors.append(f"missing {path}")
+            txt_path = size_dir / f"{frame}.txt"
+            if txt_path.exists():
+                combined_text.append(txt_path.read_text())
+        combined = "\n".join(combined_text)
+        for marker in markers:
+            if marker not in combined:
+                errors.append(f"{size_dir} missing marker {marker!r}")
+
+    if errors:
+        raise SystemExit("Capture validation failed:\n- " + "\n- ".join(errors))
+    print(f"OK: {root} captures match expected {mode} frames and markers.")
+
+
 def main():
     global ROOT, TARGET, TITLE, LOAD_NEEDLE, MODE
     parser = argparse.ArgumentParser(description="Capture ghzoom in tmux")
@@ -252,6 +382,7 @@ def main():
     parser.add_argument("--title", default=TITLE)
     parser.add_argument("--load-needle", default=None)
     parser.add_argument("--mode", choices=["pr", "issue"], default=MODE)
+    parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
 
     ROOT = args.root.resolve()
@@ -260,18 +391,23 @@ def main():
     LOAD_NEEDLE = args.load_needle or TITLE
     MODE = args.mode
     ROOT.mkdir(parents=True, exist_ok=True)
+    if args.validate_only:
+        validate_capture_root(ROOT, MODE)
+        return
 
     overall = {
         "target": TARGET,
         "title": TITLE,
         "mode": MODE,
         "binary": str(BIN),
+        "git_commit": git_commit(),
         "sizes": [],
     }
     for label, cols, rows in SIZES:
         capture_size(label, cols, rows)
         overall["sizes"].append({"label": label, "columns": cols, "rows": rows})
     (ROOT / "manifest.json").write_text(json.dumps(overall, indent=2) + "\n")
+    validate_capture_root(ROOT, MODE)
 
 
 if __name__ == "__main__":

@@ -1,36 +1,36 @@
-[1mopenclaw/openclaw#88499[0m [Issue OPEN] updated 2026-05-31T04:56:57Z                                                       
+[1m[38;2;122;162;247m[48;2;26;27;38mopenclaw/openclaw#88499[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;158;206;106m[Issue OPEN][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 2026-05-31T04:56:57Z[38;2;192;202;245m                                                       
 openai-responses provider: 404 on previous_response_id when store=false (default)                                       
-------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Links    
-Status                         Activity (9 entries)         
------------------------------- -----------------------------------------------------------------------------------------
-Type: Issue                    Comment by @clawsweeper 2026-05-31T02:23:00Z                                             
-State: OPEN                    meta: association CONTRIBUTOR, edited                                                    
-Author: @xneone                Codex review: keeping this open for maintainer follow-up; there is still a little grit to
-Assignees: none                resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._                               
-Reactions: +1:1               
-Activity: 9                    Summary                      
-Closed: no                     Keep this open: current main still has a plausible Responses replay failure for custom   
-Pinned: no                     openai-responses providers because generic Responses payloads can be unstored while      
-                               replaying server-owned reasoning item IDs. Direct OpenAI routes have a newer store-aware 
-                               wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only   
-                               [more]                       
-
-                               Timeline by @clawsweeper 2026-05-31T02:28:11Z                                            
-                               added label P2               
-
-                               Timeline by @clawsweeper 2026-05-31T02:28:12Z                                            
-                               added label impact:session-state                                                         
-
-                               Timeline by @clawsweeper 2026-05-31T02:28:14Z                                            
-                               added label issue-rating: 🐚 platinum hermit                                             
-
-                               Timeline by @clawsweeper 2026-05-31T02:28:15Z                                            
-                               added label clawsweeper:needs-live-repro                                                 
-
-                               Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                   
-                               meta: association CONTRIBUTOR
-                               Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue    
-                               class.                       
-
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...
+[38;2;65;72;104m------------------------------------------------------------------------------------------------------------------------
+[38;2;169;177;214m Overview [1m[38;2;26;27;38m[48;2;122;162;247m[Activity][0m[38;2;169;177;214m[48;2;26;27;38m Links [38;2;192;202;245m                                                                                             
+[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m  [38;2;125;207;255mcomments 9[38;2;192;202;245m  [38;2;224;175;104mreactions 1[38;2;192;202;245m                                                                            
+                                                                                                                        
+[1m[38;2;122;162;247mActivity (9 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                    
+[38;2;86;95;137m------------------------------------------------------------------------------------------------------------------------
+[38;2;192;202;245mTimeline by @clawsweeper 2026-05-31T02:28:11Z                                                                           
+added label P2                                                                                                          
+                                                                                                                        
+Timeline by @clawsweeper 2026-05-31T02:28:12Z                                                                           
+added label impact:session-state                                                                                        
+                                                                                                                        
+Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                           
+added label issue-rating: 🐚 platinum hermit                                                                            
+                                                                                                                        
+Timeline by @clawsweeper 2026-05-31T02:28:15Z                                                                           
+added label clawsweeper:needs-live-repro                                                                                
+                                                                                                                        
+Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                            
+meta: association CONTRIBUTOR, edited                                                                                   
+[1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
+Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,    
+2026, 10:28 PM ET / 02:28 UTC._                                                                                         
+                                                                                                                        
+Summary                                                                                                                 
+Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers       
+because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes
+have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.   
+                                                                                                                        
+[1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                
+                                                                                                                        
+Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                  
+meta: association CONTRIBUTOR                                                                                           
+[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                                      

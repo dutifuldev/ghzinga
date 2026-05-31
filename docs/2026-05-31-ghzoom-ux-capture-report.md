@@ -49,7 +49,9 @@ The run covers the required terminal sizes:
 | Large | `160x50` | `captures/ghzoom-pr-81834/large/` |
 
 Each size directory includes `.txt`, `.ansi`, and `.png` frames, plus
-`manifest.json`.
+`manifest.json`. The manifests record the source revision, target resource,
+command, requested and actual tmux size, active tab, and keys used for each
+frame.
 
 ## PR Captured Views
 
@@ -72,7 +74,13 @@ sizes:
 
 ## Validation
 
-The PR capture validation checked that every size contains:
+The PR capture validation command is:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only
+```
+
+It checks that every size contains:
 
 - `[Activity]`
 - `[Commits]`
@@ -80,6 +88,10 @@ The PR capture validation checked that every size contains:
 - `[Files]`
 - `[Links]`
 - `Help`
+- `[refresh]`
+- `[open]`
+- `[help]`
+- `[quit]`
 
 The PR rendered frames also show:
 
@@ -91,7 +103,7 @@ The PR rendered frames also show:
 - check rows grouped under `Passing`
 - file rows with visible `[more]`
 - the linked issue `openclaw/openclaw#66943`
-- footer controls `[refresh] [open] [quit] [help]`
+- footer controls `[refresh] [open] [help] [quit]`
 
 ## Issue Captured Views
 
@@ -108,12 +120,25 @@ comments at the time of capture.
 | `20_links_top` | detected linked issue/PR navigation targets |
 | `30_help` | built-in keyboard and mouse help |
 
-The issue capture validation checked that every size contains:
+The issue capture validation command is:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py \
+  --root captures/ghzoom-issue-88499 \
+  --mode issue \
+  --validate-only
+```
+
+It checks that every size contains:
 
 - `[Overview]`
 - `[Activity]`
 - `[Links]`
 - `Help`
+- `[refresh]`
+- `[open]`
+- `[help]`
+- `[quit]`
 
 The rendered frames also show:
 
@@ -123,7 +148,7 @@ The rendered frames also show:
 - comment rendering with visible `[more]`
 - detected links including `openclaw/openclaw#84904` and
   `https://github.com/openclaw/openclaw/issues/87310#issuecomment-4585747111`
-- footer controls `[refresh] [open] [quit] [help]`
+- footer controls `[refresh] [open] [help] [quit]`
 
 ## tmux Key Finding
 

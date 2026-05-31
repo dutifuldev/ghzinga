@@ -1,36 +1,36 @@
 openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider               
+feat(senseaudio): add SenseAudio TTS provider                                                                           
 ------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links          
-Status                         Activity (33 entries)        
------------------------------- -----------------------------------------------------------------------------------------
-Type: PR                       Timeline by @github-actions 2026-05-14T14:05:56Z                                         
-State: OPEN                    added label dependencies-changed                                                         
-Author: @KLilyZ               
-Assignees: none                Comment by @github-actions 2026-05-14T14:05:57Z                                          
-Reactions: +1:3 eyes:1         meta: association CONTRIBUTOR
-Activity: 33                   <!-- openclaw:dependency-change-awareness -->                                            
-Closed: no                    
-Draft: no                      Dependency Changes Detected  
-Cross repository: yes         
-Maintainer can modify: yes     This PR changes dependency-related files. Maintainers should confirm these changes are   
-Branches: main <- feat/sens... intentional.                 
-Review: None requested        
-Reviewers: none                Changed files:               
-Merge: Clean                   [more]                       
-Checks: PASS (97 pass, 0 pe...
-Files: 14                      Timeline by @openclaw-barnacle 2026-05-14T14:06:07Z                                      
-Lines: +1057 -22               added label extensions: senseaudio                                                       
-Base ref OID: a1c6882777ba6...
-Head ref OID: fb4165fe62f1d... Timeline by @openclaw-barnacle 2026-05-14T14:06:10Z                                      
-Head repository: openclaw      added label triage: needs-real-behavior-proof                                            
-
-                               Timeline by @openclaw-barnacle 2026-05-14T14:06:11Z                                      
-                               added label size: L          
-
-                               Comment by @clawsweeper 2026-05-14T14:09:24Z                                             
-                               meta: association CONTRIBUTOR, edited                                                    
-                               Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28    
-                               UTC._                        
-
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...
+ Overview [Activity] Commits  Checks  Files  Links                                                                      
+OK OPEN  by @KLilyZ  comments 43  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22          
+                                                                                                                        
+Activity (43 entries)                                                                                                   
+------------------------------------------------------------------------------------------------------------------------
+Timeline by @github-actions 2026-05-14T14:05:56Z                                                                        
+added label dependencies-changed                                                                                        
+                                                                                                                        
+Comment by @github-actions 2026-05-14T14:05:57Z                                                                         
+meta: association CONTRIBUTOR                                                                                           
+[details]                                                                                                               
+<!-- openclaw:dependency-change-awareness -->                                                                           
+                                                                                                                        
+Dependency Changes Detected                                                                                             
+                                                                                                                        
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
+                                                                                                                        
+Changed files:                                                                                                          
+- extensions/senseaudio/package.json                                                                                    
+[+ more]                                                                                                                
+                                                                                                                        
+Timeline by @openclaw-barnacle 2026-05-14T14:06:07Z                                                                     
+added label extensions: senseaudio                                                                                      
+                                                                                                                        
+Timeline by @openclaw-barnacle 2026-05-14T14:06:10Z                                                                     
+added label triage: needs-real-behavior-proof                                                                           
+                                                                                                                        
+Timeline by @openclaw-barnacle 2026-05-14T14:06:11Z                                                                     
+added label size: L                                                                                                     
+                                                                                                                        
+Timeline by @KLilyZ 2026-05-14T14:30:43Z                                                                                
+referenced commit 512296420fe0                                                                                          
+[refresh] [open] [help] [quit] ...                                                                                      

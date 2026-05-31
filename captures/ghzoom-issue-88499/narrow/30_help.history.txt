@@ -1,24 +1,24 @@
 openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
-openai-responses provider: 404 on previous_response_id when store=false (default
+openai-responses provider: 404 on previous_response_id when store=false         
 --------------------------------------------------------------------------------
- Overview  Activity [Links]             
-Issue OPEN | comments 9 | reactions +1:1
---------------------------------------------------------------------------------
-Help                
+ Overview  Activity [Links]                                                     
+OK OPEN  by @xneone  comments 9  reactions 1                                    
                                                                                 
-Mouse                                   
-- Click tabs to switch sections.        
-- Click [more] or [less] to expand or collapse long text, checks, and files.    
+                                                                                
+Help                                                                            
+                                                                                
+Mouse                                                                           
+- Click tabs to switch sections.                                                
+- Click [+ more] or [- less] to expand or collapse long text, checks, and files.
 - Click visible GitHub issue or PR references to navigate.                      
 - Use the mouse wheel to scroll the current view.                               
-
-Keyboard            
-- q: quit           
-- ?: toggle this help                   
-- r: refresh now    
+                                                                                
+Keyboard                                                                        
+- q: quit                                                                       
+- ?: toggle this help                                                           
+- r: refresh now                                                                
 - o: open current resource in browser through gh                                
 - Tab / Shift-Tab / Left / Right: switch tabs                                   
 - Up / Down / PageUp / PageDown / Home / End: scroll                            
-- e: expand or collapse the main body   
-- Backspace: return after following a link                                      
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/s...
+[refresh] [open] [help] [quit]                                                  
+r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll

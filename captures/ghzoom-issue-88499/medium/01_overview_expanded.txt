@@ -1,36 +1,36 @@
 openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                       
 openai-responses provider: 404 on previous_response_id when store=false (default)                                       
 ------------------------------------------------------------------------------------------------------------------------
-[Overview] Activity  Links    
-Status                         Overview                     
------------------------------- -----------------------------------------------------------------------------------------
-Type: Issue                    Labels: P2, clawsweeper:needs-live-repro, impact:session-state, issue-rating: 🐚 platinum
-State: OPEN                    Assignees: none              
-Author: @xneone                Reactions: +1:1              
-Assignees: none               
-Reactions: +1:1                Body                         
-Activity: 9                    Bug Description              
-Closed: no                    
-Pinned: no                     When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the  
-                               gateway sends store=false (or omits store, which defaults to false) in responses API     
-                               requests. However, on subsequent turns within the same session, the gateway includes     
-                               previous_response_id referencing the previous response. Since that response was never    
-                               persisted server-side, the API returns a 404:                                            
-
-
-                               HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to
-                               false. Try again with store set to true, or remove this item from your input.            
-
-                                                            
-                               Once this happens, every subsequent request in the session fails with the same 404,      
-                               because the stale previous_response_id is never cleared. The session is permanently      
-                               broken until the user runs /new.                                                         
-                                                            
-                               Steps to Reproduce           
-
-                               1. Configure a provider with api: openai-responses pointing to an OpenAI-compatible      
-                               endpoint (e.g. GPT-5.5 via a proxy):                                                     
-                               json                         
-                               "wlkgpt": {                  
-                               "baseUrl": "https://api.example.com/v1",                                                 
-[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...
+[Overview] Activity  Links                                                                                              
+OK OPEN  by @xneone  comments 9  reactions 1                                                                            
+                                                                                                                        
+Conversation                                                                                                            
+------------------------------------------------------------------------------------------------------------------------
+* @xneone opened 2026-05-31T02:21:19Z                                                                                   
+Bug Description                                                                                                         
+                                                                                                                        
+When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false (or   
+omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same session,  
+the gateway includes previous_response_id referencing the previous response. Since that response was never persisted    
+server-side, the API returns a 404:                                                                                     
+                                                                                                                        
+                                                                                                                        
+HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store   
+set to true, or remove this item from your input.                                                                       
+                                                                                                                        
+                                                                                                                        
+[+ more]                                                                                                                
+------------------------------------------------------------------------------------------------------------------------
+- Timeline by @clawsweeper 2026-05-31T02:28:11Z                                                                         
+added label P2                                                                                                          
+------------------------------------------------------------------------------------------------------------------------
+- Timeline by @clawsweeper 2026-05-31T02:28:12Z                                                                         
+added label impact:session-state                                                                                        
+------------------------------------------------------------------------------------------------------------------------
+- Timeline by @clawsweeper 2026-05-31T02:28:14Z                                                                         
+added label issue-rating: 🐚 platinum hermit                                                                            
+------------------------------------------------------------------------------------------------------------------------
+- Timeline by @clawsweeper 2026-05-31T02:28:15Z                                                                         
+added label clawsweeper:needs-live-repro                                                                                
+------------------------------------------------------------------------------------------------------------------------
+[refresh] [open] [help] [quit] ...                                                                                      

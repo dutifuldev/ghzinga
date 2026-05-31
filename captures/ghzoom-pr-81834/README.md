@@ -15,7 +15,7 @@ Each directory contains:
 - `*.png`: image render of the terminal frame
 - `*.ansi`: ANSI tmux capture for the same frame
 - `*.txt`: plain-text tmux capture for the same frame
-- `manifest.json`: commands, size, and frame list for that capture run
+- `manifest.json`: git revision, commands, requested/actual size, frame list, tabs, and keys for that capture run
 - `*.history.txt`: tmux history for the session used to produce that frame
 
 ## Driven Flow
@@ -35,6 +35,12 @@ It captures:
 9. Help overlay with `?`.
 
 The code test suite separately verifies mouse click routing for tabs, expansion controls, refresh, quit, help, and issue/PR navigation targets.
+
+Validate the saved PR captures:
+
+```sh
+python3 captures/ghzoom-pr-81834/capture_ghzoom.py --validate-only
+```
 
 The same script can capture other resources:
 
