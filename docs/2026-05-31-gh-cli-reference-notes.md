@@ -136,7 +136,7 @@ When documenting GitHub data access, use precise language:
 - avoid saying "gh CLI gateway" as if GitHub CLI owns data fetching
 
 The direct GitHub adapter now keeps token resolution in `src/github/auth.rs`,
-HTTP request execution in `src/github/transport.rs`, and resource orchestration
-and normalization in `src/github/api.rs`. A later code cleanup can split the
-remaining query and normalization code further without changing the product
-behavior.
+HTTP request execution in `src/github/transport.rs`, GraphQL query text in
+`src/github/queries.rs`, and resource orchestration and normalization in
+`src/github/api.rs`. A later code cleanup can split the remaining normalization
+code further without changing the product behavior.

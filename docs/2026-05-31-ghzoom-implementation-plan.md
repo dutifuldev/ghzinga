@@ -111,7 +111,7 @@ src/
     navigation.rs         link target and history handling
   github/
     mod.rs                GitHub gateway trait
-    api.rs                direct GraphQL/REST data transport
+    api.rs                resource fetch/enrichment orchestration and normalization
     auth.rs               token resolution from env or `gh auth token`
     transport.rs          mockable reqwest-backed GraphQL/REST transport
     queries.rs            GraphQL query strings
