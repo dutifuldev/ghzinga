@@ -4,6 +4,8 @@ openai-responses provider: 404 on previous_response_id when store=false (default
  Overview [Activity] Links                                                                                              
 OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                          
                                                                                                                         
+                                                                                                                        
+Summary                                                                                                                 
 Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers       
 because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes
 have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.   
@@ -31,6 +33,4 @@ Server-side response chaining only works when the response was persisted, which 
 So previous_response_id should not be on the request at all when store is false.                                        
                                                                                                                         
 There are two separate defects here and the fix needs both.                                                             
-                                                                                                                        
-The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side   
 [refresh] [open] [settings] [help] [quit] ...                                                                           

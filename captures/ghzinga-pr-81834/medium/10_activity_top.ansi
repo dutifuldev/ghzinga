@@ -7,6 +7,8 @@ feat(senseaudio): add SenseAudio TTS provider
 [1m[38;2;122;162;247mActivity (7 entries)[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                    
 [38;2;86;95;137m------------------------------------------------------------------------------------------------------------------------
 [38;2;192;202;245m                                                                                                                        
+[1m[38;2;26;27;38m[48;2;122;162;247m[expand all][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                            
+                                                                                                                        
 Comment by @github-actions 2026-05-14T14:05:57Z                                                                         
 meta: association CONTRIBUTOR                                                                                           
 [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
@@ -31,6 +33,4 @@ helpers, voice-note opus transcoding, registration metadata, docs, inventory upd
 Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The        
 remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider    
 <id>.                                                                                                                   
-[1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                
-                                                                                                                        
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;86;95;137m[48;2;26;27;38m ...[38;2;192;202;245m                                                                           

@@ -3,7 +3,7 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "4b6289d02ed84e13166239b4774db8a84af469e0",
+  "git_commit": "bdb10e0dfb463785954c164e4dca0fa1f216face",
   "sizes": [
     {
       "label": "narrow",

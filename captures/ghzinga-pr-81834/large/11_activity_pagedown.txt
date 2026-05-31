@@ -4,6 +4,8 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview [Activity] Commits  Checks  Files  Links                                                                                                              
 OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
                                                                                                                                                                 
+Dependency Changes Detected                                                                                                                                     
+                                                                                                                                                                
 This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                             
                                                                                                                                                                 
 Changed files:                                                                                                                                                  
@@ -45,6 +47,4 @@ The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with 
 metadata, contract coverage, unit tests, and a gated live test.                                                                                                 
                                                                                                                                                                 
 PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                                                           
-                                                                                                                                                                
-[+ more]                                                                                                                                                        
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   
