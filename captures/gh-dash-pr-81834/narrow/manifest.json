@@ -1,0 +1,64 @@
+{
+  "label": "narrow",
+  "requested_columns": 80,
+  "requested_rows": 24,
+  "actual_tmux_size": "80x24",
+  "session": "ghzoom-ghdash-narrow",
+  "command": "gh dash --config /home/bob/repos/ghzoom/captures/gh-dash-pr-81834/config.yml",
+  "captures": [
+    {
+      "name": "00_initial",
+      "txt": "00_initial.txt",
+      "ansi": "00_initial.ansi",
+      "png": "00_initial.png"
+    },
+    {
+      "name": "01_after_j_down",
+      "txt": "01_after_j_down.txt",
+      "ansi": "01_after_j_down.ansi",
+      "png": "01_after_j_down.png"
+    },
+    {
+      "name": "02_after_k_up",
+      "txt": "02_after_k_up.txt",
+      "ansi": "02_after_k_up.ansi",
+      "png": "02_after_k_up.png"
+    },
+    {
+      "name": "03_after_ctrl_d_page_down",
+      "txt": "03_after_ctrl_d_page_down.txt",
+      "ansi": "03_after_ctrl_d_page_down.ansi",
+      "png": "03_after_ctrl_d_page_down.png"
+    },
+    {
+      "name": "04_after_ctrl_u_page_up",
+      "txt": "04_after_ctrl_u_page_up.txt",
+      "ansi": "04_after_ctrl_u_page_up.ansi",
+      "png": "04_after_ctrl_u_page_up.png"
+    },
+    {
+      "name": "05_after_page_down",
+      "txt": "05_after_page_down.txt",
+      "ansi": "05_after_page_down.ansi",
+      "png": "05_after_page_down.png"
+    },
+    {
+      "name": "06_after_page_up",
+      "txt": "06_after_page_up.txt",
+      "ansi": "06_after_page_up.ansi",
+      "png": "06_after_page_up.png"
+    },
+    {
+      "name": "07_after_G_end",
+      "txt": "07_after_G_end.txt",
+      "ansi": "07_after_G_end.ansi",
+      "png": "07_after_G_end.png"
+    },
+    {
+      "name": "08_after_g_home",
+      "txt": "08_after_g_home.txt",
+      "ansi": "08_after_g_home.ansi",
+      "png": "08_after_g_home.png"
+    }
+  ]
+}

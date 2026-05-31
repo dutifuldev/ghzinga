@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  • Why it matters: completes the round trip in the same plugin; SenseAudio's
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  `/v1/t2a_v2` is solid TTS and pairs with the ASR added in #66943.
+ ╰────────────────────────────────────────────────────────────────────╯ │  • What changed: registers a `speechProvider` in `extensions/senseaudio/`.
+    Title        Base         󰯢                    󱦻           󱡢    │  Synthesizes via `/v1/t2a_v2`, lists system voices via `/v1/get_voice`, transcodes
+                                                                        │  MP3→opus for `voice-note` targets. Errors split into HTTP / `base_resp.status_code`
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  / missing-audio buckets.
+     feat(sensea                                                        │  • What did NOT change: no core code; ASR untouched; streaming, telephony, voice
+ ────────────────────────────────────────────────────────────────────── │  cloning, text-generated voices out of scope.
+                                                                        │
+                                                                        │  ## Change Type (select all)
+                                                                        │  [ ] Bug fix
+                                                                        │  [✓] Feature
+                                                                        │  [ ] Refactor required for the fix
+                                                                        │  [ ] Docs
+                                                                        │  [ ] Security hardening
+                                                                        │  [ ] Chore/infra
+                                                                        │
+                                                                        │  ## Scope (select all touched areas)
+                                                                        │  [ ] Gateway / orchestration
+                                                                        │  [ ] Skills / tool execution
+                                                                        │  [ ] Auth / tokens
+                                                                        │  [ ] Memory / storage
+                                                                        │  [✓] Integrations
+                                                                        │  [✓] API / contracts
+                                                                        │  [ ] UI / DX
+                                                                        │  [ ] CI/CD / infra
+                                                                        │
+                                                                        │  ## Linked Issue/PR
+                                                                        │  • Closes #
+                                                                        │  • Related # 66943
+                                                                        │  [ ] This PR fixes a bug or regression
+                                                                        │
+                                                                        │  ## Real Behavior Proof
+                                                                        │  • Behavior addressed: SenseAudio bundled plugin now registers a `speechProvider`
+                                                                        │  alongside the existing ASR provider. With `SENSEAUDIO_API_KEY` set, `isConfigured`
+                                                                        │  returns true, `listVoices` surfaces the upstream `system_voice` set via `POST
+                                                                        │  /v1/get_voice`, and `synthesize` returns a real MP3 (or transcoded opus on `voice-
+                                                                        │  note` targets).
+                                                                        │  • Real environment tested: Yes (Linux 5.14.0, Node 22.22.3, production
+                                                                        │  `https://api.senseaudio.cn` with a valid `SENSEAUDIO_API_KEY`, commit
+                                                                        │  `cf9d686a66`).
+                                                                        │  • Exact steps or command run after this patch:
+                                                                        │  export SENSEAUDIO_API_KEY=...   # redacted
+                                                                        │  pnpm openclaw infer tts convert \
+                                                                        │    --text "Hello, OpenClaw, this is senseaudio TTS provider" \
+                                                                        │8%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~10s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

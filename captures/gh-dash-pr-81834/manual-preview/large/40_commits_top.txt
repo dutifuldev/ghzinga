@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │ openclaw/openclaw · #81834
+ │ is:pr repo:openclaw/openclaw 81834                                │ │
+ ╰────────────────────────────────────────────────────────────────────╯ │ feat(senseaudio): add SenseAudio TTS provider
+    Title        Base         󰯢                    󱦻           󱡢    │
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  Open main  feat/senseaudio-tts
+     feat(sensea                                                        │
+ ────────────────────────────────────────────────────────────────────── │ by @KLilyZ ⋅ 1mo ago ⋅ 󰎔 none
+                                                                        │
+                                                                        │  Overview   Activity   Commits   Checks   Files Changed
+                                                                        │───────────────────────────────────────────────────────────────────────────────────────
+                                                                        │
+                                                                        │    5 commits
+                                                                        │
+                                                                        │  󰜘 feat(senseaudio): add SenseAudio TTS provider ──────────────────────────── fb948c9
+                                                                        │  │ @KLilyZ committed 1d ago
+                                                                        │  │
+                                                                        │  󰜘 fix(senseaudio): address TTS review feedback ───────────────────────────── 617f3bf
+                                                                        │  │ @KLilyZ committed 1d ago
+                                                                        │  │
+                                                                        │  󰜘 docs(senseaudio): document the new TTS provider ────────────────────────── 162dfd8
+                                                                        │  │ @KLilyZ committed 1d ago
+                                                                        │  │
+                                                                        │  󰜘 fix(senseaudio): unique TTS docs subheadings ───────────────────────────── 2326783
+                                                                        │  │ @KLilyZ committed 1d ago
+                                                                        │  │
+                                                                        │  󰜘 docs(senseaudio): use ASCII commas in the English example text ─────────── fb4165f
+                                                                        │  │ @KLilyZ committed 1d ago ⋅ 󰅙 86/129
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │
+                                                                        │100%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~21s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

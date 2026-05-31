@@ -1,0 +1,24 @@
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
+--------------------------------------------------------------------------------
+ Overview  Activity  Commits [Checks] Files  Links                              
+PR OPEN | comments 33 | reactions +1:3 eyes:1 | checks PASS (86 pass, 0 pendi...
+--------------------------------------------------------------------------------
+[PASS] CodeQL/Security High (core-auth-secrets) [more]                          
+[PASS] CodeQL Critical Quality/Select Critical Quality shards [more]            
+[PASS] Dependency Guard/dependency-guard-detect [more]                          
+[PASS] Labeler/label [more]             
+[PASS] OpenGrep — PR Diff/Scan changed paths (precise) [more]                   
+[PASS] Real behavior proof [more]                                               
+[PASS] Real behavior proof [more]                                               
+[PASS] Real behavior proof [more]                                               
+[PASS] Workflow Sanity/no-tabs [more]   
+[PASS] CodeQL/Security High (channel-runtime-boundary) [more]                   
+[PASS] CodeQL/Security High (network-ssrf-boundary) [more]                      
+[PASS] CodeQL/Security High (mcp-process-tool-boundary) [more]                  
+[PASS] CodeQL/Security High (plugin-trust-boundary) [more]                      
+[PASS] CodeQL/Security High (actions) [more]                                    
+[PASS] CI/security-fast [more]                                                  
+[PASS] Workflow Sanity/actionlint [more]
+[PASS] CI/pnpm-store-warmup [more]      
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/s...

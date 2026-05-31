@@ -1,0 +1,36 @@
+[1mopenclaw/openclaw#81834[0m [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
+feat(senseaudio): add SenseAudio TTS provider               
+------------------------------------------------------------------------------------------------------------------------
+ Overview [Activity] Commits  Checks  Files  Links          
+Status                                                      
+------------------------------ This PR changes dependency-related files. Maintainers should confirm these changes are   
+Type: PR                       intentional.                                                                             
+State: OPEN                                                                                                             
+Author: @KLilyZ                Changed files:               
+Assignees: none                [more]                                                                                   
+Reactions: +1:3 eyes:1                                      
+Activity: 33                   Timeline by @openclaw-barnacle 2026-05-14T14:06:07Z                                      
+Closed: no                     added label extensions: senseaudio                                                       
+Draft: no                                                   
+Cross repository: yes          Timeline by @openclaw-barnacle 2026-05-14T14:06:10Z                                      
+Maintainer can modify: yes     added label triage: needs-real-behavior-proof                                            
+Branches: main <- feat/sens...                              
+Review: None requested         Timeline by @openclaw-barnacle 2026-05-14T14:06:11Z                                      
+Reviewers: none                added label size: L          
+Merge: Clean                                                
+Checks: PASS (86 pass, 0 pe... Comment by @clawsweeper 2026-05-14T14:09:24Z                                             
+Files: 14                      meta: association CONTRIBUTOR, edited                                                    
+Lines: +1057 -22               Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28    
+Base ref OID: a1c6882777ba6... UTC._                        
+Head ref OID: fb4165fe62f1d...                                                                                          
+Head repository: openclaw      Summary                                                                                  
+                               The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP 
+                               helpers, voice listing, voice-note opus transcoding, docs, manifest metadata, contract   
+                               coverage, unit tests, and a gated live test.                                             
+
+                               [more]                                                                                   
+                                                                                                                        
+                               Timeline by @KLilyZ 2026-05-14T14:30:43Z                                                 
+                               referenced commit 512296420fe0                                                           
+
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e...

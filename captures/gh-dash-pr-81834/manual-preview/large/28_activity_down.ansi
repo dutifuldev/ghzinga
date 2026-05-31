@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m  • [P2] Limit the decoded TTS audio response — [38;5;189m`extensions/senseaudio/tts.ts:99-105`[39m
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  Review details
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  Best possible solution:
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Land the SenseAudio TTS provider after fixing the setup command and adding bounded
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  response decoding with regression coverage, while keeping auto-selection
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m  conservative unless maintainers intentionally choose otherwise.
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Do we have a high-confidence way to reproduce the issue?
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Not applicable as a bug report; this is a new provider feature. The review blockers
+                                                                        [38;5;244m│[39m  are source-reproducible from the CLI required option and the new unbounded TTS
+                                                                        [38;5;244m│[39m  JSON/audio decode path.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Is this the best way to solve the issue?
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  No, not as-is. The provider direction fits the existing bundled plugin pattern, but
+                                                                        [38;5;244m│[39m  the branch should first fix the docs command and add bounded response decoding for
+                                                                        [38;5;244m│[39m  generated audio.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Full review comments:
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • [P2] Use the required provider flag — [38;5;189m`docs/providers/senseaudio.md:95`[39m
+                                                                        [38;5;244m│[39m  [38;5;189m`set-provider`[39m is declared with [38;5;189m`.requiredOption("--provider <id>")`[39m, so this
+                                                                        [38;5;244m│[39m  example exits with a missing required option instead of selecting SenseAudio.
+                                                                        [38;5;244m│[39m  Please change it to [38;5;189m`pnpm openclaw infer tts set-provider --provider senseaudio`[39m.
+                                                                        [38;5;244m│[39m  Confidence: 0.97
+                                                                        [38;5;244m│[39m  • [P2] Limit the decoded TTS audio response — [38;5;189m`extensions/senseaudio/tts.ts:99-105`[39m
+                                                                        [38;5;244m│[39m  This reads the whole JSON response and decodes [38;5;189m`data.audio`[39m without any response or
+                                                                        [38;5;244m│[39m  decoded-byte cap. Existing binary TTS helpers cap generated audio at 16 MiB; add a
+                                                                        [38;5;244m│[39m  similar guard before decoding so a bad upstream/custom endpoint cannot allocate an
+                                                                        [38;5;244m│[39m  arbitrarily large string/buffer.
+                                                                        [38;5;244m│[39m  Confidence: 0.86
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Overall correctness: patch is incorrect Overall confidence: 0.88
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  AGENTS.md: found and applied where relevant.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  Codex review notes: model gpt-5.5, reasoning high; reviewed against [1m[38;5;61m]8;id=274301866;https://github.com/openclaw/openclaw/commit/a1c6882777ba6921d634be88d03c6cb7dda7c0fc\a1c6882777ba[0m]8;;\ [38;5;61m[39m.
+                                                                        [38;5;244m│[39m  Label changes
+                                                                        [38;5;244m│[39m  Label changes:
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • add [38;5;189m`proof: sufficient`[39m: Contributor real behavior proof is sufficient. The PR
+                                                                        [38;5;244m│[39m  body includes live terminal output plus an inspected screenshot and MP3 artifact
+                                                                        [38;5;244m│[39m  showing a real local SenseAudio TTS conversion after the runtime change.
+                                                                        [38;5;244m│[1m[38;5;245m45%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~20s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

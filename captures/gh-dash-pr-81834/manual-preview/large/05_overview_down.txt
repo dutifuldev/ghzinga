@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  ## Root Cause (if applicable)
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  • Root cause: N/A (feature, not a bug fix).
+ ╰────────────────────────────────────────────────────────────────────╯ │  • Missing detection / guardrail: N/A
+    Title        Base         󰯢                    󱦻           󱡢    │  • Contributing context (if known): N/A
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  ## Regression Test Plan (if applicable)
+     feat(sensea                                                        │  N/A — new feature, no regression surface.
+ ────────────────────────────────────────────────────────────────────── │
+                                                                        │  • Coverage level that should have caught this:
+                                                                        │    [ ] Unit test
+                                                                        │    [ ] Seam / integration test
+                                                                        │    [ ] End-to-end test
+                                                                        │    [✓] Existing coverage already sufficient
+                                                                        │  • Target test or file: `extensions/senseaudio/tts.test.ts`,
+                                                                        │  `extensions/senseaudio/speech-provider.test.ts`, `extensions/senseaudio/senseaudio.
+                                                                        │  live.test.ts`, and `src/plugins/contracts/plugin-registration.senseaudio.contract.
+                                                                        │  test.ts` (driven by the new entry in `src/plugin-sdk/test-helpers/plugin-
+                                                                        │  registration-contract-cases.ts`).
+                                                                        │  • Scenario the test should lock in: registration contract guards the
+                                                                        │  `speechProvider` id and `listVoices` requirement; network-layer tests lock in the
+                                                                        │  `/v1/t2a_v2` body shape, the three error buckets, the hex decode, and the
+                                                                        │  `/v1/get_voice` "only system voices" mapping; adapter-layer tests lock in config /
+                                                                        │  env-var fallback / `isConfigured` / minimal `parseDirectiveToken` / both
+                                                                        │  `synthesize` paths; live test guards the production round trip.
+                                                                        │  • Why this is the smallest reliable guardrail: those are the only surfaces
+                                                                        │  refactors can plausibly break — upstream contract drift, talk-voice wiring,
+                                                                        │  registered-capability loss.
+                                                                        │  • Existing test that already covers this (if any): N/A — tests added by this PR.
+                                                                        │  • If no new test is added, why not: tests are included in this PR.
+                                                                        │
+                                                                        │  ## User-visible / Behavior Changes
+                                                                        │  • `senseaudio` appears in `openclaw infer tts providers`, "configured" when
+                                                                        │  `SENSEAUDIO_API_KEY` is in env or `messages.tts.providers.senseaudio.apiKey`.
+                                                                        │  • `openclaw infer tts voices --provider senseaudio` lists the upstream system
+                                                                        │  voices.
+                                                                        │  • `openclaw infer tts convert --model senseaudio/senseaudio-tts-1.5-260319 ...`
+                                                                        │  returns MP3 (or opus for voice-note channel targets).
+                                                                        │  • `autoSelectOrder: 45` — strictly behind ElevenLabs (20), Azure (30), MiniMax
+                                                                        │  (40).
+                                                                        │  Existing user defaults are not displaced.
+                                                                        │  • Defaults: voice `female_0033_b`, model `senseaudio-tts-1.5-260319`, base URL
+                                                                        │  `https://api.senseaudio.cn`, MP3 32 kHz / 128 kbps / stereo.
+                                                                        │  • No new env vars / config keys / CLI flags. `SENSEAUDIO_API_KEY` was already
+                                                                        │  declared by the ASR side.
+                                                                        │
+                                                                        │44%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~12s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

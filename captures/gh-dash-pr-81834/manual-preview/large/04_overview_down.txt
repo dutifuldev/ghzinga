@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │    "outputs": [
+ │ is:pr repo:openclaw/openclaw 81834                                │ │      {
+ ╰────────────────────────────────────────────────────────────────────╯ │        "path": "/mnt/cache/haoxin/vc/openclaw/hello.mp3",
+    Title        Base         󰯢                    󱦻           󱡢    │        "format": "mp3",
+                                                                        │        "voiceCompatible": false
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │      }
+     feat(sensea                                                        │    ]
+ ────────────────────────────────────────────────────────────────────── │  }
+                                                                        │   The produced `./hello.mp3` is a valid MP3 file (ID3 header) that plays back as
+                                                                        │  the input text. Attached audio artifact: hello.mp3 .
+                                                                        │  • Observed result after fix: SenseAudio TTS provider registered and reachable end-
+                                                                        │  to-end via the gateway-bypassing `--local` path; voice-list endpoint reachable;
+                                                                        │  produced MP3 plays back as the input text.
+                                                                        │  • What was not tested:
+                                                                        │    • Voice-note opus transcoding end-to-end through a real messaging channel
+                                                                        │    (Telegram / iMessage / WhatsApp).
+                                                                        │    • Telephony, streaming, voice cloning, and text-generated voices (intentionally
+                                                                        │    out of scope).
+                                                                        │    • Full `pnpm test` / `pnpm test:contracts:channels` suites — only targeted `pnpm
+                                                                        │    test:extension senseaudio` and `pnpm test:contracts:plugins` lanes were executed.
+                                                                        │
+                                                                        │
+                                                                        │  ## Root Cause (if applicable)
+                                                                        │  • Root cause: N/A (feature, not a bug fix).
+                                                                        │  • Missing detection / guardrail: N/A
+                                                                        │  • Contributing context (if known): N/A
+                                                                        │
+                                                                        │  ## Regression Test Plan (if applicable)
+                                                                        │  N/A — new feature, no regression surface.
+                                                                        │
+                                                                        │  • Coverage level that should have caught this:
+                                                                        │    [ ] Unit test
+                                                                        │    [ ] Seam / integration test
+                                                                        │    [ ] End-to-end test
+                                                                        │    [✓] Existing coverage already sufficient
+                                                                        │  • Target test or file: `extensions/senseaudio/tts.test.ts`,
+                                                                        │  `extensions/senseaudio/speech-provider.test.ts`, `extensions/senseaudio/senseaudio.
+                                                                        │  live.test.ts`, and `src/plugins/contracts/plugin-registration.senseaudio.contract.
+                                                                        │  test.ts` (driven by the new entry in `src/plugin-sdk/test-helpers/plugin-
+                                                                        │  registration-contract-cases.ts`).
+                                                                        │  • Scenario the test should lock in: registration contract guards the
+                                                                        │  `speechProvider` id and `listVoices` requirement; network-layer tests lock in the
+                                                                        │  `/v1/t2a_v2` body shape, the three error buckets, the hex decode, and the
+                                                                        │  `/v1/get_voice` "only system voices" mapping; adapter-layer tests lock in config /
+                                                                        │  env-var fallback / `isConfigured` / minimal `parseDirectiveToken` / both
+                                                                        │35%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~12s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

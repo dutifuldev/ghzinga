@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     KLilyZ/CodeQL Critical Quality/Critical Quality (config-boundary)
+     clawsweeper[bot]/Mantis Telegram Desktop Proof/Run agentic native Telegram proof
+     clawsweeper[bot]/Mantis Telegram Desktop Proof/Run agentic native Telegram proof
+     KLilyZ/CI/checks-fast-bundled-protocol
+     KLilyZ/CI/checks-fast-bun-launcher
+     KLilyZ/CodeQL Critical Quality/Critical Quality (gateway-runtime-boundary)
+     clawsweeper[bot]/Mantis Telegram Desktop Proof/Clear Mantis command reaction
+     clawsweeper[bot]/Mantis Telegram Desktop Proof/Clear Mantis command reaction
+     KLilyZ/CI/checks-fast-contracts-plugins-a
+     KLilyZ/CI/checks-fast-contracts-plugins-b
+     KLilyZ/CodeQL Critical Quality/Critical Quality (channel-runtime-boundary)
+     KLilyZ/CI/checks-fast-contracts-channels-a
+     KLilyZ/CI/checks-fast-contracts-channels-b
+     KLilyZ/CI/checks-node-compat-node22
+     KLilyZ/CodeQL Critical Quality/Critical Quality (network-runtime-boundary)
+     KLilyZ/CodeQL Critical Quality/Critical Quality (agent-runtime-boundary)
+     KLilyZ/CI/checks-node-core-fast
+42%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~1m ago • PR 1/1 (fetched 1)                    󱃱 donate  ? help

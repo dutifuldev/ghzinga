@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m  the oversized case in [38;5;189m`extensions/senseaudio/tts.test.ts`[39m.
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  [1mRisk before merge[0m
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • [P1] Adding a bundled speech provider reusing [38;5;189m`SENSEAUDIO_API_KEY`[39m can make
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m  SenseAudio a configured TTS candidate for users who previously only set that key
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m  for ASR and rely on automatic provider selection.
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m  • [P1] The new TTS endpoint decodes provider-returned audio from JSON without a
+                                                                        [38;5;244m│[39m  response or decoded-byte cap, so a bad upstream or custom endpoint can allocate
+                                                                        [38;5;244m│[39m  oversized data before OpenClaw rejects it.
+                                                                        [38;5;244m│[39m  • [P1] The docs currently contain an invalid setup command, which can block users
+                                                                        [38;5;244m│[39m  from setting the provider even if the runtime implementation works.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mMaintainer options:[0m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  1. [1mFix docs and response cap before merge (recommended)[0m
+                                                                        [38;5;244m│[39m  Repair the invalid set-provider example and add a bounded response/decoded-audio
+                                                                        [38;5;244m│[39m  guard with tests before this bundled provider ships.
+                                                                        [38;5;244m│[39m  2. [1mAccept the provider-selection change[0m
+                                                                        [38;5;244m│[39m  Maintainers can explicitly accept that [38;5;189m`SENSEAUDIO_API_KEY`[39m now configures a TTS
+                                                                        [38;5;244m│[39m  provider candidate behind lower-order providers.
+                                                                        [38;5;244m│[39m  3. [1mPause for provider ownership[0m
+                                                                        [38;5;244m│[39m  If maintainers do not want SenseAudio TTS bundled in core, pause or close this
+                                                                        [38;5;244m│[39m  branch and move the capability to a separate plugin path.
+                                                                        [38;5;244m│[39m  Copy recommended automerge instruction
+                                                                        [38;5;244m│[39m  [38;5;251m@clawsweeper automerge[39m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;251mSpecial instructions:[39m
+                                                                        [38;5;244m│[39m  [38;5;251mFix docs/providers/senseaudio.md so the set-provider example uses `--provider[39m
+                                                                        [38;5;244m│[39m  [38;5;251msenseaudio`. Add a bounded SenseAudio TTS response and decoded-audio size check[39m
+                                                                        [38;5;244m│[39m  [38;5;251mbefore `Buffer.from(hexAudio, "hex")`, with unit coverage for oversized data while[39m
+                                                                        [38;5;244m│[39m  [38;5;251mkeeping the existing SenseAudio TTS and speech-provider tests passing.[39m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mNext step before merge[0m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • A narrow repair can fix the docs command and add response-size protection; final
+                                                                        [38;5;244m│[39m  merge still needs normal maintainer review of the bundled provider feature.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mSecurity[0m Needs attention: The diff has one concrete security-boundary concern:
+                                                                        [38;5;244m│[39m  provider-returned audio is decoded without a response or decoded-byte limit.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1mReview findings[0m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  • [P2] Use the required provider flag — [38;5;189m`docs/providers/senseaudio.md:95`[39m
+                                                                        [38;5;244m│[39m  • [P2] Limit the decoded TTS audio response — [38;5;189m`extensions/senseaudio/tts.ts:99-105`[39m
+                                                                        [38;5;244m│[1m[38;5;245m33%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~19s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

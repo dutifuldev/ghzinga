@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  status_code` / missing-audio buckets.
+  • What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out
+  of scope.
+
+  ## Change Type (select all)
+  [ ] Bug fix
+  [✓] Feature
+  [ ] Refactor required for the fix
+  [ ] Docs
+  [ ] Security hardening
+  [ ] Chore/infra
+
+  ## Scope (select all touched areas)
+  [ ] Gateway / orchestration
+  [ ] Skills / tool execution
+  [ ] Auth / tokens
+  [ ] Memory / storage
+9%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~9s ago • PR 1/1 (fetched 1)                    󱃱 donate  ? help

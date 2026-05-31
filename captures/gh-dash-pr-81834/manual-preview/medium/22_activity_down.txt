@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+  ### Dependency Changes Detected
+  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.
+
+  Changed files:
+
+  • `extensions/senseaudio/package.json`
+
+  Maintainer follow-up:
+
+  • Review whether the dependency changes are intentional.
+  • Inspect resolved package deltas when lockfile or workspace dependency policy changes are present.
+  • Run `pnpm deps:changes:report -- --base-ref origin/main --markdown /tmp/dependency-changes.md --json
+  /tmp/dependency-changes.json` locally for detailed release-style evidence.
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+4%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~19s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

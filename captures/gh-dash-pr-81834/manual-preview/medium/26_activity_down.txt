@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  │
+  │ Next step before merge A narrow automated repair can fix the invalid docs command, but maintainers still need to
+  │ approve bundled provider ownership before merge.
+  │
+  │ Security Cleared: No concrete security or supply-chain regression found; the package change is descriptive and the
+  │ new network calls use the existing API key path, guarded fetch, and hostname SSRF policy.
+  │
+  │ Review findings
+  │
+  │ • [P2] Use the required provider flag in the TTS docs — `docs/providers/senseaudio.md:95`
+  │
+  │ Review details Re-review progress:
+  │
+  │ • State: Review in progress
+  │ • Detail: Targeted re-review run started; Codex is reviewing the item.
+  │ • Run: 
+  │ • Updated: 2026-05-15T07:02:21.380Z
+13%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~21s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

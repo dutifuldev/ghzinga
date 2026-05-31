@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  • [P2] Limit the decoded TTS audio response — `extensions/senseaudio/tts.ts:99-105`
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  Review details
+ ╰────────────────────────────────────────────────────────────────────╯ │  Best possible solution:
+    Title        Base         󰯢                    󱦻           󱡢    │
+                                                                        │  Land the SenseAudio TTS provider after fixing the setup command and adding bounded
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  response decoding with regression coverage, while keeping auto-selection
+     feat(sensea                                                        │  conservative unless maintainers intentionally choose otherwise.
+ ────────────────────────────────────────────────────────────────────── │
+                                                                        │  Do we have a high-confidence way to reproduce the issue?
+                                                                        │
+                                                                        │  Not applicable as a bug report; this is a new provider feature. The review blockers
+                                                                        │  are source-reproducible from the CLI required option and the new unbounded TTS
+                                                                        │  JSON/audio decode path.
+                                                                        │
+                                                                        │  Is this the best way to solve the issue?
+                                                                        │
+                                                                        │  No, not as-is. The provider direction fits the existing bundled plugin pattern, but
+                                                                        │  the branch should first fix the docs command and add bounded response decoding for
+                                                                        │  generated audio.
+                                                                        │
+                                                                        │  Full review comments:
+                                                                        │
+                                                                        │  • [P2] Use the required provider flag — `docs/providers/senseaudio.md:95`
+                                                                        │  `set-provider` is declared with `.requiredOption("--provider <id>")`, so this
+                                                                        │  example exits with a missing required option instead of selecting SenseAudio.
+                                                                        │  Please change it to `pnpm openclaw infer tts set-provider --provider senseaudio`.
+                                                                        │  Confidence: 0.97
+                                                                        │  • [P2] Limit the decoded TTS audio response — `extensions/senseaudio/tts.ts:99-105`
+                                                                        │  This reads the whole JSON response and decodes `data.audio` without any response or
+                                                                        │  decoded-byte cap. Existing binary TTS helpers cap generated audio at 16 MiB; add a
+                                                                        │  similar guard before decoding so a bad upstream/custom endpoint cannot allocate an
+                                                                        │  arbitrarily large string/buffer.
+                                                                        │  Confidence: 0.86
+                                                                        │
+                                                                        │  Overall correctness: patch is incorrect Overall confidence: 0.88
+                                                                        │
+                                                                        │  AGENTS.md: found and applied where relevant.
+                                                                        │
+                                                                        │  Codex review notes: model gpt-5.5, reasoning high; reviewed against a1c6882777ba .
+                                                                        │  Label changes
+                                                                        │  Label changes:
+                                                                        │
+                                                                        │  • add `proof: sufficient`: Contributor real behavior proof is sufficient. The PR
+                                                                        │  body includes live terminal output plus an inspected screenshot and MP3 artifact
+                                                                        │  showing a real local SenseAudio TTS conversion after the runtime change.
+                                                                        │45%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~20s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://gh-dash.dev/schema.json
+prSections:
+  - title: "openclaw/openclaw#81834"
+    filters: "repo:openclaw/openclaw 81834"
+    limit: 1
+
+issuesSections: []
+notificationsSections: []
+
+defaults:
+  view: prs
+  prsLimit: 1
+  issuesLimit: 1
+  notificationsLimit: 1
+  preview:
+    open: false
+    width: 0.55
+    height: 0.60
+    position: auto
+  refetchIntervalMinutes: 120
+  layout:
+    prs:
+      repoName:
+        hidden: false
+        width: 18
+      state:
+        hidden: false
+        width: 8
+      author:
+        hidden: false
+        width: 12
+      updatedAt:
+        hidden: false
+        width: 12
+      base:
+        hidden: false
+        width: 10
+
+confirmQuit: false
+smartFilteringAtLaunch: false

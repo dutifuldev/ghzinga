@@ -1,0 +1,38 @@
+{
+  "id": {
+    "owner": "openclaw",
+    "repo": "openclaw",
+    "number": 66943,
+    "kind_hint": "issue"
+  },
+  "title": "feat: add SenseAudio audio transcription provider",
+  "url": "https://github.com/openclaw/openclaw/issues/66943",
+  "state": "CLOSED",
+  "author": "Fl0rencess720",
+  "created_at": "2mo ago",
+  "updated_at": "1mo ago",
+  "labels": ["size: S"],
+  "reactions": {
+    "thumbs_up": 2,
+    "thumbs_down": 0,
+    "laugh": 0,
+    "hooray": 0,
+    "confused": 0,
+    "heart": 0,
+    "rocket": 0,
+    "eyes": 0
+  },
+  "body": "## Summary\n- Problem: OpenClaw has no built-in audio transcription provider.\n- Why it matters: SenseAudio provides an OpenAI-compatible ASR API.\n- What changed: Added a bundled senseaudio plugin that registers a mediaUnderstandingProvider.\n\nRelated PR: #81834",
+  "activity": [
+    {
+      "id": "issue-comment-1",
+      "kind": "comment",
+      "author": "osolmaz",
+      "body": "Implementation was completed in #81834.",
+      "updated_at": "1mo ago",
+      "path": null,
+      "line": null
+    }
+  ],
+  "pull_request": null
+}

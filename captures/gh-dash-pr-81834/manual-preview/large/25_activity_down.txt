@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  The review blockers are source-reproducible from the CLI required option and the
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  new unbounded TTS JSON/audio decode path.
+ ╰────────────────────────────────────────────────────────────────────╯ │
+    Title        Base         󰯢                    󱦻           󱡢    │  Review metrics: 2 noteworthy metrics.
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  • Provider/config surface: 1 speech provider added, 4 documented config keys, 0 new
+     feat(sensea                                                        │  env vars. This is a new bundled runtime provider surface, and config/default
+ ────────────────────────────────────────────────────────────────────── │  behavior needs upgrade-aware review.
+                                                                        │  • New outbound endpoints: 2 POST endpoints added. The PR adds provider network
+                                                                        │  calls for synthesis and voice listing, so SSRF, timeout, and response-size handling
+                                                                        │  matter before merge.
+                                                                        │
+                                                                        │  Merge readiness Overall: 🦐 gold shrimp Proof: 🦞 diamond lobster Patch quality: 🦐
+                                                                        │  gold shrimp Result: needs maintainer review before merge.
+                                                                        │
+                                                                        │  Overall follows the weaker of proof and patch quality, so missing proof can cap an
+                                                                        │  otherwise strong patch.
+                                                                        │
+                                                                        │  Rank-up moves:
+                                                                        │
+                                                                        │  • [P2] Fix the `set-provider` example to include `--provider senseaudio`.
+                                                                        │  • [P2] Add a bounded response/decoded-byte guard for SenseAudio TTS audio and cover
+                                                                        │  the oversized case in `extensions/senseaudio/tts.test.ts`.
+                                                                        │
+                                                                        │  Risk before merge
+                                                                        │
+                                                                        │  • [P1] Adding a bundled speech provider reusing `SENSEAUDIO_API_KEY` can make
+                                                                        │  SenseAudio a configured TTS candidate for users who previously only set that key
+                                                                        │  for ASR and rely on automatic provider selection.
+                                                                        │  • [P1] The new TTS endpoint decodes provider-returned audio from JSON without a
+                                                                        │  response or decoded-byte cap, so a bad upstream or custom endpoint can allocate
+                                                                        │  oversized data before OpenClaw rejects it.
+                                                                        │  • [P1] The docs currently contain an invalid setup command, which can block users
+                                                                        │  from setting the provider even if the runtime implementation works.
+                                                                        │
+                                                                        │  Maintainer options:
+                                                                        │
+                                                                        │  1. Fix docs and response cap before merge (recommended)
+                                                                        │  Repair the invalid set-provider example and add a bounded response/decoded-audio
+                                                                        │  guard with tests before this bundled provider ships.
+                                                                        │  2. Accept the provider-selection change
+                                                                        │  Maintainers can explicitly accept that `SENSEAUDIO_API_KEY` now configures a TTS
+                                                                        │  provider candidate behind lower-order providers.
+                                                                        │  3. Pause for provider ownership
+                                                                        │  If maintainers do not want SenseAudio TTS bundled in core, pause or close this
+                                                                        │28%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~19s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

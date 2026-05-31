@@ -1,0 +1,36 @@
+                                                                                                    ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                 ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ is:pr repo:openclaw/openclaw 81834                                                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    Title                                                        Base         󰯢                    󱦻           󱡢
+
+    openclaw/openclaw #81834 by @KLilyZ 󰎔 · feat/senseaudio-tts  main      7         +1.1k -22      1d          1mo
+     feat(senseaudio): add SenseAudio TTS provider
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  Codex review: needs changes before merge. Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC.
+
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice
+  listing, voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.
+
+  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.
+
+  Reproducibility: not applicable. as a bug report; this is a new provider feature. The review blockers are source-
+  reproducible from the CLI required option and the new unbounded TTS JSON/audio decode path.
+
+  Review metrics: 2 noteworthy metrics.
+
+  • Provider/config surface: 1 speech provider added, 4 documented config keys, 0 new env vars. This is a new bundled
+  runtime provider surface, and config/default behavior needs upgrade-aware review.
+  • New outbound endpoints: 2 POST endpoints added. The PR adds provider network calls for synthesis and voice listing,
+  so SSRF, timeout, and response-size handling matter before merge.
+24%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~24s ago • PR 1/1 (fetched 1)                   󱃱 donate  ? help

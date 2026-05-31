@@ -1,0 +1,50 @@
+[1mopenclaw/openclaw#81834[0m [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Overview  Activity  Commits  Checks [Files] Links                              
+Status                         Files changed (14)                               
+------------------------------ ---------------------------------------------------------------------------------------------------------------------------------
+Type: PR                       +1    -1    MODIFIED docs/plugins/plugin-inventory.md [more]                                                                     
+State: OPEN                    +1    -1    MODIFIED docs/plugins/reference.md [more]                                                                            
+Author: @KLilyZ                +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [more]                                                                 
+Assignees: none                +74   -14   MODIFIED docs/providers/senseaudio.md [more]                                                                         
+Reactions: +1:3 eyes:1         +3    -1    MODIFIED extensions/senseaudio/index.ts [more]                                                                       
+Activity: 33                   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [more]                                                           
+Closed: no                     +1    -1    MODIFIED extensions/senseaudio/package.json [more]                                                                   
+Draft: no                      +49   -0    ADDED    extensions/senseaudio/senseaudio.live.test.ts [more]                                                        
+Cross repository: yes          +261  -0    ADDED    extensions/senseaudio/speech-provider.test.ts [more]                                                        
+Maintainer can modify: yes     +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [more]                                                             
+Branches: main <- feat/sens... +1    -0    MODIFIED extensions/senseaudio/test-api.ts [more]                                                                    
+Review: None requested         +296  -0    ADDED    extensions/senseaudio/tts.test.ts [more]                                                                    
+Reviewers: none                +160  -0    ADDED    extensions/senseaudio/tts.ts [more]                                                                         
+Merge: Clean                   +2    -0    MODIFIED src/plugin-sdk/test-helpers/plugin-registration-contract-cases.ts [more]                                    
+Checks: PASS (86 pass, 0 pe...          
+Files: 14                               
+Lines: +1057 -22                        
+Base ref OID: a1c6882777ba6...          
+Head ref OID: fb4165fe62f1d...          
+Head repository: openclaw               
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[refresh] [open] [quit] [help] | r refresh | o open | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab Files | scroll 0          

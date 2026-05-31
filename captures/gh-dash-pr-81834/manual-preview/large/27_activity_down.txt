@@ -1,0 +1,50 @@
+                                                                                                                                            ▜▔▚▐▔▌▚▔▐ ▌
+    |  openclaw/openclaw#81834 (1)                                                                                                         ▟▁▞▐▔▌▁▚▐▔▌ v4.24.1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ╭────────────────────────────────────────────────────────────────────╮ │  If maintainers do not want SenseAudio TTS bundled in core, pause or close this
+ │ is:pr repo:openclaw/openclaw 81834                                │ │  branch and move the capability to a separate plugin path.
+ ╰────────────────────────────────────────────────────────────────────╯ │  Copy recommended automerge instruction
+    Title        Base         󰯢                    󱦻           󱡢    │  @clawsweeper automerge
+                                                                        │
+    openclaw/op  main      7         +1.1k -22      1d          1mo  │  Special instructions:
+     feat(sensea                                                        │  Fix docs/providers/senseaudio.md so the set-provider example uses `--provider
+ ────────────────────────────────────────────────────────────────────── │  senseaudio`. Add a bounded SenseAudio TTS response and decoded-audio size check
+                                                                        │  before `Buffer.from(hexAudio, "hex")`, with unit coverage for oversized data while
+                                                                        │  keeping the existing SenseAudio TTS and speech-provider tests passing.
+                                                                        │
+                                                                        │  Next step before merge
+                                                                        │
+                                                                        │  • A narrow repair can fix the docs command and add response-size protection; final
+                                                                        │  merge still needs normal maintainer review of the bundled provider feature.
+                                                                        │
+                                                                        │  Security Needs attention: The diff has one concrete security-boundary concern:
+                                                                        │  provider-returned audio is decoded without a response or decoded-byte limit.
+                                                                        │
+                                                                        │  Review findings
+                                                                        │
+                                                                        │  • [P2] Use the required provider flag — `docs/providers/senseaudio.md:95`
+                                                                        │  • [P2] Limit the decoded TTS audio response — `extensions/senseaudio/tts.ts:99-105`
+                                                                        │  Review details
+                                                                        │  Best possible solution:
+                                                                        │
+                                                                        │  Land the SenseAudio TTS provider after fixing the setup command and adding bounded
+                                                                        │  response decoding with regression coverage, while keeping auto-selection
+                                                                        │  conservative unless maintainers intentionally choose otherwise.
+                                                                        │
+                                                                        │  Do we have a high-confidence way to reproduce the issue?
+                                                                        │
+                                                                        │  Not applicable as a bug report; this is a new provider feature. The review blockers
+                                                                        │  are source-reproducible from the CLI required option and the new unbounded TTS
+                                                                        │  JSON/audio decode path.
+                                                                        │
+                                                                        │  Is this the best way to solve the issue?
+                                                                        │
+                                                                        │  No, not as-is. The provider direction fits the existing bundled plugin pattern, but
+                                                                        │  the branch should first fix the docs command and add bounded response decoding for
+                                                                        │  generated audio.
+                                                                        │
+                                                                        │  Full review comments:
+                                                                        │
+                                                                        │  • [P2] Use the required provider flag — `docs/providers/senseaudio.md:95`
+                                                                        │39%
+  │  PRs │  Issues  bob • @dutifulbob │  Updated ~20s ago • PR 1/1 (fetched 1)                                                           󱃱 donate  ? help

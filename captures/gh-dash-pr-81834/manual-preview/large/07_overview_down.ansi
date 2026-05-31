@@ -1,0 +1,50 @@
+                                                                                                                                            [38;5;51m▜▔▚▐▔▌▚▔▐ ▌[39m
+  [2m[0m  [38;5;250m|[39m[48;5;236m  [1m[38;5;231mopenclaw/openclaw#81834 (1)[0m[48;5;236m  [49m                                                                                                       [38;5;51m▟▁▞▐▔▌▁▚▐▔▌[39m [38;5;251mv4.24.1[39m
+[38;5;244m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[39m [38;5;244m╭────────────────────────────────────────────────────────────────────╮[39m [38;5;244m│[39m
+ [38;5;244m│[38;5;251m is:pr [38;5;231mrepo:openclaw/openclaw 81834[39m                                [38;5;244m│[39m [38;5;244m│[39m  [1m[38;5;252m## Diagram (if applicable)[0m
+ [38;5;244m╰────────────────────────────────────────────────────────────────────╯[39m [38;5;244m│[39m  [38;5;251maudio-file target:[39m
+  [1m[38;5;231m[0m  [1m[38;5;231mTitle[0m        [1m[38;5;231mBase[0m      [1m[38;5;231m[0m   [1m[38;5;231m󰯢[0m   [1m[38;5;231m[0m   [1m[38;5;231m[0m              [1m[38;5;231m󱦻[0m           [1m[38;5;231m󱡢[0m    [38;5;244m│[39m  [38;5;251m  tts.convert -> senseaudio.synthesize[39m
+                                                                        [38;5;244m│[39m                [38;5;251m-> POST /v1/t2a_v2 -> hex audio[39m
+ [48;5;236m [38;5;75m[39m  [38;5;251mopenclaw/op[39m  [38;5;231mmain[39m      [38;5;245m7[39m   [38;5;226m[39m   [38;5;46m[39m   [38;5;46m+1.1k[39m [38;5;196m-22[39m      [38;5;245m1d[39m          [38;5;245m1mo[39m [49m [38;5;244m│[39m                [38;5;251m-> Buffer.from(hex) -> MP3 (voiceCompatible=false)[39m
+ [48;5;236m    [1m[38;5;231mfeat(sensea[0m[48;5;236m                                                       [49m [38;5;244m│[39m
+ [38;5;234m──────────────────────────────────────────────────────────────────────[39m [38;5;244m│[39m  [38;5;251mvoice-note target:[39m
+                                                                        [38;5;244m│[39m  [38;5;251m  tts.convert (channel=voice-note) -> senseaudio.synthesize[39m
+                                                                        [38;5;244m│[39m                [38;5;251m-> POST /v1/t2a_v2 -> MP3[39m
+                                                                        [38;5;244m│[39m                [38;5;251m-> transcodeAudioBufferToOpus (ffmpeg)[39m
+                                                                        [38;5;244m│[39m                [38;5;251m-> opus (voiceCompatible=true) -> messenger voice-note bubble[39m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [38;5;251mvoice picker:[39m
+                                                                        [38;5;244m│[39m  [38;5;251m  talk UI -> senseaudio.listVoices[39m
+                                                                        [38;5;244m│[39m  [38;5;251m          -> POST /v1/get_voice {voice_type: "system"}[39m
+                                                                        [38;5;244m│[39m  [38;5;251m          -> map system_voice[] -> SpeechVoiceOption[][39m
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Security Impact (required)[0m
+                                                                        [38;5;244m│[39m  • New permissions/capabilities? [38;5;189m`No`[39m
+                                                                        [38;5;244m│[39m  • Secrets/tokens handling changed? [38;5;189m`No`[39m (reuses [38;5;189m`SENSEAUDIO_API_KEY`[39m; configured
+                                                                        [38;5;244m│[39m  values go through [38;5;189m`normalizeResolvedSecretInputString`[39m; key never logged).
+                                                                        [38;5;244m│[39m  • New/changed network calls? [38;5;189m`Yes`[39m
+                                                                        [38;5;244m│[39m  • Command/tool execution surface changed? [38;5;189m`No`[39m
+                                                                        [38;5;244m│[39m  • Data access scope changed? [38;5;189m`No`[39m
+                                                                        [38;5;244m│[39m  • If any [38;5;189m`Yes`[39m, explain risk + mitigation: Two new outbound HTTPS calls to [38;5;189m`api.[39m
+                                                                        [38;5;244m│[39m  [38;5;189msenseaudio.cn`[39m ([38;5;189m`/v1/t2a_v2`[39m, [38;5;189m`/v1/get_voice`[39m). Both routed through
+                                                                        [38;5;244m│[39m  [38;5;189m`fetchWithSsrFGuard`[39m + [38;5;189m`ssrfPolicyFromHttpBaseUrlAllowedHostname`[39m. HTTP errors via
+                                                                        [38;5;244m│[39m  [38;5;189m`assertOkOrThrowProviderError`[39m. Business errors surface [38;5;189m`status_msg`[39m, never the
+                                                                        [38;5;244m│[39m  request key. [38;5;189m`voice-note`[39m transcoding reuses the SDK-managed
+                                                                        [38;5;244m│[39m  [38;5;189m`transcodeAudioBufferToOpus`[39m. [38;5;189m`listVoices`[39m enforces a 15s timeout.
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;252m## Repro + Verification[0m
+                                                                        [38;5;244m│[39m  [1m[38;5;251m### Environment[0m
+                                                                        [38;5;244m│[39m  • OS: Linux (5.14.0-284.25.1.el9_2.x86_64)
+                                                                        [38;5;244m│[39m  • Runtime/container: Node 22.22.3 (nvm); pnpm 11.1.0
+                                                                        [38;5;244m│[39m  • Model/provider: SenseAudio [38;5;189m`senseaudio-tts-1.5-260319`[39m
+                                                                        [38;5;244m│[39m  • Integration/channel (if any): N/A for the CLI repro
+                                                                        [38;5;244m│[39m  • Relevant config (redacted): [38;5;189m`SENSEAUDIO_API_KEY=sk-...`[39m in env; no config-file
+                                                                        [38;5;244m│[39m  changes required
+                                                                        [38;5;244m│[39m
+                                                                        [38;5;244m│[39m  [1m[38;5;251m### Steps[0m
+                                                                        [38;5;244m│[39m  1. [38;5;189m`export SENSEAUDIO_API_KEY=sk-...`[39m
+                                                                        [38;5;244m│[39m  2. [38;5;189m`pnpm openclaw infer tts convert --text "Hello, OpenClaw" --model[39m
+                                                                        [38;5;244m│[39m  [38;5;189msenseaudio/senseaudio-tts-1.5-260319 --voice female_0033_b --output ./hello.mp3 --[39m
+                                                                        [38;5;244m│[1m[38;5;245m61%[0m
+[1m[38;5;236m[48;5;234m [0m[38;5;245m[48;5;234m[38;5;244m │ [1m[38;5;46m PRs[0m[38;5;244m[48;5;234m │ [38;5;245m Issues[38;5;234m[48;5;236m [39m bob[38;5;245m • [39m@dutifulbob[38;5;234m │[39m [38;5;245m Updated ~13s ago • PR 1/1 (fetched 1)[39m                                                           [4m[38;5;226m󱃱 donate[0m[48;5;236m [48;5;245m [38;5;236m? help[39m

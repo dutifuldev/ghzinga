@@ -1,0 +1,22 @@
+{
+  "target": "openclaw/openclaw#81834",
+  "title": "feat(senseaudio): add SenseAudio TTS provider",
+  "config": "/home/bob/repos/ghzoom/captures/gh-dash-pr-81834/config.yml",
+  "sizes": [
+    {
+      "label": "narrow",
+      "columns": 80,
+      "rows": 24
+    },
+    {
+      "label": "medium",
+      "columns": 120,
+      "rows": 36
+    },
+    {
+      "label": "large",
+      "columns": 160,
+      "rows": 50
+    }
+  ]
+}
