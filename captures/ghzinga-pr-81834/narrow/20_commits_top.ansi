@@ -12,13 +12,13 @@ feat(senseaudio): add SenseAudio TTS provider
                                                                                 
 [1m[38;2;122;162;247mfb948... feat(senseaudio): add SenseAudio TTS provider [UNKNOWN] [+ more][0m[38;2;192;202;245m[48;2;26;27;38m       
 @KLilyZ 2026-05-30T03:18:51Z                                                    
+                                                                                
 [1m[38;2;122;162;247m617f3... fix(senseaudio): address TTS review feedback [UNKNOWN] [+ more][0m[38;2;192;202;245m[48;2;26;27;38m        
 @KLilyZ 2026-05-30T03:18:51Z                                                    
+                                                                                
 [1m[38;2;122;162;247m162df... docs(senseaudio): document the new TTS provider [UNKNOWN] [+ more][0m[38;2;192;202;245m[48;2;26;27;38m     
 @KLilyZ 2026-05-30T03:18:51Z                                                    
+                                                                                
 [1m[38;2;122;162;247m23267... fix(senseaudio): unique TTS docs subheadings [UNKNOWN] [+ more][0m[38;2;192;202;245m[48;2;26;27;38m        
-@KLilyZ 2026-05-30T03:18:52Z                                                    
-[1m[38;2;122;162;247mfb416... docs(senseaudio): use ASCII commas in the English ex... [UNKNOWN] [+[0m[38;2;192;202;245m[48;2;26;27;38m   
-[1m[38;2;122;162;247mmore][0m[38;2;192;202;245m[48;2;26;27;38m                                                                           
 [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m                                       
 [38;2;169;177;214mr refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |[38;2;192;202;245m      

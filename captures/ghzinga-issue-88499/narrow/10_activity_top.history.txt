@@ -1,24 +1,24 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
-openai-responses provider: 404 on previous_response_id when store=false         
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
 --------------------------------------------------------------------------------
- Overview [Activity] Links                                                      
-OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                  
-                                                                                
-                                                                                
-Activity (4 entries)                                                            
+ Overview [Activity] Commits  Checks  Files  Links                              
+OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
+OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
+warn Warnings: 1                                                                
+Activity (7 entries)                                                            
 --------------------------------------------------------------------------------
                                                                                 
 [expand all]                                                                    
                                                                                 
-Comment by @clawsweeper 2026-05-31T02:28:16Z                                    
-meta: association CONTRIBUTOR, edited                                           
+Comment by @github-actions 2026-05-14T14:05:57Z                                 
+meta: association CONTRIBUTOR                                                   
 [details]                                                                       
-Codex review: keeping this open for maintainer follow-up; there is still a      
-little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._       
+<!-- openclaw:dependency-change-awareness -->                                   
                                                                                 
-Summary                                                                         
-Keep this open: current main still has a plausible Responses replay failure for 
-custom openai-responses providers because generic Responses payloads can be     
-unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes  
+Dependency Changes Detected                                                     
+                                                                                
+This PR changes dependency-related files. Maintainers should confirm these      
+changes are intentional.                                                        
+                                                                                
 [refresh] [open] [settings] [help] [quit]                                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

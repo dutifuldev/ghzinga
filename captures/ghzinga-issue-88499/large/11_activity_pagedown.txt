@@ -1,50 +1,50 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                                                               
-openai-responses provider: 404 on previous_response_id when store=false (default)                                                                               
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                  
+feat(senseaudio): add SenseAudio TTS provider                                                                                                                   
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Links                                                                                                                                      
-OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                                                                  
+ Overview [Activity] Commits  Checks  Files  Links                                                                                                              
+OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
                                                                                                                                                                 
-Activity (4 entries)                                                                                                                                            
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Dependency Changes Detected                                                                                                                                     
                                                                                                                                                                 
-[expand all]                                                                                                                                                    
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                             
                                                                                                                                                                 
-Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                    
-meta: association CONTRIBUTOR, edited                                                                                                                           
-[details]                                                                                                                                                       
-Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._            
-                                                                                                                                                                
-Summary                                                                                                                                                         
-Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers because generic Responses payloads can be     
-unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes have a newer store-aware wrapper, but the reported custom proxy route is not     
-covered by that direct-OpenAI-only path.                                                                                                                        
-                                                                                                                                                                
-Reproducibility: no. high-confidence live repro was run. Source inspection shows the risky shape on current main: generic openai-responses sends unstored       
+Changed files:                                                                                                                                                  
+- extensions/senseaudio/package.json                                                                                                                            
 [+ more]                                                                                                                                                        
                                                                                                                                                                 
-Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                          
-meta: association CONTRIBUTOR                                                                                                                                   
-[details]                                                                                                                                                       
-Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                    
-                                                                                                                                                                
-Environment:                                                                                                                                                    
-- OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                     
-- OS: macOS arm64                                                                                                                                               
-- Channel: Slack, channel-scoped session                                                                                                                        
-- Provider/API path: openai / openai-responses                                                                                                                  
-- Model: gpt-5.5                                                                                                                                                
-[+ more]                                                                                                                                                        
-                                                                                                                                                                
-Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                                                    
+Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                                                         
 meta: association NONE                                                                                                                                          
 [details]                                                                                                                                                       
-The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design. Server-side response chaining only works 
-when the response was persisted, which is exactly what store=false turns off. So previous_response_id should not be on the request at all when store is false.  
+Codex review: needs changes before merge.                                                                                                                       
                                                                                                                                                                 
-There are two separate defects here and the fix needs both.                                                                                                     
+Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding,      
+registration metadata, docs, inventory updates, and tests.                                                                                                      
                                                                                                                                                                 
-The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side with previous_response_id (requires       
-store=true), or resend the conversation context inline on each turn (works with store=false). With store defaulted to false the gateway has to use the          
-inline-context mode and must not reference a prior response id. Tying the lifetime of previous_response_id to the store flag, so it is only retained and sent   
+Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The remaining docs bug is source-reproducible from 
+the PR docs line 95 and the current CLI contract requiring --provider <id>.                                                                                     
+                                                                                                                                                                
 [+ more]                                                                                                                                                        
+                                                                                                                                                                
+Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                                                         
+meta: association NONE                                                                                                                                          
+[details]                                                                                                                                                       
+Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no contributor-facing blockers left) and the PR has been   
+waiting since the 15th. Happy to address any feedback. No rush, just flagging it in case it slipped past the queue.                                             
+                                                                                                                                                                
+Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                                                                       
+meta: association MEMBER                                                                                                                                        
+[details]                                                                                                                                                       
+<!-- dependency-guard-rebase-needed-backfill -->                                                                                                                
+Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.                                             
+                                                                                                                                                                
+Comment by @clawsweeper 2026-05-30T03:28:55Z                                                                                                                    
+meta: association CONTRIBUTOR, edited                                                                                                                           
+[details]                                                                                                                                                       
+Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                                                                     
+                                                                                                                                                                
+Summary                                                                                                                                                         
+The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing, voice-note opus transcoding, docs, manifest    
+metadata, contract coverage, unit tests, and a gated live test.                                                                                                 
+                                                                                                                                                                
+PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                                                           
 [refresh] [open] [settings] [help] [quit] ...                                                                                                                   

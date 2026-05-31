@@ -1,24 +1,24 @@
-openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z               
-openai-responses provider: 404 on previous_response_id when store=false         
+openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
+feat(senseaudio): add SenseAudio TTS provider                                   
 --------------------------------------------------------------------------------
- Overview [Activity] Links                                                      
-OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                  
+ Overview [Activity] Commits  Checks  Files  Links                              
+OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
+OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
+warn Warnings: 1                                                                
+Dependency Changes Detected                                                     
                                                                                 
+This PR changes dependency-related files. Maintainers should confirm these      
+changes are intentional.                                                        
                                                                                 
-                                                                                
-Summary                                                                         
-Keep this open: current main still has a plausible Responses replay failure for 
-custom openai-responses providers because generic Responses payloads can be     
-unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes  
-have a newer store-aware wrapper, but the reported custom proxy route is not    
+Changed files:                                                                  
 [+ more]                                                                        
                                                                                 
-Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                          
-meta: association CONTRIBUTOR                                                   
+Comment by @KLilyZ 2026-05-15T07:05:52Z                                         
+meta: association NONE                                                          
 [details]                                                                       
-Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this 
-issue class.                                                                    
+Codex review: needs changes before merge.                                       
                                                                                 
-Environment:                                                                    
+Summary The PR adds a SenseAudio speech provider to the bundled senseaudio      
+plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding, 
 [refresh] [open] [settings] [help] [quit]                                       
 r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      

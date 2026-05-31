@@ -4,33 +4,33 @@ feat(senseaudio): add SenseAudio TTS provider
  Overview  Activity  Commits [Checks] Files  Links                                                                      
 OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
 warn Warnings: 1                                                                                                        
+[OK PASS] suite/CI [+ more]                                                                                             
+                                                                                                                        
 [OK PASS] suite/CodeQL [+ more]                                                                                         
+                                                                                                                        
 [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                        
+                                                                                                                        
 [OK PASS] suite/Dependency Guard [+ more]                                                                               
+                                                                                                                        
 [OK PASS] suite/GitHub Advanced Security [+ more]                                                                       
+                                                                                                                        
 [OK PASS] suite/Labeler [+ more]                                                                                        
+                                                                                                                        
 [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                             
+                                                                                                                        
 [OK PASS] suite/Real behavior proof [+ more]                                                                            
+                                                                                                                        
 [OK PASS] suite/Socket Security [+ more]                                                                                
+                                                                                                                        
 [OK PASS] suite/Workflow Sanity [+ more]                                                                                
+                                                                                                                        
 [OK PASS] Auto response/auto-response [+ more]                                                                          
+                                                                                                                        
 [OK PASS] Auto response/auto-response [+ more]                                                                          
+                                                                                                                        
 [OK PASS] Auto response/auto-response [+ more]                                                                          
+                                                                                                                        
 [OK PASS] CI/preflight [+ more]                                                                                         
+                                                                                                                        
 [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                        
-[OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                             
-[OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]                                               
-[OK PASS] Dependency Guard/dependency-guard-detect [+ more]                                                             
-[OK PASS] Labeler/label [+ more]                                                                                        
-[OK PASS] OpenGrep — PR Diff/Scan changed paths (precise) [+ more]                                                      
-[OK PASS] Real behavior proof [+ more]                                                                                  
-[OK PASS] Real behavior proof [+ more]                                                                                  
-[OK PASS] Real behavior proof [+ more]                                                                                  
-[OK PASS] Workflow Sanity/no-tabs [+ more]                                                                              
-[OK PASS] CodeQL/Security High (channel-runtime-boundary) [+ more]                                                      
-[OK PASS] CodeQL/Security High (network-ssrf-boundary) [+ more]                                                         
-[OK PASS] CodeQL/Security High (mcp-process-tool-boundary) [+ more]                                                     
-[OK PASS] CodeQL/Security High (plugin-trust-boundary) [+ more]                                                         
-[OK PASS] CodeQL/Security High (actions) [+ more]                                                                       
-[OK PASS] CI/security-fast [+ more]                                                                                     
 [refresh] [open] [settings] [help] [quit] ...                                                                           
