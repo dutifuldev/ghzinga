@@ -1081,11 +1081,7 @@ fn push_expanded_commit_details(
     if !commit.body.trim().is_empty() {
         rows.push(ContentRow::plain("body"));
         let wrapped = markdown::wrap_plain_text(&commit.body, width);
-        let (visible, truncated) = markdown::visible_prefix(&wrapped, 14, false);
-        rows.extend(visible.into_iter().map(ContentRow::plain));
-        if truncated {
-            rows.push(ContentRow::plain("[body truncated]"));
-        }
+        rows.extend(wrapped.into_iter().map(ContentRow::plain));
     }
 }
 
@@ -2397,6 +2393,36 @@ mod tests {
         assert!(content.contains("committed: 1mo"));
         assert!(content.contains("Registers a SenseAudio speech provider."));
         assert!(content.contains("[- less]"));
+    }
+
+    #[test]
+    fn expanded_commit_rows_show_full_commit_body() {
+        let mut resource = pr_resource();
+        resource
+            .pull_request
+            .as_mut()
+            .unwrap()
+            .commits
+            .first_mut()
+            .unwrap()
+            .body = (0..30)
+            .map(|index| format!("commit body line {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Commits);
+
+        let collapsed = draw(&mut state, 120, 80);
+
+        assert!(collapsed.contains("[+ more]"));
+        assert!(!collapsed.contains("commit body line 29"));
+
+        state.toggle_block(BlockId::Commit("fb948c9".into()));
+        let expanded = draw(&mut state, 120, 80);
+
+        assert!(expanded.contains("commit body line 0"));
+        assert!(expanded.contains("commit body line 29"));
+        assert!(!expanded.contains("[body truncated]"));
     }
 
     #[test]
