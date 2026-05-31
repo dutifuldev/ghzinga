@@ -38,7 +38,11 @@ fn github_adapter_does_not_depend_on_tui_layers() {
 
 #[test]
 fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
-    let source = fs::read_to_string("src/github/api.rs").expect("read GitHub adapter");
+    let source = rust_files(Path::new("src/github"))
+        .into_iter()
+        .map(|path| fs::read_to_string(path).expect("read GitHub adapter source"))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     assert_eq!(source.matches("Command::new(\"gh\")").count(), 1);
     assert!(source.contains(".args([\"auth\", \"token\"])"));

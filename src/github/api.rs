@@ -1,24 +1,22 @@
 use std::{
     collections::{HashMap, HashSet},
     future::Future,
-    io,
-    pin::Pin,
-    process::Stdio,
 };
 
 use anyhow::Context;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::process::Command;
 
 use crate::domain::{
     ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
 };
-
-const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
-const GITHUB_REST_URL: &str = "https://api.github.com";
-const GITHUB_JSON_ACCEPT: &str = "application/vnd.github+json";
+use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
+#[cfg(test)]
+use crate::github::transport::{
+    run_graphql_query_with, run_rest_get_with, GithubHttpFuture, GithubHttpMethod,
+    GithubHttpRequest, GithubHttpResponse, GithubHttpTransport, GITHUB_JSON_ACCEPT,
+};
 
 pub trait GithubGateway {
     fn fetch_resource(
@@ -128,168 +126,6 @@ async fn enrich_project_metadata(resource: &mut Resource, id: &ResourceId, kind:
         Err(error) if is_project_scope_error(&error) => {}
         Err(error) => push_enrichment_warning(resource, "projects unavailable", &error),
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum GithubHttpMethod {
-    Get,
-    Post,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct GithubHttpRequest {
-    method: GithubHttpMethod,
-    url: String,
-    accept: String,
-    token: String,
-    body: Option<Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct GithubHttpResponse {
-    status: reqwest::StatusCode,
-    body: Vec<u8>,
-}
-
-type GithubHttpFuture<'a> =
-    Pin<Box<dyn Future<Output = anyhow::Result<GithubHttpResponse>> + Send + 'a>>;
-
-trait GithubHttpTransport {
-    fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a>;
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-struct ReqwestGithubHttpTransport;
-
-impl GithubHttpTransport for ReqwestGithubHttpTransport {
-    fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
-        Box::pin(async move {
-            let client = reqwest::Client::new();
-            let builder = match request.method {
-                GithubHttpMethod::Get => client.get(&request.url),
-                GithubHttpMethod::Post => client.post(&request.url),
-            }
-            .bearer_auth(request.token)
-            .header(reqwest::header::USER_AGENT, "ghzoom")
-            .header(reqwest::header::ACCEPT, request.accept);
-            let builder = if let Some(body) = request.body {
-                builder.json(&body)
-            } else {
-                builder
-            };
-            let response = builder
-                .send()
-                .await
-                .with_context(|| format!("failed to send GitHub request to {}", request.url))?;
-            let status = response.status();
-            let body = response.bytes().await.with_context(|| {
-                format!("failed to read GitHub response body from {}", request.url)
-            })?;
-            Ok(GithubHttpResponse {
-                status,
-                body: body.to_vec(),
-            })
-        })
-    }
-}
-
-async fn run_graphql_query(query: &str, variables: Value) -> anyhow::Result<Vec<u8>> {
-    let token = github_token().await?;
-    run_graphql_query_with(&ReqwestGithubHttpTransport, &token, query, variables).await
-}
-
-async fn run_graphql_query_with(
-    transport: &impl GithubHttpTransport,
-    token: &str,
-    query: &str,
-    variables: Value,
-) -> anyhow::Result<Vec<u8>> {
-    let response = transport
-        .execute(GithubHttpRequest {
-            method: GithubHttpMethod::Post,
-            url: GITHUB_GRAPHQL_URL.to_string(),
-            accept: GITHUB_JSON_ACCEPT.to_string(),
-            token: token.to_string(),
-            body: Some(json!({
-                "query": query,
-                "variables": variables,
-            })),
-        })
-        .await?;
-    let status = response.status;
-    let body = response.body;
-    if !status.is_success() {
-        anyhow::bail!(
-            "GitHub GraphQL request failed with HTTP {status}: {}",
-            String::from_utf8_lossy(&body)
-        );
-    }
-    if let Ok(value) = serde_json::from_slice::<Value>(&body) {
-        if let Some(errors) = value.get("errors").filter(|errors| !errors.is_null()) {
-            anyhow::bail!("GitHub GraphQL request returned errors: {errors}");
-        }
-    }
-    Ok(body.to_vec())
-}
-
-async fn run_rest_get(path: &str, accept: &str) -> anyhow::Result<Vec<u8>> {
-    let token = github_token().await?;
-    run_rest_get_with(&ReqwestGithubHttpTransport, &token, path, accept).await
-}
-
-async fn run_rest_get_with(
-    transport: &impl GithubHttpTransport,
-    token: &str,
-    path: &str,
-    accept: &str,
-) -> anyhow::Result<Vec<u8>> {
-    let url = format!("{GITHUB_REST_URL}{path}");
-    let response = transport
-        .execute(GithubHttpRequest {
-            method: GithubHttpMethod::Get,
-            url,
-            accept: accept.to_string(),
-            token: token.to_string(),
-            body: None,
-        })
-        .await
-        .with_context(|| format!("failed to send GitHub REST request to {path}"))?;
-    let status = response.status;
-    let body = response.body;
-    if !status.is_success() {
-        anyhow::bail!(
-            "GitHub REST request to {path} failed with HTTP {status}: {}",
-            String::from_utf8_lossy(&body)
-        );
-    }
-    Ok(body.to_vec())
-}
-
-async fn github_token() -> anyhow::Result<String> {
-    if let Some(token) = std::env::var("GH_TOKEN")
-        .ok()
-        .or_else(|| std::env::var("GITHUB_TOKEN").ok())
-        .map(|token| token.trim().to_string())
-        .filter(|token| !token.is_empty())
-    {
-        return Ok(token);
-    }
-
-    let output = Command::new("gh")
-        .args(["auth", "token"])
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh auth token", &error)))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("{}", gh_failure_message("gh auth token", &stderr));
-    }
-    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if token.is_empty() {
-        anyhow::bail!("`gh auth token` returned an empty token");
-    }
-    Ok(token)
 }
 
 fn owner_repo_number_variables(id: &ResourceId, after: Option<&str>) -> Value {
@@ -1122,40 +958,6 @@ async fn run_pr_diff(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
 
 fn pr_diff_rest_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
-}
-
-fn gh_execute_error(command: &str, error: &io::Error) -> String {
-    if error.kind() == io::ErrorKind::NotFound {
-        return format!(
-            "GitHub CLI executable `gh` was not found while running `{command}`. Install GitHub CLI and run `gh auth status`."
-        );
-    }
-    format!("failed to execute `{command}`: {error}")
-}
-
-fn gh_failure_message(command: &str, stderr: &str) -> String {
-    let stderr = stderr.trim();
-    if looks_like_auth_failure(stderr) {
-        return format!(
-            "GitHub CLI is not authenticated for `{command}`. Run `gh auth status` and `gh auth login` if needed. Details: {stderr}"
-        );
-    }
-    if stderr.is_empty() {
-        format!("`{command}` failed without an error message")
-    } else {
-        format!("`{command}` failed: {stderr}")
-    }
-}
-
-fn looks_like_auth_failure(stderr: &str) -> bool {
-    let lower = stderr.to_ascii_lowercase();
-    lower.contains("gh auth login")
-        || lower.contains("not logged")
-        || lower.contains("not authenticated")
-        || lower.contains("authentication required")
-        || lower.contains("must authenticate")
-        || lower.contains("bad credentials")
-        || lower.contains("http 401")
 }
 
 #[derive(Debug, Deserialize)]
@@ -4376,36 +4178,6 @@ diff --git a/docs/two.md b/docs/two.md\n\
         apply_file_patches(&mut files, patches);
 
         assert_eq!(files[0].patch.as_deref(), Some("patch body"));
-    }
-
-    #[test]
-    fn missing_gh_error_mentions_install_and_auth_status() {
-        let message = gh_execute_error(
-            "gh auth token",
-            &io::Error::new(io::ErrorKind::NotFound, "no gh in path"),
-        );
-
-        assert!(message.contains("`gh` was not found"));
-        assert!(message.contains("gh auth status"));
-    }
-
-    #[test]
-    fn auth_failure_mentions_auth_status_and_login() {
-        let message = gh_failure_message(
-            "gh auth token",
-            "To get started with GitHub CLI, please run: gh auth login",
-        );
-
-        assert!(message.contains("not authenticated"));
-        assert!(message.contains("gh auth status"));
-        assert!(message.contains("gh auth login"));
-    }
-
-    #[test]
-    fn non_auth_failure_keeps_command_and_stderr() {
-        let message = gh_failure_message("gh auth token", "token retrieval failed");
-
-        assert_eq!(message, "`gh auth token` failed: token retrieval failed");
     }
 
     #[test]
