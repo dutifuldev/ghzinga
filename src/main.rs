@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut state = AppState::new(resource);
+    state.theme = cli.theme;
     if let Some(tab) = cli.tab {
         state.set_tab(tab);
     }

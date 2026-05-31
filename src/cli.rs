@@ -4,6 +4,7 @@ use clap::Parser;
 
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
+use crate::render::ThemeName;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -35,6 +36,10 @@ pub struct Cli {
     /// Initial tab to show: overview, activity, commits, checks, files, or links.
     #[arg(long, value_name = "TAB")]
     pub tab: Option<Tab>,
+
+    /// UI theme: default or solarized-dark.
+    #[arg(long, default_value_t = ThemeName::Default, value_name = "THEME")]
+    pub theme: ThemeName,
 }
 
 impl Cli {
@@ -93,5 +98,17 @@ mod tests {
         let cli = Cli::parse_from(["ghzoom", "--tab", "checks", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.tab, Some(Tab::Checks));
+    }
+
+    #[test]
+    fn parses_theme() {
+        let cli = Cli::parse_from([
+            "ghzoom",
+            "--theme",
+            "solarized-dark",
+            "openclaw/openclaw#81834",
+        ]);
+
+        assert_eq!(cli.theme, ThemeName::SolarizedDark);
     }
 }

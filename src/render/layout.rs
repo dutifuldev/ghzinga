@@ -21,30 +21,14 @@ impl ViewRects {
             .height
             .saturating_sub(header_height + tabs_height + footer_height);
         let wide = area.width >= 100 && body_height >= 8;
-
-        let (status, content) = if wide {
-            let status_width = 30.min(area.width / 3);
-            let gutter_width = 1;
-            (
-                Rect::new(area.x, body_y, status_width, body_height),
-                Rect::new(
-                    area.x.saturating_add(status_width + gutter_width),
-                    body_y,
-                    area.width.saturating_sub(status_width + gutter_width),
-                    body_height,
-                ),
-            )
-        } else {
-            (
-                Rect::new(area.x, body_y, area.width, 2.min(body_height)),
-                Rect::new(
-                    area.x,
-                    body_y.saturating_add(2.min(body_height)),
-                    area.width,
-                    body_height.saturating_sub(2.min(body_height)),
-                ),
-            )
-        };
+        let status_height = if body_height >= 2 { 2 } else { body_height };
+        let status = Rect::new(area.x, body_y, area.width, status_height);
+        let content = Rect::new(
+            area.x,
+            body_y.saturating_add(status_height),
+            area.width,
+            body_height.saturating_sub(status_height),
+        );
 
         Self {
             area,
@@ -83,11 +67,13 @@ mod tests {
     }
 
     #[test]
-    fn wide_layout_places_status_left_of_content() {
+    fn wide_layout_keeps_status_horizontal_above_content() {
         let rects = ViewRects::compute(Rect::new(0, 0, 120, 36));
 
         assert!(rects.wide);
         assert_eq!(rects.status.x, 0);
-        assert_eq!(rects.content.x, rects.status.width + 1);
+        assert_eq!(rects.status.width, 120);
+        assert_eq!(rects.content.x, 0);
+        assert_eq!(rects.content.y, rects.status.y + rects.status.height);
     }
 }
