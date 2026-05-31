@@ -1,0 +1,115 @@
+{
+  "id": {
+    "owner": "openclaw",
+    "repo": "openclaw",
+    "number": 81834,
+    "kind_hint": "pull_request"
+  },
+  "title": "feat(senseaudio): add SenseAudio TTS provider",
+  "url": "https://github.com/openclaw/openclaw/pull/81834",
+  "state": "OPEN",
+  "author": "KLilyZ",
+  "created_at": "1mo ago",
+  "updated_at": "1d ago",
+  "labels": [
+    "docs",
+    "size: L",
+    "extensions: senseaudio",
+    "proof: supplied",
+    "proof: sufficient",
+    "P3"
+  ],
+  "reactions": {
+    "thumbs_up": 1,
+    "thumbs_down": 0,
+    "laugh": 0,
+    "hooray": 0,
+    "confused": 0,
+    "heart": 0,
+    "rocket": 0,
+    "eyes": 0
+  },
+  "body": "## Summary\n- Problem: `senseaudio` bundled plugin only has ASR; no TTS.\n- Why it matters: completes the round trip in the same plugin.\n- What changed: registers a `speechProvider` in `extensions/senseaudio/`. Synthesizes via `/v1/t2a_v2`, lists system voices via `/v1/get_voice`, transcodes MP3 to opus for voice-note targets.\n\n## Validation\n- Targeted extension tests passed.\n- Contract plugin tests passed.\n\n## Scope\nTelephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.",
+  "activity": [
+    {
+      "id": "comment-1",
+      "author": "github-actions",
+      "body": "### Dependency Changes Detected\nThis PR changes dependency-related files. Maintainers should confirm these changes are intentional.\n\nChanged files:\n- `extensions/senseaudio/package.json`",
+      "updated_at": "1mo ago",
+      "path": null,
+      "line": null
+    },
+    {
+      "id": "comment-2",
+      "author": "osolmaz",
+      "body": "Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing, tests, and docs. Needs maintainer review before merge.",
+      "updated_at": "1mo ago",
+      "path": "extensions/senseaudio/tts.ts",
+      "line": 99
+    }
+  ],
+  "pull_request": {
+    "base_ref": "main",
+    "head_ref": "feat/senseaudio-tts",
+    "review_decision": null,
+    "merge_state": "CLEAN",
+    "additions": 1100,
+    "deletions": 22,
+    "commits": [
+      {
+        "oid": "fb948c9",
+        "message": "feat(senseaudio): add SenseAudio TTS provider",
+        "author": "KLilyZ",
+        "committed_at": "1mo ago",
+        "status": "success"
+      }
+    ],
+    "checks": [
+      {
+        "name": "All checks",
+        "status": "success",
+        "summary": "38 skipped, 2 neutral, 86 successful"
+      }
+    ],
+    "files": [
+      {
+        "path": "docs/plugins/plugin-inventory.md",
+        "additions": 1,
+        "deletions": 1,
+        "change_type": "MODIFIED"
+      },
+      {
+        "path": "docs/plugins/reference.md",
+        "additions": 1,
+        "deletions": 1,
+        "change_type": "MODIFIED"
+      },
+      {
+        "path": "docs/plugins/reference/senseaudio.md",
+        "additions": 3,
+        "deletions": 3,
+        "change_type": "MODIFIED"
+      },
+      {
+        "path": "docs/providers/senseaudio.md",
+        "additions": 74,
+        "deletions": 14,
+        "change_type": "MODIFIED"
+      },
+      {
+        "path": "extensions/senseaudio/index.ts",
+        "additions": 3,
+        "deletions": 1,
+        "change_type": "MODIFIED"
+      }
+    ]
+  },
+  "related_resources": [
+    {
+      "owner": "openclaw",
+      "repo": "openclaw",
+      "number": 66943,
+      "kind_hint": "issue"
+    }
+  ]
+}

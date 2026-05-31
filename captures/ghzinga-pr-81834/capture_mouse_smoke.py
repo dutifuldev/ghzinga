@@ -20,6 +20,8 @@ REPO = ROOT.parents[2]
 BIN = REPO / "target" / "debug" / "gzg"
 TARGET = "openclaw/openclaw#81834"
 FIXTURE = REPO / "fixtures" / "pr-81834.json"
+NAVIGATION_FIXTURE = ROOT / "navigation-fixture.json"
+NAVIGATION_TARGET = "openclaw/openclaw#66943"
 SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
@@ -80,12 +82,26 @@ def require_screen_contains(marker: str):
         raise RuntimeError(f"screen missing {marker!r}:\n{text}")
 
 
+def write_navigation_fixture():
+    resource = json.loads(FIXTURE.read_text())
+    resource["related_resources"] = [
+        {
+            "owner": "openclaw",
+            "repo": "openclaw",
+            "number": 66943,
+            "kind_hint": "issue",
+        }
+    ]
+    NAVIGATION_FIXTURE.write_text(json.dumps(resource, indent=2) + "\n")
+
+
 def capture_mouse_smoke():
     ROOT.mkdir(parents=True, exist_ok=True)
+    write_navigation_fixture()
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
         f"cd {REPO} && TERM=xterm-256color {BIN} {TARGET} "
-        f"--offline-fixture {FIXTURE} --refresh-seconds 0"
+        f"--offline-fixture {NAVIGATION_FIXTURE} --refresh-seconds 0"
     )
     frames = []
     mouse_coordinates = {}
@@ -118,9 +134,22 @@ def capture_mouse_smoke():
             raise RuntimeError(f"collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "30_mouse_collapse_all", frames)
 
+        links_tab = find_marker_position(SESSION, "Links", line_contains="[Files]")
+        mouse_coordinates["links_tab"] = list(links_tab)
+        send_mouse_click(SESSION, *links_tab)
+        wait_for_text(SESSION, "Links")
+        require_screen_contains(f"  {NAVIGATION_TARGET}")
+        write_frame(ROOT, "40_mouse_links_tab", frames)
+
+        linked_issue = find_marker_position(SESSION, NAVIGATION_TARGET)
+        mouse_coordinates["linked_issue"] = list(linked_issue)
+        send_mouse_click(SESSION, *linked_issue)
+        wait_for_text(SESSION, f"cannot navigate to {NAVIGATION_TARGET}")
+        write_frame(ROOT, "50_mouse_navigation_row", frames)
+
         manifest = {
             "target": TARGET,
-            "fixture": str(FIXTURE.relative_to(REPO)),
+            "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
             "binary": str(BIN),
             "git_commit": git_commit(),
             "command": command,
@@ -144,6 +173,16 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     if not manifest_path.exists():
         raise SystemExit(f"missing {manifest_path}")
     manifest = read_json(manifest_path)
+    fixture_path = REPO / manifest.get("fixture", "")
+    if not fixture_path.exists():
+        errors.append(f"manifest fixture {fixture_path} is missing")
+    else:
+        fixture = read_json(fixture_path)
+        if not any(
+            f"{item.get('owner')}/{item.get('repo')}#{item.get('number')}" == NAVIGATION_TARGET
+            for item in fixture.get("related_resources", [])
+        ):
+            errors.append(f"manifest fixture {fixture_path} does not include {NAVIGATION_TARGET}")
     if not allow_stale_revision:
         reason = app_tree_freshness_error(manifest.get("git_commit"), git_commit())
         if reason:
@@ -164,6 +203,12 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "path: docs/plugins/plugin-inventory.md",
         ],
         "30_mouse_collapse_all": ["[Files]", "[expand all]"],
+        "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
+        "50_mouse_navigation_row": [
+            "[Links]",
+            NAVIGATION_TARGET,
+            f"cannot navigate to {NAVIGATION_TARGET}",
+        ],
     }
     frames = {frame.get("name"): frame for frame in manifest.get("frames", [])}
     for name, markers in expected.items():
