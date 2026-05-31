@@ -232,19 +232,17 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     if activity_counts.reviews > 0 {
         push_status_piece(
             &mut pieces,
-            format!(
-                "{} reviews {}",
-                symbols.activity_review, activity_counts.reviews
-            ),
+            status_labeled_count(symbols.activity_review, "reviews", activity_counts.reviews),
             Style::default().fg(palette.green),
         );
     }
     if activity_counts.timeline > 0 {
         push_status_piece(
             &mut pieces,
-            format!(
-                "{} timeline {}",
-                symbols.activity_timeline, activity_counts.timeline
+            status_labeled_count(
+                symbols.activity_timeline,
+                "timeline",
+                activity_counts.timeline,
             ),
             Style::default().fg(palette.subtext0),
         );
@@ -368,6 +366,14 @@ fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
         return Some(format!("{} {message}", symbols.info));
     }
     None
+}
+
+fn status_labeled_count(symbol: &str, label: &str, count: usize) -> String {
+    if symbol == label || label.strip_suffix('s') == Some(symbol) {
+        format!("{label} {count}")
+    } else {
+        format!("{symbol} {label} {count}")
+    }
 }
 
 fn activity_counts(resource: &Resource) -> ActivityCounts {
@@ -2198,7 +2204,7 @@ mod tests {
         let content = format!("{:?}", terminal.backend().buffer());
 
         assert!(content.contains("comments 2"));
-        assert!(content.contains("review reviews 1"));
+        assert!(content.contains("reviews 1"));
         assert!(content.contains("- timeline 1"));
         assert!(content.contains("1 unresolved / 1 thread"));
         assert!(!content.contains("comments 5"));
