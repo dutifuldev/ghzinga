@@ -1,0 +1,36 @@
+openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                        
+feat(senseaudio): add SenseAudio TTS provider                                                                           
+------------------------------------------------------------------------------------------------------------------------
+[Overview] Activity  Commits  Checks  Files  Links                                                                      
+OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22             
+                                                                                                                        
+Conversation                                                                                                            
+------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
+[expand all]                                                                                                            
+                                                                                                                        
+* @KLilyZ opened 1mo ago                                                                                                
+Summary                                                                                                                 
+- Problem: senseaudio bundled plugin only has ASR; no TTS.                                                              
+- Why it matters: completes the round trip in the same plugin.                                                          
+- What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices   
+via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                                       
+                                                                                                                        
+Validation                                                                                                              
+- Targeted extension tests passed.                                                                                      
+- Contract plugin tests passed.                                                                                         
+                                                                                                                        
+Scope                                                                                                                   
+Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                          
+------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
+* commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                     
+feat(senseaudio): add SenseAudio TTS provider                                                                           
+------------------------------------------------------------------------------------------------------------------------
+                                                                                                                        
+comment Comment by @github-actions 1mo ago                                                                              
+Dependency Changes Detected                                                                                             
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
+                                                                                                                        
+Changed files:                                                                                                          
+[refresh] [open] [settings] [help] [quit] ...                                                                           

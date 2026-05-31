@@ -224,7 +224,9 @@ npx -y @simpledoc/simpledoc check
 
 GitHub Actions runs these same checks for pull requests and pushes to `main`.
 It also runs the saved PR and issue capture validators so checked-in UX evidence
-cannot silently drift behind the app rendering code.
+cannot silently drift behind the app rendering code. A tmux mouse-smoke capture
+validator verifies that real terminal mouse clicks can switch to Files, expand
+all rows, and collapse them again.
 
 The repository includes tmux capture artifacts for PR and issue views:
 
@@ -266,4 +268,16 @@ python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
   --root captures/ghzinga-issue-88499 \
   --mode issue \
   --validate-only
+```
+
+Regenerate mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py
+```
+
+Validate saved mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
 ```

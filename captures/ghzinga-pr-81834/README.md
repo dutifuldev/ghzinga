@@ -34,7 +34,26 @@ It captures:
 8. Links top.
 9. Help overlay with `?`.
 
-The code test suite separately verifies mouse click routing for tabs, expansion controls, refresh, quit, help, and issue/PR navigation targets.
+The code test suite separately verifies mouse click routing for tabs, expansion
+controls, refresh, quit, help, and issue/PR navigation targets. The
+`mouse-smoke/` capture set additionally drives the real TUI inside tmux with
+xterm SGR mouse click events:
+
+1. Click the `Files` tab.
+2. Click `[expand all]`.
+3. Click `[collapse all]`.
+
+Regenerate mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py
+```
+
+Validate saved mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
+```
 
 Validate the saved PR captures:
 

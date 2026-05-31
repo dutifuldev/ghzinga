@@ -48,3 +48,4 @@ jobs:
             --root captures/ghzinga-issue-88499 \
             --mode issue \
             --validate-only
+          python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
