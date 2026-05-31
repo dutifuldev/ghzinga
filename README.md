@@ -9,10 +9,11 @@ issue, and enrichment data. There is no separate login flow: if `GH_TOKEN` or
 existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
 fallback, not the data transport. When credentials are unavailable, public
 repositories fall back to an unauthenticated REST view with warnings for richer
-GraphQL-only metadata; private repositories still need a token or existing `gh`
-login. The primary PR or issue view is fetched first; optional enrichment
-failures are shown as warnings instead of preventing the resource from
-rendering.
+GraphQL-only metadata; public REST comments, PR commits, and changed files are
+paginated until GitHub returns a short page. Private repositories still need a
+token or existing `gh` login. The primary PR or issue view is fetched first;
+optional enrichment failures are shown as warnings instead of preventing the
+resource from rendering.
 Architecture guardrails are documented in
 `docs/2026-06-01-ghzinga-slophammer-guardrails.md` and enforced by
 `tests/architecture.rs`.
