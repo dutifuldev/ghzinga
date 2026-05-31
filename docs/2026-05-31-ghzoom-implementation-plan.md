@@ -182,7 +182,8 @@ Data loaded for PR:
   where available; suite rows are prefixed with `suite/` and shown before
   job/context rows so top-level workflow status is visible first
 - comments, reviews, and review threads, including author association,
-  comment/review reactions, edit/minimized metadata, permalinks, and
+  comment/review reactions, edit/minimized metadata, permalinks, and ordinary
+  comments paginated until GitHub reports no next page
   review-thread resolved/outdated state; review thread pages are fetched until
   GitHub reports no next page, and threads with more than 100 comments fetch
   their remaining comment pages through the thread node
@@ -205,7 +206,8 @@ Data loaded for issue:
   reactions, edit/minimized metadata, permalinks, labels, references,
   assignments, pins, locks, duplicate markers, transfers,
   connected/disconnected references, title changes, milestones, close, and
-  reopen events; timeline pages are fetched until GitHub reports no next page
+  reopen events; comment and timeline pages are fetched until GitHub reports no
+  next page
 - timeline-ish linked references when available
 
 Refresh:

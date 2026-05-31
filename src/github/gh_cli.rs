@@ -56,6 +56,10 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = run_view_command("pr", id, PR_FIELDS).await?;
     let dto: PrView = serde_json::from_slice(&output).context("failed to parse gh pr view JSON")?;
     let mut resource = dto.into_resource(id);
+    match fetch_comment_activity(id, ResourceKind::PullRequest).await {
+        Ok(comments) => replace_comment_activity(&mut resource, comments),
+        Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
+    }
     match fetch_review_thread_activity(id).await {
         Ok(review_comments) => resource.activity.extend(review_comments),
         Err(error) => push_enrichment_warning(&mut resource, "review threads unavailable", &error),
@@ -93,6 +97,10 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let dto: IssueView =
         serde_json::from_slice(&output).context("failed to parse gh issue view JSON")?;
     let mut resource = dto.into_resource(id);
+    match fetch_comment_activity(id, ResourceKind::Issue).await {
+        Ok(comments) => replace_comment_activity(&mut resource, comments),
+        Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
+    }
     match fetch_timeline_activity(id, ResourceKind::Issue).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
@@ -103,6 +111,13 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
 
 fn push_enrichment_warning(resource: &mut Resource, label: &str, error: &anyhow::Error) {
     resource.warnings.push(format!("{label}: {error}"));
+}
+
+fn replace_comment_activity(resource: &mut Resource, comments: Vec<ActivityEntry>) {
+    resource
+        .activity
+        .retain(|entry| entry.kind != ActivityKind::Comment);
+    resource.activity.extend(comments);
 }
 
 async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::Result<Vec<u8>> {
@@ -124,6 +139,81 @@ async fn run_view_command(kind: &str, id: &ResourceId, fields: &str) -> anyhow::
     }
 
     Ok(output.stdout)
+}
+
+async fn run_graphql_comments(
+    id: &ResourceId,
+    kind: ResourceKind,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    let query = comments_query(kind);
+    let number = id.number.to_string();
+    let after = after.unwrap_or("null");
+    let output = Command::new("gh")
+        .args([
+            "api",
+            "graphql",
+            "-f",
+            &format!("owner={}", id.owner),
+            "-f",
+            &format!("name={}", id.repo),
+            "-F",
+            &format!("number={number}"),
+            "-F",
+            &format!("after={after}"),
+            "-f",
+            &format!("query={query}"),
+        ])
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|error| anyhow::anyhow!(gh_execute_error("gh api graphql comments", &error)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("{}", gh_failure_message("gh api graphql comments", &stderr));
+    }
+
+    Ok(output.stdout)
+}
+
+fn comments_query(kind: ResourceKind) -> String {
+    let selector = match kind {
+        ResourceKind::PullRequest => "pullRequest",
+        ResourceKind::Issue => "issue",
+    };
+    format!(
+        r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    {selector}(number: $number) {{
+      comments(first: 100, after: $after) {{
+        pageInfo {{
+          hasNextPage
+          endCursor
+        }}
+        nodes {{
+          id
+          author {{ login }}
+          authorAssociation
+          body
+          createdAt
+          updatedAt
+          url
+          includesCreatedEdit
+          isMinimized
+          minimizedReason
+          reactionGroups {{
+            content
+            users {{ totalCount }}
+          }}
+        }}
+      }}
+    }}
+  }}
+}}
+"#
+    )
 }
 
 async fn run_graphql_review_threads(
@@ -787,6 +877,38 @@ struct CommentDto {
     minimized_reason: Option<String>,
     #[serde(default)]
     reaction_groups: Vec<ReactionGroupDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommentsResponse {
+    data: CommentsData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommentsData {
+    repository: Option<CommentsRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommentsRepository {
+    issue: Option<CommentsResource>,
+    pull_request: Option<CommentsResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommentsResource {
+    comments: CommentsConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CommentsConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<CommentDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1563,6 +1685,47 @@ fn comments_to_activity(comments: Vec<CommentDto>) -> Vec<ActivityEntry> {
             thread_outdated: None,
         })
         .collect()
+}
+
+async fn fetch_comment_activity(
+    id: &ResourceId,
+    kind: ResourceKind,
+) -> anyhow::Result<Vec<ActivityEntry>> {
+    let mut activity = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_comments(id, kind, after.as_deref()).await?;
+        let response: CommentsResponse =
+            serde_json::from_slice(&output).context("failed to parse comments GraphQL JSON")?;
+        let Some(page) = comment_activity_page(response) else {
+            return Ok(activity);
+        };
+        activity.extend(page.activity);
+        if !page.has_next_page {
+            return Ok(activity);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("comments page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
+struct CommentActivityPage {
+    activity: Vec<ActivityEntry>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
+
+fn comment_activity_page(response: CommentsResponse) -> Option<CommentActivityPage> {
+    let repository = response.data.repository?;
+    let resource = repository.pull_request.or(repository.issue)?;
+    let page_info = resource.comments.page_info;
+    Some(CommentActivityPage {
+        activity: comments_to_activity(resource.comments.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
 }
 
 async fn fetch_review_thread_activity(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
@@ -2419,6 +2582,23 @@ mod tests {
     }
 
     #[test]
+    fn comments_query_uses_selector_and_pagination_state() {
+        let issue_query = comments_query(ResourceKind::Issue);
+        let pr_query = comments_query(ResourceKind::PullRequest);
+
+        assert!(issue_query.contains("issue(number: $number)"));
+        assert!(pr_query.contains("pullRequest(number: $number)"));
+        for query in [issue_query, pr_query] {
+            assert!(query.contains("$after: String"));
+            assert!(query.contains("comments(first: 100, after: $after)"));
+            assert!(query.contains("pageInfo"));
+            assert!(query.contains("hasNextPage"));
+            assert!(query.contains("endCursor"));
+            assert!(query.contains("reactionGroups"));
+        }
+    }
+
+    #[test]
     fn review_threads_query_requests_pagination_state() {
         let query = review_threads_query();
 
@@ -2428,6 +2608,152 @@ mod tests {
         assert!(query.contains("pageInfo"));
         assert!(query.contains("hasNextPage"));
         assert!(query.contains("endCursor"));
+    }
+
+    #[test]
+    fn comment_activity_page_preserves_pagination_state() {
+        let page = comment_activity_page(CommentsResponse {
+            data: CommentsData {
+                repository: Some(CommentsRepository {
+                    issue: Some(CommentsResource {
+                        comments: CommentsConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("comment-cursor-2".into()),
+                            },
+                            nodes: vec![CommentDto {
+                                id: Some("comment-1".into()),
+                                author: Some(UserDto {
+                                    login: Some("alice".into()),
+                                    name: None,
+                                }),
+                                author_association: Some("MEMBER".into()),
+                                body: "hello".into(),
+                                created_at: Some("2026-01-01T00:00:00Z".into()),
+                                updated_at: None,
+                                url: Some(
+                                    "https://github.com/openclaw/openclaw/issues/1#issuecomment-1"
+                                        .into(),
+                                ),
+                                includes_created_edit: Some(true),
+                                is_minimized: Some(false),
+                                minimized_reason: None,
+                                reaction_groups: vec![ReactionGroupDto {
+                                    content: "THUMBS_UP".into(),
+                                    users: TotalCountDto { total_count: 2 },
+                                }],
+                            }],
+                        },
+                    }),
+                    pull_request: None,
+                }),
+            },
+        })
+        .expect("comment page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("comment-cursor-2"));
+        assert_eq!(page.activity.len(), 1);
+        assert_eq!(page.activity[0].kind, ActivityKind::Comment);
+        assert_eq!(page.activity[0].author, "alice");
+        assert_eq!(
+            page.activity[0].author_association.as_deref(),
+            Some("MEMBER")
+        );
+        assert_eq!(page.activity[0].reactions.thumbs_up, 2);
+        assert!(page.activity[0].includes_created_edit);
+    }
+
+    #[test]
+    fn replace_comment_activity_keeps_other_activity() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
+            title: "title".into(),
+            url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: vec![
+                ActivityEntry {
+                    id: "old-comment".into(),
+                    kind: ActivityKind::Comment,
+                    author: "alice".into(),
+                    body: "old".into(),
+                    updated_at: "old".into(),
+                    path: None,
+                    line: None,
+                    url: None,
+                    author_association: None,
+                    reactions: ReactionCounts::default(),
+                    includes_created_edit: false,
+                    is_minimized: false,
+                    minimized_reason: None,
+                    thread_id: None,
+                    thread_resolved: None,
+                    thread_outdated: None,
+                },
+                ActivityEntry {
+                    id: "review".into(),
+                    kind: ActivityKind::Review,
+                    author: "bob".into(),
+                    body: "approved".into(),
+                    updated_at: "new".into(),
+                    path: None,
+                    line: None,
+                    url: None,
+                    author_association: None,
+                    reactions: ReactionCounts::default(),
+                    includes_created_edit: false,
+                    is_minimized: false,
+                    minimized_reason: None,
+                    thread_id: None,
+                    thread_resolved: None,
+                    thread_outdated: None,
+                },
+            ],
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: None,
+        };
+
+        replace_comment_activity(
+            &mut resource,
+            vec![ActivityEntry {
+                id: "new-comment".into(),
+                kind: ActivityKind::Comment,
+                author: "carol".into(),
+                body: "new".into(),
+                updated_at: "newer".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: ReactionCounts::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            }],
+        );
+
+        assert_eq!(resource.activity.len(), 2);
+        assert!(resource.activity.iter().any(|entry| entry.id == "review"));
+        assert!(resource
+            .activity
+            .iter()
+            .any(|entry| entry.id == "new-comment"));
+        assert!(!resource
+            .activity
+            .iter()
+            .any(|entry| entry.id == "old-comment"));
     }
 
     #[test]
