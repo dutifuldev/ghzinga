@@ -35,7 +35,7 @@ pub fn apply_event(state: &mut AppState, event: AppEvent) -> AppIntent {
 
 fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     match key.code {
-        KeyCode::Char('q') => {
+        KeyCode::Char('q') if is_plain_shortcut(key) => {
             state.should_quit = true;
             AppIntent::Quit
         }
@@ -43,20 +43,22 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.should_quit = true;
             AppIntent::Quit
         }
-        KeyCode::Char('r') => {
+        KeyCode::Char('r') if is_plain_shortcut(key) => {
             state.refresh_requested = true;
             AppIntent::Refresh
         }
-        KeyCode::Char('o') => AppIntent::OpenResource(state.resource.id.clone()),
-        KeyCode::Char('?') => {
+        KeyCode::Char('o') if is_plain_shortcut(key) => {
+            AppIntent::OpenResource(state.resource.id.clone())
+        }
+        KeyCode::Char('?') if is_plain_shortcut(key) => {
             state.toggle_help();
             AppIntent::None
         }
-        KeyCode::Char('s') => {
+        KeyCode::Char('s') if is_plain_shortcut(key) => {
             state.toggle_settings();
             AppIntent::None
         }
-        KeyCode::Char('v') => {
+        KeyCode::Char('v') if is_plain_shortcut(key) => {
             state.toggle_feed_order();
             AppIntent::None
         }
@@ -64,21 +66,21 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.close_settings();
             AppIntent::None
         }
-        KeyCode::Char('t') if state.show_settings => {
+        KeyCode::Char('t') if state.show_settings && is_plain_shortcut(key) => {
             if state.cycle_theme() {
                 AppIntent::SaveSettings
             } else {
                 AppIntent::None
             }
         }
-        KeyCode::Char('y') if state.show_settings => {
+        KeyCode::Char('y') if state.show_settings && is_plain_shortcut(key) => {
             if state.cycle_symbols() {
                 AppIntent::SaveSettings
             } else {
                 AppIntent::None
             }
         }
-        KeyCode::Char('p') if state.show_settings => {
+        KeyCode::Char('p') if state.show_settings && is_plain_shortcut(key) => {
             if state.cycle_spacing() {
                 AppIntent::SaveSettings
             } else {
@@ -133,12 +135,17 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.scroll_to_bottom();
             AppIntent::None
         }
-        KeyCode::Char('e') => {
+        KeyCode::Char('e') if is_plain_shortcut(key) => {
             state.toggle_block(BlockId::Body);
             AppIntent::None
         }
         _ => AppIntent::None,
     }
+}
+
+fn is_plain_shortcut(key: KeyEvent) -> bool {
+    !key.modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
 }
 
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
@@ -287,6 +294,58 @@ mod tests {
         );
 
         assert_eq!(state.active_tab, Tab::Activity);
+    }
+
+    #[test]
+    fn control_letter_shortcuts_are_limited_to_tmux_safe_exceptions() {
+        for shortcut in ['a', 'b', 'd', 'e', 'o', 'q', 'r', 's', 'u', 'v', '?'] {
+            let mut state = AppState::new(resource());
+            state.scroll = 4;
+            state.set_scroll_limit(9);
+
+            let intent = apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(
+                    KeyCode::Char(shortcut),
+                    KeyModifiers::CONTROL,
+                )),
+            );
+
+            assert_eq!(intent, AppIntent::None, "Ctrl-{shortcut} should be inert");
+            assert_eq!(state.active_tab, Tab::Overview, "Ctrl-{shortcut}");
+            assert_eq!(state.scroll, 4, "Ctrl-{shortcut}");
+            assert!(!state.refresh_requested, "Ctrl-{shortcut}");
+            assert!(!state.should_quit, "Ctrl-{shortcut}");
+            assert!(!state.show_help, "Ctrl-{shortcut}");
+            assert!(!state.show_settings, "Ctrl-{shortcut}");
+            assert!(!state.reverse_chronological, "Ctrl-{shortcut}");
+            assert!(state.expanded_blocks.is_empty(), "Ctrl-{shortcut}");
+        }
+    }
+
+    #[test]
+    fn settings_control_shortcuts_do_not_change_preferences() {
+        for shortcut in ['t', 'y', 'p'] {
+            let mut state = AppState::new(resource());
+            state.show_settings = true;
+            let theme = state.theme;
+            let symbols = state.symbols;
+            let spacing = state.spacing;
+
+            let intent = apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(
+                    KeyCode::Char(shortcut),
+                    KeyModifiers::CONTROL,
+                )),
+            );
+
+            assert_eq!(intent, AppIntent::None, "Ctrl-{shortcut} should be inert");
+            assert_eq!(state.theme, theme, "Ctrl-{shortcut}");
+            assert_eq!(state.symbols, symbols, "Ctrl-{shortcut}");
+            assert_eq!(state.spacing, spacing, "Ctrl-{shortcut}");
+            assert!(state.show_settings, "Ctrl-{shortcut}");
+        }
     }
 
     #[test]
