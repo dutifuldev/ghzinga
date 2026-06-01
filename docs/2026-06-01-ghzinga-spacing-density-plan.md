@@ -33,13 +33,15 @@ count.
   the header, tab selector row, status band, and footer controls. The left and
   right padding must be equal so the upper navigation, title, status, and body
   align as one readable column.
-- Comfortable tab selectors reserve fixed chrome space for a blank breathing
-  row and a continuous separator line below the nav buttons. The separator
-  belongs to the navbar, not to the scrollable document, so it remains stable
-  while the user scrolls.
-- Comfortable content starts with top padding after the navbar separator and
-  keeps bottom padding after the last item. The first and last content items
-  should never press directly against fixed chrome.
+- Comfortable tab selectors reserve fixed chrome space for the nav buttons, one
+  blank breathing row below those buttons, and then a continuous separator line.
+  The separator belongs to the navbar, not to the scrollable document, so it
+  remains stable while the user scrolls.
+- Comfortable content normalizes accidental leading/trailing blank rows, then
+  adds exactly one top padding row after the navbar separator and exactly one
+  bottom padding row after the last item. The first and last content items
+  should never press directly against fixed chrome, and builders should not need
+  to hard-code terminal padding rows.
 - Repeated comfortable items keep vertical breathing room between entries. The
   padding scale should preserve scannability without making compact mode less
   dense.
@@ -67,9 +69,9 @@ count.
 - Existing blank rows are reused; the renderer must not stack multiple blank
   rows just because a builder already included one.
 - Scrollbar state represents the real rendered content length and viewport
-  height, with the current scroll offset mapped onto Ratatui's scrollbar
+  height. The current scroll offset is mapped to Ratatui's full scrollbar
   position range, so the thumb reaches the bottom when the last scrollable
-  position is reached.
+  position is reached, including the comfortable bottom padding row.
 - Repeated-row builders should prefer semantic gap markers over hard-coded
   blank rows. A hard blank row is still valid for a deliberate internal break,
   such as separating an expanded detail block from the next heading, but row
