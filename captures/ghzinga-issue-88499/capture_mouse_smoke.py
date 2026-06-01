@@ -73,6 +73,11 @@ def send_mouse_click(session: str, column: int, row: int):
     time.sleep(0.5)
 
 
+def send_key(session: str, key: str):
+    tmux("send-keys", "-t", session, key)
+    time.sleep(0.5)
+
+
 def wait_for_session_exit(session: str, timeout: float = 5.0):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -199,6 +204,18 @@ def capture_mouse_smoke():
         if "Actual Behavior" in text:
             raise RuntimeError(f"overview less left issue body expanded:\n{text}")
         write_frame(ROOT, "06_mouse_overview_less", frames)
+
+        send_key(SESSION, "a")
+        wait_for_text(SESSION, "Actual Behavior")
+        require_screen_contains("[- less]")
+        write_frame(ROOT, "07_keyboard_expand_all", frames)
+
+        send_key(SESSION, "a")
+        wait_for_text(SESSION, "[+ more]")
+        text = capture_plain(SESSION)
+        if "Actual Behavior" in text:
+            raise RuntimeError(f"keyboard collapse all left issue body expanded:\n{text}")
+        write_frame(ROOT, "08_keyboard_collapse_all", frames)
 
         activity_tab = find_marker_position(SESSION, "Activity", line_contains="[Overview]")
         mouse_coordinates["activity_tab"] = list(activity_tab)
@@ -404,6 +421,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "[- less]",
         ],
         "06_mouse_overview_less": ["[Overview]", "Bug Description", "[+ more]"],
+        "07_keyboard_expand_all": ["[Overview]", "Actual Behavior", "[- less]"],
+        "08_keyboard_collapse_all": ["[Overview]", "Bug Description", "[+ more]"],
         "10_mouse_activity_tab": ["[Activity]", "Comment by @clawsweeper", "[details]"],
         "11_mouse_activity_details_open": [
             "[Activity]",
@@ -446,6 +465,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
                 errors.append(f"{txt_path} missing marker {marker!r}")
         if name == "06_mouse_overview_less" and "Actual Behavior" in text:
             errors.append(f"{txt_path} still shows expanded issue body after collapse")
+        if name == "08_keyboard_collapse_all" and "Actual Behavior" in text:
+            errors.append(f"{txt_path} still shows expanded issue body after keyboard collapse")
 
     if errors:
         raise SystemExit("Issue mouse smoke validation failed:\n- " + "\n- ".join(errors))
