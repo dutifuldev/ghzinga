@@ -110,7 +110,7 @@ pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
 async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_pr(id).await {
         Ok(output) => output,
-        Err(error) if crate::github::auth::is_auth_unavailable(&error) => {
+        Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
             return fetch_public_rest_pr(id, error).await;
         }
         Err(error) => return Err(error),
@@ -173,7 +173,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
 async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_issue(id).await {
         Ok(output) => output,
-        Err(error) if crate::github::auth::is_auth_unavailable(&error) => {
+        Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
             return fetch_public_rest_issue(id, error).await;
         }
         Err(error) => return Err(error),
