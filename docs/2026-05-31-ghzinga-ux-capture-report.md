@@ -111,7 +111,7 @@ The PR rendered frames also show:
 - check rows grouped under `Passing`
 - file rows with visible `[more]`
 - the linked issue `openclaw/openclaw#66943`
-- footer controls `[refresh] [open] [help] [quit]`
+- footer controls `[refresh] [copy] [open] [help] [quit]`
 
 ## Issue Captured Views
 
@@ -161,7 +161,7 @@ The rendered frames also show:
 - comment rendering with visible `[more]`
 - detected links including `openclaw/openclaw#84904` and
   `https://github.com/openclaw/openclaw/issues/87310#issuecomment-4585747111`
-- footer controls `[refresh] [open] [help] [quit]`
+- footer controls `[refresh] [copy] [open] [help] [quit]`
 
 ## tmux Key Finding
 
@@ -195,4 +195,4 @@ terminal frames for:
 The broader mouse routing matrix is still covered through render-to-click
 integration tests that render the actual Ratatui UI, click the registered hit
 rectangles, and verify body expansion, file expansion, issue/PR link navigation
-intent, refresh, help, quit, exact URL opening, and footer controls.
+intent, refresh, copy, help, quit, exact URL opening, and footer controls.

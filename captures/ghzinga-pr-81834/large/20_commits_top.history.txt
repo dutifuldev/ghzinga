@@ -46,5 +46,5 @@
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
-  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                                 
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                          
                                                                                 

@@ -21,6 +21,7 @@ use crate::{
 use anyhow::Context;
 use clap::Parser;
 use crossterm::event::{self, Event};
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -290,6 +291,10 @@ async fn handle_intent(
             open_url(state, &url).await;
             false
         }
+        AppIntent::CopyUrl(url) => {
+            copy_to_clipboard(state, &url).await;
+            false
+        }
         AppIntent::Back => {
             if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
                 let Some(id) = state.history.last().cloned() else {
@@ -409,6 +414,62 @@ async fn open_url(state: &mut AppState, url: &str) {
     }
 }
 
+async fn copy_to_clipboard(state: &mut AppState, text: &str) {
+    let Some((program, args)) = current_clipboard_command() else {
+        state.last_error = Some(
+            "no clipboard command available; set GZG_COPY_COMMAND to a command that reads stdin"
+                .into(),
+        );
+        return;
+    };
+
+    let mut child = match Command::new(&program)
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(error) => {
+            state.last_error = Some(format!(
+                "failed to execute `{program}` for clipboard copy: {error}"
+            ));
+            return;
+        }
+    };
+
+    let mut stdin = child.stdin.take().expect("stdin was configured as piped");
+    if let Err(error) = stdin.write_all(text.as_bytes()).await {
+        let _ = child.kill().await;
+        state.last_error = Some(format!(
+            "failed to write clipboard text to `{program}`: {error}"
+        ));
+        return;
+    }
+    drop(stdin);
+
+    match child.wait_with_output().await {
+        Ok(output) if output.status.success() => {
+            state.last_error = None;
+            state.status_message = Some(format!("copied {text}"));
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let details = stderr.trim();
+            state.last_error = Some(if details.is_empty() {
+                format!("`{program}` failed to copy without an error message")
+            } else {
+                format!("`{program}` failed to copy: {details}")
+            });
+        }
+        Err(error) => {
+            state.last_error = Some(format!(
+                "failed to wait for `{program}` during clipboard copy: {error}"
+            ));
+        }
+    }
+}
+
 fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
     if let Some(browser) = browser.map(str::trim).filter(|value| !value.is_empty()) {
         let mut parts = browser
@@ -436,6 +497,87 @@ fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         ("xdg-open".into(), vec![url.into()])
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClipboardPlatform {
+    #[cfg(any(target_os = "macos", test))]
+    Macos,
+    #[cfg(any(target_os = "windows", test))]
+    Windows,
+    #[cfg(any(not(any(target_os = "macos", target_os = "windows")), test))]
+    Unix,
+}
+
+fn current_clipboard_command() -> Option<(String, Vec<String>)> {
+    clipboard_command(
+        current_clipboard_platform(),
+        std::env::var("GZG_COPY_COMMAND").ok().as_deref(),
+        std::env::var("WAYLAND_DISPLAY").ok().as_deref(),
+        std::env::var("DISPLAY").ok().as_deref(),
+    )
+}
+
+fn current_clipboard_platform() -> ClipboardPlatform {
+    #[cfg(target_os = "macos")]
+    {
+        return ClipboardPlatform::Macos;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return ClipboardPlatform::Windows;
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        ClipboardPlatform::Unix
+    }
+}
+
+fn clipboard_command(
+    platform: ClipboardPlatform,
+    explicit_command: Option<&str>,
+    wayland_display: Option<&str>,
+    x11_display: Option<&str>,
+) -> Option<(String, Vec<String>)> {
+    if let Some(command) = explicit_command
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let mut parts = command
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let program = parts.remove(0);
+        return Some((program, parts));
+    }
+
+    match platform {
+        #[cfg(any(target_os = "macos", test))]
+        ClipboardPlatform::Macos => Some(("pbcopy".into(), vec![])),
+        #[cfg(any(target_os = "windows", test))]
+        ClipboardPlatform::Windows => Some(("clip".into(), vec![])),
+        #[cfg(any(not(any(target_os = "macos", target_os = "windows")), test))]
+        ClipboardPlatform::Unix => {
+            if wayland_display
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+            {
+                Some(("wl-copy".into(), vec![]))
+            } else if x11_display
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+            {
+                Some((
+                    "xclip".into(),
+                    vec!["-selection".into(), "clipboard".into()],
+                ))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -570,9 +712,9 @@ mod tests {
     };
 
     use super::{
-        apply_fetch_outcome, auto_refresh_due, maybe_auto_refresh_with_start, navigate_back,
-        navigate_to_resource, start_background_fetch, url_open_command, FetchAction, FetchOutcome,
-        FetchSource, OfflineFixtureSource,
+        apply_fetch_outcome, auto_refresh_due, clipboard_command, maybe_auto_refresh_with_start,
+        navigate_back, navigate_to_resource, start_background_fetch, url_open_command,
+        ClipboardPlatform, FetchAction, FetchOutcome, FetchSource, OfflineFixtureSource,
     };
 
     struct FakeGateway {
@@ -658,6 +800,58 @@ mod tests {
                     "https://github.com/openclaw/openclaw/actions/runs/1".into()
                 ]
             )
+        );
+    }
+
+    #[test]
+    fn clipboard_command_uses_explicit_env_command() {
+        assert_eq!(
+            clipboard_command(
+                ClipboardPlatform::Unix,
+                Some("tmux load-buffer -"),
+                Some("wayland-1"),
+                Some(":0"),
+            ),
+            Some(("tmux".into(), vec!["load-buffer".into(), "-".into()]))
+        );
+    }
+
+    #[test]
+    fn clipboard_command_prefers_wayland_when_available() {
+        assert_eq!(
+            clipboard_command(ClipboardPlatform::Unix, None, Some("wayland-1"), Some(":0")),
+            Some(("wl-copy".into(), vec![]))
+        );
+    }
+
+    #[test]
+    fn clipboard_command_uses_xclip_for_x11() {
+        assert_eq!(
+            clipboard_command(ClipboardPlatform::Unix, None, None, Some(":0")),
+            Some((
+                "xclip".into(),
+                vec!["-selection".into(), "clipboard".into()]
+            ))
+        );
+    }
+
+    #[test]
+    fn clipboard_command_is_unavailable_without_unix_display() {
+        assert_eq!(
+            clipboard_command(ClipboardPlatform::Unix, None, None, None),
+            None
+        );
+    }
+
+    #[test]
+    fn clipboard_command_uses_platform_defaults() {
+        assert_eq!(
+            clipboard_command(ClipboardPlatform::Macos, None, None, None),
+            Some(("pbcopy".into(), vec![]))
+        );
+        assert_eq!(
+            clipboard_command(ClipboardPlatform::Windows, None, None, None),
+            Some(("clip".into(), vec![]))
         );
     }
 

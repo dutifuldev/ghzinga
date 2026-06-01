@@ -20,5 +20,5 @@
   next request succeed, which points at replay state rather than             │  
   authentication or model availability.                                      │  
                                                                              │  
-  [refresh] [open] [settings] [help] [quit] scroll 10/14 71%                    
-  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/14 71%             
+  r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab    

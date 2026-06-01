@@ -391,7 +391,14 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         )
 
     frames = expected_frames(mode)
-    markers = expected_markers(mode) + ["[refresh]", "[open]", "[settings]", "[help]", "[quit]"]
+    markers = expected_markers(mode) + [
+        "[refresh]",
+        "[copy]",
+        "[open]",
+        "[settings]",
+        "[help]",
+        "[quit]",
+    ]
     content_markers = expected_content_markers(mode, target)
     saw_scrollbar_thumb = False
     for label, cols, rows in SIZES:

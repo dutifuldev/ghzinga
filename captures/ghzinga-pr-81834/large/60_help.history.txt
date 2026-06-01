@@ -20,6 +20,7 @@
   - s: open or close settings                                                                                                                                   
   - t / y / p in settings: cycle theme / symbol style / spacing                                                                                                 
   - r: refresh now                                                                                                                                              
+  - y: copy current resource URL                                                                                                                                
   - o: open current resource in browser                                                                                                                         
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
   - v: reverse chronological feed order                                                                                                                         
@@ -46,5 +47,4 @@
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
-                                                                                                                                                                
-  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                                 
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                          
