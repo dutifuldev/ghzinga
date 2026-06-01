@@ -30,7 +30,7 @@ fn once_renders_pr_fixture_through_binary() {
     ])
     .assert()
     .success()
-    .stdout(contains("openclaw/openclaw#81834"))
+    .stdout(contains("https://github.com/openclaw/openclaw/pull/81834"))
     .stdout(contains(
         "[Overview] Activity  Commits  Checks  Files  Links",
     ))
@@ -50,7 +50,7 @@ fn once_renders_pr_fixture_through_long_binary_name() {
     ])
     .assert()
     .success()
-    .stdout(contains("openclaw/openclaw#81834"))
+    .stdout(contains("https://github.com/openclaw/openclaw/pull/81834"))
     .stdout(contains(
         "[Overview] Activity  Commits  Checks  Files  Links",
     ))
@@ -69,7 +69,9 @@ fn once_renders_issue_fixture_through_binary() {
     ])
     .assert()
     .success()
-    .stdout(contains("openclaw/openclaw#66943"))
+    .stdout(contains(
+        "https://github.com/openclaw/openclaw/issues/66943",
+    ))
     .stdout(contains("[Overview] Activity  Links"))
     .stdout(contains("Related PR"));
 }

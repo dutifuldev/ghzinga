@@ -10,13 +10,21 @@ date: 2026-06-02
 
 Finish the UI settings work around three user-facing preferences:
 
-- The header `owner/repo#number` identity is always a clickable GitHub link.
+- The header identity is always a clickable GitHub link. When the terminal is
+  wide enough, the visible label is the full `https://github.com/...` URL so
+  terminal URL detection points at GitHub. When space is tight, the label falls
+  back to `owner / repo #number` to avoid terminals auto-linking
+  `owner/repo#number` as a bogus `http://owner/repo#number` URL.
 - Reading content can use either a fixed readable width or the full terminal width.
 - Theme choices include the full Herdr built-in palette set, not only the default and Solarized dark.
 
 ## Header Link
 
-The header identity should link to `resource.url` when GitHub supplied one and fall back to `ResourceId::web_url()` otherwise. The hit target must stay separate from normal visible URL actions so footer `[copy]` and `[open]` still prefer visible content links and otherwise fall back to the current resource URL.
+The header identity should link to a sanitized GitHub URL from `resource.url`
+when GitHub supplied one and fall back to the resource id's GitHub URL
+otherwise. The hit target must stay separate from normal visible URL actions so
+footer `[copy]` and `[open]` still prefer visible content links and otherwise
+fall back to the current resource URL.
 
 ## Width Settings
 

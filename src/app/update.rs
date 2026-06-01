@@ -315,11 +315,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
 }
 
 fn current_resource_url(state: &AppState) -> String {
-    if state.resource.url.trim().is_empty() {
-        state.resource.id.web_url()
-    } else {
-        state.resource.url.clone()
-    }
+    state.resource.web_url()
 }
 
 fn visible_or_current_url(state: &AppState) -> String {
@@ -795,6 +791,26 @@ mod tests {
         assert_eq!(
             intent,
             AppIntent::OpenUrl("https://github.com/owner/repo/issues/1".into())
+        );
+    }
+
+    #[test]
+    fn keyboard_o_ignores_non_github_current_resource_url() {
+        let mut resource = pr_resource();
+        resource.id.owner = "huggingface".into();
+        resource.id.repo = "huggingface.js".into();
+        resource.id.number = 2185;
+        resource.url = "http://huggingface/huggingface.js#2185".into();
+        let mut state = AppState::new(resource);
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/huggingface/huggingface.js/pull/2185".into())
         );
     }
 

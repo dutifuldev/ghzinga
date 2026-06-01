@@ -79,9 +79,13 @@ impl ResourceId {
     }
 
     pub fn web_url(&self) -> String {
-        let segment = match self.kind_hint {
-            Some(ResourceKind::PullRequest) => "pull",
-            Some(ResourceKind::Issue) | None => "issues",
+        self.web_url_for_kind(self.kind_hint.unwrap_or(ResourceKind::Issue))
+    }
+
+    pub fn web_url_for_kind(&self, kind: ResourceKind) -> String {
+        let segment = match kind {
+            ResourceKind::PullRequest => "pull",
+            ResourceKind::Issue => "issues",
         };
         format!(
             "https://github.com/{}/{}/{}/{}",
@@ -196,6 +200,15 @@ pub struct Resource {
 }
 
 impl Resource {
+    pub fn web_url(&self) -> String {
+        let url = self.url.trim();
+        if is_github_web_url(url) {
+            url.to_string()
+        } else {
+            self.id.web_url_for_kind(self.kind())
+        }
+    }
+
     pub fn kind(&self) -> ResourceKind {
         if self.pull_request.is_some() {
             ResourceKind::PullRequest
@@ -383,6 +396,10 @@ fn push_changed(sections: &mut Vec<String>, label: &str, changed: bool) {
 pub struct MetadataItem {
     pub label: String,
     pub value: String,
+}
+
+fn is_github_web_url(url: &str) -> bool {
+    url.starts_with("https://github.com/")
 }
 
 fn metadata_fingerprint(items: &[MetadataItem]) -> String {
@@ -685,6 +702,56 @@ mod tests {
         assert_eq!(
             unknown.web_url(),
             "https://github.com/openclaw/openclaw/issues/88499"
+        );
+    }
+
+    #[test]
+    fn resource_web_url_ignores_non_github_url_values() {
+        let mut resource = Resource {
+            id: ResourceId {
+                owner: "huggingface".into(),
+                repo: "huggingface.js".into(),
+                number: 2185,
+                kind_hint: Some(ResourceKind::PullRequest),
+            },
+            title: "title".into(),
+            url: "http://huggingface/huggingface.js#2185".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: Vec::new(),
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: Some(PullRequest {
+                base_ref: "main".into(),
+                head_ref: "topic".into(),
+                requested_reviewers: Vec::new(),
+                review_decision: None,
+                merge_state: None,
+                additions: 0,
+                deletions: 0,
+                commits: Vec::new(),
+                checks: Vec::new(),
+                files: Vec::new(),
+                metadata: Vec::new(),
+            }),
+        };
+
+        assert_eq!(
+            resource.web_url(),
+            "https://github.com/huggingface/huggingface.js/pull/2185"
+        );
+
+        resource.url = " https://github.com/huggingface/huggingface.js/pull/2185 ".into();
+        assert_eq!(
+            resource.web_url(),
+            "https://github.com/huggingface/huggingface.js/pull/2185"
         );
     }
 
