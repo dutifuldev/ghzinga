@@ -5,16 +5,6 @@
                                                                                                                                                                 
                                                                                                                                                                 
    Overview [Activity] Links                                                                                                                                    
-  Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                  
-  meta: association CONTRIBUTOR, edited                                                                                                                         
-  [details]                                                                                                                                                     
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,                                          
-  2026, 10:28 PM ET / 02:28 UTC._                                                                                                                               
-                                                                                                                                                                
-  Summary                                                                                                                                                       
-  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers                                             
-  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
-  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
   path.                                                                                                                                                         
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
@@ -47,4 +37,14 @@
   Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                                                        
   meta: association CONTRIBUTOR                                                                                                                                 
   [details]                                                                                                                                                     
-  [refresh] [open] [settings] [help] [quit] scroll 0/24 0% ...                                                                                                  
+  Follow-up after the local recovery investigation: the durable fix likely needs the transport/payload layer plus a                                             
+  reset/recovery cleanup layer.                                                                                                                                 
+                                                                                                                                                                
+  A later live Slack test showed that sessions.reset by itself was not enough in the already-poisoned channel case. The                                         
+  reset moved the Slack channel binding to a fresh session id, but the old in-memory embedded-run/lane state still                                              
+  appeared to own the queue. Three later Slack messages were accepted but did not get replies; diagnostics showed:                                              
+                                                                                                                                                                
+  text                                                                                                                                                          
+  [+ more]                                                                                                                                                      
+                                                                                                                                                                
+  [refresh] [open] [settings] [help] [quit] scroll 10/24 41% ...                                                                                                
