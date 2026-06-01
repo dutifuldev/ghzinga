@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "12028e83a398dd694c8b49eb910acad9a804710b",
+  "git_commit": "e5422841804e2c9ad48793917fbcfa979e6eb2f6",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -13,6 +13,7 @@
     "open_url": "https://github.com/openclaw/openclaw/pull/81834",
     "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
   },
+  "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"ascii\"\nspacing = \"compact\"\n",
   "quit_exited": true,
   "mouse_coordinates": {
     "overview_more": [
@@ -63,8 +64,12 @@
       28,
       36
     ],
+    "settings_compact": [
+      4,
+      26
+    ],
     "quit": [
-      46,
+      44,
       36
     ]
   },
@@ -138,6 +143,11 @@
       "name": "80_mouse_footer_settings",
       "txt": "80_mouse_footer_settings.txt",
       "ansi": "80_mouse_footer_settings.ansi"
+    },
+    {
+      "name": "81_mouse_settings_compact",
+      "txt": "81_mouse_settings_compact.txt",
+      "ansi": "81_mouse_settings_compact.ansi"
     }
   ]
 }

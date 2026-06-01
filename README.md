@@ -320,9 +320,10 @@ switch to Links, activate a linked issue row, replace the current TUI view with
 that issue, navigate back, click footer `[refresh]` until the fixture-mode
 refresh status is visible, click footer `[copy]` and `[open]` through
 capture-local adapter commands, open the help and settings overlays through the
-footer, and click `[quit]` until the tmux session exits. CI also rejects tracked
-or generated PNG files under `captures/`; UX evidence is kept as terminal text
-and ANSI transcripts only.
+footer, click a settings row until the capture-local config save is visible, and
+click `[quit]` until the tmux session exits. CI also rejects tracked or generated
+PNG files under `captures/`; UX evidence is kept as terminal text and ANSI
+transcripts only.
 
 The repository includes tmux capture artifacts for PR and issue views. Captures
 are stored as terminal text and ANSI transcripts; PNG screenshots are not
