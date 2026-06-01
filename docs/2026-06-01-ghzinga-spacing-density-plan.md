@@ -29,6 +29,10 @@ count.
   wide enough. This follows the gh-dash preview pattern of giving preview text
   left/right padding instead of starting every readable line at column zero.
   Compact preserves full-width output for smaller terminals and maximum density.
+- Comfortable chrome gets the same two-column horizontal gutter as content for
+  the header, tab selector row, status band, and footer controls. The left and
+  right padding must be equal so the upper navigation, title, status, and body
+  align as one readable column.
 - Comfortable read-heavy tabs cap the content column on very wide terminals.
   `gh dash` usually renders previews in a bounded split pane, so prose and
   comment threads do not stretch across the entire terminal. `ghzinga` is a
@@ -59,6 +63,9 @@ count.
 - Click targets stay on the visible control row. Blank spacing rows are never
   clickable. Comfortable gutters shift the hit rectangles with the visible
   content so the clickable target still matches what the user sees.
+- Tab-level controls such as `[expand all]` and `[collapse all]` should render
+  after the feed/list content, not above it. The top of every tab should start
+  with the actual resource information.
 
 ## Settings Copy
 

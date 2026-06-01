@@ -52,6 +52,11 @@ relative position and whether there is more content below.
    - truncate the label to the available row width when it is the first item on
      a row and cannot fit
    - register hit areas against the displayed width
+   - in comfortable mode, apply the same left/right padding as the content
+     viewport so the title, navigation, status, content, and footer align
+   - when the header wraps, spend reserved rows on identity, state, updated
+     time, and title in that priority order instead of silently hiding updated
+     metadata behind title wrapping
 3. Improve status wrapping:
    - wrap oversized status chips by display width before falling back to
      truncation
@@ -78,6 +83,6 @@ relative position and whether there is more content below.
 ## Expected Result
 
 At normal sizes the UI should look unchanged. At narrow sizes the chrome should
-wrap into reserved rows, keep click targets aligned with visible labels, and
-only replace content with an ellipsis when the terminal is genuinely too small
-to show the reserved chrome.
+wrap into reserved rows, keep click targets aligned with visible labels, show all
+critical resource identity metadata reliably, and only replace content with an
+ellipsis when the terminal is genuinely too small to show the reserved chrome.

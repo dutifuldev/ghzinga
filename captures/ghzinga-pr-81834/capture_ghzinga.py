@@ -413,12 +413,10 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
     if mode == "pr" and target == "openclaw/openclaw#81834":
         return {
             "00_overview_top": [
-                "Conversation",
                 "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             ],
             "10_activity_top": [
-                "Activity (7 entries)",
-                "Comment by @github-actions",
+                "comment Comment by @github-actions",
                 "Dependency Changes Detected",
             ],
             "11_activity_pagedown": [
@@ -426,18 +424,16 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "Codex review: needs changes before merge.",
             ],
             "20_commits_top": [
-                "Commits (5)",
                 "feat(senseaudio): add SenseAudio TTS provider",
                 "fix(senseaudio): address TTS review feedback",
             ],
             "30_checks_top": [
-                "Checks: PASS",
+                "Summary: PASS",
                 "142 total:",
                 "Passing (97)",
                 "suite/CI",
             ],
             "40_files_top": [
-                "Files changed (14)",
                 "extensions/senseaudio/index.ts",
             ],
             "41_files_pagedown": [
@@ -445,7 +441,6 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "extensions/senseaudio/speech-provider.test.ts",
             ],
             "50_links_top": [
-                "Links",
                 "openclaw/openclaw#66943",
                 "actions/runs",
             ],
@@ -453,20 +448,17 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
     if mode == "issue" and target == "https://github.com/openclaw/openclaw/issues/88499":
         return {
             "00_overview_top": [
-                "Conversation",
                 "Bug Description",
                 "previous_response_id",
             ],
             "10_activity_top": [
-                "Activity (4 entries)",
-                "Comment by @clawsweeper",
+                "comment Comment by @clawsweeper",
             ],
             "11_activity_pagedown": [
                 "Comment by @tianxiaochannel-oss88",
                 "Adding a fresh macOS/Slack data point",
             ],
             "20_links_top": [
-                "Links",
                 "openclaw/openclaw#84904",
                 "openclaw/openclaw#87310",
                 "issuecomment-4585747111",

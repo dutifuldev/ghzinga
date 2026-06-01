@@ -95,6 +95,7 @@ pub struct AppState {
     pub loading: Option<LoadingState>,
     pub show_help: bool,
     pub show_settings: bool,
+    pub reverse_chronological: bool,
     pub theme: ThemeName,
     pub symbols: SymbolMode,
     pub spacing: SpacingMode,
@@ -121,6 +122,7 @@ impl AppState {
             loading: None,
             show_help: false,
             show_settings: false,
+            reverse_chronological: false,
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
             spacing: SpacingMode::Comfortable,
@@ -294,6 +296,12 @@ impl AppState {
 
     pub fn close_settings(&mut self) {
         self.show_settings = false;
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+    }
+
+    pub fn toggle_feed_order(&mut self) {
+        self.reverse_chronological = !self.reverse_chronological;
         self.scroll = 0;
         self.scroll_limit = u16::MAX;
     }

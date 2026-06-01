@@ -113,28 +113,94 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         rects.area,
         Style::default().fg(palette.text).bg(palette.panel_bg),
     );
-    render_header(frame, rects.header, &state.resource, &palette);
-    render_tabs(frame, rects.tabs, state, &palette);
-    render_status(frame, rects.status, state, &palette);
+    render_header(
+        frame,
+        chrome_area_for_spacing(rects.header, state.spacing),
+        &state.resource,
+        &palette,
+    );
+    render_tabs(
+        frame,
+        chrome_area_for_spacing(rects.tabs, state.spacing),
+        state,
+        &palette,
+    );
+    render_status(
+        frame,
+        chrome_area_for_spacing(rects.status, state.spacing),
+        state,
+        &palette,
+    );
     render_content(frame, rects.content, state, &palette);
-    render_footer(frame, rects.footer, state, &palette);
+    render_footer(
+        frame,
+        chrome_area_for_spacing(rects.footer, state.spacing),
+        state,
+        &palette,
+    );
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette: &Palette) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
     let kind = resource.kind();
     let mut header = Vec::new();
-    let meta_width = area.width as usize;
+    let width = area.width as usize;
+    let content_rows = area.height.saturating_sub(1) as usize;
     let updated = format!("updated {}", resource.updated_at);
     let state = format!("[{} {}]", kind, resource.state);
-    let compact = area.width < 56;
-    let used = UnicodeWidthStr::width(state.as_str())
-        + if compact {
-            1
-        } else {
-            UnicodeWidthStr::width(updated.as_str()) + 2
-        };
-    let id_width = meta_width.saturating_sub(used).max(1);
-    let mut meta_spans = vec![
+    if content_rows > 0 {
+        let include_updated_in_meta = content_rows < 3 && width >= 56;
+        header.push(header_meta_line(
+            resource,
+            &state,
+            include_updated_in_meta.then_some(updated.as_str()),
+            width,
+            palette,
+        ));
+    }
+    if content_rows >= 3 {
+        header.push(Line::from(Span::styled(
+            truncate_display(&updated, width),
+            dim_style(palette),
+        )));
+    }
+    let title_rows = content_rows.saturating_sub(header.len());
+    if title_rows > 0 {
+        let mut title_lines = markdown::wrap_plain_text(&resource.title, width);
+        title_lines.truncate(title_rows);
+        for title in title_lines {
+            header.push(Line::from(Span::styled(
+                title,
+                Style::default().fg(palette.text),
+            )));
+        }
+    }
+    while header.len() + 1 < area.height as usize {
+        header.push(Line::from(""));
+    }
+    header.push(separator_line(area.width, palette));
+    Paragraph::new(header)
+        .style(Style::default().fg(palette.text).bg(palette.panel_bg))
+        .render(area, frame.buffer_mut());
+}
+
+fn header_meta_line(
+    resource: &Resource,
+    state_label: &str,
+    updated: Option<&str>,
+    width: usize,
+    palette: &Palette,
+) -> Line<'static> {
+    let state_width = UnicodeWidthStr::width(state_label);
+    let updated_width = updated.map(UnicodeWidthStr::width).unwrap_or_default();
+    let separators = 1 + usize::from(updated.is_some());
+    let reserved = state_width
+        .saturating_add(updated_width)
+        .saturating_add(separators);
+    let id_width = width.saturating_sub(reserved).max(1);
+    let mut spans = vec![
         Span::styled(
             truncate_display(&resource.id.canonical_name(), id_width),
             Style::default()
@@ -143,43 +209,18 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette
         ),
         Span::raw(" "),
         Span::styled(
-            state,
+            state_label.to_string(),
             resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
         ),
     ];
-    if !compact {
-        meta_spans.push(Span::raw(" "));
-        meta_spans.push(Span::styled(
-            truncate_display(&updated, meta_width),
+    if let Some(updated) = updated {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            truncate_display(updated, width),
             dim_style(palette),
         ));
     }
-    header.push(Line::from(meta_spans));
-
-    let title_rows = area.height.saturating_sub(if compact { 3 } else { 2 }) as usize;
-    let mut title_lines = markdown::wrap_plain_text(&resource.title, area.width as usize);
-    title_lines.truncate(title_rows.max(1));
-    for title in title_lines {
-        header.push(Line::from(Span::styled(
-            title,
-            Style::default().fg(palette.text),
-        )));
-    }
-    if compact && header.len() + 1 < area.height as usize {
-        header.push(Line::from(Span::styled(
-            truncate_display(&updated, area.width as usize),
-            dim_style(palette),
-        )));
-    }
-    while header.len() + 1 < area.height as usize {
-        header.push(Line::from(""));
-    }
-    if area.height > 0 {
-        header.push(separator_line(area.width, palette));
-    }
-    Paragraph::new(header)
-        .style(Style::default().fg(palette.text).bg(palette.panel_bg))
-        .render(area, frame.buffer_mut());
+    Line::from(spans)
 }
 
 fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
@@ -743,6 +784,19 @@ fn content_area_for_spacing(area: Rect, spacing: SpacingMode, tab: Tab) -> Rect 
     )
 }
 
+fn chrome_area_for_spacing(area: Rect, spacing: SpacingMode) -> Rect {
+    if spacing == SpacingMode::Compact || area.width < 48 {
+        return area;
+    }
+
+    Rect::new(
+        area.x.saturating_add(COMFORTABLE_GUTTER),
+        area.y,
+        area.width.saturating_sub(COMFORTABLE_GUTTER * 2),
+        area.height,
+    )
+}
+
 fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow> {
     if spacing == SpacingMode::Compact {
         return rows;
@@ -765,7 +819,7 @@ fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow>
 
 fn is_section_rule(row: &ContentRow) -> bool {
     let text = line_text(&row.line);
-    !text.is_empty() && text.chars().all(|ch| ch == '-')
+    !text.is_empty() && text.chars().all(|ch| ch == '─' || ch == '-')
 }
 
 fn wrap_content_rows(rows: Vec<ContentRow>, width: u16, spacing: SpacingMode) -> Vec<ContentRow> {
@@ -879,6 +933,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- r: refresh now",
             "- o: open current resource in browser",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
+            "- v: reverse chronological feed order",
             "- Up / Down / PageUp / PageDown / Home / End: scroll",
             "- e: expand or collapse the main body",
             "- Backspace: return after following a link",
@@ -1013,19 +1068,13 @@ fn settings_option_row(
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
     let symbols = state.symbols.symbols();
-    let mut rows = vec![
-        heading_row("Conversation", palette),
-        separator_row(width, palette),
-    ];
-    if let Some(row) = expand_all_row(
+    let mut rows = Vec::new();
+    let expand_all = expand_all_row(
         overview_expandable_blocks(&state.resource),
         &state.expanded_blocks,
         palette,
         &symbols,
-    ) {
-        rows.push(row);
-        rows.push(ContentRow::plain(""));
-    }
+    );
 
     push_conversation_rows(&mut rows, state, width, palette);
 
@@ -1093,6 +1142,10 @@ fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         width,
         palette,
     );
+    if let Some(row) = expand_all {
+        rows.push(ContentRow::plain(""));
+        rows.push(row);
+    }
     rows
 }
 
@@ -1102,7 +1155,7 @@ fn push_conversation_rows(
     width: usize,
     palette: &Palette,
 ) {
-    let entries = chronological_timeline_entries(&state.resource);
+    let entries = chronological_timeline_entries(&state.resource, state.reverse_chronological);
     if entries.is_empty() {
         rows.push(ContentRow::plain("No conversation items."));
         return;
@@ -1124,15 +1177,18 @@ fn push_conversation_rows(
     }
 }
 
-fn chronological_timeline_entries(resource: &Resource) -> Vec<TimelineEntry<'_>> {
-    let mut entries = Vec::new();
-    entries.push(TimelineEntry {
+fn chronological_timeline_entries(
+    resource: &Resource,
+    reverse_chronological: bool,
+) -> Vec<TimelineEntry<'_>> {
+    let body = TimelineEntry {
         sort_key: sortable_timestamp(&resource.created_at),
         sequence: 0,
         kind_order: 0,
         item: TimelineItem::Body,
-    });
+    };
 
+    let mut entries = Vec::new();
     let mut sequence = 1;
     if let Some(pr) = &resource.pull_request {
         for commit in &pr.commits {
@@ -1168,6 +1224,12 @@ fn chronological_timeline_entries(resource: &Resource) -> Vec<TimelineEntry<'_>>
                 .then(left.kind_order.cmp(&right.kind_order))
                 .then(left.sequence.cmp(&right.sequence))
         });
+    }
+    if reverse_chronological {
+        entries.reverse();
+        entries.push(body);
+    } else {
+        entries.insert(0, body);
     }
     entries
 }
@@ -1374,27 +1436,22 @@ fn push_metadata_rows(
 
 fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
     let symbols = state.symbols.symbols();
-    let mut rows = vec![
-        ContentRow::styled(
-            format!("Activity ({} entries)", state.resource.activity.len()),
-            heading_style(palette),
-        ),
-        separator_row(width, palette),
-    ];
+    let mut rows = Vec::new();
     if state.resource.activity.is_empty() {
         rows.push(ContentRow::plain("No comments."));
         return rows;
     }
-    if let Some(row) = expand_all_row(
+    let expand_all = expand_all_row(
         activity_expandable_blocks(&state.resource),
         &state.expanded_blocks,
         palette,
         &symbols,
-    ) {
-        rows.push(row);
-        rows.push(ContentRow::plain(""));
+    );
+    let mut entries = state.resource.activity.iter().collect::<Vec<_>>();
+    if state.reverse_chronological {
+        entries.reverse();
     }
-    for entry in &state.resource.activity {
+    for entry in entries {
         rows.push(ContentRow::plain(format!(
             "{} by @{} {}",
             entry.kind.label(),
@@ -1442,6 +1499,10 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
             last.comfortable_gap_after = true;
         }
     }
+    if let Some(row) = expand_all {
+        rows.push(ContentRow::plain(""));
+        rows.push(row);
+    }
     rows
 }
 
@@ -1453,23 +1514,18 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             "Commits are only available for pull requests.",
         )];
     };
-    let mut rows = vec![
-        ContentRow::styled(
-            format!("Commits ({})", pr.commits.len()),
-            heading_style(palette),
-        ),
-        separator_row(width, palette),
-    ];
-    if let Some(row) = expand_all_row(
+    let mut rows = Vec::new();
+    let expand_all = expand_all_row(
         commit_expandable_blocks(pr),
         &state.expanded_blocks,
         palette,
         &symbols,
-    ) {
-        rows.push(row);
-        rows.push(ContentRow::plain(""));
+    );
+    let mut commits = pr.commits.iter().collect::<Vec<_>>();
+    if state.reverse_chronological {
+        commits.reverse();
     }
-    for commit in &pr.commits {
+    for commit in commits {
         let block = BlockId::Commit(commit.oid.clone());
         let expanded = state.block_expanded(&block);
         let marker = expand_label(expanded, &symbols);
@@ -1497,6 +1553,10 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             ));
             rows.push(ContentRow::plain(""));
         }
+    }
+    if let Some(row) = expand_all {
+        rows.push(ContentRow::plain(""));
+        rows.push(row);
     }
     rows
 }
@@ -1562,11 +1622,7 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
     };
     let counts = pr.check_counts();
     let mut rows = vec![
-        ContentRow::styled(
-            format!("Checks: {}", checks_summary(resource)),
-            heading_style(palette),
-        ),
-        separator_row(width, palette),
+        ContentRow::plain(format!("Summary: {}", checks_summary(resource))),
         ContentRow::plain(format!(
             "{} total: {} pass, {} pending, {} fail, {} skipped, {} neutral, {} unknown",
             counts.total(),
@@ -1579,15 +1635,12 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
         )),
         ContentRow::plain(""),
     ];
-    if let Some(row) = expand_all_row(
+    let expand_all = expand_all_row(
         check_expandable_blocks(pr),
         &state.expanded_blocks,
         palette,
         &symbols,
-    ) {
-        rows.push(row);
-        rows.push(ContentRow::plain(""));
-    }
+    );
     let context = CheckGroupRenderContext {
         expanded_blocks: &state.expanded_blocks,
         width,
@@ -1638,6 +1691,10 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
     );
     if pr.checks.is_empty() {
         rows.push(ContentRow::plain("No checks reported yet."));
+    }
+    if let Some(row) = expand_all {
+        rows.push(ContentRow::plain(""));
+        rows.push(row);
     }
     rows
 }
@@ -1756,22 +1813,13 @@ fn files_rows_for_pr(
     palette: &Palette,
     symbols: &Symbols,
 ) -> Vec<ContentRow> {
-    let mut rows = vec![
-        ContentRow::styled(
-            format!("Files changed ({})", pr.files.len()),
-            heading_style(palette),
-        ),
-        separator_row(width, palette),
-    ];
-    if let Some(row) = expand_all_row(
+    let mut rows = Vec::new();
+    let expand_all = expand_all_row(
         file_expandable_blocks(pr),
         expanded_blocks,
         palette,
         symbols,
-    ) {
-        rows.push(row);
-        rows.push(ContentRow::plain(""));
-    }
+    );
     for file in &pr.files {
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
@@ -1828,6 +1876,10 @@ fn files_rows_for_pr(
             ));
             rows.push(ContentRow::plain(""));
         }
+    }
+    if let Some(row) = expand_all {
+        rows.push(ContentRow::plain(""));
+        rows.push(row);
     }
     rows
 }
@@ -1886,9 +1938,9 @@ fn diff_patch_rows(patch: &str, width: usize, palette: &Palette) -> Vec<ContentR
 
 fn diff_line_style(line: &str, palette: &Palette) -> Style {
     if line.starts_with('+') {
-        Style::default().fg(palette.green)
+        Style::default().fg(palette.panel_bg).bg(palette.green)
     } else if line.starts_with('-') {
-        Style::default().fg(palette.red)
+        Style::default().fg(palette.panel_bg).bg(palette.red)
     } else if line.starts_with("@@") {
         Style::default()
             .fg(palette.teal)
@@ -1905,7 +1957,7 @@ fn diff_line_style(line: &str, palette: &Palette) -> Style {
 }
 
 fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<ContentRow> {
-    let mut rows = vec![heading_row("Links", palette), separator_row(width, palette)];
+    let mut rows = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for id in &resource.related_resources {
         if seen.insert(id.canonical_name()) {
@@ -1938,7 +1990,7 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
             }
         }
     }
-    if rows.len() == 2 {
+    if rows.is_empty() {
         rows.push(ContentRow::plain(
             "No GitHub issue or PR links detected yet.",
         ));
@@ -2072,8 +2124,10 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     }
 
     let default_message = format!(
-        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | arrows/page scroll | e more/less | tab {} | {}",
-        state.active_tab.label(), scroll
+        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
+        if state.reverse_chronological { "newest" } else { "oldest" },
+        state.active_tab.label(),
+        scroll
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
@@ -2317,7 +2371,7 @@ fn summarize_checks(resource: &Resource) -> String {
 }
 
 fn horizontal_rule(width: u16) -> String {
-    "-".repeat(width as usize)
+    "─".repeat(width as usize)
 }
 
 fn truncate_ascii(input: &str, max_width: usize) -> String {
@@ -2520,14 +2574,13 @@ mod tests {
 
         assert!(content.contains("openclaw/openclaw#81834"));
         assert!(content.contains("[Overview]"));
-        assert!(content.contains("Conversation"));
         assert!(content.contains("checks PASS"));
         assert!(content.contains("* @KLilyZ opened"));
         assert!(content.contains("* commit fb948c9"));
         assert!(content.contains("[+ more]") || content.contains("Problem: senseaudio"));
         assert!(!content.contains("┌"));
         assert!(!content.contains("│"));
-        assert!(!content.contains("─"));
+        assert!(content.contains("─"));
     }
 
     #[test]
@@ -2544,6 +2597,20 @@ mod tests {
         assert!(content.contains("Draft: no"));
         assert!(content.contains("Cross repository: yes"));
         assert!(content.contains("Head ref OID: fb4165fe62f1d126ba8c4bde3abe10fd7e985778"));
+    }
+
+    #[test]
+    fn overview_omits_redundant_tab_title_and_keeps_bulk_action_at_bottom() {
+        let mut state = AppState::new(pr_resource());
+
+        let content = draw(&mut state, 120, 80);
+        let body = content.find("Problem: senseaudio").unwrap();
+        let details = content.find("Details").unwrap();
+        let expand_all = content.find("[expand all]").unwrap();
+
+        assert!(!content.contains("Conversation"));
+        assert!(body < details);
+        assert!(details < expand_all);
     }
 
     #[test]
@@ -2575,6 +2642,43 @@ mod tests {
         assert!(comment < commit);
         assert!(commit < review);
         assert!(review < details);
+    }
+
+    #[test]
+    fn overview_conversation_starts_with_description_even_when_commit_is_older() {
+        let mut resource = pr_resource();
+        resource.created_at = "2026-01-02T00:00:00Z".into();
+        resource.body = "Opening body".into();
+        resource.pull_request.as_mut().unwrap().commits[0].committed_at =
+            "2026-01-01T00:00:00Z".into();
+        resource.pull_request.as_mut().unwrap().commits[0].message = "Older commit".into();
+        resource.activity.clear();
+        let mut state = AppState::new(resource);
+
+        let content = draw(&mut state, 120, 80);
+        let body = content.find("Opening body").unwrap();
+        let commit = content.find("Older commit").unwrap();
+
+        assert!(body < commit);
+    }
+
+    #[test]
+    fn overview_reverse_order_keeps_description_after_chronological_items() {
+        let mut resource = pr_resource();
+        resource.body = "Opening body".into();
+        resource.pull_request.as_mut().unwrap().commits[0].message =
+            "Commit before activity".into();
+        resource.activity[0].body = "Activity after commit".into();
+        let mut state = AppState::new(resource);
+        state.reverse_chronological = true;
+
+        let content = draw(&mut state, 120, 80);
+        let body = content.find("Opening body").unwrap();
+        let commit = content.find("Commit before activity").unwrap();
+        let activity = content.find("Activity after commit").unwrap();
+
+        assert!(activity < commit);
+        assert!(commit < body);
     }
 
     #[test]
@@ -3188,8 +3292,8 @@ mod tests {
         let mut compact_state = AppState::new(pr_resource());
         compact_state.spacing = SpacingMode::Compact;
 
-        draw(&mut comfortable_state, 120, 36);
-        draw(&mut compact_state, 120, 36);
+        draw(&mut comfortable_state, 120, 80);
+        draw(&mut compact_state, 120, 80);
 
         let comfortable_rect = rendered_target_rect(&comfortable_state, |target| {
             matches!(target, HitTarget::ExpandBlocks(_))
@@ -3204,6 +3308,34 @@ mod tests {
         assert_eq!(comfortable_rect.width, 116);
         assert_eq!(compact_rect.x, 0);
         assert_eq!(compact_rect.width, 120);
+    }
+
+    #[test]
+    fn comfortable_spacing_pads_chrome_click_targets_equally() {
+        let mut comfortable_state = AppState::new(pr_resource());
+        let mut compact_state = AppState::new(pr_resource());
+        compact_state.spacing = SpacingMode::Compact;
+
+        draw(&mut comfortable_state, 120, 36);
+        draw(&mut compact_state, 120, 36);
+
+        let comfortable_tab = rendered_target_rect(&comfortable_state, |target| {
+            *target == HitTarget::Tab(Tab::Activity)
+        })
+        .expect("comfortable tab target");
+        let compact_tab = rendered_target_rect(&compact_state, |target| {
+            *target == HitTarget::Tab(Tab::Activity)
+        })
+        .expect("compact tab target");
+        let comfortable_footer =
+            rendered_target_rect(&comfortable_state, |target| *target == HitTarget::Refresh)
+                .expect("comfortable footer target");
+        let compact_footer =
+            rendered_target_rect(&compact_state, |target| *target == HitTarget::Refresh)
+                .expect("compact footer target");
+
+        assert_eq!(comfortable_tab.x, compact_tab.x + COMFORTABLE_GUTTER);
+        assert_eq!(comfortable_footer.x, compact_footer.x + COMFORTABLE_GUTTER);
     }
 
     #[test]
@@ -3337,6 +3469,22 @@ mod tests {
     }
 
     #[test]
+    fn header_wrap_keeps_identity_state_updated_and_title_visible() {
+        let mut resource = pr_resource();
+        resource.title = "Very long pull request title that needs a reliable wrapped header".into();
+        resource.updated_at = "2026-06-01T12:00:00Z".into();
+        let mut state = AppState::new(resource);
+        state.spacing = SpacingMode::Compact;
+
+        let content = draw(&mut state, 36, 24);
+
+        assert!(content.contains("openclaw/openclaw#81834"));
+        assert!(content.contains("[PR OPEN]"));
+        assert!(content.contains("updated"));
+        assert!(content.contains("Very long pull request"));
+    }
+
+    #[test]
     fn rendered_tab_hit_area_can_be_clicked() {
         let mut state = AppState::new(pr_resource());
         draw(&mut state, 120, 36);
@@ -3369,7 +3517,7 @@ mod tests {
     #[test]
     fn rendered_expand_all_control_expands_current_tab_blocks() {
         let mut state = AppState::new(pr_resource());
-        let content = draw(&mut state, 120, 36);
+        let content = draw(&mut state, 120, 80);
 
         assert!(content.contains("[expand all]"));
 
@@ -3385,7 +3533,7 @@ mod tests {
             .iter()
             .any(|block| matches!(block, BlockId::Activity(_))));
 
-        let content = draw(&mut state, 120, 36);
+        let content = draw(&mut state, 120, 80);
 
         assert!(content.contains("[collapse all]"));
     }
@@ -3393,12 +3541,12 @@ mod tests {
     #[test]
     fn rendered_collapse_all_control_collapses_current_tab_blocks() {
         let mut state = AppState::new(pr_resource());
-        draw(&mut state, 120, 36);
+        draw(&mut state, 120, 80);
         let _ = click_rendered_target(
             &mut state,
             |target| matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body)),
         );
-        draw(&mut state, 120, 36);
+        draw(&mut state, 120, 80);
 
         let intent = click_rendered_target(
             &mut state,
@@ -3466,6 +3614,26 @@ mod tests {
         assert!(content.contains("committed: 1mo"));
         assert!(content.contains("Registers a SenseAudio speech provider."));
         assert!(content.contains("[- less]"));
+    }
+
+    #[test]
+    fn commits_tab_can_render_newest_first() {
+        let mut resource = pr_resource();
+        let pr = resource.pull_request.as_mut().unwrap();
+        pr.commits[0].message = "Older commit".into();
+        let mut newer = pr.commits[0].clone();
+        newer.oid = "newer123".into();
+        newer.message = "Newer commit".into();
+        pr.commits.push(newer);
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Commits);
+        state.reverse_chronological = true;
+
+        let content = draw(&mut state, 120, 80);
+        let newer = content.find("Newer commit").unwrap();
+        let older = content.find("Older commit").unwrap();
+
+        assert!(newer < older);
     }
 
     #[test]
@@ -3595,7 +3763,7 @@ mod tests {
                     .expect("deletion row")
                     .line
             )
-            .fg,
+            .bg,
             Some(palette.red)
         );
         assert_eq!(
@@ -3606,7 +3774,7 @@ mod tests {
                     .expect("addition row")
                     .line
             )
-            .fg,
+            .bg,
             Some(palette.green)
         );
         assert_eq!(
