@@ -14,6 +14,7 @@ npx -y @simpledoc/simpledoc check
 python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
 python3 captures/ghzinga-pr-81834/capture_ghzinga.py --root captures/ghzinga-issue-88499 --mode issue --validate-only
 python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
+python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
 ```
 
 If app rendering, fixtures, `Cargo.toml`, or `Cargo.lock` change, regenerate the

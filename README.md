@@ -316,16 +316,16 @@ scripts/verify-no-png-captures.sh
 
 GitHub Actions runs these same checks for pull requests and pushes to `main`.
 It also runs the saved PR and issue capture validators so checked-in UX evidence
-cannot silently drift behind the app rendering code. A tmux mouse-smoke capture
-validator verifies that real terminal mouse clicks can expand and collapse a
-visible content row, switch to Files, expand all rows, collapse them again,
-switch to Links, activate a linked issue row, replace the current TUI view with
-that issue, navigate back, click footer `[refresh]` until the fixture-mode
-refresh status is visible, click an activity `[details]` permalink, click footer
-`[copy]` and `[open]` through capture-local adapter commands for that visible
-permalink, open the help and settings overlays through the footer, click a
-settings row until the capture-local config save is visible, and click `[quit]`
-until the tmux session exits. CI also rejects tracked or generated
+cannot silently drift behind the app rendering code. The tmux mouse-smoke
+validators verify that real terminal mouse clicks can expand and collapse
+visible content rows, switch PR and issue tabs, expand all rows, collapse them
+again, activate linked issue rows, replace the current TUI view with that issue,
+navigate back, click footer `[refresh]` until the fixture-mode refresh status is
+visible, click activity `[details]` permalinks, click footer `[copy]` and
+`[open]` through capture-local adapter commands for visible permalinks, open the
+help and settings overlays through the footer, click a settings row until the
+capture-local config save is visible, and click `[quit]` until the tmux session
+exits. CI also rejects tracked or generated
 PNG files under `captures/`; UX evidence is kept as terminal text and ANSI
 transcripts only.
 
@@ -378,14 +378,26 @@ python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
   --validate-only
 ```
 
-Regenerate mouse smoke captures:
+Regenerate PR mouse smoke captures:
 
 ```sh
 python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py
 ```
 
-Validate saved mouse smoke captures:
+Validate saved PR mouse smoke captures:
 
 ```sh
 python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
+```
+
+Regenerate issue mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py
+```
+
+Validate saved issue mouse smoke captures:
+
+```sh
+python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
 ```

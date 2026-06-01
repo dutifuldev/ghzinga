@@ -1,0 +1,36 @@
+  openclaw/openclaw#66943 [Issue CLOSED] updated 1mo ago                                                                
+  feat: add SenseAudio audio transcription provider                                                                     
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  XX CLOSED  by @Fl0rencess720                                                                                          
+  info opened openclaw/openclaw#66943                                                                                   
+                                                                                                                        
+  [Overview] Activity  Links                                                                                            
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
+  * @Fl0rencess720 opened 2mo ago                                                                                       
+  Summary                                                                                                               
+  - Problem: OpenClaw has no built-in audio transcription provider.                                                     
+  - Why it matters: SenseAudio provides an OpenAI-compatible ASR API.                                                   
+  - What changed: Added a bundled senseaudio plugin that registers a mediaUnderstandingProvider.                        
+                                                                                                                        
+  Related PR: #81834                                                                                                    
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
+  comment Comment by @osolmaz 1mo ago                                                                                   
+  Implementation was completed in #81834.                                                                               
+                                                                                                                        
+  Details                                                                                                               
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
+  Labels: size: S                                                                                                       
+  Assignees: none                                                                                                       
+  Reactions: +1:2                                                                                                       
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% [expand all]                                         
