@@ -1,36 +1,36 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                  
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122      
-  +1100  -22                                                                                                            
-                                                                                                                        
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079    
+  +1057  -22                                                                                                            
+  info loaded openclaw/openclaw#81834                                                                                   
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * @KLilyZ opened 1mo ago                                                                                              
+  * @KLilyZ opened 2w ago                                                                                               
   Summary                                                                                                               
+                                                                                                                        
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
-  - Why it matters: completes the round trip in the same plugin.                                                        
+  - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with    
+  the ASR added in #66943.                                                                                              
   - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system        
-  voices via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                              
+  voices via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code  
+  / missing-audio buckets.                                                                                              
+  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out    
+  of scope.                                                                                                             
                                                                                                                         
-  Validation                                                                                                            
-  - Targeted extension tests passed.                                                                                    
-  - Contract plugin tests passed.                                                                                       
-                                                                                                                        
-  Scope                                                                                                                 
-  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                        
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                   
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  Change Type (select all)                                                                                              
+  [+ more]                                                                                                              
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @github-actions 1mo ago                                                                            
+  comment Comment by @github-actions 2w ago                                                                             
+  meta: association CONTRIBUTOR                                                                                         
+  [details]                                                                                                             
+  <!-- openclaw:dependency-change-awareness -->                                                                         
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+  loaded openclaw/openclaw#81834                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]                                             
                                                                                                                         
