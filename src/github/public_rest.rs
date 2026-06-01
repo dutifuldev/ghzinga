@@ -24,9 +24,7 @@ pub(super) async fn fetch_public_rest_pr(
     let issue: RestIssueDto = run_public_rest_json(&rest_issue_path(id))
         .await
         .context("public REST fallback could not load pull request issue metadata")?;
-    let mut warnings = vec![format!(
-        "using public REST fallback because no GitHub token is available: {auth_error}"
-    )];
+    let mut warnings = vec![public_rest_fallback_warning(&auth_error)];
     let comments = match fetch_public_rest_comments(id).await {
         Ok(comments) => comments,
         Err(error) => {
@@ -111,9 +109,7 @@ pub(super) async fn fetch_public_rest_issue(
     let issue: RestIssueDto = run_public_rest_json(&rest_issue_path(id))
         .await
         .context("public REST fallback could not load issue")?;
-    let mut warnings = vec![format!(
-        "using public REST fallback because no GitHub token is available: {auth_error}"
-    )];
+    let mut warnings = vec![public_rest_fallback_warning(&auth_error)];
     let comments = match fetch_public_rest_comments(id).await {
         Ok(comments) => comments,
         Err(error) => {
@@ -141,6 +137,16 @@ pub(super) async fn fetch_public_rest_issue(
 
 async fn run_public_rest_json<T: serde::de::DeserializeOwned>(path: &str) -> anyhow::Result<T> {
     run_public_rest_json_with(&ReqwestGithubHttpTransport, path).await
+}
+
+fn public_rest_fallback_warning(auth_error: &anyhow::Error) -> String {
+    if crate::github::auth::is_auth_unavailable(auth_error) {
+        format!(
+            "using public REST fallback because GitHub authentication is unavailable: {auth_error}"
+        )
+    } else {
+        format!("using public REST fallback after GitHub auth/API error: {auth_error}")
+    }
 }
 
 async fn run_public_rest_json_with<T: serde::de::DeserializeOwned>(
@@ -1505,6 +1511,28 @@ mod tests {
             "created_at": "2026-05-31T00:00:00Z",
             "updated_at": "2026-05-31T00:00:00Z"
         })
+    }
+
+    #[test]
+    fn public_rest_fallback_warning_describes_auth_unavailable() {
+        let warning = public_rest_fallback_warning(
+            &crate::github::auth::GithubAuthError::Unavailable("gh auth token failed".into())
+                .into(),
+        );
+
+        assert!(warning.contains("GitHub authentication is unavailable"));
+        assert!(warning.contains("gh auth token failed"));
+    }
+
+    #[test]
+    fn public_rest_fallback_warning_describes_token_api_errors() {
+        let warning = public_rest_fallback_warning(&anyhow::anyhow!(
+            "HTTP 403: API rate limit exceeded for token"
+        ));
+
+        assert!(warning.contains("GitHub auth/API error"));
+        assert!(warning.contains("API rate limit exceeded"));
+        assert!(!warning.contains("no GitHub token"));
     }
 
     #[test]
