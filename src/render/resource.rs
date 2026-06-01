@@ -99,7 +99,7 @@ impl ContentRow {
 }
 
 pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
-    let rects = ViewRects::compute(frame.area());
+    let rects = rects_for_spacing(frame.area(), state.spacing);
     let palette = state.theme.palette();
     state.hit_areas.clear();
     frame.buffer_mut().set_style(
@@ -123,6 +123,7 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         chrome_area_for_spacing(rects.tabs, state.spacing),
         state,
         &palette,
+        state.spacing,
     );
     render_content(frame, rects.content, state, &palette);
     render_footer(
@@ -131,6 +132,16 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         state,
         &palette,
     );
+}
+
+fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
+    let mut rects = ViewRects::compute(area);
+    if spacing == SpacingMode::Comfortable && area.width >= 48 && rects.content.height > 2 {
+        rects.tabs.height = rects.tabs.height.saturating_add(2);
+        rects.content.y = rects.content.y.saturating_add(2);
+        rects.content.height = rects.content.height.saturating_sub(2);
+    }
+    rects
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette: &Palette) {
@@ -216,11 +227,24 @@ fn header_meta_line(
     Line::from(spans)
 }
 
-fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
+fn render_tabs(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+    spacing: SpacingMode,
+) {
     let mut lines = Vec::<Line<'static>>::new();
     let mut spans = Vec::<Span<'static>>::new();
     let mut x = area.x;
     let mut y = area.y;
+    let framed_nav = comfortable_nav_frame_enabled(area, spacing);
+    let tab_rows = if framed_nav {
+        area.height.saturating_sub(2)
+    } else {
+        area.height
+    };
+    let tab_bottom = area.y.saturating_add(tab_rows);
     for tab in state.tabs() {
         let raw_label = if *tab == state.active_tab {
             format!("[{}]", tab.label())
@@ -234,7 +258,7 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
             x = area.x;
             y = y.saturating_add(1);
         }
-        if y >= area.y.saturating_add(area.height) {
+        if y >= tab_bottom {
             break;
         }
         let label = fit_label_to_width(&raw_label, area.width);
@@ -258,9 +282,20 @@ fn render_tabs(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette:
         spans.push(Span::styled(label, style));
     }
     lines.push(Line::from(spans));
+    if framed_nav {
+        while lines.len() < tab_rows as usize {
+            lines.push(Line::from(""));
+        }
+        lines.push(Line::from(""));
+        lines.push(separator_line(area.width, palette));
+    }
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn comfortable_nav_frame_enabled(area: Rect, spacing: SpacingMode) -> bool {
+    spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 3
 }
 
 fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
@@ -734,7 +769,8 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let rows =
         apply_content_frame_spacing(rows, content_area.width as usize, state.spacing, palette);
     let rows = wrap_content_rows(rows, content_area.width, state.spacing);
-    let max_scroll = rows.len().saturating_sub(content_area.height as usize) as u16;
+    let row_count = rows.len();
+    let max_scroll = row_count.saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
         .into_iter()
@@ -760,18 +796,25 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(content_area, frame.buffer_mut());
-    render_scrollbar(frame, content_area, state, palette);
+    render_scrollbar(frame, content_area, state, palette, row_count);
     state.advance_scrollbar_visibility();
 }
 
-fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
+fn render_scrollbar(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &AppState,
+    palette: &Palette,
+    row_count: usize,
+) {
     if !state.scrollbar_visible() || area.width < 8 || area.height < 3 {
         return;
     }
 
-    let scroll_range_len = usize::from(state.scroll_limit).saturating_add(1);
+    let scroll_range_len = scrollbar_content_length(state, area.height, row_count);
+    let scrollbar_position = scrollbar_position(state, scroll_range_len);
     let mut scrollbar_state = ScrollbarState::new(scroll_range_len)
-        .position(state.scroll.min(state.scroll_limit) as usize)
+        .position(scrollbar_position)
         .viewport_content_length(area.height as usize);
     Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .thumb_symbol("█")
@@ -781,6 +824,20 @@ fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette
         .begin_symbol(None)
         .end_symbol(None)
         .render(area, frame.buffer_mut(), &mut scrollbar_state);
+}
+
+fn scrollbar_content_length(state: &AppState, viewport_height: u16, row_count: usize) -> usize {
+    let minimum = usize::from(state.scroll_limit).saturating_add(usize::from(viewport_height));
+    row_count.max(minimum)
+}
+
+fn scrollbar_position(state: &AppState, content_length: usize) -> usize {
+    let scroll_limit = usize::from(state.scroll_limit);
+    if scroll_limit == 0 || content_length == 0 {
+        return 0;
+    }
+    let current = usize::from(state.scroll.min(state.scroll_limit));
+    current.saturating_mul(content_length.saturating_sub(1)) / scroll_limit
 }
 
 fn active_content_tab(state: &AppState) -> Tab {
@@ -846,20 +903,16 @@ fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow>
 
 fn apply_content_frame_spacing(
     rows: Vec<ContentRow>,
-    width: usize,
+    _width: usize,
     spacing: SpacingMode,
-    palette: &Palette,
+    _palette: &Palette,
 ) -> Vec<ContentRow> {
     if spacing == SpacingMode::Compact || rows.is_empty() {
         return rows;
     }
 
-    let mut framed = Vec::with_capacity(rows.len() + 4);
+    let mut framed = Vec::with_capacity(rows.len() + 2);
     framed.push(ContentRow::plain(""));
-    framed.push(separator_row(width, palette));
-    if rows.first().is_some_and(|row| !is_blank_row(row)) {
-        framed.push(ContentRow::plain(""));
-    }
     framed.extend(rows);
     if framed.last().is_some_and(|row| !is_blank_row(row)) {
         framed.push(ContentRow::plain(""));
@@ -3319,7 +3372,7 @@ mod tests {
         draw(&mut state, 120, 20);
         state.scroll_to_bottom();
 
-        let rects = ViewRects::compute(Rect::new(0, 0, 120, 20));
+        let rects = rects_for_spacing(Rect::new(0, 0, 120, 20), state.spacing);
         let content_area =
             content_area_for_spacing(rects.content, state.spacing, active_content_tab(&state));
         let symbol = draw_cell_symbol(
@@ -3331,6 +3384,18 @@ mod tests {
         );
 
         assert_eq!(symbol, "█");
+    }
+
+    #[test]
+    fn scrollbar_content_length_tracks_rows_not_only_scroll_limit() {
+        let mut state = AppState::new(pr_resource());
+        state.scroll_limit = 80;
+
+        assert_eq!(scrollbar_content_length(&state, 20, 100), 100);
+        assert_eq!(scrollbar_content_length(&state, 20, 0), 100);
+
+        state.scroll = 80;
+        assert_eq!(scrollbar_position(&state, 100), 99);
     }
 
     #[test]
@@ -3635,6 +3700,26 @@ mod tests {
     }
 
     #[test]
+    fn comfortable_spacing_reserves_nav_padding_and_separator() {
+        let mut state = AppState::new(pr_resource());
+        let base = ViewRects::compute(Rect::new(0, 0, 120, 36));
+        let rects = rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing);
+        let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
+
+        assert_eq!(rects.tabs.height, base.tabs.height + 2);
+        assert_eq!(rects.content.y, base.content.y + 2);
+
+        let separator = draw_cell_symbol(
+            &mut state,
+            120,
+            36,
+            tabs.x,
+            tabs.y + tabs.height.saturating_sub(1),
+        );
+        assert_eq!(separator, "─");
+    }
+
+    #[test]
     fn comfortable_spacing_adds_breathing_room_after_section_rules() {
         fn rows() -> Vec<ContentRow> {
             vec![
@@ -3654,7 +3739,7 @@ mod tests {
     }
 
     #[test]
-    fn comfortable_content_frame_adds_nav_separator_and_vertical_padding() {
+    fn comfortable_content_frame_adds_vertical_padding() {
         let palette = Palette::default_dark();
         let rows = apply_content_frame_spacing(
             vec![ContentRow::plain("First item")],
@@ -3664,10 +3749,8 @@ mod tests {
         );
 
         assert_eq!(line_text(&rows[0].line), "");
-        assert_eq!(line_text(&rows[1].line), "────────────");
+        assert_eq!(line_text(&rows[1].line), "First item");
         assert_eq!(line_text(&rows[2].line), "");
-        assert_eq!(line_text(&rows[3].line), "First item");
-        assert_eq!(line_text(&rows[4].line), "");
     }
 
     #[test]

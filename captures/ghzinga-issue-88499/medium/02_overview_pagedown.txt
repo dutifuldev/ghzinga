@@ -5,13 +5,13 @@
                                                                                                                         
                                                                                                                         
   [Overview] Activity  Links                                                                                            
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with    │  
-  store set to true, or remove this item from your input.                                                            │  
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                      │  
   Expected Behavior                                                                                                  │  
-  The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes█  
-  replay safe.                                                                                                       █  
-                                                                                                                     █  
+  The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes│  
+  replay safe.                                                                                                       │  
+                                                                                                                     │  
   Actual Behavior                                                                                                    █  
   The next request fails after the first turn and the conversation cannot continue.                                  █  
                                                                                                                      █  
@@ -20,8 +20,8 @@
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
                                                                                                                      █  
   comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                               █  
-  meta: association CONTRIBUTOR                                                                                      █  
-  [details]                                                                                                          █  
+  meta: association CONTRIBUTOR                                                                                      │  
+  [details]                                                                                                          │  
   Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                 │  
                                                                                                                      │  
   Summary                                                                                                            │  

@@ -33,12 +33,16 @@ count.
   the header, tab selector row, status band, and footer controls. The left and
   right padding must be equal so the upper navigation, title, status, and body
   align as one readable column.
-- Comfortable tab selectors are followed by a blank breathing row, a continuous
-  separator line, and top content padding before the first content item. This
-  keeps the navigation visually attached to the upper chrome while making the
-  scrolled document start as its own reading surface.
-- Comfortable content also keeps bottom padding after the last item, so the
-  final visible item is not pressed against the footer when fully scrolled.
+- Comfortable tab selectors reserve fixed chrome space for a blank breathing
+  row and a continuous separator line below the nav buttons. The separator
+  belongs to the navbar, not to the scrollable document, so it remains stable
+  while the user scrolls.
+- Comfortable content starts with top padding after the navbar separator and
+  keeps bottom padding after the last item. The first and last content items
+  should never press directly against fixed chrome.
+- Repeated comfortable items keep vertical breathing room between entries. The
+  padding scale should preserve scannability without making compact mode less
+  dense.
 - Comfortable read-heavy tabs cap the content column on very wide terminals.
   `gh dash` usually renders previews in a bounded split pane, so prose and
   comment threads do not stretch across the entire terminal. `ghzinga` is a
@@ -62,8 +66,9 @@ count.
   - link rows
 - Existing blank rows are reused; the renderer must not stack multiple blank
   rows just because a builder already included one.
-- Scrollbar state represents the real scroll range, not the raw number of
-  content rows, so the thumb reaches the bottom when the last scrollable
+- Scrollbar state represents the real rendered content length and viewport
+  height, with the current scroll offset mapped onto Ratatui's scrollbar
+  position range, so the thumb reaches the bottom when the last scrollable
   position is reached.
 - Repeated-row builders should prefer semantic gap markers over hard-coded
   blank rows. A hard blank row is still valid for a deliberate internal break,

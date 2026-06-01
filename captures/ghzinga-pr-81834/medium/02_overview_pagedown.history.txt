@@ -5,13 +5,13 @@
   +1100  -22                                                                                                            
                                                                                                                         
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
-  Validation                                                                                                         │  
-  - Targeted extension tests passed.                                                                                 │  
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   - Contract plugin tests passed.                                                                                    │  
                                                                                                                      │  
   Scope                                                                                                              │  
-  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     █  
-  [- less]                                                                                                           █  
+  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     │  
+  [- less]                                                                                                           │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
                                                                                                                      █  
   * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                █  
@@ -20,8 +20,8 @@
                                                                                                                      █  
   comment Comment by @github-actions 1mo ago                                                                         █  
   Dependency Changes Detected                                                                                        █  
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                █  
-                                                                                                                     █  
+  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                │  
+                                                                                                                     │  
   Changed files:                                                                                                     │  
   - extensions/senseaudio/package.json                                                                               │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
