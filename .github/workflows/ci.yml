@@ -38,6 +38,9 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Validate install commands
+        run: scripts/verify-install.sh
+
       - name: Check SimpleDoc
         run: npx -y @simpledoc/simpledoc check
 
