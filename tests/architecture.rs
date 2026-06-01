@@ -122,6 +122,20 @@ fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
 }
 
 #[test]
+fn public_rest_fallback_stays_in_dedicated_rest_adapter() {
+    let source =
+        fs::read_to_string("src/github/public_rest.rs").expect("read public REST adapter source");
+
+    assert!(source.contains("fetch_public_rest_pr"));
+    assert!(source.contains("fetch_public_rest_issue"));
+    assert!(source.contains("run_rest_get_with"));
+    assert!(
+        !source.contains("run_graphql_query"),
+        "public REST fallback should not grow GraphQL enrichment logic"
+    );
+}
+
+#[test]
 fn gh_cli_shell_out_is_only_for_auth_token_fallback() {
     let matches = rust_files(Path::new("src"))
         .into_iter()
