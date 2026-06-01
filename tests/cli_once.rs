@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use predicates::prelude::*;
 use predicates::str::contains;
 
 fn gzg_command() -> Command {
@@ -134,7 +135,11 @@ fn once_can_render_emoji_symbols_when_requested() {
 fn once_uses_config_symbols_when_cli_does_not_override() {
     let dir = tempfile::tempdir().unwrap();
     let config_path = dir.path().join("config.toml");
-    std::fs::write(&config_path, "[ui]\nsymbols = \"emoji\"\n").unwrap();
+    std::fs::write(
+        &config_path,
+        "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n",
+    )
+    .unwrap();
     let mut cmd = Command::cargo_bin("gzg").unwrap();
 
     cmd.env("GZG_CONFIG_PATH", config_path)
@@ -148,5 +153,42 @@ fn once_uses_config_symbols_when_cli_does_not_override() {
         ])
         .assert()
         .success()
-        .stdout(contains("[➕ more]"));
+        .stdout(contains("[➕ more]"))
+        .stdout(contains("bg: Rgb(0, 43, 54)"))
+        .stdout(contains("\"Summary: PASS"));
+}
+
+#[test]
+fn once_cli_ui_flags_override_saved_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let config_path = dir.path().join("config.toml");
+    std::fs::write(
+        &config_path,
+        "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n",
+    )
+    .unwrap();
+    let mut cmd = Command::cargo_bin("gzg").unwrap();
+
+    cmd.env("GZG_CONFIG_PATH", config_path)
+        .args([
+            "openclaw/openclaw#81834",
+            "--offline-fixture",
+            "fixtures/pr-81834.json",
+            "--tab",
+            "checks",
+            "--theme",
+            "default",
+            "--symbols",
+            "ascii",
+            "--spacing",
+            "comfortable",
+            "--once",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("[OK PASS] All checks [+ more]"))
+        .stdout(contains("[➕ more]").not())
+        .stdout(contains("bg: Rgb(26, 27, 38)"))
+        .stdout(contains("bg: Rgb(0, 43, 54)").not())
+        .stdout(contains("\"  Summary: PASS"));
 }
