@@ -1,7 +1,7 @@
-  openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
+  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z                                                   
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @xneone                                                                                                   
+  XX CLOSED  by @xneone                                                                                                 
                                                                                                                         
                                                                                                                         
    Overview  Activity [Links]                                                                                           
