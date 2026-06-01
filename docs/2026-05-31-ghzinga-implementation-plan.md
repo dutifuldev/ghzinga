@@ -594,6 +594,7 @@ Keyboard:
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom
 - `Enter`: activate the first visible content action, such as a link or `[+ more]`
+- `a`: expand or collapse all expandable rows in the current tab
 - `Backspace`: navigate back after following a link
 - `o`: open the first visible GitHub URL, or the current resource URL if no
   visible link is available, through the same direct browser adapter used for
@@ -651,8 +652,11 @@ Long text behavior:
   - footer `[expand all]` / `[collapse all]` at the end of the bottom command
     bar for tab-level expansion when a tab has expandable body, comment,
     commit, check, file, or patch rows
-- Mouse and keyboard activation use shared hit targets for single-block and
-  all-block expansion.
+- Mouse activation uses shared hit targets for single-block and all-block
+  expansion.
+- Keyboard `Enter` can activate the visible footer all-block control, and `a`
+  directly toggles all expandable blocks in the current tab without requiring
+  the footer hit target to be selected.
 - Truncation must be tested against line wrapping, terminal width, and Unicode width.
 
 ## Testing Plan

@@ -65,6 +65,12 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.toggle_feed_order();
             AppIntent::None
         }
+        KeyCode::Char('a')
+            if !state.show_help && !state.show_settings && is_plain_shortcut(key) =>
+        {
+            state.toggle_active_tab_expansion();
+            AppIntent::None
+        }
         KeyCode::Esc if state.show_settings => {
             state.close_settings();
             AppIntent::None
@@ -504,6 +510,41 @@ mod tests {
         assert!(state.reverse_chronological);
         assert_eq!(state.scroll, 0);
         assert_eq!(state.scroll_limit, u16::MAX);
+    }
+
+    #[test]
+    fn keyboard_a_toggles_current_tab_expansion() {
+        let mut state = AppState::new(resource());
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.block_expanded(&BlockId::Body));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(!state.block_expanded(&BlockId::Body));
+    }
+
+    #[test]
+    fn keyboard_a_is_inert_for_overlays() {
+        let mut state = AppState::new(resource());
+        state.show_help = true;
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.expanded_blocks.is_empty());
     }
 
     #[test]

@@ -686,92 +686,6 @@ fn expand_all_control(
     }
 }
 
-fn active_tab_expandable_blocks(state: &AppState) -> Vec<BlockId> {
-    let tab = active_content_tab(state);
-    match tab {
-        Tab::Overview => overview_expandable_blocks(&state.resource),
-        Tab::Activity => activity_expandable_blocks(&state.resource),
-        Tab::Commits => state
-            .resource
-            .pull_request
-            .as_ref()
-            .map(commit_expandable_blocks)
-            .unwrap_or_default(),
-        Tab::Checks => state
-            .resource
-            .pull_request
-            .as_ref()
-            .map(check_expandable_blocks)
-            .unwrap_or_default(),
-        Tab::Files => state
-            .resource
-            .pull_request
-            .as_ref()
-            .map(file_expandable_blocks)
-            .unwrap_or_default(),
-        Tab::Links => Vec::new(),
-    }
-}
-
-fn overview_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
-    let mut blocks = Vec::new();
-    if !resource.body.trim().is_empty() {
-        blocks.push(BlockId::Body);
-    }
-    if let Some(pr) = &resource.pull_request {
-        blocks.extend(commit_expandable_blocks(pr));
-    }
-    blocks.extend(activity_expandable_blocks(resource));
-    dedupe_blocks(blocks)
-}
-
-fn activity_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
-    dedupe_blocks(
-        resource
-            .activity
-            .iter()
-            .map(|entry| BlockId::Activity(entry.id.clone()))
-            .collect(),
-    )
-}
-
-fn commit_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
-    dedupe_blocks(
-        pr.commits
-            .iter()
-            .map(|commit| BlockId::Commit(commit.oid.clone()))
-            .collect(),
-    )
-}
-
-fn check_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
-    dedupe_blocks(
-        pr.checks
-            .iter()
-            .map(|check| BlockId::Check(format!("{}:{}", check.status.label(), check.name)))
-            .collect(),
-    )
-}
-
-fn file_expandable_blocks(pr: &crate::domain::PullRequest) -> Vec<BlockId> {
-    let mut blocks = Vec::new();
-    for file in &pr.files {
-        blocks.push(BlockId::File(file.path.clone()));
-        if file.patch.is_some() {
-            blocks.push(BlockId::Patch(file.path.clone()));
-        }
-    }
-    dedupe_blocks(blocks)
-}
-
-fn dedupe_blocks(blocks: Vec<BlockId>) -> Vec<BlockId> {
-    let mut seen = std::collections::HashSet::new();
-    blocks
-        .into_iter()
-        .filter(|block| seen.insert(block.clone()))
-        .collect()
-}
-
 fn refresh_summary(state: &AppState) -> Option<String> {
     let refreshed_at = state.last_refreshed_at.as_deref()?;
     let refreshed_at = refreshed_at.trim_end_matches(" UTC");
@@ -1163,6 +1077,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- Tab / Shift-Tab / Left / Right: switch tabs",
             "- 1-6: jump to the visible tab in that position",
             "- v: reverse chronological feed order",
+            "- a: expand or collapse all rows in the current tab",
             "- Up / Down / PageUp / PageDown / Home / End: scroll",
             "- e: expand or collapse the main body",
             "- Backspace: return after following a link",
@@ -2288,7 +2203,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     ];
     if !state.show_help && !state.show_settings {
         if let Some(control) = expand_all_control(
-            active_tab_expandable_blocks(state),
+            state.active_tab_expandable_blocks(),
             &state.expanded_blocks,
             &symbols,
         ) {
@@ -2300,7 +2215,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let control_lines = footer_visible_control_lines(control_lines, area.height as usize);
 
     let default_message = format!(
-        "r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
+        "r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order {} | a all | arrows/page scroll | e more/less | tab {} | {}",
         if state.reverse_chronological { "newest" } else { "oldest" },
         state.active_tab.label(),
         scroll
