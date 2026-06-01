@@ -5,10 +5,15 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "b108fab39d63edc3f9f30b2877a793944fceff87",
+  "git_commit": "12028e83a398dd694c8b49eb910acad9a804710b",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
-  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
+  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
+  "adapter_outputs": {
+    "open_url": "https://github.com/openclaw/openclaw/pull/81834",
+    "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
+  },
+  "quit_exited": true,
   "mouse_coordinates": {
     "overview_more": [
       47,
@@ -42,12 +47,24 @@
       4,
       36
     ],
+    "copy": [
+      14,
+      36
+    ],
+    "open": [
+      21,
+      36
+    ],
     "help": [
       39,
       36
     ],
     "settings": [
       28,
+      36
+    ],
+    "quit": [
+      46,
       36
     ]
   },
@@ -101,6 +118,16 @@
       "name": "65_mouse_footer_refresh",
       "txt": "65_mouse_footer_refresh.txt",
       "ansi": "65_mouse_footer_refresh.ansi"
+    },
+    {
+      "name": "66_mouse_footer_copy",
+      "txt": "66_mouse_footer_copy.txt",
+      "ansi": "66_mouse_footer_copy.ansi"
+    },
+    {
+      "name": "67_mouse_footer_open",
+      "txt": "67_mouse_footer_open.txt",
+      "ansi": "67_mouse_footer_open.ansi"
     },
     {
       "name": "70_mouse_footer_help",

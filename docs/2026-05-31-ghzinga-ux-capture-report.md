@@ -192,7 +192,9 @@ terminal frames for:
 - tab-level collapse all
 - Links-tab navigation target clicks
 - footer refresh clicks through the fixture-mode status path
+- footer copy/open clicks through capture-local adapter commands
 - footer help and settings overlay clicks
+- footer quit exits the tmux session
 
 The broader mouse routing matrix is still covered through render-to-click
 integration tests that render the actual Ratatui UI, click the registered hit
