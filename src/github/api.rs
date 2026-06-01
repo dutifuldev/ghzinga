@@ -115,9 +115,16 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         }
         Err(error) => return Err(error),
     };
+    let full_depth = full_graphql_enrichment_enabled();
+    let partial_depth_warnings = if full_depth {
+        Vec::new()
+    } else {
+        base_pr_partial_depth_warnings(&output)
+    };
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
-    if full_graphql_enrichment_enabled() {
+    resource.warnings.extend(partial_depth_warnings);
+    if full_depth {
         enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
         enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
         enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
@@ -143,7 +150,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     sort_activity(&mut resource.activity);
     let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
-        if full_graphql_enrichment_enabled() {
+        if full_depth {
             match fetch_changed_files(id).await {
                 Ok(files) => pr.files = files,
                 Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
@@ -182,9 +189,16 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
         }
         Err(error) => return Err(error),
     };
+    let full_depth = full_graphql_enrichment_enabled();
+    let partial_depth_warnings = if full_depth {
+        Vec::new()
+    } else {
+        base_issue_partial_depth_warnings(&output)
+    };
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
-    if full_graphql_enrichment_enabled() {
+    resource.warnings.extend(partial_depth_warnings);
+    if full_depth {
         enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
         enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
         enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
@@ -207,6 +221,79 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
 fn full_graphql_enrichment_enabled() -> bool {
     std::env::var("GZG_API_DEPTH")
         .map(|value| value.eq_ignore_ascii_case("full"))
+        .unwrap_or(false)
+}
+
+fn base_pr_partial_depth_warnings(raw: &[u8]) -> Vec<String> {
+    let Ok(value) = serde_json::from_slice::<Value>(raw) else {
+        return Vec::new();
+    };
+    let Some(pr) = value.pointer("/data/repository/pullRequest") else {
+        return Vec::new();
+    };
+    partial_depth_warnings(
+        pr,
+        &[
+            (&["labels"][..], "labels"),
+            (&["assignees"][..], "assignees"),
+            (&["reviewRequests"][..], "review requests"),
+            (&["closingIssuesReferences"][..], "linked closing issues"),
+            (&["commits"][..], "commits"),
+            (&["statusCheckRollup", "contexts"][..], "checks"),
+            (&["files"][..], "changed files"),
+            (&["comments"][..], "comments"),
+            (&["reviews"][..], "reviews"),
+        ],
+    )
+}
+
+fn base_issue_partial_depth_warnings(raw: &[u8]) -> Vec<String> {
+    let Ok(value) = serde_json::from_slice::<Value>(raw) else {
+        return Vec::new();
+    };
+    let Some(issue) = value.pointer("/data/repository/issue") else {
+        return Vec::new();
+    };
+    partial_depth_warnings(
+        issue,
+        &[
+            (&["labels"][..], "labels"),
+            (&["assignees"][..], "assignees"),
+            (
+                &["closedByPullRequestsReferences"][..],
+                "linked closing pull requests",
+            ),
+            (&["comments"][..], "comments"),
+        ],
+    )
+}
+
+fn partial_depth_warnings(resource: &Value, connections: &[(&[&str], &str)]) -> Vec<String> {
+    let truncated = connections
+        .iter()
+        .filter_map(|(path, label)| has_next_page(resource, path).then_some(*label))
+        .collect::<Vec<_>>();
+    if truncated.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "normal API depth shows the first 100 only for {}; set GZG_API_DEPTH=full for exhaustive pagination",
+            truncated.join(", ")
+        )]
+    }
+}
+
+fn has_next_page(value: &Value, path: &[&str]) -> bool {
+    let mut current = value;
+    for key in path {
+        let Some(next) = current.get(*key) else {
+            return false;
+        };
+        current = next;
+    }
+    current
+        .pointer("/pageInfo/hasNextPage")
+        .and_then(Value::as_bool)
         .unwrap_or(false)
 }
 
@@ -4729,6 +4816,25 @@ mod tests {
     }
 
     #[test]
+    fn base_pr_query_requests_partial_depth_markers() {
+        let query = base_pr_query();
+
+        for field in [
+            "labels(first: 100) { pageInfo { hasNextPage }",
+            "assignees(first: 100) { pageInfo { hasNextPage }",
+            "reviewRequests(first: 100) {\n        pageInfo { hasNextPage }",
+            "closingIssuesReferences(first: 100) { pageInfo { hasNextPage }",
+            "commits(first: 100) {\n        pageInfo { hasNextPage }",
+            "contexts(first: 100) {\n          pageInfo { hasNextPage }",
+            "files(first: 100) { pageInfo { hasNextPage }",
+            "comments(first: 100) {\n        pageInfo { hasNextPage }",
+            "reviews(first: 100) {\n        pageInfo { hasNextPage }",
+        ] {
+            assert!(query.contains(field), "{field}");
+        }
+    }
+
+    #[test]
     fn base_issue_query_requests_current_status_metadata() {
         let query = base_issue_query();
 
@@ -4744,6 +4850,105 @@ mod tests {
         assert!(query.contains("totalBlockedBy"));
         assert!(query.contains("subIssuesSummary"));
         assert!(query.contains("percentCompleted"));
+    }
+
+    #[test]
+    fn base_issue_query_requests_partial_depth_markers() {
+        let query = base_issue_query();
+
+        for field in [
+            "labels(first: 100) { pageInfo { hasNextPage }",
+            "assignees(first: 100) { pageInfo { hasNextPage }",
+            "closedByPullRequestsReferences(first: 100) { pageInfo { hasNextPage }",
+            "comments(first: 100) {\n        pageInfo { hasNextPage }",
+        ] {
+            assert!(query.contains(field), "{field}");
+        }
+    }
+
+    #[test]
+    fn base_pr_partial_depth_warning_lists_paginated_sections() {
+        let raw = serde_json::to_vec(&json!({
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "labels": {"pageInfo": {"hasNextPage": true}},
+                        "assignees": {"pageInfo": {"hasNextPage": false}},
+                        "reviewRequests": {"pageInfo": {"hasNextPage": true}},
+                        "closingIssuesReferences": {"pageInfo": {"hasNextPage": false}},
+                        "commits": {"pageInfo": {"hasNextPage": true}},
+                        "statusCheckRollup": {
+                            "contexts": {"pageInfo": {"hasNextPage": true}}
+                        },
+                        "files": {"pageInfo": {"hasNextPage": false}},
+                        "comments": {"pageInfo": {"hasNextPage": true}},
+                        "reviews": {"pageInfo": {"hasNextPage": false}}
+                    }
+                }
+            }
+        }))
+        .expect("json");
+
+        let warnings = base_pr_partial_depth_warnings(&raw);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("labels"));
+        assert!(warnings[0].contains("review requests"));
+        assert!(warnings[0].contains("commits"));
+        assert!(warnings[0].contains("checks"));
+        assert!(warnings[0].contains("comments"));
+        assert!(warnings[0].contains("GZG_API_DEPTH=full"));
+        assert!(!warnings[0].contains("assignees"));
+        assert!(!warnings[0].contains("changed files"));
+    }
+
+    #[test]
+    fn base_issue_partial_depth_warning_lists_paginated_sections() {
+        let raw = serde_json::to_vec(&json!({
+            "data": {
+                "repository": {
+                    "issue": {
+                        "labels": {"pageInfo": {"hasNextPage": false}},
+                        "assignees": {"pageInfo": {"hasNextPage": true}},
+                        "closedByPullRequestsReferences": {
+                            "pageInfo": {"hasNextPage": true}
+                        },
+                        "comments": {"pageInfo": {"hasNextPage": true}}
+                    }
+                }
+            }
+        }))
+        .expect("json");
+
+        let warnings = base_issue_partial_depth_warnings(&raw);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("assignees"));
+        assert!(warnings[0].contains("linked closing pull requests"));
+        assert!(warnings[0].contains("comments"));
+        assert!(warnings[0].contains("GZG_API_DEPTH=full"));
+        assert!(!warnings[0].contains("labels"));
+    }
+
+    #[test]
+    fn base_partial_depth_warning_is_empty_when_first_pages_are_complete() {
+        let raw = serde_json::to_vec(&json!({
+            "data": {
+                "repository": {
+                    "issue": {
+                        "labels": {"pageInfo": {"hasNextPage": false}},
+                        "assignees": {"pageInfo": {"hasNextPage": false}},
+                        "closedByPullRequestsReferences": {
+                            "pageInfo": {"hasNextPage": false}
+                        },
+                        "comments": {"pageInfo": {"hasNextPage": false}}
+                    }
+                }
+            }
+        }))
+        .expect("json");
+
+        assert!(base_issue_partial_depth_warnings(&raw).is_empty());
     }
 
     #[test]

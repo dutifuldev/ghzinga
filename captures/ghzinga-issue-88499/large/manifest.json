@@ -4,7 +4,7 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "454fd0ad359836e24a0f9f2fa67ac6920bbf9557",
+  "git_commit": "1f5a3ad575aa94568743c985eebd53f01be99517",
   "requested_columns": 160,
   "requested_rows": 50,
   "offline_fixture": "/home/bob/repos/ghzinga/fixtures/issue-88499.json",
