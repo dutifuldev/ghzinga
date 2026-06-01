@@ -173,6 +173,33 @@ fn github_http_transport_tests_stay_with_transport_adapter() {
 }
 
 #[test]
+fn ci_workflow_delegates_to_full_local_gate() {
+    let workflow = fs::read_to_string(".github/workflows/ci.yml").expect("read CI workflow");
+    let local_gate = fs::read_to_string("scripts/ci-local.sh").expect("read local CI gate");
+
+    assert!(workflow.contains("workflow_dispatch:"));
+    assert!(workflow.contains("scripts/ci-local.sh"));
+
+    for expected_check in [
+        "cargo fmt --check",
+        "cargo test",
+        "cargo clippy --all-targets --all-features -- -D warnings",
+        "scripts/verify-install.sh",
+        "npx -y @simpledoc/simpledoc check",
+        "scripts/verify-no-png-captures.sh",
+        "capture_ghzinga.py --self-test",
+        "capture_ghzinga.py --validate-only",
+        "capture_mouse_smoke.py --self-test",
+        "capture_mouse_smoke.py --validate-only",
+    ] {
+        assert!(
+            local_gate.contains(expected_check),
+            "local CI gate is missing `{expected_check}`"
+        );
+    }
+}
+
+#[test]
 fn gh_cli_shell_out_is_only_for_auth_token_fallback() {
     let matches = rust_files(Path::new("src"))
         .into_iter()
