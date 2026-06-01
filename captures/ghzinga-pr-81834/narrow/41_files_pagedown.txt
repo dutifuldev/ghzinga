@@ -5,20 +5,20 @@
   OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview  Activity  Commits  Checks [Files] Links                            
-  +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [+ more]      
-                                                                                
-  +1    -1    MODIFIED extensions/senseaudio/package.json [+ more]              
-                                                                                
-  +49   -0    ADDED    extensions/senseaudio/senseaudio.live.test.ts [+ more]   
-                                                                                
-  +261  -0    ADDED    extensions/senseaudio/speech-provider.test.ts [+ more]   
-                                                                                
-  +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [+ more]        
-                                                                                
-  +1    -0    MODIFIED extensions/senseaudio/test-api.ts [+ more]               
-                                                                                
-  +296  -0    ADDED    extensions/senseaudio/tts.test.ts [+ more]               
-                                                                                
-  +160  -0    ADDED    extensions/senseaudio/tts.ts [+ more]                    
+  +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [+ more]   │  
+                                                                             │  
+  +1    -1    MODIFIED extensions/senseaudio/package.json [+ more]           │  
+                                                                             █  
+  +49   -0    ADDED    extensions/senseaudio/senseaudio.live.test.ts [+ more]█  
+                                                                             █  
+  +261  -0    ADDED    extensions/senseaudio/speech-provider.test.ts [+ more]█  
+                                                                             █  
+  +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [+ more]     █  
+                                                                             │  
+  +1    -0    MODIFIED extensions/senseaudio/test-api.ts [+ more]            │  
+                                                                             │  
+  +296  -0    ADDED    extensions/senseaudio/tts.test.ts [+ more]            │  
+                                                                             │  
+  +160  -0    ADDED    extensions/senseaudio/tts.ts [+ more]                 │  
   [refresh] [open] [settings] [help] [quit] scroll 10/14 71%                    
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

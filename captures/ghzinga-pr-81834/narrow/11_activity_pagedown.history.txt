@@ -5,20 +5,20 @@
   OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview [Activity] Commits  Checks  Files  Links                            
-  Changed files:                                                                
-  [+ more]                                                                      
-                                                                                
-  Comment by @KLilyZ 2026-05-15T07:05:52Z                                       
-  meta: association NONE                                                        
-  [details]                                                                     
-  Codex review: needs changes before merge.                                     
-                                                                                
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio    
-  plugin, including TTS and voice-list HTTP helpers, voice-note opus            
-  transcoding, registration metadata, docs, inventory updates, and tests.       
-                                                                                
-  Reproducibility: not applicable. for the requested feature because current    
-  main simply lacks SenseAudio TTS. The remaining docs bug is                   
-  [+ more]                                                                      
+  Changed files:                                                             │  
+  [+ more]                                                                   │  
+                                                                             █  
+  Comment by @KLilyZ 2026-05-15T07:05:52Z                                    █  
+  meta: association NONE                                                     │  
+  [details]                                                                  │  
+  Codex review: needs changes before merge.                                  │  
+                                                                             │  
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio │  
+  plugin, including TTS and voice-list HTTP helpers, voice-note opus         │  
+  transcoding, registration metadata, docs, inventory updates, and tests.    │  
+                                                                             │  
+  Reproducibility: not applicable. for the requested feature because current │  
+  main simply lacks SenseAudio TTS. The remaining docs bug is                │  
+  [+ more]                                                                   │  
   [refresh] [open] [settings] [help] [quit] scroll 10/66 15%                    
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

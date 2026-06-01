@@ -5,20 +5,20 @@
   OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                            
-  [OK PASS] suite/CodeQL Critical Quality [+ more]                              
-                                                                                
-  [OK PASS] suite/Dependency Guard [+ more]                                     
-                                                                                
-  [OK PASS] suite/GitHub Advanced Security [+ more]                             
-                                                                                
-  [OK PASS] suite/Labeler [+ more]                                              
-                                                                                
-  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                   
-                                                                                
-  [OK PASS] suite/Real behavior proof [+ more]                                  
-                                                                                
-  [OK PASS] suite/Socket Security [+ more]                                      
-                                                                                
-  [OK PASS] suite/Workflow Sanity [+ more]                                      
+  [OK PASS] suite/CodeQL Critical Quality [+ more]                           │  
+                                                                             █  
+  [OK PASS] suite/Dependency Guard [+ more]                                  │  
+                                                                             │  
+  [OK PASS] suite/GitHub Advanced Security [+ more]                          │  
+                                                                             │  
+  [OK PASS] suite/Labeler [+ more]                                           │  
+                                                                             │  
+  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                │  
+                                                                             │  
+  [OK PASS] suite/Real behavior proof [+ more]                               │  
+                                                                             │  
+  [OK PASS] suite/Socket Security [+ more]                                   │  
+                                                                             │  
+  [OK PASS] suite/Workflow Sanity [+ more]                                   │  
   [refresh] [open] [settings] [help] [quit] scroll 10/218 4%                    
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  
