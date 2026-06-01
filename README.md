@@ -323,7 +323,9 @@ terminal text and ANSI transcripts only.
 
 The repository includes tmux capture artifacts for PR and issue views. Captures
 are stored as terminal text and ANSI transcripts; PNG screenshots are not
-tracked or allowed under `captures/`.
+tracked or allowed under `captures/`. Capture scripts pin `GZG_CONFIG_PATH` to
+a missing capture-local config file so saved user preferences do not change the
+checked-in UX evidence.
 
 - `captures/ghzinga-pr-81834/`
 - `captures/ghzinga-issue-88499/`

@@ -170,6 +170,14 @@ def send(session: str, *keys: str):
     time.sleep(1.0)
 
 
+def capture_config_path() -> Path:
+    return ROOT / "capture-empty-config.toml"
+
+
+def capture_config_env() -> str:
+    return f"GZG_CONFIG_PATH={shlex.quote(str(capture_config_path()))}"
+
+
 def write_capture(session: str, out_dir: Path, name: str, meta: dict, frame_meta: dict):
     plain = capture_plain(session)
     ansi = capture_ansi(session)
@@ -205,7 +213,11 @@ def capture_frame(
         fixture_args += f" --offline-fixture {shlex.quote(str(OFFLINE_FIXTURE))}"
     for fixture in OFFLINE_RESOURCE_FIXTURES:
         fixture_args += f" --offline-resource-fixture {shlex.quote(str(fixture))}"
-    command = f"TERM=xterm-256color {BIN} {TARGET}{tab_arg}{fixture_args} --refresh-seconds 0"
+    capture_config_path().unlink(missing_ok=True)
+    command = (
+        f"TERM=xterm-256color {capture_config_env()} "
+        f"{BIN} {TARGET}{tab_arg}{fixture_args} --refresh-seconds 0"
+    )
     print(f"capturing {MODE} {label}/{name} ({cols}x{rows}, tab={tab or 'overview'})", flush=True)
     try:
         tmux("new-session", "-d", "-x", str(cols), "-y", str(rows), "-s", session, command)
@@ -227,6 +239,7 @@ def capture_frame(
                 "tab": tab or "overview",
                 "keys": keys or [],
                 "actual_tmux_size": actual_size,
+                "config_path": str(capture_config_path()),
             },
         )
         history_plain = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-p").stdout
@@ -247,6 +260,7 @@ def capture_size(label: str, cols: int, rows: int):
         "mode": MODE,
         "binary": str(BIN),
         "git_commit": git_commit(),
+        "config_path": str(capture_config_path()),
         "requested_columns": cols,
         "requested_rows": rows,
         "offline_fixture": str(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
@@ -464,6 +478,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     expected_git_commit = git_commit()
     target = None
     root_manifest = root / "manifest.json"
+    expected_config_path = str(root / "capture-empty-config.toml")
     if not root_manifest.exists():
         errors.append(f"missing {root_manifest}")
     else:
@@ -471,6 +486,11 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         target = manifest.get("target")
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
+        if manifest.get("config_path") != expected_config_path:
+            errors.append(
+                f"{root_manifest} config_path is {manifest.get('config_path')!r}, "
+                f"expected {expected_config_path!r}"
+            )
         validate_manifest_revision(
             errors,
             root_manifest,
@@ -526,6 +546,11 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(
                 f"{manifest_path} actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {expected_size!r}"
             )
+        if manifest.get("config_path") != expected_config_path:
+            errors.append(
+                f"{manifest_path} config_path is {manifest.get('config_path')!r}, "
+                f"expected {expected_config_path!r}"
+            )
         captures = collect_manifest_entries(
             manifest.get("captures", []),
             manifest_path,
@@ -549,6 +574,14 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
                 path = size_dir / value
                 if not path.exists():
                     errors.append(f"missing {path}")
+            command = capture.get("command", "")
+            if f"GZG_CONFIG_PATH={expected_config_path}" not in command:
+                errors.append(f"{manifest_path} frame {frame} command does not isolate config")
+            if capture.get("config_path") != expected_config_path:
+                errors.append(
+                    f"{manifest_path} frame {frame} config_path is "
+                    f"{capture.get('config_path')!r}, expected {expected_config_path!r}"
+                )
             txt_path = size_dir / f"{frame}.txt"
             if txt_path.exists():
                 text = txt_path.read_text()
@@ -626,6 +659,7 @@ def main():
         "mode": MODE,
         "binary": str(BIN),
         "git_commit": git_commit(),
+        "config_path": str(capture_config_path()),
         "offline_fixture": str(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
         "offline_resource_fixtures": [str(fixture) for fixture in OFFLINE_RESOURCE_FIXTURES],
         "sizes": [],
