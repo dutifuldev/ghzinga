@@ -13,6 +13,7 @@ trap cleanup EXIT INT TERM
 
 pr_target="${GZG_LIVE_PR_TARGET:-openclaw/openclaw#81834}"
 issue_target="${GZG_LIVE_ISSUE_TARGET:-https://github.com/openclaw/openclaw/issues/88499}"
+require_public_fallback="${GZG_LIVE_REQUIRE_PUBLIC_FALLBACK:-0}"
 binary="${repo_root}/target/debug/gzg"
 
 if [ ! -x "$binary" ]; then
@@ -48,8 +49,17 @@ run_public_case() {
   tab="$3"
   shift 3
   output="${work_dir}/${name}.txt"
-  GH_TOKEN= GITHUB_TOKEN= PATH="$no_gh_path" GZG_CONFIG_PATH="${work_dir}/${name}.config.toml" \
-    "$binary" "$target" --tab "$tab" --once --refresh-seconds 0 >"$output"
+  if ! GH_TOKEN= GITHUB_TOKEN= PATH="$no_gh_path" GZG_CONFIG_PATH="${work_dir}/${name}.config.toml" \
+    "$binary" "$target" --tab "$tab" --once --refresh-seconds 0 >"$output" 2>&1; then
+    if [ "$require_public_fallback" != "1" ] && grep -Fq "API rate limit exceeded" "$output"; then
+      printf 'SKIP: %s public fallback hit GitHub unauthenticated rate limit. Set GZG_LIVE_REQUIRE_PUBLIC_FALLBACK=1 to make this fatal.\n' "$name"
+      return 0
+    fi
+    printf 'Live public smoke case %s failed\n' "$name" >&2
+    printf '--- output ---\n' >&2
+    cat "$output" >&2
+    exit 1
+  fi
 
   for marker in "$@"; do
     if ! grep -Fq "$marker" "$output"; then
