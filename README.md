@@ -192,10 +192,12 @@ For issues:
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse
-content, or `[expand all]` and `[collapse all]` to open or fold every expandable
-row in the current tab. The rendered content window only registers hit targets
-for the visible rows, so long paginated GitHub histories remain scrollable
-without turning every off-screen row into an active terminal target.
+content. The fixed footer also shows `[expand all]` or `[collapse all]` at the
+end of the action row when the current tab has expandable rows; that control
+opens or folds every expandable row in the active tab without requiring a scroll
+to the bottom of the content. The rendered content window only registers hit
+targets for the visible rows, so long paginated GitHub histories remain
+scrollable without turning every off-screen row into an active terminal target.
 
 The TUI adapts to terminal width. Header metadata, tabs, the status band, and
 footer controls wrap into extra rows on narrow terminals instead of silently
@@ -224,13 +226,14 @@ Mouse:
 
 - click tabs to switch views
 - click bold `[+ more]` and `[- less]` controls to expand or collapse content
-- click bold `[expand all]` and `[collapse all]` controls to expand or collapse
-  the current tab
+- click footer `[expand all]` and `[collapse all]` controls to expand or
+  collapse the current tab
 - click file rows in the Files tab to expand or collapse per-file details, then
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
-- click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, and `[quit]`
+- click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, `[quit]`, and
+  the active-tab expand/collapse control in the footer
 - use the mouse wheel to scroll
 
 Keyboard:

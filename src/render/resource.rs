@@ -659,26 +659,47 @@ fn expand_label(expanded: bool, symbols: &Symbols) -> &'static str {
     }
 }
 
-fn expand_all_row(
+fn expand_all_control(
     blocks: Vec<BlockId>,
     expanded_blocks: &std::collections::HashSet<BlockId>,
-    palette: &Palette,
     symbols: &Symbols,
-) -> Option<ContentRow> {
+) -> Option<(&'static str, HitTarget)> {
     if blocks.is_empty() {
         return None;
     }
     let all_expanded = blocks.iter().all(|block| expanded_blocks.contains(block));
-    let (label, target) = if all_expanded {
-        (symbols.collapse_all, HitTarget::CollapseBlocks(blocks))
+    if all_expanded {
+        Some((symbols.collapse_all, HitTarget::CollapseBlocks(blocks)))
     } else {
-        (symbols.expand_all, HitTarget::ExpandBlocks(blocks))
-    };
-    Some(ContentRow::target_styled(
-        label,
-        target,
-        button_style(palette),
-    ))
+        Some((symbols.expand_all, HitTarget::ExpandBlocks(blocks)))
+    }
+}
+
+fn active_tab_expandable_blocks(state: &AppState) -> Vec<BlockId> {
+    let tab = active_content_tab(state);
+    match tab {
+        Tab::Overview => overview_expandable_blocks(&state.resource),
+        Tab::Activity => activity_expandable_blocks(&state.resource),
+        Tab::Commits => state
+            .resource
+            .pull_request
+            .as_ref()
+            .map(commit_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Checks => state
+            .resource
+            .pull_request
+            .as_ref()
+            .map(check_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Files => state
+            .resource
+            .pull_request
+            .as_ref()
+            .map(file_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Links => Vec::new(),
+    }
 }
 
 fn overview_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
@@ -1264,14 +1285,7 @@ fn settings_option_row(
 }
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
-    let symbols = state.symbols.symbols();
     let mut rows = Vec::new();
-    let expand_all = expand_all_row(
-        overview_expandable_blocks(&state.resource),
-        &state.expanded_blocks,
-        palette,
-        &symbols,
-    );
 
     push_conversation_rows(&mut rows, state, width, palette);
 
@@ -1339,10 +1353,6 @@ fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         width,
         palette,
     );
-    if let Some(row) = expand_all {
-        rows.push(ContentRow::plain(""));
-        rows.push(row);
-    }
     rows
 }
 
@@ -1641,12 +1651,6 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         rows.push(ContentRow::plain("No comments."));
         return rows;
     }
-    let expand_all = expand_all_row(
-        activity_expandable_blocks(&state.resource),
-        &state.expanded_blocks,
-        palette,
-        &symbols,
-    );
     let mut entries = state.resource.activity.iter().collect::<Vec<_>>();
     if state.reverse_chronological {
         entries.reverse();
@@ -1699,10 +1703,6 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
             last.comfortable_gap_after = true;
         }
     }
-    if let Some(row) = expand_all {
-        rows.push(ContentRow::plain(""));
-        rows.push(row);
-    }
     rows
 }
 
@@ -1715,12 +1715,6 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
         )];
     };
     let mut rows = Vec::new();
-    let expand_all = expand_all_row(
-        commit_expandable_blocks(pr),
-        &state.expanded_blocks,
-        palette,
-        &symbols,
-    );
     let mut commits = pr.commits.iter().collect::<Vec<_>>();
     if state.reverse_chronological {
         commits.reverse();
@@ -1753,10 +1747,6 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             ));
             rows.push(ContentRow::plain(""));
         }
-    }
-    if let Some(row) = expand_all {
-        rows.push(ContentRow::plain(""));
-        rows.push(row);
     }
     rows
 }
@@ -1835,12 +1825,6 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
         )),
         ContentRow::plain(""),
     ];
-    let expand_all = expand_all_row(
-        check_expandable_blocks(pr),
-        &state.expanded_blocks,
-        palette,
-        &symbols,
-    );
     let context = CheckGroupRenderContext {
         expanded_blocks: &state.expanded_blocks,
         width,
@@ -1891,10 +1875,6 @@ fn checks_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Content
     );
     if pr.checks.is_empty() {
         rows.push(ContentRow::plain("No checks reported yet."));
-    }
-    if let Some(row) = expand_all {
-        rows.push(ContentRow::plain(""));
-        rows.push(row);
     }
     rows
 }
@@ -2014,12 +1994,6 @@ fn files_rows_for_pr(
     symbols: &Symbols,
 ) -> Vec<ContentRow> {
     let mut rows = Vec::new();
-    let expand_all = expand_all_row(
-        file_expandable_blocks(pr),
-        expanded_blocks,
-        palette,
-        symbols,
-    );
     for file in &pr.files {
         let block = BlockId::File(file.path.clone());
         let expanded = expanded_blocks.contains(&block);
@@ -2076,10 +2050,6 @@ fn files_rows_for_pr(
             ));
             rows.push(ContentRow::plain(""));
         }
-    }
-    if let Some(row) = expand_all {
-        rows.push(ContentRow::plain(""));
-        rows.push(row);
     }
     rows
 }
@@ -2297,7 +2267,7 @@ fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
 
 fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
     let symbols = state.symbols.symbols();
-    let controls = [
+    let mut controls = vec![
         (symbols.footer_refresh, HitTarget::Refresh),
         (symbols.footer_copy, HitTarget::CopyVisibleUrl),
         (symbols.footer_open, HitTarget::OpenVisibleUrl),
@@ -2305,6 +2275,15 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         (symbols.footer_help, HitTarget::Help),
         (symbols.footer_quit, HitTarget::Quit),
     ];
+    if !state.show_help && !state.show_settings {
+        if let Some(control) = expand_all_control(
+            active_tab_expandable_blocks(state),
+            &state.expanded_blocks,
+            &symbols,
+        ) {
+            controls.push(control);
+        }
+    }
     let mut x = area.x;
     let mut y = area.y;
     let mut control_spans = Vec::new();
@@ -3441,6 +3420,13 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Help));
+        let quit_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::Quit).expect("quit target");
+        let expand_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
+        })
+        .expect("expand all target");
+        assert!(expand_rect.x > quit_rect.x);
     }
 
     #[test]
@@ -3832,21 +3818,26 @@ mod tests {
 
     #[test]
     fn comfortable_content_gutter_moves_click_targets_with_visible_rows() {
-        let mut comfortable_state = AppState::new(pr_resource());
-        let mut compact_state = AppState::new(pr_resource());
+        let mut resource = pr_resource();
+        resource.body = (0..30)
+            .map(|index| format!("line {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut comfortable_state = AppState::new(resource.clone());
+        let mut compact_state = AppState::new(resource);
         compact_state.spacing = SpacingMode::Compact;
 
         draw(&mut comfortable_state, 120, 80);
         draw(&mut compact_state, 120, 80);
 
         let comfortable_rect = rendered_target_rect(&comfortable_state, |target| {
-            matches!(target, HitTarget::ExpandBlocks(_))
+            *target == HitTarget::ToggleBlock(BlockId::Body)
         })
-        .expect("comfortable expand-all target");
+        .expect("comfortable body expansion target");
         let compact_rect = rendered_target_rect(&compact_state, |target| {
-            matches!(target, HitTarget::ExpandBlocks(_))
+            *target == HitTarget::ToggleBlock(BlockId::Body)
         })
-        .expect("compact expand-all target");
+        .expect("compact body expansion target");
 
         assert_eq!(comfortable_rect.x, 2);
         assert_eq!(comfortable_rect.width, 116);
@@ -4156,9 +4147,18 @@ mod tests {
     #[test]
     fn rendered_expand_all_control_expands_current_tab_blocks() {
         let mut state = AppState::new(pr_resource());
-        let content = draw(&mut state, 120, 80);
+        let content = draw(&mut state, 120, 36);
+        let footer = chrome_area_for_spacing(
+            rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
+            state.spacing,
+        );
 
         assert!(content.contains("[expand all]"));
+        let expand_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
+        })
+        .expect("footer expand all target");
+        assert!(expand_rect.y >= footer.y);
 
         let intent = click_rendered_target(
             &mut state,
@@ -4172,7 +4172,7 @@ mod tests {
             .iter()
             .any(|block| matches!(block, BlockId::Activity(_))));
 
-        let content = draw(&mut state, 120, 80);
+        let content = draw(&mut state, 120, 36);
 
         assert!(content.contains("[collapse all]"));
     }
@@ -4647,9 +4647,18 @@ mod tests {
     fn files_expand_all_opens_files_and_patch_blocks() {
         let mut state = AppState::new(pr_resource());
         state.set_tab(Tab::Files);
-        let content = draw(&mut state, 120, 80);
+        let content = draw(&mut state, 120, 36);
+        let footer = chrome_area_for_spacing(
+            rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
+            state.spacing,
+        );
 
         assert!(content.contains("[expand all]"));
+        let expand_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.iter().any(|block| matches!(block, BlockId::Patch(_))))
+        })
+        .expect("footer files expand all target");
+        assert!(expand_rect.y >= footer.y);
 
         let intent = click_rendered_target(
             &mut state,
