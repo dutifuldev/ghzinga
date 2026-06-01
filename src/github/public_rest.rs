@@ -34,6 +34,20 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
+    let reviews = match fetch_public_rest_reviews(id).await {
+        Ok(reviews) => reviews,
+        Err(error) => {
+            warnings.push(format!("public reviews unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let review_comments = match fetch_public_rest_review_comments(id).await {
+        Ok(review_comments) => review_comments,
+        Err(error) => {
+            warnings.push(format!("public review comments unavailable: {error}"));
+            Vec::new()
+        }
+    };
     let commits = match fetch_public_rest_commits(id).await {
         Ok(commits) => commits,
         Err(error) => {
@@ -72,7 +86,12 @@ pub(super) async fn fetch_public_rest_pr(
         .map(|reference| reference.reference.clone())
         .unwrap_or_default();
 
-    let mut resource = rest_issue_resource(issue, id, comments);
+    let mut activity = comments;
+    activity.extend(reviews);
+    activity.extend(review_comments);
+    sort_activity(&mut activity);
+
+    let mut resource = rest_issue_resource(issue, id, activity);
     resource.id.kind_hint = Some(ResourceKind::PullRequest);
     resource.url = pull.html_url;
     resource.title = pull.title;
@@ -106,7 +125,7 @@ pub(super) async fn fetch_public_rest_pr(
     });
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, participants, relationship links, and check-suite workflow grouping".into(),
+        "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, rich timeline events, projects, participants, relationship links, and check-suite workflow grouping".into(),
     );
     Ok(resource)
 }
@@ -207,6 +226,52 @@ async fn fetch_public_rest_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedF
     ))
     .await?;
     Ok(files.into_iter().map(rest_file).collect())
+}
+
+async fn fetch_public_rest_reviews(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
+    fetch_public_rest_reviews_with(&ReqwestGithubHttpTransport, id).await
+}
+
+async fn fetch_public_rest_reviews_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+) -> anyhow::Result<Vec<ActivityEntry>> {
+    let reviews = fetch_public_rest_pages_with::<RestReviewDto>(
+        transport,
+        &format!(
+            "/repos/{}/{}/pulls/{}/reviews",
+            id.owner, id.repo, id.number
+        ),
+    )
+    .await?;
+    Ok(reviews
+        .into_iter()
+        .enumerate()
+        .map(rest_review_activity)
+        .collect())
+}
+
+async fn fetch_public_rest_review_comments(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
+    fetch_public_rest_review_comments_with(&ReqwestGithubHttpTransport, id).await
+}
+
+async fn fetch_public_rest_review_comments_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+) -> anyhow::Result<Vec<ActivityEntry>> {
+    let comments = fetch_public_rest_pages_with::<RestReviewCommentDto>(
+        transport,
+        &format!(
+            "/repos/{}/{}/pulls/{}/comments",
+            id.owner, id.repo, id.number
+        ),
+    )
+    .await?;
+    Ok(comments
+        .into_iter()
+        .enumerate()
+        .map(rest_review_comment_activity)
+        .collect())
 }
 
 async fn fetch_public_rest_checks(
@@ -379,6 +444,36 @@ struct RestCommentDto {
     author_association: Option<String>,
     #[serde(default)]
     reactions: RestReactionsDto,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestReviewDto {
+    id: u64,
+    user: Option<RestUserDto>,
+    body: Option<String>,
+    state: Option<String>,
+    submitted_at: Option<String>,
+    html_url: Option<String>,
+    author_association: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestReviewCommentDto {
+    id: u64,
+    user: Option<RestUserDto>,
+    body: Option<String>,
+    created_at: String,
+    updated_at: String,
+    html_url: Option<String>,
+    author_association: Option<String>,
+    #[serde(default)]
+    reactions: RestReactionsDto,
+    path: Option<String>,
+    line: Option<u64>,
+    position: Option<u64>,
+    original_line: Option<u64>,
+    original_position: Option<u64>,
+    pull_request_review_id: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -600,6 +695,78 @@ fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -> ActivityE
         thread_resolved: None,
         thread_outdated: None,
     }
+}
+
+fn rest_review_activity((index, review): (usize, RestReviewDto)) -> ActivityEntry {
+    let state = review
+        .state
+        .as_deref()
+        .map(|state| state.to_ascii_uppercase())
+        .unwrap_or_else(|| "REVIEW".to_string());
+    let submitted_at = review.submitted_at.unwrap_or_else(|| "unknown".to_string());
+    let body = review.body.unwrap_or_default();
+    let body = if body.trim().is_empty() {
+        state.clone()
+    } else {
+        format!("{state}: {body}")
+    };
+    ActivityEntry {
+        id: format!("rest-review-{}", review.id),
+        kind: ActivityKind::Review,
+        author: display_rest_author(review.user),
+        body,
+        updated_at: submitted_at,
+        path: None,
+        line: None,
+        url: review.html_url,
+        author_association: review.author_association,
+        reactions: ReactionCounts::default(),
+        includes_created_edit: false,
+        is_minimized: false,
+        minimized_reason: None,
+        thread_id: Some(format!("public-rest-review-{index}")),
+        thread_resolved: None,
+        thread_outdated: None,
+    }
+}
+
+fn rest_review_comment_activity((index, comment): (usize, RestReviewCommentDto)) -> ActivityEntry {
+    let includes_created_edit = comment.updated_at != comment.created_at;
+    ActivityEntry {
+        id: format!("rest-review-comment-{}", comment.id),
+        kind: ActivityKind::ReviewComment,
+        author: display_rest_author(comment.user),
+        body: comment.body.unwrap_or_default(),
+        updated_at: comment.updated_at,
+        path: comment.path,
+        line: comment
+            .line
+            .or(comment.position)
+            .or(comment.original_line)
+            .or(comment.original_position),
+        url: comment.html_url,
+        author_association: comment.author_association,
+        reactions: rest_reaction_counts(comment.reactions),
+        includes_created_edit,
+        is_minimized: false,
+        minimized_reason: None,
+        thread_id: Some(
+            comment
+                .pull_request_review_id
+                .map(|id| format!("public-rest-review-{id}"))
+                .unwrap_or_else(|| format!("public-rest-review-comment-{index}")),
+        ),
+        thread_resolved: None,
+        thread_outdated: None,
+    }
+}
+
+fn sort_activity(activity: &mut [ActivityEntry]) {
+    activity.sort_by(|left, right| {
+        left.updated_at
+            .cmp(&right.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
 }
 
 fn rest_commit(commit: RestCommitDto) -> Commit {
@@ -886,6 +1053,96 @@ mod tests {
         assert_eq!(
             requests[0].url,
             "https://api.github.com/repos/openclaw/openclaw/commits/abc123/status"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_reviews_without_auth() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!([
+                {
+                    "id": 44,
+                    "user": {"login": "maintainer"},
+                    "body": "looks good",
+                    "state": "approved",
+                    "submitted_at": "2026-05-31T00:03:00Z",
+                    "html_url": "https://github.com/openclaw/openclaw/pull/81834#pullrequestreview-44",
+                    "author_association": "MEMBER"
+                }
+            ]))
+            .unwrap(),
+        }]);
+
+        let reviews = fetch_public_rest_reviews_with(&transport, &id)
+            .await
+            .expect("public reviews");
+
+        assert_eq!(reviews.len(), 1);
+        assert_eq!(reviews[0].kind, ActivityKind::Review);
+        assert_eq!(reviews[0].author, "maintainer");
+        assert_eq!(reviews[0].body, "APPROVED: looks good");
+        assert_eq!(reviews[0].updated_at, "2026-05-31T00:03:00Z");
+        assert_eq!(
+            reviews[0].url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/pull/81834#pullrequestreview-44")
+        );
+        assert_eq!(reviews[0].author_association.as_deref(), Some("MEMBER"));
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/pulls/81834/reviews?per_page=100&page=1"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_review_comments_without_auth() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!([
+                {
+                    "id": 55,
+                    "user": {"login": "reviewer"},
+                    "body": "please rename this",
+                    "created_at": "2026-05-31T00:04:00Z",
+                    "updated_at": "2026-05-31T00:05:00Z",
+                    "html_url": "https://github.com/openclaw/openclaw/pull/81834#discussion_r55",
+                    "author_association": "CONTRIBUTOR",
+                    "reactions": {"eyes": 2},
+                    "path": "src/lib.rs",
+                    "line": 42,
+                    "pull_request_review_id": 44
+                }
+            ]))
+            .unwrap(),
+        }]);
+
+        let comments = fetch_public_rest_review_comments_with(&transport, &id)
+            .await
+            .expect("public review comments");
+
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0].kind, ActivityKind::ReviewComment);
+        assert_eq!(comments[0].author, "reviewer");
+        assert_eq!(comments[0].body, "please rename this");
+        assert_eq!(comments[0].path.as_deref(), Some("src/lib.rs"));
+        assert_eq!(comments[0].line, Some(42));
+        assert_eq!(
+            comments[0].thread_id.as_deref(),
+            Some("public-rest-review-44")
+        );
+        assert_eq!(comments[0].reactions.eyes, 2);
+        assert!(comments[0].includes_created_edit);
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/pulls/81834/comments?per_page=100&page=1"
         );
         assert_eq!(requests[0].token, None);
     }
