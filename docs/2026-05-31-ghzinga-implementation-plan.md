@@ -562,6 +562,7 @@ Keyboard:
 - `r`: refresh now
 - `Tab` / `Shift+Tab`: next/previous tab
 - `Left` / `Right`: next/previous tab
+- `1`-`6`: jump to the visible tab in that position
 - `Up` / `Down`: scroll line
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom

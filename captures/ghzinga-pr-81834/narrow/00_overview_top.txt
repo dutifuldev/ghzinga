@@ -21,4 +21,4 @@
   [+ more]                                                                      
   ────────────────────────────────────────────────────────────────────────────  
   [refresh] [copy] [open] [settings] [help] [quit] scroll 0/46 0%               
-  r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab    
+  r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

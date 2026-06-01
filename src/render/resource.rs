@@ -965,6 +965,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- y: copy first visible URL, or current resource URL",
             "- o: open first visible URL, or current resource",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
+            "- 1-6: jump to the visible tab in that position",
             "- v: reverse chronological feed order",
             "- Up / Down / PageUp / PageDown / Home / End: scroll",
             "- e: expand or collapse the main body",
@@ -2181,7 +2182,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     }
 
     let default_message = format!(
-        "r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
+        "r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
         if state.reverse_chronological { "newest" } else { "oldest" },
         state.active_tab.label(),
         scroll

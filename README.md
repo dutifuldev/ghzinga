@@ -242,6 +242,9 @@ Keyboard:
 - `o`: open the first visible GitHub URL, or the current PR/issue URL if no
   visible link is available
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
+- `1`-`6`: jump to the visible tab in that position. PRs expose Overview,
+  Activity, Commits, Checks, Files, Links; issues expose Overview, Activity,
+  Links.
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible content action, such as a link or `[+ more]`
 - `e`: expand or collapse the main body

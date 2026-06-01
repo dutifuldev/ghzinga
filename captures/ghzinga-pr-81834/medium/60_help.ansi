@@ -23,6 +23,7 @@
   - y: copy first visible URL, or current resource URL                                                                  
   - o: open first visible URL, or current resource                                                                      
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
+  - 1-6: jump to the visible tab in that position                                                                       
   - v: reverse chronological feed order                                                                                 
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
   - e: expand or collapse the main body                                                                                 
@@ -31,6 +32,5 @@
   [1m[38;2;122;162;247mRefresh[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
   - Live mode refreshes automatically on the configured interval.                                                       
   - The status band shows the last refresh time and whether content changed.                                            
-                                                                                                                        
                                                                                                                         
   [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/0 100% ...[38;2;192;202;245m                                                  
