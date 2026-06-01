@@ -567,8 +567,9 @@ Keyboard:
 - `Home` / `End`: top/bottom
 - `Enter`: activate the first visible content action, such as a link or `[+ more]`
 - `Backspace`: navigate back after following a link
-- `o`: open current resource URL in browser through the same direct browser
-  adapter used for clicked detail URLs
+- `o`: open the first visible GitHub URL, or the current resource URL if no
+  visible link is available, through the same direct browser adapter used for
+  clicked detail URLs
 
 Mouse:
 

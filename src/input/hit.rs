@@ -13,7 +13,7 @@ pub enum HitTarget {
     OpenUrl(String),
     Refresh,
     CopyVisibleUrl,
-    OpenCurrent,
+    OpenVisibleUrl,
     Quit,
     Help,
     Settings,

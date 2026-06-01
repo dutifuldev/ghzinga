@@ -9,7 +9,6 @@ pub enum AppIntent {
     None,
     Refresh,
     Navigate(crate::domain::ResourceId),
-    OpenResource(crate::domain::ResourceId),
     OpenUrl(String),
     CopyUrl(String),
     Back,
@@ -49,7 +48,7 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             AppIntent::Refresh
         }
         KeyCode::Char('o') if is_plain_shortcut(key) => {
-            AppIntent::OpenResource(state.resource.id.clone())
+            AppIntent::OpenUrl(visible_or_current_url(state))
         }
         KeyCode::Char('y') if !state.show_settings && is_plain_shortcut(key) => {
             AppIntent::CopyUrl(visible_or_current_url(state))
@@ -193,7 +192,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::CopyVisibleUrl => AppIntent::CopyUrl(visible_or_current_url(state)),
-        HitTarget::OpenCurrent => AppIntent::OpenResource(state.resource.id.clone()),
+        HitTarget::OpenVisibleUrl => AppIntent::OpenUrl(visible_or_current_url(state)),
         HitTarget::Refresh => {
             state.refresh_requested = true;
             AppIntent::Refresh
@@ -515,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_o_requests_open_current_resource() {
+    fn keyboard_o_falls_back_to_current_resource_url() {
         let mut state = AppState::new(resource());
 
         let intent = apply_event(
@@ -523,10 +522,29 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
         );
 
-        assert!(matches!(
+        assert_eq!(
             intent,
-            AppIntent::OpenResource(id) if id.canonical_name() == "owner/repo#1"
+            AppIntent::OpenUrl("https://github.com/owner/repo/issues/1".into())
+        );
+    }
+
+    #[test]
+    fn keyboard_o_opens_first_visible_url() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::OpenUrl("https://github.com/owner/repo/actions/runs/1".into()),
         ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/owner/repo/actions/runs/1".into())
+        );
     }
 
     #[test]
@@ -706,11 +724,21 @@ mod tests {
     }
 
     #[test]
-    fn mouse_click_on_open_target_requests_open_current_resource() {
+    fn mouse_click_on_open_target_requests_visible_or_current_url() {
         let mut state = AppState::new(resource());
-        state
-            .hit_areas
-            .push(HitArea::new(Rect::new(0, 0, 6, 1), HitTarget::OpenCurrent));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 10, 1),
+            HitTarget::Navigate(ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 2,
+                kind_hint: Some(ResourceKind::PullRequest),
+            }),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 6, 1),
+            HitTarget::OpenVisibleUrl,
+        ));
 
         let intent = apply_event(
             &mut state,
@@ -722,10 +750,10 @@ mod tests {
             }),
         );
 
-        assert!(matches!(
+        assert_eq!(
             intent,
-            AppIntent::OpenResource(id) if id.canonical_name() == "owner/repo#1"
-        ));
+            AppIntent::OpenUrl("https://github.com/owner/repo/pull/2".into())
+        );
     }
 
     #[test]

@@ -21,7 +21,7 @@
   - t / y / p in settings: cycle theme / symbol style / spacing                                                         
   - r: refresh now                                                                                                      
   - y: copy first visible URL, or current resource URL                                                                  
-  - o: open current resource in browser                                                                                 
+  - o: open first visible URL, or current resource                                                                      
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - v: reverse chronological feed order                                                                                 
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
