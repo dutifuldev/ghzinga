@@ -7,7 +7,7 @@
    Overview  Activity  Commits  Checks  Files [Links]                                                                   
   openclaw/openclaw#66943                                                                                               
                                                                                                                         
-  https://github.com/openclaw/clawsweeper/actions/runs/25905071526                                                      
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

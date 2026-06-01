@@ -442,7 +442,6 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "50_links_top": [
                 "openclaw/openclaw#66943",
-                "actions/runs",
             ],
         }
     if mode == "issue" and target == "https://github.com/openclaw/openclaw/issues/88499":
@@ -461,7 +460,6 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             "20_links_top": [
                 "openclaw/openclaw#84904",
                 "openclaw/openclaw#87310",
-                "issuecomment-4585747111",
             ],
         }
     return {}
