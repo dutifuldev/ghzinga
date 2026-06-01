@@ -47,12 +47,12 @@ installed `gh` CLI is used only as a fallback credential source via
 | Keyboard shortcuts avoid tmux/herdr conflicts | reducer supports arrows, PageUp/PageDown, Home/End, Tab/Shift-Tab, Ctrl-i fallback, Enter for first visible content action, `r`, `?`, `q`, `o`, `v` for feed order, Backspace; plain-letter shortcuts ignore Control/Alt modifiers, with tests proving Ctrl-a/Ctrl-b/Ctrl-d/Ctrl-u and other control-letter variants are inert while Ctrl-c and Ctrl-i remain the only intentional control-key paths |
 | Settings and config persistence | `docs/2026-06-01-ghzinga-settings-config-plan.md` documents `~/.config/ghzinga/config.toml`, `XDG_CONFIG_HOME`, `GZG_CONFIG_PATH`, CLI override precedence, and the in-app settings flow; config tests verify missing-file defaults, TOML parsing, invalid-value diagnostics, and save output; reducer/render tests verify `s`, footer `[settings]`, theme/symbol/spacing selection rows, and save intents |
 | Comfortable and compact spacing modes | `docs/2026-06-01-ghzinga-spacing-density-plan.md` documents the Gmail-style density rules and gh-dash-like comfortable default; `ui.spacing`, `--spacing`, settings keyboard `p`, and settings rows support `comfortable` and `compact`; renderer tests verify compact keeps dense full-width rows while comfortable inserts section breathing room, repeated-row gaps, a gh-dash-like content gutter, equal chrome/content padding, and a wide-terminal readable-column cap for read-heavy tabs while leaving Files/diffs full-width; hit rectangles stay aligned to the visible rows |
-| No special UI fonts required | renderer defaults to `--symbols ascii`, with ASCII labels such as `[+ more]`, `[- less]`, `[refresh]`, `[open]`, `[quit]`, `[help]`, `OK`, `!!`, `..`, and `*`; continuous separator rules use standard terminal line glyphs and do not require Nerd Font icons; the default fixture smoke remains readable in ordinary terminals, and `--symbols emoji` is opt-in with `once_can_render_emoji_symbols_when_requested` |
+| No special UI fonts required | renderer defaults to `--symbols ascii`, with ASCII labels such as `[+ more]`, `[- less]`, `[refresh]`, `[copy]`, `[open]`, `[quit]`, `[help]`, `OK`, `!!`, `..`, and `*`; continuous separator rules use standard terminal line glyphs and do not require Nerd Font icons; the default fixture smoke remains readable in ordinary terminals, and `--symbols emoji` is opt-in with `once_can_render_emoji_symbols_when_requested` |
 | Responsive TUI wrapping | `docs/2026-05-31-ghzinga-responsive-chrome-plan.md` documents the gh-dash-inspired wrapping strategy; `ViewRects::compute` tests verify narrow chrome row reservations, status-before-tabs ordering, and cramped content preservation; `narrow_render_wraps_chrome_without_losing_click_targets` verifies wrapped tabs/footer controls keep hit areas; status render tests verify loading messages use a separate detail row and do not displace the main summary; `oversized_status_pieces_wrap_without_early_ellipsis` verifies long status chips wrap before truncation; `header_wrap_keeps_identity_state_updated_and_title_visible` verifies wrapped header metadata remains visible; `extremely_narrow_tabs_fit_visible_width` and `extremely_narrow_footer_controls_fit_visible_width` verify clipped labels keep hit areas aligned with visible controls; `content_rows_wrap_long_text_and_preserve_click_targets` verifies the final content wrapping pass keeps wrapped clickable rows clickable; `narrow_content_wraps_metadata_without_clipping` verifies long metadata wraps in a narrow viewport; `wrap_display_text` tests preserve markup characters while splitting wide/emoji text by display width |
 | gh-dash-style scroll orientation | `footer_renders_scroll_position_cue_when_space_allows` verifies the footer exposes the scroll cue in the rendered chrome; `scroll_summary_reports_current_limit_and_percent` verifies current row, maximum row, clamping, and percentage math |
 | Transient content scrollbar | `scrolling_reveals_transient_scrollbar` verifies scroll input makes the scrollbar state visible and that it fades after the configured render countdown; `content_scrollbar_is_transient_after_scroll_input` verifies the Ratatui-rendered content pane has no thumb at rest, shows the thumb after scroll input, and hides it again after subsequent renders; PR/issue PageDown capture validators assert saved scroll captures include a visible scrollbar thumb |
 | Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories; `captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only` verifies PR frame coverage, markers, footer controls, generated files, actual tmux dimensions, PR body/comment/review/commit/check/file/link content markers, and that app/rendering source paths have not changed since the manifest revision; the same script with `--root captures/ghzinga-issue-88499 --mode issue --validate-only` verifies issue frames plus body/comment/link content markers; CI runs both validate-only checks |
-| Current-resource browser open | reducer tests for `o` and `[open]`; `ResourceId::web_url` tests verify PR and issue URL construction; `url_open_command_uses_browser_env_when_available` and `url_open_command_preserves_browser_arguments` verify the direct browser adapter; no `gh` shell-out is used for browser opening |
+| Current-resource browser open and URL copy | reducer tests for `o`, `y`, `[open]`, and `[copy]`; `ResourceId::web_url` tests verify PR and issue URL construction; `url_open_command_uses_browser_env_when_available` and `url_open_command_preserves_browser_arguments` verify the direct browser adapter; `clipboard_command_uses_explicit_env_command`, `clipboard_command_prefers_wayland_when_available`, and `clipboard_command_uses_xclip_for_x11` verify the direct clipboard adapter; no `gh` shell-out is used for browser opening or clipboard copy |
 
 ## Capture Evidence
 
@@ -75,7 +75,7 @@ each frame. The current marker and content check verifies:
 
 - PR: Activity, Commits, Checks, Files, Links, Help at narrow/medium/large sizes
 - Issue: Overview, Activity, Links, Help at narrow/medium/large sizes
-- footer controls `[refresh]`, `[open]`, `[help]`, and `[quit]` appear in every checked size set
+- footer controls `[refresh]`, `[copy]`, `[open]`, `[help]`, and `[quit]` appear in every checked size set
 - PR captures include opening body text, dependency-warning comment content,
   review activity, commits, aggregate checks, changed files, and detected links
 - Issue captures include the issue body, activity comments, and detected
@@ -110,6 +110,7 @@ Covered click targets:
 - exact check run, deployment, and comment URLs
 - Enter activation for the first visible content action
 - `[refresh]`
+- `[copy]`
 - `[open]`
 - `[quit]`
 - `[help]`
@@ -125,17 +126,19 @@ cargo run --bin gzg -- openclaw/openclaw#81834 --tab checks --once
 cargo run --bin gzg -- openclaw/openclaw#81834 --tab activity --once
 ```
 
-Browser-open evidence:
+Browser-open and clipboard evidence:
 
 ```sh
 cargo test url_open_command
+cargo test clipboard_command
 cargo test builds_kind_aware_web_urls
 cargo test gh_cli_shell_out_is_only_for_auth_token_fallback
 ```
 
 Current-resource open now uses the same direct browser adapter as exact clicked
-URLs. The installed `gh` CLI remains limited to the `gh auth token` credential
-fallback.
+URLs. Current-resource copy uses a direct clipboard adapter that can be
+overridden with `GZG_COPY_COMMAND`. The installed `gh` CLI remains limited to
+the `gh auth token` credential fallback.
 
 ## Remaining Risk
 

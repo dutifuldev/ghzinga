@@ -11,6 +11,7 @@ pub enum AppIntent {
     Navigate(crate::domain::ResourceId),
     OpenResource(crate::domain::ResourceId),
     OpenUrl(String),
+    CopyUrl(String),
     Back,
     SaveSettings,
     Quit,
@@ -49,6 +50,9 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         }
         KeyCode::Char('o') if is_plain_shortcut(key) => {
             AppIntent::OpenResource(state.resource.id.clone())
+        }
+        KeyCode::Char('y') if !state.show_settings && is_plain_shortcut(key) => {
+            AppIntent::CopyUrl(current_resource_url(state))
         }
         KeyCode::Char('?') if is_plain_shortcut(key) => {
             state.toggle_help();
@@ -188,6 +192,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         }
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
+        HitTarget::CopyCurrent => AppIntent::CopyUrl(current_resource_url(state)),
         HitTarget::OpenCurrent => AppIntent::OpenResource(state.resource.id.clone()),
         HitTarget::Refresh => {
             state.refresh_requested = true;
@@ -221,6 +226,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             Ok(spacing) if state.set_spacing(spacing) => AppIntent::SaveSettings,
             _ => AppIntent::None,
         },
+    }
+}
+
+fn current_resource_url(state: &AppState) -> String {
+    if state.resource.url.trim().is_empty() {
+        state.resource.id.web_url()
+    } else {
+        state.resource.url.clone()
     }
 }
 
@@ -298,7 +311,7 @@ mod tests {
 
     #[test]
     fn control_letter_shortcuts_are_limited_to_tmux_safe_exceptions() {
-        for shortcut in ['a', 'b', 'd', 'e', 'o', 'q', 'r', 's', 'u', 'v', '?'] {
+        for shortcut in ['a', 'b', 'd', 'e', 'o', 'q', 'r', 's', 'u', 'v', 'y', '?'] {
             let mut state = AppState::new(resource());
             state.scroll = 4;
             state.set_scroll_limit(9);
@@ -505,6 +518,35 @@ mod tests {
     }
 
     #[test]
+    fn keyboard_y_requests_copy_current_resource_url() {
+        let mut state = AppState::new(resource());
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::CopyUrl("https://github.com/owner/repo/issues/1".into())
+        );
+    }
+
+    #[test]
+    fn keyboard_y_in_settings_cycles_symbols_instead_of_copying() {
+        let mut state = AppState::new(resource());
+        state.show_settings = true;
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::SaveSettings);
+        assert_ne!(state.symbols, SymbolMode::Ascii);
+    }
+
+    #[test]
     fn keyboard_enter_activates_first_visible_content_action() {
         let mut state = AppState::new(resource());
         state.hit_areas.push(HitArea::new(
@@ -625,6 +667,29 @@ mod tests {
             intent,
             AppIntent::OpenResource(id) if id.canonical_name() == "owner/repo#1"
         ));
+    }
+
+    #[test]
+    fn mouse_click_on_copy_target_requests_copy_current_resource_url() {
+        let mut state = AppState::new(resource());
+        state
+            .hit_areas
+            .push(HitArea::new(Rect::new(0, 0, 6, 1), HitTarget::CopyCurrent));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::CopyUrl("https://github.com/owner/repo/issues/1".into())
+        );
     }
 
     #[test]

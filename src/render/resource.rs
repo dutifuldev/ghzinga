@@ -962,6 +962,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- s: open or close settings",
             "- t / y / p in settings: cycle theme / symbol style / spacing",
             "- r: refresh now",
+            "- y: copy current resource URL",
             "- o: open current resource in browser",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
             "- v: reverse chronological feed order",
@@ -2130,6 +2131,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let symbols = state.symbols.symbols();
     let controls = [
         (symbols.footer_refresh, HitTarget::Refresh),
+        (symbols.footer_copy, HitTarget::CopyCurrent),
         (symbols.footer_open, HitTarget::OpenCurrent),
         (symbols.footer_settings, HitTarget::Settings),
         (symbols.footer_help, HitTarget::Help),
@@ -2179,7 +2181,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     }
 
     let default_message = format!(
-        "r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
+        "r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
         if state.reverse_chronological { "newest" } else { "oldest" },
         state.active_tab.label(),
         scroll
@@ -3075,6 +3077,7 @@ mod tests {
                 HitTarget::Navigate(_)
                     | HitTarget::Tab(_)
                     | HitTarget::Refresh
+                    | HitTarget::CopyCurrent
                     | HitTarget::OpenCurrent
                     | HitTarget::Settings
                     | HitTarget::Help
@@ -3177,11 +3180,15 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[refresh] [open] [settings] [help] [quit]"));
+        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit]"));
         assert!(state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Refresh));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::CopyCurrent));
         assert!(state
             .hit_areas
             .iter()
@@ -3300,7 +3307,11 @@ mod tests {
             .filter(|area| {
                 matches!(
                     area.target,
-                    HitTarget::Refresh | HitTarget::OpenCurrent | HitTarget::Help | HitTarget::Quit
+                    HitTarget::Refresh
+                        | HitTarget::CopyCurrent
+                        | HitTarget::OpenCurrent
+                        | HitTarget::Help
+                        | HitTarget::Quit
                 )
             })
             .all(|area| area.rect.width <= 8));
@@ -3329,7 +3340,11 @@ mod tests {
             .filter_map(|area| {
                 matches!(
                     area.target,
-                    HitTarget::Refresh | HitTarget::OpenCurrent | HitTarget::Help | HitTarget::Quit
+                    HitTarget::Refresh
+                        | HitTarget::CopyCurrent
+                        | HitTarget::OpenCurrent
+                        | HitTarget::Help
+                        | HitTarget::Quit
                 )
                 .then_some(area.rect.y)
             })
@@ -3346,6 +3361,10 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Refresh));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::CopyCurrent));
         assert!(state
             .hit_areas
             .iter()
@@ -4068,6 +4087,15 @@ mod tests {
                 if id.canonical_name() == "openclaw/openclaw#81834"
                     && id.kind_hint == Some(ResourceKind::PullRequest)
         ));
+
+        let mut copy_state = AppState::new(pr_resource());
+        draw(&mut copy_state, 120, 36);
+        let copy =
+            click_rendered_target(&mut copy_state, |target| *target == HitTarget::CopyCurrent);
+        assert_eq!(
+            copy,
+            AppIntent::CopyUrl("https://github.com/openclaw/openclaw/pull/81834".into())
+        );
 
         let mut quit_state = AppState::new(pr_resource());
         draw(&mut quit_state, 120, 36);

@@ -20,5 +20,5 @@
   to the bundled extension.                                                  │  
                                                                              │  
   [expand all]                                                               │  
-  [refresh] [open] [settings] [help] [quit] scroll 8/8 100%                     
-  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 8/8 100%              
+  r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab    
