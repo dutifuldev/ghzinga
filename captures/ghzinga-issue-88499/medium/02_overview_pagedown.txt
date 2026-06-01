@@ -17,9 +17,10 @@
                                                                                                                      █  
   Related issues: #84904 and #87310.                                                                                 █  
   [- less]                                                                                                           █  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
                                                                                                                      █  
-  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                               █  
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
+                                                                                                                     │  
+  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                               │  
   meta: association CONTRIBUTOR                                                                                      │  
   [details]                                                                                                          │  
   Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                 │  
@@ -29,8 +30,7 @@
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI  │  
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                │  
   direct-OpenAI-only path.                                                                                           │  
+                                                                                                                     │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
                                                                                                                      │  
-  - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                        │  
-  added label provider: openai-responses                                                                             │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/36 27% ...                                                 
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/40 25% ...                                                 

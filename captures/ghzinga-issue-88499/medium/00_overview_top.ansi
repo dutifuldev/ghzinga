@@ -22,6 +22,7 @@
   The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes   
   replay safe.                                                                                                          
   [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                              
+                                                                                                                        
   [38;2;86;95;137m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
                                                                                                                         
   [1m[38;2;125;207;255mcomment Comment by @clawsweeper 2026-05-31T02:28:16Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                  
@@ -32,5 +33,4 @@
   Summary                                                                                                               
   Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
-  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
-  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/31 0% ...[38;2;192;202;245m                                                   
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/35 0% ...[38;2;192;202;245m                                                   

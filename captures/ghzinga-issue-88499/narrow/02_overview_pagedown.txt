@@ -20,5 +20,5 @@
   continue.                                                                  │  
                                                                              │  
   Related issues: #84904 and #87310.                                         │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/57 17%             
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/61 16%             
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

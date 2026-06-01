@@ -20,5 +20,5 @@
   - Targeted extension tests passed.                                            
   - Contract plugin tests passed.                                               
                                                                                 
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/52 0%               
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/57 0%               
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
