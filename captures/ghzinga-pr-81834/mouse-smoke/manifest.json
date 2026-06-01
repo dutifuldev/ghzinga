@@ -2,7 +2,7 @@
   "target": "openclaw/openclaw#81834",
   "fixture": "captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "9f00315a1958992d957d01befccdd2603fb64a2f",
+  "git_commit": "50c609838d79a022059cb0e3345ce605612cc255",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
