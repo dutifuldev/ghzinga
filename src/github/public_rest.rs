@@ -48,6 +48,13 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
+    let timeline = match fetch_public_rest_timeline_events(id).await {
+        Ok(timeline) => timeline,
+        Err(error) => {
+            warnings.push(format!("public timeline events unavailable: {error}"));
+            Vec::new()
+        }
+    };
     let commits = match fetch_public_rest_commits(id).await {
         Ok(commits) => commits,
         Err(error) => {
@@ -89,6 +96,7 @@ pub(super) async fn fetch_public_rest_pr(
     let mut activity = comments;
     activity.extend(reviews);
     activity.extend(review_comments);
+    activity.extend(timeline);
     sort_activity(&mut activity);
 
     let mut resource = rest_issue_resource(issue, id, activity);
@@ -125,7 +133,7 @@ pub(super) async fn fetch_public_rest_pr(
     });
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, rich timeline events, projects, participants, relationship links, and check-suite workflow grouping".into(),
+        "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, projects, participants, relationship links, and check-suite workflow grouping".into(),
     );
     Ok(resource)
 }
@@ -147,10 +155,20 @@ pub(super) async fn fetch_public_rest_issue(
             Vec::new()
         }
     };
-    let mut resource = rest_issue_resource(issue, id, comments);
+    let timeline = match fetch_public_rest_timeline_events(id).await {
+        Ok(timeline) => timeline,
+        Err(error) => {
+            warnings.push(format!("public timeline events unavailable: {error}"));
+            Vec::new()
+        }
+    };
+    let mut activity = comments;
+    activity.extend(timeline);
+    sort_activity(&mut activity);
+    let mut resource = rest_issue_resource(issue, id, activity);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, duplicate issue targets, linked branches, relationship links, and review data".into(),
+        "public REST fallback omits GraphQL-only enrichment such as projects, participants, issue relationships, duplicate issue targets, linked branches, relationship links, and review data".into(),
     );
     Ok(resource)
 }
@@ -207,6 +225,29 @@ async fn fetch_public_rest_comments(id: &ResourceId) -> anyhow::Result<Vec<Activ
         .into_iter()
         .enumerate()
         .map(rest_comment_activity)
+        .collect())
+}
+
+async fn fetch_public_rest_timeline_events(id: &ResourceId) -> anyhow::Result<Vec<ActivityEntry>> {
+    fetch_public_rest_timeline_events_with(&ReqwestGithubHttpTransport, id).await
+}
+
+async fn fetch_public_rest_timeline_events_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+) -> anyhow::Result<Vec<ActivityEntry>> {
+    let events = fetch_public_rest_pages_with::<RestTimelineEventDto>(
+        transport,
+        &format!(
+            "/repos/{}/{}/issues/{}/timeline",
+            id.owner, id.repo, id.number
+        ),
+    )
+    .await?;
+    Ok(events
+        .into_iter()
+        .enumerate()
+        .filter_map(rest_timeline_event_activity)
         .collect())
 }
 
@@ -349,7 +390,7 @@ fn rest_issue_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/issues/{}", id.owner, id.repo, id.number)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct RestUserDto {
     login: Option<String>,
 }
@@ -474,6 +515,40 @@ struct RestReviewCommentDto {
     original_line: Option<u64>,
     original_position: Option<u64>,
     pull_request_review_id: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestTimelineEventDto {
+    id: Option<Value>,
+    event: Option<String>,
+    actor: Option<RestUserDto>,
+    created_at: Option<String>,
+    url: Option<String>,
+    html_url: Option<String>,
+    commit_id: Option<String>,
+    label: Option<RestLabelDto>,
+    assignee: Option<RestUserDto>,
+    assigner: Option<RestUserDto>,
+    requested_reviewer: Option<RestUserDto>,
+    review_requester: Option<RestUserDto>,
+    dismissed_review: Option<RestDismissedReviewDto>,
+    rename: Option<RestRenameDto>,
+    lock_reason: Option<String>,
+    milestone: Option<Value>,
+    source: Option<Value>,
+    subject: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestDismissedReviewDto {
+    state: Option<String>,
+    dismissal_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestRenameDto {
+    from: Option<String>,
+    to: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -759,6 +834,202 @@ fn rest_review_comment_activity((index, comment): (usize, RestReviewCommentDto))
         thread_resolved: None,
         thread_outdated: None,
     }
+}
+
+fn rest_timeline_event_activity(
+    (index, event): (usize, RestTimelineEventDto),
+) -> Option<ActivityEntry> {
+    let event_name = event.event.as_deref()?.trim();
+    if should_skip_rest_timeline_event(event_name) {
+        return None;
+    }
+    let body = rest_timeline_event_body(event_name, &event);
+    Some(ActivityEntry {
+        id: format!(
+            "rest-timeline-{}",
+            event
+                .id
+                .as_ref()
+                .map(value_id)
+                .filter(|id| !id.is_empty())
+                .unwrap_or_else(|| index.to_string())
+        ),
+        kind: ActivityKind::Timeline,
+        author: display_rest_author(event.actor),
+        body,
+        updated_at: event
+            .created_at
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "unknown".to_string()),
+        path: None,
+        line: None,
+        url: event.html_url.or(event.url),
+        author_association: None,
+        reactions: ReactionCounts::default(),
+        includes_created_edit: false,
+        is_minimized: false,
+        minimized_reason: None,
+        thread_id: Some(format!("public-rest-timeline-{index}")),
+        thread_resolved: None,
+        thread_outdated: None,
+    })
+}
+
+fn should_skip_rest_timeline_event(event_name: &str) -> bool {
+    matches!(
+        event_name,
+        // These are already represented by richer public REST endpoints.
+        "commented" | "committed" | "reviewed" | "review_comment"
+    )
+}
+
+fn rest_timeline_event_body(event_name: &str, event: &RestTimelineEventDto) -> String {
+    match event_name {
+        "assigned" => format!(
+            "assigned {}",
+            display_rest_author(event.assignee.clone().or_else(|| event.assigner.clone()))
+        ),
+        "unassigned" => format!(
+            "unassigned {}",
+            display_rest_author(event.assignee.clone().or_else(|| event.assigner.clone()))
+        ),
+        "labeled" => format!(
+            "added label {}",
+            event
+                .label
+                .as_ref()
+                .map(|label| label.name.as_str())
+                .unwrap_or("unknown")
+        ),
+        "unlabeled" => format!(
+            "removed label {}",
+            event
+                .label
+                .as_ref()
+                .map(|label| label.name.as_str())
+                .unwrap_or("unknown")
+        ),
+        "milestoned" => format!(
+            "added milestone {}",
+            value_title(event.milestone.as_ref()).unwrap_or_else(|| "unknown".to_string())
+        ),
+        "demilestoned" => format!(
+            "removed milestone {}",
+            value_title(event.milestone.as_ref()).unwrap_or_else(|| "unknown".to_string())
+        ),
+        "renamed" => match &event.rename {
+            Some(rename) => format!(
+                "renamed title from {} to {}",
+                rename.from.as_deref().unwrap_or("unknown"),
+                rename.to.as_deref().unwrap_or("unknown")
+            ),
+            None => "renamed title".to_string(),
+        },
+        "closed" => rest_timeline_commit_body("closed", event),
+        "reopened" => "reopened this".to_string(),
+        "merged" => rest_timeline_commit_body("merged", event),
+        "locked" => event
+            .lock_reason
+            .as_ref()
+            .filter(|reason| !reason.trim().is_empty())
+            .map(|reason| format!("locked this as {reason}"))
+            .unwrap_or_else(|| "locked this".to_string()),
+        "unlocked" => "unlocked this".to_string(),
+        "referenced" => rest_timeline_reference_body("referenced", event),
+        "cross-referenced" => rest_timeline_reference_body("cross-referenced", event),
+        "connected" => rest_timeline_reference_body("connected", event),
+        "disconnected" => rest_timeline_reference_body("disconnected", event),
+        "review_requested" => format!(
+            "requested review from {}",
+            display_rest_author(
+                event
+                    .requested_reviewer
+                    .clone()
+                    .or_else(|| event.review_requester.clone())
+            )
+        ),
+        "review_request_removed" => format!(
+            "removed review request for {}",
+            display_rest_author(
+                event
+                    .requested_reviewer
+                    .clone()
+                    .or_else(|| event.review_requester.clone())
+            )
+        ),
+        "review_dismissed" => {
+            let review = event.dismissed_review.as_ref();
+            let state = review
+                .and_then(|review| review.state.as_deref())
+                .unwrap_or("review");
+            match review.and_then(|review| review.dismissal_message.as_deref()) {
+                Some(message) if !message.trim().is_empty() => {
+                    format!("dismissed {state} review: {message}")
+                }
+                _ => format!("dismissed {state} review"),
+            }
+        }
+        "ready_for_review" => "marked ready for review".to_string(),
+        "converted_to_draft" => "converted to draft".to_string(),
+        "head_ref_deleted" => "deleted head branch".to_string(),
+        "head_ref_restored" => "restored head branch".to_string(),
+        "subscribed" => "subscribed".to_string(),
+        "unsubscribed" => "unsubscribed".to_string(),
+        "mentioned" => "mentioned this".to_string(),
+        other => humanize_rest_timeline_event(other),
+    }
+}
+
+fn rest_timeline_commit_body(action: &str, event: &RestTimelineEventDto) -> String {
+    event
+        .commit_id
+        .as_ref()
+        .filter(|commit| !commit.trim().is_empty())
+        .map(|commit| format!("{action} this with {commit}"))
+        .unwrap_or_else(|| format!("{action} this"))
+}
+
+fn rest_timeline_reference_body(action: &str, event: &RestTimelineEventDto) -> String {
+    let reference = event
+        .source
+        .as_ref()
+        .or(event.subject.as_ref())
+        .and_then(value_reference);
+    match reference {
+        Some(reference) => format!("{action} {reference}"),
+        None => format!("{action} this"),
+    }
+}
+
+fn value_reference(value: &Value) -> Option<String> {
+    value_url(value)
+        .or_else(|| value_title(Some(value)))
+        .or_else(|| {
+            value
+                .get("issue")
+                .and_then(value_reference)
+                .or_else(|| value.get("pull_request").and_then(value_reference))
+                .or_else(|| value.get("pullRequest").and_then(value_reference))
+        })
+}
+
+fn value_url(value: &Value) -> Option<String> {
+    ["html_url", "url"]
+        .into_iter()
+        .find_map(|key| value.get(key).and_then(Value::as_str))
+        .map(str::to_string)
+}
+
+fn value_id(value: &Value) -> String {
+    value
+        .as_u64()
+        .map(|id| id.to_string())
+        .or_else(|| value.as_str().map(str::to_string))
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn humanize_rest_timeline_event(event_name: &str) -> String {
+    event_name.replace('_', " ")
 }
 
 fn sort_activity(activity: &mut [ActivityEntry]) {
@@ -1143,6 +1414,76 @@ mod tests {
         assert_eq!(
             requests[0].url,
             "https://api.github.com/repos/openclaw/openclaw/pulls/81834/comments?per_page=100&page=1"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_timeline_events_without_auth() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!([
+                {
+                    "id": 71,
+                    "event": "labeled",
+                    "actor": {"login": "maintainer"},
+                    "created_at": "2026-05-31T00:01:00Z",
+                    "label": {"name": "bug"},
+                    "url": "https://api.github.com/repos/openclaw/openclaw/issues/events/71"
+                },
+                {
+                    "id": 72,
+                    "event": "renamed",
+                    "actor": {"login": "maintainer"},
+                    "created_at": "2026-05-31T00:02:00Z",
+                    "rename": {"from": "old title", "to": "new title"}
+                },
+                {
+                    "id": 73,
+                    "event": "cross-referenced",
+                    "actor": {"login": "alice"},
+                    "created_at": "2026-05-31T00:03:00Z",
+                    "source": {
+                        "issue": {
+                            "title": "related issue",
+                            "html_url": "https://github.com/openclaw/openclaw/issues/88500"
+                        }
+                    }
+                },
+                {
+                    "id": 74,
+                    "event": "commented",
+                    "actor": {"login": "alice"},
+                    "created_at": "2026-05-31T00:04:00Z"
+                }
+            ]))
+            .unwrap(),
+        }]);
+
+        let events = fetch_public_rest_timeline_events_with(&transport, &id)
+            .await
+            .expect("public timeline events");
+
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0].kind, ActivityKind::Timeline);
+        assert_eq!(events[0].author, "maintainer");
+        assert_eq!(events[0].body, "added label bug");
+        assert_eq!(events[0].updated_at, "2026-05-31T00:01:00Z");
+        assert_eq!(
+            events[0].url.as_deref(),
+            Some("https://api.github.com/repos/openclaw/openclaw/issues/events/71")
+        );
+        assert_eq!(events[1].body, "renamed title from old title to new title");
+        assert_eq!(
+            events[2].body,
+            "cross-referenced https://github.com/openclaw/openclaw/issues/88500"
+        );
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/issues/88499/timeline?per_page=100&page=1"
         );
         assert_eq!(requests[0].token, None);
     }
