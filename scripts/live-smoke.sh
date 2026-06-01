@@ -102,10 +102,14 @@ run_public_case public_pr_overview "$pr_target" overview \
   "[Overview]" "Activity  Commits" "[refresh]"
 run_public_case public_pr_activity "$pr_target" activity \
   "[Activity]" "[details]"
+run_public_case public_pr_commits "$pr_target" commits \
+  "[Commits]" "[+ more]"
 run_public_case public_pr_checks "$pr_target" checks \
   "[Checks]" "Summary:"
 run_public_case public_pr_files "$pr_target" files \
   "[Files]" "files" "[+ more]"
+run_public_case public_pr_links "$pr_target" links \
+  "[Links]" "openclaw/openclaw#"
 run_public_case public_issue_overview "$issue_target" overview \
   "[Overview]" "Activity  Links" "[refresh]"
 run_public_case public_issue_activity "$issue_target" activity \
