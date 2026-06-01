@@ -28,6 +28,7 @@
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
   - 1-6: jump to the visible tab in that position                                                                                                               
   - v: reverse chronological feed order                                                                                                                         
+  - a: expand or collapse all rows in the current tab                                                                                                           
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                                                          
   - e: expand or collapse the main body                                                                                                                         
   - Backspace: return after following a link                                                                                                                    
@@ -35,7 +36,6 @@
   Refresh                                                                                                                                                       
   - Live mode refreshes automatically on the configured interval.                                                                                               
   - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

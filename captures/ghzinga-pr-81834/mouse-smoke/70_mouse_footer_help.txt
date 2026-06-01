@@ -28,9 +28,9 @@
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - 1-6: jump to the visible tab in that position                                                                       
   - v: reverse chronological feed order                                                                                 
+  - a: expand or collapse all rows in the current tab                                                                   
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
   - e: expand or collapse the main body                                                                                 
   - Backspace: return after following a link                                                                            
                                                                                                                         
-  Refresh                                                                                                               
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/3 0%                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/4 0%                                                        
