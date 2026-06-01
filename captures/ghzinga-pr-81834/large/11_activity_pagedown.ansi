@@ -17,19 +17,20 @@ feat(senseaudio): add SenseAudio TTS provider
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
   Codex review: needs changes before merge.                                                                                                                     
                                                                                                                                                                 
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding,    
-  registration metadata, docs, inventory updates, and tests.                                                                                                    
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
+  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
                                                                                                                                                                 
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The remaining docs bug is source-reproducible    
-  from the PR docs line 95 and the current CLI contract requiring --provider <id>.                                                                              
-                                                                                                                                                                
+  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The                                              
+  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider                                          
+  <id>.                                                                                                                                                         
   [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
                                                                                                                                                                 
   Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                                                       
   meta: association NONE                                                                                                                                        
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no contributor-facing blockers left) and the PR has      
-  been waiting since the 15th. Happy to address any feedback. No rush, just flagging it in case it slipped past the queue.                                      
+  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                                                       
+  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,                                         
+  just flagging it in case it slipped past the queue.                                                                                                           
                                                                                                                                                                 
   Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                                                                     
   meta: association MEMBER                                                                                                                                      
@@ -43,8 +44,7 @@ feat(senseaudio): add SenseAudio TTS provider
   Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                                                                   
                                                                                                                                                                 
   Summary                                                                                                                                                       
-  The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing, voice-note opus transcoding, docs, manifest  
-  metadata, contract coverage, unit tests, and a gated live test.                                                                                               
+  The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,                                              
+  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.                                                   
                                                                                                                                                                 
-  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                                                         
-[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 10/38 26% ...[38;2;192;202;245m                                                                                                  
+[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 10/39 25% ...[38;2;192;202;245m                                                                                                  
