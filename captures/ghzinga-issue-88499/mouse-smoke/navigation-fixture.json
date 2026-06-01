@@ -9,8 +9,8 @@
   "url": "https://github.com/openclaw/openclaw/issues/88499",
   "state": "CLOSED",
   "author": "xneone",
-  "created_at": "2026-05-31T02:21:19Z",
-  "updated_at": "2026-06-01T03:20:12Z",
+  "created_at": "2d ago",
+  "updated_at": "1d ago",
   "labels": [
     "bug",
     "provider: openai-responses"
@@ -19,34 +19,33 @@
     "osolmaz"
   ],
   "reactions": {
-    "thumbs_up": 1,
+    "thumbs_up": 2,
     "thumbs_down": 0,
     "laugh": 0,
     "hooray": 0,
     "confused": 0,
     "heart": 0,
     "rocket": 0,
-    "eyes": 2
+    "eyes": 1
   },
-  "body": "## Bug Description\n\nWhen using a provider configured with api: openai-responses, the gateway sends store=false or omits store, which defaults to false. On subsequent turns within the same session, the gateway includes previous_response_id referencing the previous response. Since that response was never persisted server-side, the API returns a 404.\n\nHTTP 404: Item with id \"rs_xxxxx\" not found. Items are not persisted when store is set to false. Try again with store set to true, or remove this item from your input.\n\n## Expected Behavior\nThe provider should not replay previous_response_id when store=false, or it should select a storage mode that makes replay safe.\n\n## Actual Behavior\nThe next request fails after the first turn and the conversation cannot continue.\n\nRelated issues: #84904 and #87310.",
+  "body": "## Bug Description\n\nWhen using a provider configured with api: openai-responses, the gateway sends store=false in responses API requests. On subsequent turns within the same session, the gateway includes previous_response_id referencing the previous response. Since that response was never persisted server-side, the API returns a 404.\n\nHTTP 404: Item with id rs_xxxxx not found. Items are not persisted when store is set to false. Try again with store set to true, or remove this item from your input.\n\n## Expected Behavior\n\nThe provider should either avoid previous_response_id when store=false or persist the response when continuing a conversation.\n\nRelated regressions were discussed in #84904 and #87310.",
   "activity": [
     {
       "id": "issue-comment-1",
       "kind": "comment",
       "author": "clawsweeper",
-      "body": "Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.\n\nSummary\nKeep this open: current main still has a plausible Responses replay failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only path.",
-      "updated_at": "2026-05-31T02:28:16Z",
+      "body": "Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs.",
+      "updated_at": "2d ago",
       "path": null,
       "line": null,
-      "url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
-      "author_association": "CONTRIBUTOR"
+      "url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
     },
     {
       "id": "issue-timeline-1",
       "kind": "timeline",
       "author": "osolmaz",
       "body": "added label provider: openai-responses",
-      "updated_at": "2026-05-31T03:00:00Z",
+      "updated_at": "2d ago",
       "path": null,
       "line": null
     },
@@ -54,19 +53,17 @@
       "id": "issue-comment-2",
       "kind": "comment",
       "author": "tianxiaochannel-oss88",
-      "body": "Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next request succeed, which points at replay state rather than authentication or model availability.",
-      "updated_at": "2026-05-31T04:10:00Z",
+      "body": "Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when store=false is used through the openai-responses provider. Removing the previous response reference makes the next request succeed.",
+      "updated_at": "1d ago",
       "path": null,
-      "line": null,
-      "url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-2",
-      "author_association": "CONTRIBUTOR"
+      "line": null
     },
     {
-      "id": "issue-timeline-2",
-      "kind": "timeline",
+      "id": "issue-comment-3",
+      "kind": "comment",
       "author": "osolmaz",
-      "body": "closed this with fix validation",
-      "updated_at": "2026-06-01T03:20:12Z",
+      "body": "The fix should preserve normal stored-response continuation while disabling replay through missing server-side response IDs for store=false sessions.",
+      "updated_at": "1d ago",
       "path": null,
       "line": null
     }
@@ -97,10 +94,12 @@
       "value": "COMPLETED"
     },
     {
-      "label": "Closed at",
-      "value": "2026-06-01T03:20:12Z"
+      "label": "Milestone",
+      "value": "provider hardening"
     }
   ],
-  "warnings": [],
+  "warnings": [
+    "fixture warning: public REST timeline evidence is deterministic for capture validation"
+  ],
   "pull_request": null
 }

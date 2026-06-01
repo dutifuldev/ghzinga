@@ -4,10 +4,10 @@
   "extra_fixtures": [
     "fixtures/issue-66943.json"
   ],
-  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "binary": "./target/debug/gzg",
   "git_commit": "70ec68f9f7d16b78dcdf41435c064b6cc7a81976",
-  "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
-  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
+  "config_path": "./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
+  "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg openclaw/openclaw#81834 --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
     "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
@@ -243,5 +243,5 @@
     }
   ],
   "load_full_fixture": "captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json",
-  "load_full_command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --refresh-seconds 0"
+  "load_full_command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml ./target/debug/gzg openclaw/openclaw#81834 --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --refresh-seconds 0"
 }

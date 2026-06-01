@@ -53,6 +53,31 @@ def app_freshness_paths() -> list[str]:
     return [path for path in APP_FRESHNESS_PATHS if (REPO / path).exists()]
 
 
+def repo_relative_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(REPO))
+    except ValueError:
+        return str(resolved)
+
+
+def resolve_repo_path(value: str | None) -> Path:
+    if not value:
+        return Path()
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    if value == ".":
+        return REPO
+    if value.startswith("./"):
+        return REPO / value[2:]
+    return REPO / path
+
+
+def portable_command(command: str) -> str:
+    return command.replace(str(REPO), ".")
+
+
 def git_revision_exists(revision: str) -> bool:
     result = subprocess.run(
         ["git", "rev-parse", "--verify", f"{revision}^{{commit}}"],
@@ -243,10 +268,11 @@ def capture_frame(
             meta,
             {
                 "command": command,
+                "portable_command": portable_command(command),
                 "tab": tab or "overview",
                 "keys": keys or [],
                 "actual_tmux_size": actual_size,
-                "config_path": str(capture_config_path()),
+                "config_path": repo_relative_path(capture_config_path()),
             },
         )
         history_plain = tmux("capture-pane", "-t", session, "-S", "-", "-E", "-", "-N", "-p").stdout
@@ -265,13 +291,15 @@ def capture_size(label: str, cols: int, rows: int):
         "target": TARGET,
         "title": TITLE,
         "mode": MODE,
-        "binary": str(BIN),
+        "binary": repo_relative_path(BIN),
         "git_commit": git_commit(),
-        "config_path": str(capture_config_path()),
+        "config_path": repo_relative_path(capture_config_path()),
         "requested_columns": cols,
         "requested_rows": rows,
-        "offline_fixture": str(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
-        "offline_resource_fixtures": [str(fixture) for fixture in OFFLINE_RESOURCE_FIXTURES],
+        "offline_fixture": repo_relative_path(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
+        "offline_resource_fixtures": [
+            repo_relative_path(fixture) for fixture in OFFLINE_RESOURCE_FIXTURES
+        ],
         "captures": [],
     }
     if MODE == "issue":
@@ -486,7 +514,9 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     expected_git_commit = git_commit()
     target = None
     root_manifest = root / "manifest.json"
-    expected_config_path = str(root / "capture-empty-config.toml")
+    expected_config_path = (root / "capture-empty-config.toml").resolve()
+    expected_config_value = repo_relative_path(expected_config_path)
+    expected_config_env = f"GZG_CONFIG_PATH=./{expected_config_value}"
     if not root_manifest.exists():
         errors.append(f"missing {root_manifest}")
     else:
@@ -494,10 +524,10 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         target = manifest.get("target")
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
-        if manifest.get("config_path") != expected_config_path:
+        if resolve_repo_path(manifest.get("config_path")).resolve() != expected_config_path:
             errors.append(
                 f"{root_manifest} config_path is {manifest.get('config_path')!r}, "
-                f"expected {expected_config_path!r}"
+                f"expected {expected_config_value!r}"
             )
         validate_manifest_revision(
             errors,
@@ -554,10 +584,10 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(
                 f"{manifest_path} actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {expected_size!r}"
             )
-        if manifest.get("config_path") != expected_config_path:
+        if resolve_repo_path(manifest.get("config_path")).resolve() != expected_config_path:
             errors.append(
                 f"{manifest_path} config_path is {manifest.get('config_path')!r}, "
-                f"expected {expected_config_path!r}"
+                f"expected {expected_config_value!r}"
             )
         captures = collect_manifest_entries(
             manifest.get("captures", []),
@@ -582,13 +612,13 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
                 path = size_dir / value
                 if not path.exists():
                     errors.append(f"missing {path}")
-            command = capture.get("command", "")
-            if f"GZG_CONFIG_PATH={expected_config_path}" not in command:
+            command = capture.get("portable_command") or portable_command(capture.get("command", ""))
+            if expected_config_env not in command:
                 errors.append(f"{manifest_path} frame {frame} command does not isolate config")
-            if capture.get("config_path") != expected_config_path:
+            if resolve_repo_path(capture.get("config_path")).resolve() != expected_config_path:
                 errors.append(
                     f"{manifest_path} frame {frame} config_path is "
-                    f"{capture.get('config_path')!r}, expected {expected_config_path!r}"
+                    f"{capture.get('config_path')!r}, expected {expected_config_value!r}"
                 )
             txt_path = size_dir / f"{frame}.txt"
             if txt_path.exists():
@@ -665,11 +695,13 @@ def main():
         "target": TARGET,
         "title": TITLE,
         "mode": MODE,
-        "binary": str(BIN),
+        "binary": repo_relative_path(BIN),
         "git_commit": git_commit(),
-        "config_path": str(capture_config_path()),
-        "offline_fixture": str(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
-        "offline_resource_fixtures": [str(fixture) for fixture in OFFLINE_RESOURCE_FIXTURES],
+        "config_path": repo_relative_path(capture_config_path()),
+        "offline_fixture": repo_relative_path(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
+        "offline_resource_fixtures": [
+            repo_relative_path(fixture) for fixture in OFFLINE_RESOURCE_FIXTURES
+        ],
         "sizes": [],
     }
     for label, cols, rows in SIZES:

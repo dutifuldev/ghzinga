@@ -1,4 +1,5 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                                                                    
+                                                                                                                        
+  openclaw/openclaw#88499 [Issue CLOSED] updated 1d                                                                     
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                 
@@ -8,29 +9,28 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  Comment by @clawsweeper 1d ago                                                                                        
-  meta: association CONTRIBUTOR                                                                                         
+  Comment by @clawsweeper 2d ago                                                                                        
   [details]                                                                                                             
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                    
+  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay         
+  failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying      
+  server-owned reasoning item IDs.                                                                                      
                                                                                                                         
-  Summary                                                                                                               
-  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
-  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
-  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
-  direct-OpenAI-only path.                                                                                              
-                                                                                                                        
-  Timeline by @osolmaz 1d ago                                                                                           
+  Timeline by @osolmaz 2d ago                                                                                           
   added label provider: openai-responses                                                                                
                                                                                                                         
   Comment by @tianxiaochannel-oss88 1d ago                                                                              
-  meta: association CONTRIBUTOR                                                                                         
-  [details]                                                                                                             
-  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when              
-  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the     
-  next request succeed, which points at replay state rather than authentication or model availability.                  
+  Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when        
+  store=false is used through the openai-responses provider. Removing the previous response reference makes the next    
+  request succeed.                                                                                                      
                                                                                                                         
-  Timeline by @osolmaz 11h ago                                                                                          
-  closed this with fix validation                                                                                       
+  Comment by @osolmaz 1d ago                                                                                            
+  The fix should preserve normal stored-response continuation while disabling replay through missing server-side        
+  response IDs for store=false sessions.                                                                                
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
                                                                                                                         
   opened https://github.com/openclaw/openclaw/issues/88499#issuecomment-1                                               
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+                                                                                                                        

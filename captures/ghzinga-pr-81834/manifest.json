@@ -2,12 +2,12 @@
   "target": "openclaw/openclaw#81834",
   "title": "feat(senseaudio): add SenseAudio TTS provider",
   "mode": "pr",
-  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "binary": "./target/debug/gzg",
   "git_commit": "70ec68f9f7d16b78dcdf41435c064b6cc7a81976",
-  "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/capture-empty-config.toml",
-  "offline_fixture": "/home/bob/repos/ghzinga/fixtures/pr-81834.json",
+  "config_path": "./captures/ghzinga-pr-81834/capture-empty-config.toml",
+  "offline_fixture": "./fixtures/pr-81834.json",
   "offline_resource_fixtures": [
-    "/home/bob/repos/ghzinga/fixtures/issue-66943.json"
+    "./fixtures/issue-66943.json"
   ],
   "sizes": [
     {

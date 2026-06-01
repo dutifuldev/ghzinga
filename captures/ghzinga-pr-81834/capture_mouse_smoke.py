@@ -11,6 +11,9 @@ from capture_ghzinga import (
     capture_ansi,
     capture_plain,
     git_commit,
+    portable_command,
+    repo_relative_path,
+    resolve_repo_path,
     tmux,
     tmux_size,
 )
@@ -431,10 +434,10 @@ def capture_mouse_smoke():
             "target": TARGET,
             "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
             "extra_fixtures": [str(NAVIGATION_TARGET_FIXTURE.relative_to(REPO))],
-            "binary": str(BIN),
+            "binary": repo_relative_path(BIN),
             "git_commit": git_commit(),
-            "config_path": str(capture_config_path()),
-            "command": command,
+            "config_path": repo_relative_path(capture_config_path()),
+            "command": portable_command(command),
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
                 "detail_url": DETAIL_URL,
@@ -464,7 +467,7 @@ def capture_mouse_smoke():
         mouse_coordinates["load_full"] = list(load_full_button)
         write_frame(ROOT, "90_mouse_footer_load_full", frames)
         manifest["load_full_fixture"] = str(LOAD_FULL_FIXTURE.relative_to(REPO))
-        manifest["load_full_command"] = load_full_command
+        manifest["load_full_command"] = portable_command(load_full_command)
         manifest["mouse_coordinates"] = mouse_coordinates
         manifest["frames"] = frames
         tmux("kill-session", "-t", SESSION, check=False)
@@ -557,14 +560,18 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         errors.append(
             f"actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {COLS}x{ROWS}"
         )
-    expected_config_path = str(capture_config_path())
-    if manifest.get("config_path") != expected_config_path:
+    expected_config_path = capture_config_path().resolve()
+    expected_config_value = repo_relative_path(expected_config_path)
+    expected_config_env = f"GZG_CONFIG_PATH=./{expected_config_value}"
+    if resolve_repo_path(manifest.get("config_path")).resolve() != expected_config_path:
         errors.append(
-            f"config_path is {manifest.get('config_path')!r}, expected {expected_config_path!r}"
+            f"config_path is {manifest.get('config_path')!r}, expected {expected_config_value!r}"
         )
-    if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("command", ""):
+    command = portable_command(manifest.get("command", ""))
+    load_full_command = portable_command(manifest.get("load_full_command", ""))
+    if expected_config_env not in command:
         errors.append("manifest command does not isolate config with GZG_CONFIG_PATH")
-    if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("load_full_command", ""):
+    if expected_config_env not in load_full_command:
         errors.append("manifest load_full_command does not isolate config with GZG_CONFIG_PATH")
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):

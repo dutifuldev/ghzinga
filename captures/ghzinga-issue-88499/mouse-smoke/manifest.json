@@ -4,10 +4,10 @@
   "extra_fixtures": [
     "fixtures/issue-66943.json"
   ],
-  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "45f1a21283fe92c1f2752ce258a1879e06e7baaa",
-  "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml",
-  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
+  "binary": "target/debug/gzg",
+  "git_commit": "ce536dd506790626b9a3ed317c63b17c65c5a202",
+  "config_path": "captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml",
+  "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-issue-88499/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-issue-88499/mouse-smoke/capture-copy-url.sh ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
     "detail_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
@@ -18,15 +18,15 @@
   "mouse_coordinates": {
     "overview_more": [
       4,
-      24
+      25
     ],
     "overview_less": [
       4,
-      29
+      28
     ],
     "activity_tab": [
       15,
-      7
+      8
     ],
     "activity_details": [
       4,
@@ -34,27 +34,27 @@
     ],
     "links_tab": [
       25,
-      7
+      8
     ],
     "linked_issue": [
       4,
-      15
+      16
     ],
     "refresh": [
       4,
-      36
+      35
     ],
     "copy": [
       14,
-      36
+      35
     ],
     "open": [
       21,
-      36
+      35
     ],
     "quit": [
       46,
-      36
+      35
     ]
   },
   "frames": [
