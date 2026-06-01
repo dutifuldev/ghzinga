@@ -206,6 +206,11 @@ The footer shows the active tab and scroll position as current row, maximum row,
 and percentage, so long PR conversations and diff views keep the same quick
 orientation cue as a gh-dash preview pane.
 
+When content is scrollable, ghzinga also shows a slim Ratatui scrollbar on the
+right edge while you scroll with the keyboard or mouse wheel. The scrollbar is
+transient: it appears during movement, including edge-scroll attempts, then fades
+after a few render frames so it does not permanently take reading space.
+
 By default, ghzinga renders with plain ASCII symbols so it works in terminals
 without special fonts or emoji support. Use `--symbols emoji` to opt into the
 richer emoji labels.

@@ -464,6 +464,12 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
     return {}
 
 
+def scrollbar_evidence_frames(mode: str) -> list[str]:
+    if mode == "issue":
+        return ["02_overview_pagedown", "11_activity_pagedown"]
+    return ["02_overview_pagedown", "11_activity_pagedown", "31_checks_pagedown", "41_files_pagedown"]
+
+
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
@@ -491,6 +497,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     frames = expected_frames(mode)
     markers = expected_markers(mode) + ["[refresh]", "[open]", "[settings]", "[help]", "[quit]"]
     content_markers = expected_content_markers(mode, target)
+    saw_scrollbar_thumb = False
     for label, cols, rows in SIZES:
         size_dir = root / label
         manifest_path = size_dir / "manifest.json"
@@ -546,7 +553,18 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             for marker in frame_markers:
                 if marker not in text:
                     errors.append(f"{size_dir}/{frame}.txt missing content marker {marker!r}")
+        scroll_frames_with_thumb = [
+            frame
+            for frame in scrollbar_evidence_frames(mode)
+            if "█" in frame_text.get(frame, "")
+        ]
+        saw_scrollbar_thumb = saw_scrollbar_thumb or bool(scroll_frames_with_thumb)
 
+    if not saw_scrollbar_thumb:
+        frames_label = ", ".join(scrollbar_evidence_frames(mode))
+        errors.append(
+            f"{root} missing transient scrollbar thumb in PageDown frames: {frames_label}"
+        )
     if errors:
         raise SystemExit("Capture validation failed:\n- " + "\n- ".join(errors))
     print(f"OK: {root} captures match expected {mode} frames, markers, and content.")
