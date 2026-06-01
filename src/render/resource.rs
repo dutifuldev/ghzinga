@@ -811,9 +811,9 @@ fn render_scrollbar(
         return;
     }
 
-    let scroll_range_len = scrollbar_content_length(state, area.height, row_count);
-    let scrollbar_position = scrollbar_position(state, scroll_range_len);
-    let mut scrollbar_state = ScrollbarState::new(scroll_range_len)
+    let content_length = scrollbar_content_length(state, area.height, row_count);
+    let scrollbar_position = scrollbar_position(state, content_length);
+    let mut scrollbar_state = ScrollbarState::new(content_length)
         .position(scrollbar_position)
         .viewport_content_length(area.height as usize);
     Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -934,11 +934,23 @@ fn apply_content_frame_spacing(
 
     let mut framed = Vec::with_capacity(rows.len() + 2);
     framed.push(ContentRow::plain(""));
-    framed.extend(rows);
-    if framed.last().is_some_and(|row| !is_blank_row(row)) {
-        framed.push(ContentRow::plain(""));
-    }
+    framed.extend(trim_content_frame_blanks(rows));
+    framed.push(ContentRow::plain(""));
     framed
+}
+
+fn trim_content_frame_blanks(mut rows: Vec<ContentRow>) -> Vec<ContentRow> {
+    let first_content = rows
+        .iter()
+        .position(|row| !is_blank_row(row))
+        .unwrap_or(rows.len());
+    if first_content > 0 {
+        rows.drain(..first_content);
+    }
+    while rows.last().is_some_and(is_blank_row) {
+        rows.pop();
+    }
+    rows
 }
 
 fn is_blank_row(row: &ContentRow) -> bool {
@@ -3825,6 +3837,27 @@ mod tests {
             &palette,
         );
 
+        assert_eq!(line_text(&rows[0].line), "");
+        assert_eq!(line_text(&rows[1].line), "First item");
+        assert_eq!(line_text(&rows[2].line), "");
+    }
+
+    #[test]
+    fn comfortable_content_frame_normalizes_edge_blanks_before_padding() {
+        let palette = Palette::default_dark();
+        let rows = apply_content_frame_spacing(
+            vec![
+                ContentRow::plain(""),
+                ContentRow::plain("First item"),
+                ContentRow::plain(""),
+                ContentRow::plain(""),
+            ],
+            12,
+            SpacingMode::Comfortable,
+            &palette,
+        );
+
+        assert_eq!(rows.len(), 3);
         assert_eq!(line_text(&rows[0].line), "");
         assert_eq!(line_text(&rows[1].line), "First item");
         assert_eq!(line_text(&rows[2].line), "");

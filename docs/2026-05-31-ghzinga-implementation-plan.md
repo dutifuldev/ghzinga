@@ -417,8 +417,10 @@ Responsive behavior:
 - In comfortable spacing, the tab selector owns a blank row below the nav
   buttons plus a continuous separator line before content begins. The separator
   is fixed chrome, not part of the scrollable content.
-- In comfortable spacing, the scrollable content starts and ends with padding
-  so the first and last items have breathing room against the nav and footer.
+- In comfortable spacing, normalize leading/trailing blank content rows, then
+  add exactly one scrollable padding row at the top and exactly one at the
+  bottom so the first and last items have breathing room against the nav and
+  footer.
 - Timeline dividers in comfortable spacing have item padding above and below,
   so one item never sits directly against the separator for the next item.
 - When the header wraps, keep resource identity, state, updated time, and title
