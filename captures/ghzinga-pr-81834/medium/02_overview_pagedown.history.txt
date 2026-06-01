@@ -19,7 +19,7 @@
   feat(senseaudio): add SenseAudio TTS provider                                                                      █  
                                                                                                                      █  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
-                                                                                                                     │  
+                                                                                                                     █  
   comment Comment by @github-actions 1mo ago                                                                         │  
   Dependency Changes Detected                                                                                        │  
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                │  
@@ -33,4 +33,4 @@
   extensions/senseaudio/tts.ts:99                                                                                    │  
   Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice   │  
   listing, tests, and docs. Needs maintainer review before merge.                                                    │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/38 26% ...                                                 
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 10/36 27% ...                                    

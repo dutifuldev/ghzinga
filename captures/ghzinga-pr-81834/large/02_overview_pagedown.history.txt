@@ -17,7 +17,7 @@
                                                                                                                        │                                        
   * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                  │                                        
   feat(senseaudio): add SenseAudio TTS provider                                                                        │                                        
-                                                                                                                       █                                        
+                                                                                                                       │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
                                                                                                                        █                                        
   comment Comment by @github-actions 1mo ago                                                                           █                                        
@@ -33,7 +33,7 @@
   extensions/senseaudio/tts.ts:99                                                                                      █                                        
   Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice     █                                        
   listing, tests, and docs. Needs maintainer review before merge.                                                      █                                        
-                                                                                                                       │                                        
+                                                                                                                       █                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
                                                                                                                        │                                        
   - Timeline by @osolmaz 1mo ago                                                                                       │                                        
@@ -47,4 +47,4 @@
                                                                                                                        │                                        
   Details                                                                                                              │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/24 41% ...                                                                                         
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 10/22 45% ...                                                                            

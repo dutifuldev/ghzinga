@@ -7,6 +7,9 @@
    Overview  Activity  Commits  Checks [Files] Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  [- less]                                                                                                           │  
+                                                                                                                     │  
+  +1    -1    MODIFIED docs/plugins/reference.md [- less]                                                            │  
   path: docs/plugins/reference.md                                                                                    │  
   change: MODIFIED, additions: 1, deletions: 1                                                                       │  
   patch: not loaded                                                                                                  │  
@@ -18,10 +21,10 @@
   patch: not loaded                                                                                                  │  
   [- less]                                                                                                           │  
                                                                                                                      │  
-  +74   -14   MODIFIED docs/providers/senseaudio.md [- less]                                                         │  
-  path: docs/providers/senseaudio.md                                                                                 │  
-  change: MODIFIED, additions: 74, deletions: 14                                                                     │  
-  patch: not loaded                                                                                                  │  
+  +74   -14   MODIFIED docs/providers/senseaudio.md [- less]                                                         █  
+  path: docs/providers/senseaudio.md                                                                                 █  
+  change: MODIFIED, additions: 74, deletions: 14                                                                     █  
+  patch: not loaded                                                                                                  █  
   [- less]                                                                                                           █  
                                                                                                                      █  
   +3    -1    MODIFIED extensions/senseaudio/index.ts [- less]                                                       █  
@@ -30,7 +33,4 @@
   patch: not loaded                                                                                                  █  
   [- less]                                                                                                           █  
                                                                                                                      █  
-                                                                                                                     █  
-  [collapse all]                                                                                                     █  
-                                                                                                                     █  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 8/8 100% ...                                                  
+  [refresh] [copy] [open] [settings] [help] [quit] [collapse all] scroll 5/5 100% ...                                   

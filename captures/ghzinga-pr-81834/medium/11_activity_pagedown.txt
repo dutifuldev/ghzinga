@@ -27,10 +27,10 @@
   Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The         
   remaining files are intentionally scoped to the bundled extension.                                                    
                                                                                                                         
-  [expand all]                                                                                                          
                                                                                                                         
                                                                                                                         
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                  
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/0 100% ...                                     

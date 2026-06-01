@@ -11,7 +11,6 @@
   fb948c9 feat(senseaudio): add SenseAudio TTS provider [PASS] [+ more]         
   @KLilyZ 1mo ago                                                               
                                                                                 
-  [expand all]                                                                  
                                                                                 
                                                                                 
                                                                                 
@@ -20,5 +19,6 @@
                                                                                 
                                                                                 
                                                                                 
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100%              
+                                                                                
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
