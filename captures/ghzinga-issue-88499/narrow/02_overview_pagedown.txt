@@ -5,20 +5,20 @@
                                                                                 
                                                                                 
   [Overview] Activity  Links                                                    
-  * @xneone opened 2026-05-31T02:21:19Z                                         
-  Bug Description                                                               
-                                                                                
-  When using a provider configured with api: openai-responses (e.g. a GPT-5.5   
-  proxy), the gateway sends store=false (or omits store, which defaults to      
-  false) in responses API requests. However, on subsequent turns within the     
-  same session, the gateway includes previous_response_id referencing the       
-  previous response. Since that response was never persisted server-side, the   
-  API returns a 404:                                                            
-                                                                                
-                                                                                
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when     
-  store is set to false. Try again with store set to true, or remove this item  
-  from your input.                                                              
-                                                                                
-  [refresh] [open] [settings] [help] [quit] scroll 0/158 0%                     
+  store is set to false. Try again with store set to true, or remove this ite│  
+  from your input.                                                           │  
+                                                                             █  
+  Expected Behavior                                                          █  
+  The provider should not replay previous_response_id when store=false, or it█  
+  should select a storage mode that makes replay safe.                       │  
+                                                                             │  
+  Actual Behavior                                                            │  
+  The next request fails after the first turn and the conversation cannot    │  
+  continue.                                                                  │  
+                                                                             │  
+  Related issues: #84904 and #87310.                                         │  
+  [- less]                                                                   │  
+  ───────────────────────────────────────────────────────────────────────────│  
+                                                                             │  
+  [refresh] [open] [settings] [help] [quit] scroll 10/53 18%                    
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

@@ -307,7 +307,9 @@ Reference docs:
 Regenerate PR captures:
 
 ```sh
-python3 captures/ghzinga-pr-81834/capture_ghzinga.py
+python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
+  --offline-fixture fixtures/pr-81834.json \
+  --offline-resource-fixture fixtures/issue-66943.json
 ```
 
 Validate saved PR captures:
@@ -324,7 +326,8 @@ python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
   --target https://github.com/openclaw/openclaw/issues/88499 \
   --title 'openai-responses provider: 404 on previous_response_id when store=false (default)' \
   --load-needle openai-responses \
-  --mode issue
+  --mode issue \
+  --offline-fixture fixtures/issue-88499.json
 ```
 
 Validate saved issue captures:
