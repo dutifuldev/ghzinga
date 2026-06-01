@@ -2020,21 +2020,16 @@ fn linked_resource_tokens(resource: &Resource) -> Vec<&str> {
 }
 
 fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarget)> {
-    let clean = token.trim_matches(|c: char| {
-        matches!(
-            c,
-            ')' | '(' | ',' | '.' | ';' | ':' | '"' | '\'' | '[' | ']'
-        )
-    });
+    let clean = link_target_from_token(token)?;
     let is_url = clean.starts_with("https://") || clean.starts_with("http://");
-    if let Ok(id) = ResourceId::parse(clean) {
-        if is_url && should_open_exact_url(clean, &id) {
-            return Some((clean.to_string(), HitTarget::OpenUrl(clean.to_string())));
+    if let Ok(id) = ResourceId::parse(&clean) {
+        if is_url && should_open_exact_url(&clean, &id) {
+            return Some((clean.clone(), HitTarget::OpenUrl(clean)));
         }
-        return Some((clean.to_string(), HitTarget::Navigate(id)));
+        return Some((clean, HitTarget::Navigate(id)));
     }
     if is_url {
-        return Some((clean.to_string(), HitTarget::OpenUrl(clean.to_string())));
+        return Some((clean.clone(), HitTarget::OpenUrl(clean)));
     }
     if let Some(number) = clean.strip_prefix('#') {
         if number.chars().all(|ch| ch.is_ascii_digit()) {
@@ -2047,6 +2042,32 @@ fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarg
         }
     }
     None
+}
+
+fn link_target_from_token(token: &str) -> Option<String> {
+    let trimmed = token.trim_matches(|c: char| {
+        matches!(
+            c,
+            ')' | '(' | ',' | '.' | ';' | ':' | '"' | '\'' | '[' | ']' | '<' | '>'
+        )
+    });
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(target) = markdown_link_target(trimmed) {
+        return Some(target);
+    }
+    Some(trimmed.to_string())
+}
+
+fn markdown_link_target(token: &str) -> Option<String> {
+    let open = token.rfind("](")?;
+    let target = token[open + 2..]
+        .trim_matches(|c: char| matches!(c, ')' | ',' | '.' | ';' | ':' | '"' | '\'' | '<' | '>'));
+    if target.is_empty() {
+        return None;
+    }
+    Some(target.to_string())
 }
 
 fn should_open_exact_url(url: &str, id: &ResourceId) -> bool {
@@ -2956,6 +2977,68 @@ mod tests {
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
             HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+        )));
+    }
+
+    #[test]
+    fn render_registers_markdown_relative_issue_link_hit_area() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body = "Pairs with [tracking issue](#66943).".into();
+        let mut state = AppState::new(resource);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+        )));
+    }
+
+    #[test]
+    fn links_tab_registers_markdown_absolute_pr_link_hit_area() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body =
+            "Pairs with [follow-up PR](https://github.com/openclaw/openclaw/pull/81835).".into();
+        resource.related_resources.clear();
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Links);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("https://github.com/openclaw/openclaw/pull/81835"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::Navigate(id)
+                if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
+        )));
+    }
+
+    #[test]
+    fn render_registers_markdown_permalink_as_open_url() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body =
+            "See [thread](https://github.com/openclaw/openclaw/pull/81834#discussion_r1).".into();
+        let mut state = AppState::new(resource);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
         )));
     }
 
