@@ -1,9 +1,10 @@
   openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-   Overview [Activity] Links                                                                                            
-  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
+  OK OPEN  by @xneone                                                                                                   
                                                                                                                         
+                                                                                                                        
+   Overview [Activity] Links                                                                                            
   direct-OpenAI-only path.                                                                                              
   [+ more]                                                                                                              
                                                                                                                         
@@ -32,5 +33,4 @@
   The root one is that the request builder is not store-aware. The responses API gives you two modes: chain             
   server-side with previous_response_id (requires store=true), or resend the conversation context inline on each turn   
   [+ more]                                                                                                              
-                                                                                                                        
-  [refresh] [open] [settings] [help] [quit] scroll 10/24 41% ...                                                        
+  [refresh] [open] [settings] [help] [quit] scroll 10/25 40% ...                                                        

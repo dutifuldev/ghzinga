@@ -1,9 +1,10 @@
   openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  [Overview] Activity  Links                                                                                            
-  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
+  OK OPEN  by @xneone                                                                                                   
                                                                                                                         
+                                                                                                                        
+  [Overview] Activity  Links                                                                                            
   * @xneone opened 2026-05-31T02:21:19Z                                                                                 
   Bug Description                                                                                                       
                                                                                                                         
@@ -17,20 +18,19 @@
   store set to true, or remove this item from your input.                                                               
                                                                                                                         
                                                                                                                         
-  Once this happens, every subsequent request in the session fails with the same 404, because the stale                 
-  previous_response_id is never cleared. The session is permanently broken until the user runs /new.                    
+  [+ more]                                                                                                              
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  Steps to Reproduce                                                                                                    
+  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                  
+  meta: association CONTRIBUTOR, edited                                                                                 
+  [details]                                                                                                             
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,  
+  2026, 10:28 PM ET / 02:28 UTC._                                                                                       
                                                                                                                         
-  1. Configure a provider with api: openai-responses pointing to an OpenAI-compatible endpoint (e.g. GPT-5.5 via a      
-  proxy):                                                                                                               
-  json                                                                                                                  
-  "wlkgpt": {                                                                                                           
-  "baseUrl": "https://api.example.com/v1",                                                                              
-  "api": "openai-responses",                                                                                            
-  "models": [{"id": "gpt-5.5"}]                                                                                         
-  }                                                                                                                     
-                                                                                                                        
-  2. Set this as the default model for the main agent                                                                   
-  3. Start a conversation via Feishu/webchat — first few messages work fine                                             
-  [refresh] [open] [settings] [help] [quit] scroll 0/113 0% ...                                                         
+  Summary                                                                                                               
+  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
+  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
+  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
+  direct-OpenAI-only path.                                                                                              
+  [+ more]                                                                                                              
+  [refresh] [open] [settings] [help] [quit] scroll 0/66 0% ...                                                          

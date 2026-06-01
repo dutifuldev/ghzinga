@@ -1,9 +1,10 @@
   openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-   Overview  Activity [Links]                                                                                           
-  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
+  OK OPEN  by @xneone                                                                                                   
                                                                                                                         
+                                                                                                                        
+   Overview  Activity [Links]                                                                                           
   Help                                                                                                                  
                                                                                                                         
   Mouse                                                                                                                 
@@ -29,7 +30,6 @@
   Refresh                                                                                                               
   - Live mode refreshes automatically on the configured interval.                                                       
   - The status band shows the last refresh time and whether content changed.                                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         
