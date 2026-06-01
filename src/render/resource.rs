@@ -2,7 +2,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Paragraph, Widget},
+    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -732,6 +732,7 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
     let rows = wrap_content_rows(rows, content_area.width, state.spacing);
+    let rows_len = rows.len();
     let max_scroll = rows.len().saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
@@ -758,6 +759,32 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(content_area, frame.buffer_mut());
+    render_scrollbar(frame, content_area, state, rows_len, palette);
+    state.advance_scrollbar_visibility();
+}
+
+fn render_scrollbar(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &AppState,
+    content_len: usize,
+    palette: &Palette,
+) {
+    if !state.scrollbar_visible() || area.width < 8 || area.height < 3 {
+        return;
+    }
+
+    let mut scrollbar_state = ScrollbarState::new(content_len)
+        .position(state.scroll as usize)
+        .viewport_content_length(area.height as usize);
+    Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .thumb_symbol("█")
+        .thumb_style(Style::default().fg(palette.accent).bg(palette.panel_bg))
+        .track_symbol(Some("│"))
+        .track_style(dim_style(palette).bg(palette.panel_bg))
+        .begin_symbol(None)
+        .end_symbol(None)
+        .render(area, frame.buffer_mut(), &mut scrollbar_state);
 }
 
 fn active_content_tab(state: &AppState) -> Tab {
@@ -3181,6 +3208,24 @@ mod tests {
 
         assert!(content.contains("scroll 0/"));
         assert!(content.contains("0%"));
+    }
+
+    #[test]
+    fn content_scrollbar_is_transient_after_scroll_input() {
+        let mut state = AppState::new(pr_resource());
+
+        let initial = draw(&mut state, 120, 20);
+        assert!(!initial.contains('█'));
+
+        state.scroll_down(5);
+        let scrolling = draw(&mut state, 120, 20);
+
+        assert!(scrolling.contains('█'));
+        for _ in 0..12 {
+            draw(&mut state, 120, 20);
+        }
+        let settled = draw(&mut state, 120, 20);
+        assert!(!settled.contains('█'));
     }
 
     #[test]

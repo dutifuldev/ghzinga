@@ -4,6 +4,8 @@ use crate::domain::{Resource, ResourceId, ResourceKind};
 use crate::input::HitArea;
 use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
+const SCROLLBAR_VISIBLE_FRAMES: u8 = 12;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tab {
     Overview,
@@ -82,6 +84,7 @@ pub struct AppState {
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
+    pub scrollbar_visible_frames: u8,
     pub expanded_blocks: HashSet<BlockId>,
     pub hit_areas: Vec<HitArea>,
     pub history: Vec<crate::domain::ResourceId>,
@@ -109,6 +112,7 @@ impl AppState {
             resource,
             scroll: 0,
             scroll_limit: u16::MAX,
+            scrollbar_visible_frames: 0,
             expanded_blocks: HashSet::new(),
             hit_areas: Vec::new(),
             history: Vec::new(),
@@ -365,18 +369,36 @@ impl AppState {
 
     pub fn scroll_down(&mut self, lines: u16) {
         self.scroll = self.scroll.saturating_add(lines).min(self.scroll_limit);
+        self.reveal_scrollbar();
     }
 
     pub fn scroll_up(&mut self, lines: u16) {
         self.scroll = self.scroll.saturating_sub(lines);
+        self.reveal_scrollbar();
     }
 
     pub fn scroll_to_top(&mut self) {
         self.scroll = 0;
+        self.reveal_scrollbar();
     }
 
     pub fn scroll_to_bottom(&mut self) {
         self.scroll = self.scroll_limit;
+        self.reveal_scrollbar();
+    }
+
+    pub fn scrollbar_visible(&self) -> bool {
+        self.scroll_limit > 0 && self.scrollbar_visible_frames > 0
+    }
+
+    pub fn advance_scrollbar_visibility(&mut self) {
+        self.scrollbar_visible_frames = self.scrollbar_visible_frames.saturating_sub(1);
+    }
+
+    fn reveal_scrollbar(&mut self) {
+        if self.scroll_limit > 0 {
+            self.scrollbar_visible_frames = SCROLLBAR_VISIBLE_FRAMES;
+        }
     }
 }
 
@@ -585,6 +607,22 @@ mod tests {
         }
 
         assert_eq!(state.scroll, 7);
+    }
+
+    #[test]
+    fn scrolling_reveals_transient_scrollbar() {
+        let mut state = AppState::new(issue_resource());
+        state.set_scroll_limit(7);
+
+        state.scroll_down(1);
+
+        assert!(state.scrollbar_visible());
+        state.advance_scrollbar_visibility();
+        assert!(state.scrollbar_visible());
+        for _ in 0..SCROLLBAR_VISIBLE_FRAMES {
+            state.advance_scrollbar_visibility();
+        }
+        assert!(!state.scrollbar_visible());
     }
 
     #[test]
