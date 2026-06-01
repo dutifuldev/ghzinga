@@ -255,7 +255,7 @@ Mouse:
 
 Keyboard:
 
-- `q`: quit
+- `q` or `Ctrl-C`: quit
 - `?`: toggle help
 - `s`: open or close settings
 - `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
