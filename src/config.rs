@@ -7,7 +7,7 @@ use std::{
 use serde::Deserialize;
 
 use crate::render::{
-    normalize_fixed_width, ContentWidthMode, SpacingMode, SymbolMode, ThemeName,
+    normalize_fixed_width, ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName,
     DEFAULT_FIXED_CONTENT_WIDTH,
 };
 
@@ -23,6 +23,7 @@ pub struct UiConfig {
     pub spacing: SpacingMode,
     pub width_mode: ContentWidthMode,
     pub fixed_width: u16,
+    pub scrollbar: ScrollbarMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +45,7 @@ struct RawUiConfig {
     spacing: Option<String>,
     width_mode: Option<String>,
     fixed_width: Option<u16>,
+    scrollbar: Option<String>,
 }
 
 impl Default for UiConfig {
@@ -54,6 +56,7 @@ impl Default for UiConfig {
             spacing: SpacingMode::Comfortable,
             width_mode: ContentWidthMode::Fixed,
             fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,
+            scrollbar: ScrollbarMode::OnScroll,
         }
     }
 }
@@ -84,14 +87,20 @@ impl AppConfig {
         self
     }
 
+    pub fn with_scrollbar(mut self, scrollbar: ScrollbarMode) -> Self {
+        self.ui.scrollbar = scrollbar;
+        self
+    }
+
     pub fn to_toml(self) -> String {
         format!(
-            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\nspacing = \"{}\"\nwidth_mode = \"{}\"\nfixed_width = {}\n",
+            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\nspacing = \"{}\"\nwidth_mode = \"{}\"\nfixed_width = {}\nscrollbar = \"{}\"\n",
             self.ui.theme,
             self.ui.symbols,
             self.ui.spacing,
             self.ui.width_mode,
-            self.ui.fixed_width
+            self.ui.fixed_width,
+            self.ui.scrollbar
         )
     }
 }
@@ -202,6 +211,14 @@ fn parse_config(contents: &str, diagnostics: &mut Vec<String>) -> AppConfig {
         if let Some(fixed_width) = ui.fixed_width {
             config.ui.fixed_width = normalize_fixed_width(fixed_width);
         }
+        if let Some(scrollbar) = ui.scrollbar {
+            match ScrollbarMode::from_str(&scrollbar) {
+                Ok(scrollbar) => config.ui.scrollbar = scrollbar,
+                Err(error) => {
+                    diagnostics.push(format!("invalid ui.scrollbar `{scrollbar}`: {error}"));
+                }
+            }
+        }
     }
     config
 }
@@ -226,7 +243,7 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n",
+            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\nscrollbar = \"always\"\n",
             &mut diagnostics,
         );
 
@@ -235,6 +252,7 @@ mod tests {
         assert_eq!(config.ui.spacing, SpacingMode::Compact);
         assert_eq!(config.ui.width_mode, ContentWidthMode::Full);
         assert_eq!(config.ui.fixed_width, 132);
+        assert_eq!(config.ui.scrollbar, ScrollbarMode::Always);
         assert!(diagnostics.is_empty());
     }
 
@@ -243,16 +261,17 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\nspacing = \"wide\"\nwidth_mode = \"middle\"\n",
+            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\nspacing = \"wide\"\nwidth_mode = \"middle\"\nscrollbar = \"sometimes\"\n",
             &mut diagnostics,
         );
 
         assert_eq!(config, AppConfig::default());
-        assert_eq!(diagnostics.len(), 4);
+        assert_eq!(diagnostics.len(), 5);
         assert!(diagnostics[0].contains("invalid ui.theme"));
         assert!(diagnostics[1].contains("invalid ui.symbols"));
         assert!(diagnostics[2].contains("invalid ui.spacing"));
         assert!(diagnostics[3].contains("invalid ui.width_mode"));
+        assert!(diagnostics[4].contains("invalid ui.scrollbar"));
     }
 
     #[test]
@@ -293,14 +312,15 @@ mod tests {
             .with_symbols(SymbolMode::Emoji)
             .with_spacing(SpacingMode::Compact)
             .with_width_mode(ContentWidthMode::Full)
-            .with_fixed_width(132);
+            .with_fixed_width(132)
+            .with_scrollbar(ScrollbarMode::Always);
 
         save_to_path(&path, config).unwrap();
 
         let contents = fs::read_to_string(path).unwrap();
         assert_eq!(
             contents,
-            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n"
+            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\nscrollbar = \"always\"\n"
         );
     }
 }

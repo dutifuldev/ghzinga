@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
 use crate::github::api::ApiDepth;
-use crate::render::{ContentWidthMode, SpacingMode, SymbolMode, ThemeName};
+use crate::render::{ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName};
 
 pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
 
@@ -67,6 +67,10 @@ pub struct Cli {
     /// Override configured fixed content width.
     #[arg(long, value_name = "COLUMNS")]
     pub fixed_width: Option<u16>,
+
+    /// Override configured scrollbar visibility: always, on-scroll, or hidden.
+    #[arg(long, value_name = "MODE")]
+    pub scrollbar: Option<ScrollbarMode>,
 }
 
 impl Cli {
@@ -192,10 +196,13 @@ mod tests {
             "full",
             "--fixed-width",
             "132",
+            "--scrollbar",
+            "always",
             "openclaw/openclaw#81834",
         ]);
 
         assert_eq!(cli.width_mode, Some(ContentWidthMode::Full));
         assert_eq!(cli.fixed_width, Some(132));
+        assert_eq!(cli.scrollbar, Some(ScrollbarMode::Always));
     }
 }

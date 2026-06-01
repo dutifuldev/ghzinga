@@ -1,6 +1,7 @@
 pub mod layout;
 pub mod markdown;
 pub mod resource;
+pub mod scrollbar;
 pub mod spacing;
 pub mod symbols;
 pub mod theme;
@@ -9,6 +10,7 @@ pub mod width;
 
 pub use layout::ViewRects;
 pub use resource::render_app;
+pub use scrollbar::ScrollbarMode;
 pub use spacing::SpacingMode;
 pub use symbols::{SymbolMode, Symbols};
 pub use theme::{Palette, ThemeName};

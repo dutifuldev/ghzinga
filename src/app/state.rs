@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::PathBuf, str::FromStr};
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceKind};
 use crate::input::HitArea;
 use crate::render::{
-    normalize_fixed_width, ContentWidthMode, SpacingMode, SymbolMode, ThemeName,
+    normalize_fixed_width, ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName,
     DEFAULT_FIXED_CONTENT_WIDTH, FIXED_CONTENT_WIDTH_STEP, MAX_FIXED_CONTENT_WIDTH,
     MIN_FIXED_CONTENT_WIDTH,
 };
@@ -82,6 +82,12 @@ pub struct LoadingState {
     frame: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScrollbarDragState {
+    pub top: u16,
+    pub height: u16,
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
@@ -89,6 +95,8 @@ pub struct AppState {
     pub scroll: u16,
     pub scroll_limit: u16,
     pub scrollbar_visible_frames: u8,
+    pub scrollbar: ScrollbarMode,
+    pub scrollbar_drag: Option<ScrollbarDragState>,
     pub expanded_blocks: HashSet<BlockId>,
     pub hit_areas: Vec<HitArea>,
     pub history: Vec<crate::domain::ResourceId>,
@@ -119,6 +127,8 @@ impl AppState {
             scroll: 0,
             scroll_limit: u16::MAX,
             scrollbar_visible_frames: 0,
+            scrollbar: ScrollbarMode::OnScroll,
+            scrollbar_drag: None,
             expanded_blocks: HashSet::new(),
             hit_areas: Vec::new(),
             history: Vec::new(),
@@ -388,6 +398,18 @@ impl AppState {
         true
     }
 
+    pub fn set_scrollbar(&mut self, scrollbar: ScrollbarMode) -> bool {
+        if self.scrollbar == scrollbar {
+            return false;
+        }
+        self.scrollbar = scrollbar;
+        self.scrollbar_drag = None;
+        if scrollbar == ScrollbarMode::OnScroll {
+            self.reveal_scrollbar();
+        }
+        true
+    }
+
     pub fn cycle_theme(&mut self) -> bool {
         let themes = ThemeName::ALL;
         let index = themes
@@ -420,6 +442,15 @@ impl AppState {
             ContentWidthMode::Full => ContentWidthMode::Fixed,
         };
         self.set_width_mode(next)
+    }
+
+    pub fn cycle_scrollbar(&mut self) -> bool {
+        let next = match self.scrollbar {
+            ScrollbarMode::OnScroll => ScrollbarMode::Always,
+            ScrollbarMode::Always => ScrollbarMode::Hidden,
+            ScrollbarMode::Hidden => ScrollbarMode::OnScroll,
+        };
+        self.set_scrollbar(next)
     }
 
     pub fn increase_fixed_width(&mut self) -> bool {
@@ -466,7 +497,12 @@ impl AppState {
     }
 
     pub fn scrollbar_visible(&self) -> bool {
-        self.scroll_limit > 0 && self.scrollbar_visible_frames > 0
+        self.scroll_limit > 0
+            && match self.scrollbar {
+                ScrollbarMode::Always => true,
+                ScrollbarMode::OnScroll => self.scrollbar_visible_frames > 0,
+                ScrollbarMode::Hidden => false,
+            }
     }
 
     pub fn advance_scrollbar_visibility(&mut self) {
@@ -474,9 +510,40 @@ impl AppState {
     }
 
     fn reveal_scrollbar(&mut self) {
-        if self.scroll_limit > 0 {
+        if self.scroll_limit > 0 && self.scrollbar == ScrollbarMode::OnScroll {
             self.scrollbar_visible_frames = SCROLLBAR_VISIBLE_FRAMES;
         }
+    }
+
+    pub fn begin_scrollbar_drag(&mut self, top: u16, height: u16, row: u16) {
+        self.scrollbar_drag = Some(ScrollbarDragState { top, height });
+        self.scroll_to_scrollbar_row(top, height, row);
+    }
+
+    pub fn drag_scrollbar(&mut self, row: u16) {
+        if let Some(drag) = self.scrollbar_drag {
+            self.scroll_to_scrollbar_row(drag.top, drag.height, row);
+        }
+    }
+
+    pub fn end_scrollbar_drag(&mut self) {
+        self.scrollbar_drag = None;
+    }
+
+    fn scroll_to_scrollbar_row(&mut self, top: u16, height: u16, row: u16) {
+        if self.scroll_limit == 0 || height == 0 {
+            self.scroll = 0;
+            return;
+        }
+        let last = height.saturating_sub(1);
+        let relative = row.saturating_sub(top).min(last);
+        self.scroll = if last == 0 {
+            0
+        } else {
+            ((u32::from(relative) * u32::from(self.scroll_limit)) / u32::from(last))
+                .min(u32::from(self.scroll_limit)) as u16
+        };
+        self.reveal_scrollbar();
     }
 }
 
@@ -900,6 +967,21 @@ mod tests {
         for _ in 0..SCROLLBAR_VISIBLE_FRAMES {
             state.advance_scrollbar_visibility();
         }
+        assert!(!state.scrollbar_visible());
+    }
+
+    #[test]
+    fn scrollbar_visibility_mode_controls_visibility() {
+        let mut state = AppState::new(issue_resource());
+        state.set_scroll_limit(7);
+
+        assert!(!state.scrollbar_visible());
+
+        state.set_scrollbar(ScrollbarMode::Always);
+        assert!(state.scrollbar_visible());
+
+        state.set_scrollbar(ScrollbarMode::Hidden);
+        state.scroll_down(1);
         assert!(!state.scrollbar_visible());
     }
 

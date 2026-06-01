@@ -216,6 +216,7 @@ def read_saved_config() -> str:
         'spacing = "compact"',
         'width_mode = "fixed"',
         "fixed_width = 118",
+        'scrollbar = "on-scroll"',
     ):
         if expected not in contents:
             raise RuntimeError(f"{capture_config_path()} missing {expected!r}:\n{contents}")
@@ -415,7 +416,7 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Settings")
         wait_for_text(SESSION, "Width")
         wait_for_text(SESSION, "Spacing")
-        wait_for_text(SESSION, "Symbols")
+        wait_for_text(SESSION, "Scrollbar")
         write_frame(ROOT, "80_mouse_footer_settings", frames)
 
         compact_setting = find_marker_position(SESSION, "[ ] compact")
@@ -614,6 +615,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         'spacing = "compact"',
         'width_mode = "fixed"',
         "fixed_width = 118",
+        'scrollbar = "on-scroll"',
     ):
         if expected_config_line not in saved_config:
             errors.append(f"manifest saved_config missing {expected_config_line!r}")
@@ -700,7 +702,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
         "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
-        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Symbols", "[settings]"],
+        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
         "90_mouse_footer_load_full": [
             "[Overview]",
