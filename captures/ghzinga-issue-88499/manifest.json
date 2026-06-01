@@ -2,10 +2,10 @@
   "target": "https://github.com/openclaw/openclaw/issues/88499",
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
-  "binary": "./target/debug/gzg",
-  "git_commit": "70ec68f9f7d16b78dcdf41435c064b6cc7a81976",
-  "config_path": "./captures/ghzinga-issue-88499/capture-empty-config.toml",
-  "offline_fixture": "./fixtures/issue-88499.json",
+  "binary": "target/debug/gzg",
+  "git_commit": "e285c8e8554e22fdd2adf32d36a8aa53549b5f7b",
+  "config_path": "captures/ghzinga-issue-88499/capture-empty-config.toml",
+  "offline_fixture": "fixtures/issue-88499.json",
   "offline_resource_fixtures": [],
   "sizes": [
     {

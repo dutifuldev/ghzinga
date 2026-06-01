@@ -22,7 +22,8 @@
   - q: quit                                                                                                             
   - ?: toggle this help                                                                                                 
   - s: open or close settings                                                                                           
-  - t / y / p in settings: cycle theme / symbol style / spacing                                                         
+  - t / y / p / w in settings: cycle theme / symbols / spacing / width mode                                             
+  - - / + in settings: decrease or increase fixed content width                                                         
   - r: refresh now                                                                                                      
   - f: load full GitHub pages when a partial-depth warning is shown                                                     
   - y: copy first visible URL, or current resource URL                                                                  
@@ -30,7 +31,6 @@
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - 1-6: jump to the visible tab in that position                                                                       
   - v: reverse chronological feed order                                                                                 
-  - a: expand or collapse all rows in the current tab                                                                   
   opened https://github.com/openclaw/openclaw/pull/81834                                                                
   [refresh] [copy] [open] [settings] [help] [quit]                                                                      
                                                                                                                         
