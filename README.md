@@ -340,7 +340,8 @@ again, press keyboard `a` to expand and collapse the current tab, activate
 linked issue rows, replace the current TUI view with that issue, navigate back,
 click footer `[refresh]` until the fixture-mode refresh status is visible, click
 activity `[details]` permalinks, click footer `[copy]` and `[open]` through
-capture-local adapter commands for visible permalinks, open the help and
+capture-local adapter commands for visible permalinks, click footer
+`[load full]` in an isolated partial-depth fixture session, open the help and
 settings overlays through the footer, click a settings row until the
 capture-local config save is visible, and click `[quit]` until the tmux session
 exits. CI also rejects tracked or generated

@@ -55,6 +55,9 @@ xterm SGR mouse click events:
 12. Click footer `[settings]`.
 13. Click the `compact` settings row and verify the capture-local TOML is saved.
 14. Click footer `[quit]` and verify the tmux session exits.
+15. Start an isolated fixture-backed session with a partial-depth warning, click
+    footer `[load full]`, and verify fixture mode reports that full-depth loading
+    was skipped instead of pretending to call GitHub.
 
 Regenerate mouse smoke captures:
 
