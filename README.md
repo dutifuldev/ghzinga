@@ -419,6 +419,9 @@ scripts/live-smoke.sh
 
 This calls GitHub with the normal direct HTTP path and validates high-signal PR
 Overview, Activity, Commits, Checks, Files, and Links tabs plus live issue
-Overview, Activity, and Links tabs. It is intentionally not part of CI because it depends on network
-availability and current GitHub API quota. Override the public targets with
-`GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
+Overview, Activity, and Links tabs. It also reruns public PR and issue Overview
+with `GH_TOKEN` and `GITHUB_TOKEN` blank and `PATH` pointed at an empty
+directory, proving public fallback rendering works without a usable token or
+`gh` executable. It is intentionally not part of CI because it depends on
+network availability and current GitHub API quota. Override the public targets
+with `GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
