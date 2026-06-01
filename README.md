@@ -10,8 +10,8 @@ existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
 fallback, not the data transport. When credentials are unavailable or clearly
 rejected by GitHub, public repositories fall back to an unauthenticated REST view
 with warnings for richer GraphQL-only metadata; public REST comments, PR commits,
-changed files, check runs, and status contexts are loaded without auth where
-GitHub exposes them publicly. Private
+PR reviews, PR review comments, changed files, check runs, and status contexts
+are loaded without auth where GitHub exposes them publicly. Private
 repositories still need a token or existing `gh` login. The primary PR or issue
 view is fetched first;
 optional enrichment failures are shown as warnings instead of preventing the
