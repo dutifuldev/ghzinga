@@ -53,7 +53,8 @@ xterm SGR mouse click events:
     PR URL.
 11. Click footer `[help]`.
 12. Click footer `[settings]`.
-13. Click footer `[quit]` and verify the tmux session exits.
+13. Click the `compact` settings row and verify the capture-local TOML is saved.
+14. Click footer `[quit]` and verify the tmux session exits.
 
 Regenerate mouse smoke captures:
 

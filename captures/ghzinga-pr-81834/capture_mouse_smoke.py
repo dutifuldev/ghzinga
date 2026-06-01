@@ -129,6 +129,7 @@ def remove_helper_scripts():
         ROOT / "capture-copy-url.sh",
         open_log_path(),
         copy_log_path(),
+        capture_config_path(),
     ):
         path.unlink(missing_ok=True)
 
@@ -162,9 +163,22 @@ def require_file_contains(path: Path, expected: str):
         raise RuntimeError(f"{path} contains {actual!r}, expected {expected!r}")
 
 
+def read_saved_config() -> str:
+    if not capture_config_path().exists():
+        raise RuntimeError(f"{capture_config_path()} was not created")
+    contents = capture_config_path().read_text()
+    for expected in (
+        'theme = "default"',
+        'symbols = "ascii"',
+        'spacing = "compact"',
+    ):
+        if expected not in contents:
+            raise RuntimeError(f"{capture_config_path()} missing {expected!r}:\n{contents}")
+    return contents
+
+
 def capture_mouse_smoke():
     ROOT.mkdir(parents=True, exist_ok=True)
-    capture_config_path().unlink(missing_ok=True)
     remove_helper_scripts()
     write_helper_scripts()
     write_navigation_fixture()
@@ -280,6 +294,14 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Spacing")
         write_frame(ROOT, "80_mouse_footer_settings", frames)
 
+        compact_setting = find_marker_position(SESSION, "[ ] compact")
+        mouse_coordinates["settings_compact"] = list(compact_setting)
+        send_mouse_click(SESSION, *compact_setting)
+        wait_for_text(SESSION, "[x] compact")
+        wait_for_text(SESSION, "saved settings to")
+        saved_config = read_saved_config()
+        write_frame(ROOT, "81_mouse_settings_compact", frames)
+
         actual_tmux_size = tmux_size(SESSION)
         quit_button = find_marker_position(SESSION, "[quit]")
         mouse_coordinates["quit"] = list(quit_button)
@@ -299,6 +321,7 @@ def capture_mouse_smoke():
                 "open_url": CURRENT_RESOURCE_URL,
                 "copy_url": CURRENT_RESOURCE_URL,
             },
+            "saved_config": saved_config,
             "quit_exited": True,
             "mouse_coordinates": mouse_coordinates,
             "frames": frames,
@@ -401,9 +424,17 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     if manifest.get("quit_exited") is not True:
         errors.append("manifest does not record successful quit exit")
     coordinates = manifest.get("mouse_coordinates", {})
-    for target in ("copy", "open", "quit"):
+    for target in ("copy", "open", "settings_compact", "quit"):
         if target not in coordinates:
             errors.append(f"manifest missing {target} mouse coordinate")
+    saved_config = manifest.get("saved_config", "")
+    for expected_config_line in (
+        'theme = "default"',
+        'symbols = "ascii"',
+        'spacing = "compact"',
+    ):
+        if expected_config_line not in saved_config:
+            errors.append(f"manifest saved_config missing {expected_config_line!r}")
 
     expected = {
         "00_initial_overview": [
@@ -444,6 +475,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
+        "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():
