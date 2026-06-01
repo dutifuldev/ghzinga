@@ -4571,6 +4571,30 @@ mod tests {
     }
 
     #[test]
+    fn rendered_absolute_pr_link_hit_area_can_be_clicked_to_navigate() {
+        let mut resource = pr_resource();
+        resource.body = "Pairs with https://github.com/openclaw/openclaw/pull/81835".into();
+        resource.related_resources.clear();
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Links);
+        draw(&mut state, 120, 36);
+
+        let intent = click_rendered_target(&mut state, |target| {
+            matches!(
+                target,
+                HitTarget::Navigate(id)
+                    if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
+            )
+        });
+
+        assert!(matches!(
+            intent,
+            AppIntent::Navigate(id)
+                if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
+        ));
+    }
+
+    #[test]
     fn rendered_footer_controls_can_be_clicked() {
         let mut refresh_state = AppState::new(pr_resource());
         draw(&mut refresh_state, 120, 36);
