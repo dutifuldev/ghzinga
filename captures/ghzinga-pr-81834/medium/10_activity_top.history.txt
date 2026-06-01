@@ -31,6 +31,6 @@
   Review by @osolmaz 2w ago                                                                                             
   Codex review: needs changes before merge. Please keep the SenseAudio provider surface narrow, verify the voice        
   listing error path, and make sure the new speech provider file is covered by targeted extension tests. After the      
-  scroll 0/9 0% | tab Activity | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab    
+                                                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
                                                                                                                         

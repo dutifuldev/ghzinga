@@ -20,5 +20,5 @@
                                                                              █  
   +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [+ more]     █  
                                                                              █  
-  scroll 1/1 100% | tab Files | order oldest | r refresh | y copy | o open | s  
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

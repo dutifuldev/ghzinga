@@ -31,6 +31,6 @@
   Timeline by @github-actions 2w ago                                                                                 █  
   marked all required checks as passing                                                                              █  
                                                                                                                      █  
-  scroll 9/9 100% | tab Activity | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab  
+                                                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
                                                                                                                         

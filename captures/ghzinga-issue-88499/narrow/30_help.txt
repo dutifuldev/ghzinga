@@ -20,5 +20,5 @@
   - Use the mouse wheel to scroll the current view.                             
                                                                                 
   Keyboard                                                                      
-  scroll 0/21 0% | tab Links | order oldest | r refresh | y copy | o open | s   
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit]                              

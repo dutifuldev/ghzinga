@@ -45,6 +45,6 @@
   comment Comment by @KLilyZ 3w ago                                                                                    │                                        
   Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The        │                                        
   remaining files are intentionally scoped to the bundled extension.                                                   │                                        
-  scroll 10/43 23% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page  
+                                                                                                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 
                                                                                                                                                                 

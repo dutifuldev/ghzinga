@@ -31,6 +31,6 @@
                                                                                                                      │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
                                                                                                                      │  
-  scroll 10/36 27% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help |         
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]e/less                                                   
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
                                                                                                                         

@@ -20,5 +20,5 @@
   The fix should preserve normal stored-response continuation while disabling█  
   replay through missing server-side response IDs for store=false sessions.  █  
                                                                              █  
-  scroll 8/8 100% | tab Activity | order oldest | r refresh | y copy | o open   
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

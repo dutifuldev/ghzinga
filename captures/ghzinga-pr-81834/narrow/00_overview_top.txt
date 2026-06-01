@@ -20,5 +20,5 @@
   Validation                                                                    
   - Targeted extension tests passed.                                            
   - Contract plugin tests passed.                                               
-  scroll 0/75 0% | tab Overview | order oldest | r refresh | y copy | o open |  
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

@@ -24,13 +24,13 @@ Spacing
 [ ] comfortable  Gmail-style density with gh-dash-like spacing                                                          
 [x] compact  Dense rows for smaller terminals                                                                           
                                                                                                                         
+Scrollbar                                                                                                               
+[x] on-scroll  Show while scrolling, then fade                                                                          
+[ ] always  Show whenever content can scroll                                                                            
+[ ] hidden  Never show the scrollbar                                                                                    
+                                                                                                                        
 Symbols                                                                                                                 
 [x] ascii  Plain terminal-safe labels                                                                                   
 [ ] emoji  Richer semantic markers                                                                                      
-                                                                                                                        
-Theme                                                                                                                   
-[x] default  Current default Tokyo Night colors                                                                         
-[ ] catppuccin  Herdr Catppuccin Mocha                                                                                  
-[ ] catppuccin-latte  Herdr Catppuccin Latte                                                                            
 saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml               
 [refresh] [copy] [open] [settings] [help] [quit]                                                                        

@@ -20,5 +20,5 @@
                                                                              █  
   [OK PASS] All checks [+ more]                                              █  
                                                                              █  
-  scroll 3/3 100% | tab Checks | order oldest | r refresh | y copy | o open |   
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

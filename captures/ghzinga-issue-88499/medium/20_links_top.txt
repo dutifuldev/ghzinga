@@ -31,6 +31,6 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  scroll 0/0 100% | tab Links | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab     
-  [refresh] [copy] [open] [settings] [help] [quit]e more/less                                                           
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit]                                                                      
                                                                                                                         

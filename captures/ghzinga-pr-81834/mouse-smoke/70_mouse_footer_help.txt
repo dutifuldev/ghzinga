@@ -22,7 +22,7 @@
   - q: quit                                                                                                             
   - ?: toggle this help                                                                                                 
   - s: open or close settings                                                                                           
-  - t / y / p / w in settings: cycle theme / symbols / spacing / width mode                                             
+  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                             
   - - / + in settings: decrease or increase fixed content width                                                         
   - r: refresh now                                                                                                      
   - f: load full GitHub pages when a partial-depth warning is shown                                                     

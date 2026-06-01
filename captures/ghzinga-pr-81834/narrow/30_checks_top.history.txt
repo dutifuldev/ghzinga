@@ -20,5 +20,5 @@
   [OK PASS] suite/Dependency Guard [+ more]                                     
                                                                                 
   [OK PASS] suite/Workflow Sanity [+ more]                                      
-  scroll 0/3 0% | tab Checks | order oldest | r refresh | y copy | o open | s   
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
