@@ -11,6 +11,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+print_output_header() {
+  printf '%s\n' '--- output ---' >&2
+}
+
+if [ "${GZG_LIVE_SELF_TEST:-0}" = "1" ]; then
+  print_output_header >/dev/null 2>&1
+  printf 'OK: live smoke self-test passed.\n'
+  exit 0
+fi
+
 pr_target="${GZG_LIVE_PR_TARGET:-openclaw/openclaw#81834}"
 issue_target="${GZG_LIVE_ISSUE_TARGET:-https://github.com/openclaw/openclaw/issues/88499}"
 require_public_fallback="${GZG_LIVE_REQUIRE_PUBLIC_FALLBACK:-0}"
@@ -35,7 +45,7 @@ run_case() {
   for marker in "$@"; do
     if ! grep -Fq "$marker" "$output"; then
       printf 'Live smoke case %s did not render marker: %s\n' "$name" "$marker" >&2
-      printf '--- output ---\n' >&2
+      print_output_header
       cat "$output" >&2
       exit 1
     fi
@@ -63,7 +73,7 @@ run_public_case() {
       return 0
     fi
     printf 'Live public smoke case %s failed\n' "$name" >&2
-    printf '--- output ---\n' >&2
+    print_output_header
     cat "$output" >&2
     exit 1
   fi
@@ -71,7 +81,7 @@ run_public_case() {
   for marker in "$@"; do
     if ! grep -Fq "$marker" "$output"; then
       printf 'Live public smoke case %s did not render marker: %s\n' "$name" "$marker" >&2
-      printf '--- output ---\n' >&2
+      print_output_header
       cat "$output" >&2
       exit 1
     fi
