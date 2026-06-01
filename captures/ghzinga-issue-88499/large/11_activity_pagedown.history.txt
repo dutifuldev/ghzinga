@@ -1,50 +1,50 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                  
-feat(senseaudio): add SenseAudio TTS provider                                                                                                                   
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                                                                                                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
+  openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                                                             
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Links                                                                                                                                    
+  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                                                                
                                                                                                                                                                 
-  Dependency Changes Detected                                                                                                                                   
-                                                                                                                                                                
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                           
-                                                                                                                                                                
-  Changed files:                                                                                                                                                
-  - extensions/senseaudio/package.json                                                                                                                          
+  path.                                                                                                                                                         
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
-  Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                                                       
-  meta: association NONE                                                                                                                                        
+  Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                        
+  meta: association CONTRIBUTOR                                                                                                                                 
   [details]                                                                                                                                                     
-  Codex review: needs changes before merge.                                                                                                                     
+  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                  
                                                                                                                                                                 
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
-  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
-                                                                                                                                                                
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The                                              
-  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider                                          
-  <id>.                                                                                                                                                         
+  Environment:                                                                                                                                                  
+  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                   
+  - OS: macOS arm64                                                                                                                                             
+  - Channel: Slack, channel-scoped session                                                                                                                      
+  - Provider/API path: openai / openai-responses                                                                                                                
+  - Model: gpt-5.5                                                                                                                                              
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
-  Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                                                       
+  Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                                                  
   meta: association NONE                                                                                                                                        
   [details]                                                                                                                                                     
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                                                       
-  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,                                         
-  just flagging it in case it slipped past the queue.                                                                                                           
+  The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design.                                        
+  Server-side response chaining only works when the response was persisted, which is exactly what store=false turns off.                                        
+  So previous_response_id should not be on the request at all when store is false.                                                                              
                                                                                                                                                                 
-  Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                                                                     
-  meta: association MEMBER                                                                                                                                      
+  There are two separate defects here and the fix needs both.                                                                                                   
+                                                                                                                                                                
+  The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side                                         
+  with previous_response_id (requires store=true), or resend the conversation context inline on each turn (works with                                           
+  [+ more]                                                                                                                                                      
+                                                                                                                                                                
+  Comment by @tianxiaochannel-oss88 2026-05-31T04:56:57Z                                                                                                        
+  meta: association CONTRIBUTOR                                                                                                                                 
   [details]                                                                                                                                                     
-  <!-- dependency-guard-rebase-needed-backfill -->                                                                                                              
-  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.                                           
+  Follow-up after the local recovery investigation: the durable fix likely needs the transport/payload layer plus a                                             
+  reset/recovery cleanup layer.                                                                                                                                 
                                                                                                                                                                 
-  Comment by @clawsweeper 2026-05-30T03:28:55Z                                                                                                                  
-  meta: association CONTRIBUTOR, edited                                                                                                                         
-  [details]                                                                                                                                                     
-  Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                                                                   
+  A later live Slack test showed that sessions.reset by itself was not enough in the already-poisoned channel case. The                                         
+  reset moved the Slack channel binding to a fresh session id, but the old in-memory embedded-run/lane state still                                              
+  appeared to own the queue. Three later Slack messages were accepted but did not get replies; diagnostics showed:                                              
                                                                                                                                                                 
-  Summary                                                                                                                                                       
-  The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,                                              
-  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.                                                   
+  text                                                                                                                                                          
+  [+ more]                                                                                                                                                      
                                                                                                                                                                 
-[refresh] [open] [settings] [help] [quit] scroll 10/39 25% ...                                                                                                  
+  [expand all]                                                                                                                                                  
+  [refresh] [open] [settings] [help] [quit] scroll 10/10 100% ...                                                                                               

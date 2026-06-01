@@ -1,8 +1,13 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                  
-feat(senseaudio): add SenseAudio TTS provider                                                                                                                   
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                                                                                                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
+  feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Commits  Checks  Files  Links                                                                                                            
+  OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                               
+                                                                                                                                                                
+  Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                               
+  meta: association CONTRIBUTOR                                                                                                                                 
+  [details]                                                                                                                                                     
+  <!-- openclaw:dependency-change-awareness -->                                                                                                                 
                                                                                                                                                                 
   Dependency Changes Detected                                                                                                                                   
                                                                                                                                                                 
@@ -42,9 +47,4 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
   meta: association CONTRIBUTOR, edited                                                                                                                         
   [details]                                                                                                                                                     
   Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                                                                   
-                                                                                                                                                                
-  Summary                                                                                                                                                       
-  The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,                                              
-  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.                                                   
-                                                                                                                                                                
-[refresh] [open] [settings] [help] [quit] scroll 10/39 25% ...                                                                                                  
+  [refresh] [open] [settings] [help] [quit] scroll 0/36 0% ...                                                                                                  

@@ -1,11 +1,8 @@
-openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                        
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks  Files [Links]                                                                     
-OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22             
-                                                                                                                        
-  Links                                                                                                                 
-  --------------------------------------------------------------------------------------------------------------------  
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks  Files [Links]                                                                   
+  OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22           
                                                                                                                         
   openclaw/openclaw#66943                                                                                               
                                                                                                                         
@@ -33,4 +30,7 @@ OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending,
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                           
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                         

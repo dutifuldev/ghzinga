@@ -1,36 +1,36 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                                                                      
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
-  Activity (7 entries)                                                                                                  
-  --------------------------------------------------------------------------------------------------------------------  
+  openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Links                                                                                            
+  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
                                                                                                                         
-  [expand all]                                                                                                          
-                                                                                                                        
-  Comment by @github-actions 2026-05-14T14:05:57Z                                                                       
-  meta: association CONTRIBUTOR                                                                                         
+  Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                          
+  meta: association CONTRIBUTOR, edited                                                                                 
   [details]                                                                                                             
-  <!-- openclaw:dependency-change-awareness -->                                                                         
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,  
+  2026, 10:28 PM ET / 02:28 UTC._                                                                                       
                                                                                                                         
-  Dependency Changes Detected                                                                                           
-                                                                                                                        
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                   
-                                                                                                                        
-  Changed files:                                                                                                        
-  - extensions/senseaudio/package.json                                                                                  
+  Summary                                                                                                               
+  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
+  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
+  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
+  direct-OpenAI-only path.                                                                                              
   [+ more]                                                                                                              
                                                                                                                         
-  Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                               
+  Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                
+  meta: association CONTRIBUTOR                                                                                         
+  [details]                                                                                                             
+  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                          
+                                                                                                                        
+  Environment:                                                                                                          
+  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                           
+  - OS: macOS arm64                                                                                                     
+  - Channel: Slack, channel-scoped session                                                                              
+  - Provider/API path: openai / openai-responses                                                                        
+  - Model: gpt-5.5                                                                                                      
+  [+ more]                                                                                                              
+                                                                                                                        
+  Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                          
   meta: association NONE                                                                                                
   [details]                                                                                                             
-  Codex review: needs changes before merge.                                                                             
-                                                                                                                        
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP  
-  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                      
-                                                                                                                        
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The      
-  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider  
-  <id>.                                                                                                                 
-[refresh] [open] [settings] [help] [quit] scroll 0/53 0% ...                                                            
+  [refresh] [open] [settings] [help] [quit] scroll 0/24 0% ...                                                          

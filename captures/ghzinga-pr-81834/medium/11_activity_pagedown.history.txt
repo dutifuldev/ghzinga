@@ -1,14 +1,9 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                                                                      
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
-  Dependency Changes Detected                                                                                           
-                                                                                                                        
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                   
-                                                                                                                        
-  Changed files:                                                                                                        
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                        
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Commits  Checks  Files  Links                                                                    
+  OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22         
+  warn Warnings: 1                                                                                                      
   - extensions/senseaudio/package.json                                                                                  
   [+ more]                                                                                                              
                                                                                                                         
@@ -33,4 +28,9 @@ warn Warnings: 1
   rush, just flagging it in case it slipped past the queue.                                                             
                                                                                                                         
   Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                             
-[refresh] [open] [settings] [help] [quit] scroll 10/53 18% ...                                                          
+  meta: association MEMBER                                                                                              
+  [details]                                                                                                             
+  <!-- dependency-guard-rebase-needed-backfill -->                                                                      
+  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.   
+                                                                                                                        
+  [refresh] [open] [settings] [help] [quit] scroll 10/50 20% ...                                                        

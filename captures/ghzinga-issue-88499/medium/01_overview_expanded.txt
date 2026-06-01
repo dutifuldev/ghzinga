@@ -1,36 +1,36 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
-[Overview] Activity  Commits  Checks  Files  Links                                                                      
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
-  Conversation                                                                                                          
-  --------------------------------------------------------------------------------------------------------------------  
+  openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  [Overview] Activity  Links                                                                                            
+  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
                                                                                                                         
-  [expand all]                                                                                                          
+  * @xneone opened 2026-05-31T02:21:19Z                                                                                 
+  Bug Description                                                                                                       
                                                                                                                         
-  * @KLilyZ opened 2026-05-14T14:05:46Z                                                                                 
-  Summary                                                                                                               
+  When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false     
+  (or omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same     
+  session, the gateway includes previous_response_id referencing the previous response. Since that response was never   
+  persisted server-side, the API returns a 404:                                                                         
                                                                                                                         
-  - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
-  - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with    
-  the ASR added in #66943.                                                                                              
-  - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system        
-  voices via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code  
-  / missing-audio buckets.                                                                                              
-  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out    
-  of scope.                                                                                                             
                                                                                                                         
-  Change Type (select all)                                                                                              
+  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with       
+  store set to true, or remove this item from your input.                                                               
+                                                                                                                        
+                                                                                                                        
   [+ more]                                                                                                              
-  --------------------------------------------------------------------------------------------------------------------  
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @github-actions 2026-05-14T14:05:57Z                                                               
-  meta: association CONTRIBUTOR                                                                                         
+  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                  
+  meta: association CONTRIBUTOR, edited                                                                                 
   [details]                                                                                                             
-  <!-- openclaw:dependency-change-awareness -->                                                                         
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,  
+  2026, 10:28 PM ET / 02:28 UTC._                                                                                       
                                                                                                                         
-  Dependency Changes Detected                                                                                           
-                                                                                                                        
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                   
-[refresh] [open] [settings] [help] [quit] scroll 0/139 0% ...                                                           
+  Summary                                                                                                               
+  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
+  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
+  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
+  direct-OpenAI-only path.                                                                                              
+  [+ more]                                                                                                              
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  [refresh] [open] [settings] [help] [quit] scroll 0/65 0% ...                                                          

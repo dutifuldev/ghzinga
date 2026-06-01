@@ -1,36 +1,36 @@
-[1m[38;2;122;162;247m[48;2;26;27;38mopenclaw/openclaw#81834[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;158;206;106m[PR OPEN][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 2026-05-30T12:28:02Z[38;2;192;202;245m                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-[38;2;65;72;104m------------------------------------------------------------------------------------------------------------------------
-[1m[38;2;26;27;38m[48;2;122;162;247m[Overview][0m[38;2;169;177;214m[48;2;26;27;38m Activity  Commits  Checks  Files  Links [38;2;192;202;245m                                                                     
-[1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @KLilyZ[38;2;192;202;245m  [38;2;125;207;255mcomments 7[38;2;192;202;245m  [38;2;224;175;104mreactions 4[38;2;192;202;245m  [1m[38;2;158;206;106mOK checks PASS (97 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mfiles 14 +1057 -22[38;2;192;202;245m           
-[1m[38;2;224;175;104mwarn Warnings: 1[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                        
-  [1m[38;2;122;162;247mConversation[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          
-  [38;2;86;95;137m--------------------------------------------------------------------------------------------------------------------[38;2;192;202;245m  
+[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;122;162;247mopenclaw/openclaw#88499[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;158;206;106m[Issue OPEN][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 2026-05-31T04:56:57Z[38;2;192;202;245m                                                     
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+  [1m[38;2;26;27;38m[48;2;122;162;247m[Overview][0m[38;2;169;177;214m[48;2;26;27;38m Activity  Links [38;2;192;202;245m                                                                                           
+  [1m[38;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m  [38;2;125;207;255mcomments 4[38;2;192;202;245m  [38;2;224;175;104mreactions 1[38;2;192;202;245m  [1m[38;2;224;175;104mwarn Warnings: 1[0m[38;2;192;202;245m[48;2;26;27;38m                                                        
                                                                                                                         
-  [1m[38;2;26;27;38m[48;2;122;162;247m[expand all][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          
+  [1m[38;2;122;162;247m* @xneone opened 2026-05-31T02:21:19Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                 
+  Bug Description                                                                                                       
                                                                                                                         
-  [1m[38;2;122;162;247m* @KLilyZ opened 2026-05-14T14:05:46Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                 
-  Summary                                                                                                               
+  When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false     
+  (or omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same     
+  session, the gateway includes previous_response_id referencing the previous response. Since that response was never   
+  persisted server-side, the API returns a 404:                                                                         
                                                                                                                         
-  - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
-  - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with    
-  the ASR added in #66943.                                                                                              
-  - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system        
-  voices via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code  
-  / missing-audio buckets.                                                                                              
-  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out    
-  of scope.                                                                                                             
                                                                                                                         
-  Change Type (select all)                                                                                              
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                              
-  [38;2;86;95;137m--------------------------------------------------------------------------------------------------------------------[38;2;192;202;245m  
+  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with       
+  store set to true, or remove this item from your input.                                                               
                                                                                                                         
-  [1m[38;2;125;207;255mcomment Comment by @github-actions 2026-05-14T14:05:57Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                               
-  meta: association CONTRIBUTOR                                                                                         
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                             
-  <!-- openclaw:dependency-change-awareness -->                                                                         
                                                                                                                         
-  Dependency Changes Detected                                                                                           
+  Once this happens, every subsequent request in the session fails with the same 404, because the stale                 
+  previous_response_id is never cleared. The session is permanently broken until the user runs /new.                    
                                                                                                                         
-  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                   
-[1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/139 0% ...[38;2;192;202;245m                                                           
+  Steps to Reproduce                                                                                                    
+                                                                                                                        
+  1. Configure a provider with api: openai-responses pointing to an OpenAI-compatible endpoint (e.g. GPT-5.5 via a      
+  proxy):                                                                                                               
+  json                                                                                                                  
+  "wlkgpt": {                                                                                                           
+  "baseUrl": "https://api.example.com/v1",                                                                              
+  "api": "openai-responses",                                                                                            
+  "models": [{"id": "gpt-5.5"}]                                                                                         
+  }                                                                                                                     
+                                                                                                                        
+  2. Set this as the default model for the main agent                                                                   
+  3. Start a conversation via Feishu/webchat — first few messages work fine                                             
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/113 0% ...[38;2;192;202;245m                                                         

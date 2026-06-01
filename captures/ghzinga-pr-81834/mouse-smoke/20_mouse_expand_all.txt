@@ -1,17 +1,9 @@
-openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                        
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks [Files] Links                                                                      
-OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22             
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks [Files] Links                                                                    
+  OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22           
                                                                                                                         
-  Files changed (5)                                                                                                     
-  --------------------------------------------------------------------------------------------------------------------  
-                                                                                                                        
-  [collapse all]                                                                                                        
-                                                                                                                        
-  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [- less]                                                        
-  path: docs/plugins/plugin-inventory.md                                                                                
-  change: MODIFIED, additions: 1, deletions: 1                                                                          
   patch: not loaded                                                                                                     
   [- less]                                                                                                              
                                                                                                                         
@@ -33,4 +25,12 @@ OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending,
   patch: not loaded                                                                                                     
   [- less]                                                                                                              
                                                                                                                         
-[refresh] [open] [settings] [help] [quit] scroll 0/6 0% ...                                                             
+  +3    -1    MODIFIED extensions/senseaudio/index.ts [- less]                                                          
+  path: extensions/senseaudio/index.ts                                                                                  
+  change: MODIFIED, additions: 3, deletions: 1                                                                          
+  patch: not loaded                                                                                                     
+  [- less]                                                                                                              
+                                                                                                                        
+                                                                                                                        
+  [collapse all]                                                                                                        
+  [refresh] [open] [settings] [help] [quit] scroll 3/3 100% ...                                                         

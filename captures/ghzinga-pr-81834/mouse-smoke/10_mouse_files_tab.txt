@@ -1,13 +1,8 @@
-openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                        
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks [Files] Links                                                                      
-OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22             
-                                                                                                                        
-  Files changed (5)                                                                                                     
-  --------------------------------------------------------------------------------------------------------------------  
-                                                                                                                        
-  [expand all]                                                                                                          
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks [Files] Links                                                                    
+  OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending, 0 fail)  files 5 +1100 -22           
                                                                                                                         
   +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                        
                                                                                                                         
@@ -19,6 +14,7 @@ OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending,
                                                                                                                         
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                                                          
                                                                                                                         
+  [expand all]                                                                                                          
                                                                                                                         
                                                                                                                         
                                                                                                                         
@@ -33,4 +29,8 @@ OK OPEN  by @KLilyZ  comments 2  reactions 1  OK checks PASS (1 pass, 0 pending,
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                           
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                         

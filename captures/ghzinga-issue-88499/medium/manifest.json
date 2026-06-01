@@ -1,10 +1,10 @@
 {
   "label": "medium",
-  "target": "openclaw/openclaw#81834",
-  "title": "feat(senseaudio): add SenseAudio TTS provider",
+  "target": "https://github.com/openclaw/openclaw/issues/88499",
+  "title": "openai-responses provider: 404 on previous_response_id when store=false",
   "mode": "issue",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "50c609838d79a022059cb0e3345ce605612cc255",
+  "git_commit": "084359ecd7f2145d18d28cc1c24a6dac3896cf76",
   "requested_columns": 120,
   "requested_rows": 36,
   "captures": [
@@ -15,7 +15,7 @@
       "png": "00_overview_top.png",
       "history_txt": "00_overview_top.history.txt",
       "history_ansi": "00_overview_top.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
       "tab": "overview",
       "keys": [],
       "actual_tmux_size": "120x36"
@@ -27,7 +27,7 @@
       "png": "01_overview_expanded.png",
       "history_txt": "01_overview_expanded.history.txt",
       "history_ansi": "01_overview_expanded.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
       "tab": "overview",
       "keys": [
         "e"
@@ -41,7 +41,7 @@
       "png": "02_overview_pagedown.png",
       "history_txt": "02_overview_pagedown.history.txt",
       "history_ansi": "02_overview_pagedown.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --refresh-seconds 0",
       "tab": "overview",
       "keys": [
         "e",
@@ -56,7 +56,7 @@
       "png": "10_activity_top.png",
       "history_txt": "10_activity_top.history.txt",
       "history_ansi": "10_activity_top.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --tab activity --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --refresh-seconds 0",
       "tab": "activity",
       "keys": [],
       "actual_tmux_size": "120x36"
@@ -68,7 +68,7 @@
       "png": "11_activity_pagedown.png",
       "history_txt": "11_activity_pagedown.history.txt",
       "history_ansi": "11_activity_pagedown.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --tab activity --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --refresh-seconds 0",
       "tab": "activity",
       "keys": [
         "PageDown"
@@ -82,7 +82,7 @@
       "png": "20_links_top.png",
       "history_txt": "20_links_top.history.txt",
       "history_ansi": "20_links_top.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --tab links --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --refresh-seconds 0",
       "tab": "links",
       "keys": [],
       "actual_tmux_size": "120x36"
@@ -94,7 +94,7 @@
       "png": "30_help.png",
       "history_txt": "30_help.history.txt",
       "history_ansi": "30_help.history.ansi",
-      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --tab links --refresh-seconds 0",
+      "command": "TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --refresh-seconds 0",
       "tab": "links",
       "keys": [
         "?"

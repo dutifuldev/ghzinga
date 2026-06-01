@@ -416,7 +416,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             ],
             "10_activity_top": [
-                "comment Comment by @github-actions",
+                "Comment by @github-actions",
                 "Dependency Changes Detected",
             ],
             "11_activity_pagedown": [
@@ -452,7 +452,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "previous_response_id",
             ],
             "10_activity_top": [
-                "comment Comment by @clawsweeper",
+                "Comment by @clawsweeper",
             ],
             "11_activity_pagedown": [
                 "Comment by @tianxiaochannel-oss88",
