@@ -475,8 +475,11 @@ Issue tabs:
   clear where one item ends and the next begins.
 - Expand/collapse controls stay per item. Long comments and the opening body
   are truncated by default; expanded state reuses existing `BlockId`s.
-- Tab-level `[expand all]` and `[collapse all]` controls belong at the end of
-  the feed/list next to other actions, not at the top.
+- Tab-level `[expand all]` and `[collapse all]` controls belong in the fixed
+  footer after refresh/copy/open/settings/help/quit, not in the scrollable
+  feed/list. They operate on every expandable `BlockId` in the active tab, so
+  users can expand or collapse the whole current view without scrolling to find
+  the control.
 - GitHub API pagination remains an adapter concern. The renderer receives the
   normalized full resource and virtualizes the terminal work by only registering
   hit targets for visible rows after scroll clipping.
@@ -644,8 +647,8 @@ Long text behavior:
 - Visible controls:
   - `[+ more]` expands one block
   - `[- less]` collapses it
-  - `[expand all]` / `[collapse all]` for tab-level expansion when a tab has
-    expandable body, comment, commit, check, file, or patch rows
+  - footer `[expand all]` / `[collapse all]` for tab-level expansion when a tab
+    has expandable body, comment, commit, check, file, or patch rows
 - Mouse and keyboard activation use shared hit targets for single-block and
   all-block expansion.
 - Truncation must be tested against line wrapping, terminal width, and Unicode width.

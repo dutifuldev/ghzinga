@@ -75,13 +75,14 @@ each frame. The current marker and content check verifies:
 
 - PR: Activity, Commits, Checks, Files, Links, Help at narrow/medium/large sizes
 - Issue: Overview, Activity, Links, Help at narrow/medium/large sizes
-- footer controls `[refresh]`, `[copy]`, `[open]`, `[help]`, and `[quit]` appear in every checked size set
+- footer controls `[refresh]`, `[copy]`, `[open]`, `[help]`, `[quit]`, and the
+  active-tab bulk expand/collapse control appear in every checked size set
 - PR captures include opening body text, dependency-warning comment content,
   review activity, commits, aggregate checks, changed files, and detected links
 - Issue captures include the issue body, activity comments, and detected
   issue/comment links
 - Mouse smoke captures include real tmux clicks on the Files and Links tabs,
-  real clicks on `[expand all]` and `[collapse all]`, and a real click on a
+  real footer clicks on `[expand all]` and `[collapse all]`, and a real click on a
   linked issue row that reaches the navigation path
 
 ## Click Coverage
@@ -100,7 +101,7 @@ Covered click targets:
 
 - tabs
 - body `[more]` / `[less]`
-- tab-level `[expand all]` / `[collapse all]`
+- footer tab-level `[expand all]` / `[collapse all]`
 - activity/comment `[more]` / `[less]`
 - activity/comment `[details]` permalinks
 - check rows
