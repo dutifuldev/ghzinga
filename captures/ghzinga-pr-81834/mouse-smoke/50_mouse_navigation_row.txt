@@ -5,6 +5,9 @@
   info opened openclaw/openclaw#66943                                                                                   
                                                                                                                         
   [Overview] Activity  Links                                                                                            
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
   * @Fl0rencess720 opened 2mo ago                                                                                       
   Summary                                                                                                               
   - Problem: OpenClaw has no built-in audio transcription provider.                                                     
@@ -25,9 +28,6 @@
   Reactions: +1:2                                                                                                       
                                                                                                                         
   [expand all]                                                                                                          
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

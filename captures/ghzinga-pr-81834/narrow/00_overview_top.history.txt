@@ -5,6 +5,9 @@
   OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100  -22    
                                                                                 
   [Overview] Activity  Commits  Checks  Files  Links                            
+                                                                                
+  ────────────────────────────────────────────────────────────────────────────  
+                                                                                
   * @KLilyZ opened 1mo ago                                                      
   Summary                                                                       
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                    
@@ -17,8 +20,5 @@
   - Targeted extension tests passed.                                            
   - Contract plugin tests passed.                                               
                                                                                 
-  Scope                                                                         
-  [+ more]                                                                      
-  ────────────────────────────────────────────────────────────────────────────  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/46 0%               
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/50 0%               
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

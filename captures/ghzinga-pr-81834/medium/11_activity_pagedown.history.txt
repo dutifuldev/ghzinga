@@ -5,6 +5,9 @@
   +1100  -22                                                                                                            
                                                                                                                         
    Overview [Activity] Commits  Checks  Files  Links                                                                    
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
   Comment by @github-actions 1mo ago                                                                                    
   Dependency Changes Detected                                                                                           
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                   
@@ -25,9 +28,6 @@
   remaining files are intentionally scoped to the bundled extension.                                                    
                                                                                                                         
   [expand all]                                                                                                          
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

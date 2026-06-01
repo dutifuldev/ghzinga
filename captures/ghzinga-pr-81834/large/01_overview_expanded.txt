@@ -5,6 +5,9 @@
                                                                                                                                                                 
                                                                                                                                                                 
   [Overview] Activity  Commits  Checks  Files  Links                                                                                                            
+                                                                                                                                                                
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
   * @KLilyZ opened 1mo ago                                                                                                                                      
   Summary                                                                                                                                                       
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                                                                    
@@ -44,7 +47,4 @@
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @KLilyZ 3w ago                                                                                                                             
-  Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The                                                 
-  remaining files are intentionally scoped to the bundled extension.                                                                                            
-                                                                                                                                                                
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/15 0% ...                                                                                           
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/19 0% ...                                                                                           

@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "1f5a3ad575aa94568743c985eebd53f01be99517",
+  "git_commit": "283c94d4eab350fbf01bea4a0eb03ec243bea208",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
@@ -15,11 +15,11 @@
     ],
     "expand_all": [
       4,
-      18
+      21
     ],
     "collapse_all": [
       4,
-      35
+      34
     ],
     "links_tab": [
       49,
@@ -27,7 +27,7 @@
     ],
     "linked_issue": [
       4,
-      8
+      11
     ]
   },
   "frames": [

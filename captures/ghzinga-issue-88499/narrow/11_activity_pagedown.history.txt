@@ -5,20 +5,20 @@
                                                                                 
                                                                                 
    Overview [Activity] Links                                                    
+  Keep this open: current main still has a plausible Responses replay failure│  
+  for custom openai-responses providers because generic Responses payloads ca│  
+  be unstored while replaying server-owned reasoning item IDs. Direct OpenAI │  
   routes have a newer store-aware wrapper, but the reported custom proxy rout│  
   [+ more]                                                                   │  
-                                                                             │  
+                                                                             █  
   Timeline by @osolmaz 2026-05-31T03:00:00Z                                  █  
   added label provider: openai-responses                                     █  
                                                                              █  
   Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                     █  
   meta: association CONTRIBUTOR                                              █  
-  [details]                                                                  █  
+  [details]                                                                  │  
   Adding a fresh macOS/Slack data point. I can reproduce this with a custom  │  
   openai-responses provider when previous_response_id is sent after an       │  
   unstored first response. Removing the previous response reference makes the│  
-  next request succeed, which points at replay state rather than             │  
-  authentication or model availability.                                      │  
-                                                                             │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/14 71%             
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/18 55%             
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

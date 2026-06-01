@@ -5,9 +5,12 @@
   +1100  -22                                                                                                            
                                                                                                                         
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
+  Validation                                                                                                         │  
+  - Targeted extension tests passed.                                                                                 │  
+  - Contract plugin tests passed.                                                                                    │  
                                                                                                                      │  
   Scope                                                                                                              │  
-  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     │  
+  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     █  
   [- less]                                                                                                           █  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
                                                                                                                      █  
@@ -18,7 +21,7 @@
   comment Comment by @github-actions 1mo ago                                                                         █  
   Dependency Changes Detected                                                                                        █  
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                █  
-                                                                                                                     │  
+                                                                                                                     █  
   Changed files:                                                                                                     │  
   - extensions/senseaudio/package.json                                                                               │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
@@ -30,7 +33,4 @@
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
                                                                                                                      │  
   - Timeline by @osolmaz 1mo ago                                                                                     │  
-  added label extensions: senseaudio                                                                                 │  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
-                                                                                                                     │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/29 34% ...                                                 
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/33 30% ...                                                 
