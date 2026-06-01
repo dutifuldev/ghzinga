@@ -1,0 +1,36 @@
+[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;122;162;247mopenclaw/openclaw#88499[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;247;118;142m[Issue CLOSED][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 2026-06-01T03:20:12Z[38;2;192;202;245m                                                   
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+  [1m[38;2;26;27;38m[48;2;247;118;142mXX CLOSED[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m                                                                                                 
+                                                                                                                        
+                                                                                                                        
+  [1m[38;2;26;27;38m[48;2;122;162;247m[Overview][0m[38;2;169;177;214m[48;2;26;27;38m Activity  Links [38;2;192;202;245m                                                                                           
+                                                                                                                        
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+                                                                                                                        
+  [1m[38;2;122;162;247m* @xneone opened 2026-05-31T02:21:19Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                 
+  Bug Description                                                                                                       
+                                                                                                                        
+  When using a provider configured with api: openai-responses, the gateway sends store=false or omits store, which      
+  defaults to false. On subsequent turns within the same session, the gateway includes previous_response_id             
+  referencing the previous response. Since that response was never persisted server-side, the API returns a 404.        
+                                                                                                                        
+  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with       
+  store set to true, or remove this item from your input.                                                               
+                                                                                                                        
+  Expected Behavior                                                                                                     
+  The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes   
+  replay safe.                                                                                                          
+                                                                                                                        
+  Actual Behavior                                                                                                       
+  The next request fails after the first turn and the conversation cannot continue.                                     
+                                                                                                                        
+  Related issues: #84904 and #87310.                                                                                    
+  [1m[38;2;26;27;38m[48;2;122;162;247m[- less][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                              
+                                                                                                                        
+  [38;2;86;95;137m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+                                                                                                                        
+  [1m[38;2;125;207;255mcomment Comment by @clawsweeper 2026-05-31T02:28:16Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                  
+  meta: association CONTRIBUTOR                                                                                         
+  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                             
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/44 0%[38;2;192;202;245m [1m[38;2;26;27;38m[48;2;122;162;247m[collapse all][0m[38;2;192;202;245m[48;2;26;27;38m                                        
