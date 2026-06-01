@@ -2,7 +2,7 @@
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (97 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
+  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                            
   [OK PASS] suite/CodeQL Critical Quality [+ more]                              
@@ -20,5 +20,5 @@
   [OK PASS] suite/Socket Security [+ more]                                      
                                                                                 
   [OK PASS] suite/Workflow Sanity [+ more]                                      
-  [refresh] [open] [settings] [help] [quit] scroll 10/277 3%                    
+  [refresh] [open] [settings] [help] [quit] scroll 10/218 4%                    
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  
