@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
-use crate::domain::{Resource, ResourceId, ResourceKind};
+use crate::domain::{PullRequest, Resource, ResourceId, ResourceKind};
 use crate::input::HitArea;
 use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
@@ -183,6 +183,29 @@ impl AppState {
         for block in blocks {
             self.expanded_blocks.remove(&block);
         }
+    }
+
+    pub fn active_tab_expandable_blocks(&self) -> Vec<BlockId> {
+        if self.show_help || self.show_settings {
+            return Vec::new();
+        }
+        expandable_blocks_for_tab(self.active_tab, &self.resource)
+    }
+
+    pub fn toggle_active_tab_expansion(&mut self) -> bool {
+        let blocks = self.active_tab_expandable_blocks();
+        if blocks.is_empty() {
+            return false;
+        }
+        if blocks
+            .iter()
+            .all(|block| self.expanded_blocks.contains(block))
+        {
+            self.collapse_blocks(blocks);
+        } else {
+            self.expand_blocks(blocks);
+        }
+        true
     }
 
     pub fn block_expanded(&self, id: &BlockId) -> bool {
@@ -402,10 +425,94 @@ impl AppState {
     }
 }
 
+fn expandable_blocks_for_tab(tab: Tab, resource: &Resource) -> Vec<BlockId> {
+    match tab {
+        Tab::Overview => overview_expandable_blocks(resource),
+        Tab::Activity => activity_expandable_blocks(resource),
+        Tab::Commits => resource
+            .pull_request
+            .as_ref()
+            .map(commit_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Checks => resource
+            .pull_request
+            .as_ref()
+            .map(check_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Files => resource
+            .pull_request
+            .as_ref()
+            .map(file_expandable_blocks)
+            .unwrap_or_default(),
+        Tab::Links => Vec::new(),
+    }
+}
+
+fn overview_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
+    let mut blocks = Vec::new();
+    if !resource.body.trim().is_empty() {
+        blocks.push(BlockId::Body);
+    }
+    if let Some(pr) = &resource.pull_request {
+        blocks.extend(commit_expandable_blocks(pr));
+    }
+    blocks.extend(activity_expandable_blocks(resource));
+    dedupe_blocks(blocks)
+}
+
+fn activity_expandable_blocks(resource: &Resource) -> Vec<BlockId> {
+    dedupe_blocks(
+        resource
+            .activity
+            .iter()
+            .map(|entry| BlockId::Activity(entry.id.clone()))
+            .collect(),
+    )
+}
+
+fn commit_expandable_blocks(pr: &PullRequest) -> Vec<BlockId> {
+    dedupe_blocks(
+        pr.commits
+            .iter()
+            .map(|commit| BlockId::Commit(commit.oid.clone()))
+            .collect(),
+    )
+}
+
+fn check_expandable_blocks(pr: &PullRequest) -> Vec<BlockId> {
+    dedupe_blocks(
+        pr.checks
+            .iter()
+            .map(|check| BlockId::Check(format!("{}:{}", check.status.label(), check.name)))
+            .collect(),
+    )
+}
+
+fn file_expandable_blocks(pr: &PullRequest) -> Vec<BlockId> {
+    let mut blocks = Vec::new();
+    for file in &pr.files {
+        blocks.push(BlockId::File(file.path.clone()));
+        if file.patch.is_some() {
+            blocks.push(BlockId::Patch(file.path.clone()));
+        }
+    }
+    dedupe_blocks(blocks)
+}
+
+fn dedupe_blocks(blocks: Vec<BlockId>) -> Vec<BlockId> {
+    let mut seen = std::collections::HashSet::new();
+    blocks
+        .into_iter()
+        .filter(|block| seen.insert(block.clone()))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{ReactionCounts, ResourceId};
+    use crate::domain::{
+        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, ReactionCounts, ResourceId,
+    };
 
     fn issue_resource() -> Resource {
         Resource {
@@ -431,6 +538,71 @@ mod tests {
             warnings: vec![],
             pull_request: None,
         }
+    }
+
+    fn activity_entry(id: &str) -> ActivityEntry {
+        ActivityEntry {
+            id: id.into(),
+            kind: ActivityKind::Comment,
+            author: "alice".into(),
+            body: "comment".into(),
+            updated_at: "now".into(),
+            path: None,
+            line: None,
+            url: None,
+            author_association: None,
+            reactions: ReactionCounts::default(),
+            includes_created_edit: false,
+            is_minimized: false,
+            minimized_reason: None,
+            thread_id: None,
+            thread_resolved: None,
+            thread_outdated: None,
+        }
+    }
+
+    fn pr_resource() -> Resource {
+        let mut resource = issue_resource();
+        resource.id.kind_hint = Some(ResourceKind::PullRequest);
+        resource.pull_request = Some(PullRequest {
+            base_ref: "main".into(),
+            head_ref: "topic".into(),
+            requested_reviewers: vec![],
+            review_decision: None,
+            merge_state: None,
+            additions: 3,
+            deletions: 1,
+            commits: vec![crate::domain::Commit {
+                oid: "abc123".into(),
+                message: "commit".into(),
+                body: "commit body".into(),
+                author: "alice".into(),
+                authors: vec![],
+                authored_at: None,
+                committed_at: "now".into(),
+                status: CheckStatus::Success,
+                deployments: vec![],
+            }],
+            checks: vec![CheckRun {
+                name: "ci".into(),
+                status: CheckStatus::Failure,
+                summary: Some("failed".into()),
+                details_url: None,
+                started_at: None,
+                completed_at: None,
+                raw_status: None,
+                raw_conclusion: None,
+            }],
+            files: vec![ChangedFile {
+                path: "src/lib.rs".into(),
+                additions: 3,
+                deletions: 1,
+                change_type: "MODIFIED".into(),
+                patch: Some("@@ -1 +1 @@".into()),
+            }],
+            metadata: vec![],
+        });
+        resource
     }
 
     #[test]
@@ -483,6 +655,57 @@ mod tests {
 
         assert!(!state.block_expanded(&BlockId::Body));
         assert!(!state.block_expanded(&BlockId::Activity("comment-1".into())));
+    }
+
+    #[test]
+    fn active_tab_expandable_blocks_follow_resource_and_tab() {
+        let mut resource = pr_resource();
+        resource.activity = vec![activity_entry("comment-1")];
+        let mut state = AppState::new(resource);
+
+        assert_eq!(
+            state.active_tab_expandable_blocks(),
+            vec![
+                BlockId::Body,
+                BlockId::Commit("abc123".into()),
+                BlockId::Activity("comment-1".into())
+            ]
+        );
+
+        state.set_tab(Tab::Files);
+
+        assert_eq!(
+            state.active_tab_expandable_blocks(),
+            vec![
+                BlockId::File("src/lib.rs".into()),
+                BlockId::Patch("src/lib.rs".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn toggles_active_tab_expansion() {
+        let mut resource = issue_resource();
+        resource.activity = vec![activity_entry("comment-1")];
+        let mut state = AppState::new(resource);
+
+        assert!(state.toggle_active_tab_expansion());
+        assert!(state.block_expanded(&BlockId::Body));
+        assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
+
+        assert!(state.toggle_active_tab_expansion());
+        assert!(!state.block_expanded(&BlockId::Body));
+        assert!(!state.block_expanded(&BlockId::Activity("comment-1".into())));
+    }
+
+    #[test]
+    fn overlays_do_not_offer_active_tab_expansion() {
+        let mut state = AppState::new(issue_resource());
+        state.show_help = true;
+
+        assert!(state.active_tab_expandable_blocks().is_empty());
+        assert!(!state.toggle_active_tab_expansion());
+        assert!(state.expanded_blocks.is_empty());
     }
 
     #[test]

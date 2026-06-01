@@ -262,6 +262,7 @@ Keyboard:
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible content action, such as a link or `[+ more]`
 - `e`: expand or collapse the main body
+- `a`: expand or collapse all expandable rows in the current tab
 - `Backspace`: go back after following a linked issue or PR
 
 The shortcuts avoid tmux prefix bindings. `Right` and `Left` are reliable
