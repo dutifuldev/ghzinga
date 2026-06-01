@@ -77,21 +77,32 @@ pub(crate) fn is_auth_unavailable(error: &anyhow::Error) -> bool {
 }
 
 pub(crate) fn should_try_public_rest_fallback(error: &anyhow::Error) -> bool {
-    is_auth_unavailable(error) || is_token_rejected_by_github(error)
+    is_auth_unavailable(error) || is_token_rejected_by_github(error) || is_token_rate_limited(error)
 }
 
 fn is_token_rejected_by_github(error: &anyhow::Error) -> bool {
-    let message = error
-        .chain()
-        .map(|cause| cause.to_string())
-        .collect::<Vec<_>>()
-        .join("\n")
-        .to_ascii_lowercase();
+    let message = error_message(error);
     message.contains("http 401")
         || message.contains("bad credentials")
         || message.contains("requires authentication")
         || message.contains("resource not accessible by personal access token")
         || message.contains("although you appear to have the correct authorization credentials")
+}
+
+fn is_token_rate_limited(error: &anyhow::Error) -> bool {
+    let message = error_message(error);
+    message.contains("rate_limit")
+        || message.contains("rate limit")
+        || message.contains("api rate limit exceeded")
+}
+
+fn error_message(error: &anyhow::Error) -> String {
+    error
+        .chain()
+        .map(|cause| cause.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_ascii_lowercase()
 }
 
 pub(crate) fn gh_execute_error(command: &str, error: &io::Error) -> String {
@@ -248,6 +259,18 @@ mod tests {
             "GitHub GraphQL request failed with HTTP 401 Unauthorized: {\"message\":\"Bad credentials\"}",
             "GitHub GraphQL request returned errors: FORBIDDEN: Resource not accessible by personal access token",
             "GitHub GraphQL request failed: Although you appear to have the correct authorization credentials, the organization requires SAML SSO.",
+        ] {
+            let error = anyhow::anyhow!(message);
+
+            assert!(should_try_public_rest_fallback(&error), "{message}");
+        }
+    }
+
+    #[test]
+    fn public_rest_fallback_includes_rate_limited_token_errors() {
+        for message in [
+            "GitHub GraphQL request returned errors: RATE_LIMIT: API rate limit already exceeded for user ID 261991368.",
+            "GitHub REST request failed with HTTP 403: API rate limit exceeded",
         ] {
             let error = anyhow::anyhow!(message);
 
