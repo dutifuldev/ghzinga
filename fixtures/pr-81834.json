@@ -46,6 +46,31 @@
       "updated_at": "1mo ago",
       "path": "extensions/senseaudio/tts.ts",
       "line": 99
+    },
+    {
+      "id": "timeline-1",
+      "kind": "timeline",
+      "author": "osolmaz",
+      "body": "added label extensions: senseaudio",
+      "updated_at": "1mo ago",
+      "path": null,
+      "line": null
+    },
+    {
+      "id": "comment-3",
+      "author": "KLilyZ",
+      "body": "Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The remaining files are intentionally scoped to the bundled extension.",
+      "updated_at": "3w ago",
+      "path": null,
+      "line": null
+    }
+  ],
+  "related_resources": [
+    {
+      "owner": "openclaw",
+      "repo": "openclaw",
+      "number": 66943,
+      "kind_hint": "issue"
     }
   ],
   "pull_request": {

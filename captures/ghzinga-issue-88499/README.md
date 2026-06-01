@@ -12,7 +12,6 @@ Captured with the local `target/debug/gzg` binary in tmux.
 
 Each directory contains:
 
-- `*.png`: image render of the terminal frame
 - `*.ansi`: ANSI tmux capture for the same frame
 - `*.txt`: plain-text tmux capture for the same frame
 - `manifest.json`: git revision, commands, requested/actual size, frame list, tabs, and keys for that capture run

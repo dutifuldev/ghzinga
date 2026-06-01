@@ -36,6 +36,6 @@ For every capture:
 
 - `.txt` is plain terminal text from `tmux capture-pane`.
 - `.ansi` preserves ANSI styling from `tmux capture-pane -e`.
-- `.png` is a rendered screenshot generated from the ANSI capture.
+- `.ansi` preserves terminal styling for visual inspection in a terminal.
 
 The capture config is `config.yml`, and the repeatable capture script is `capture_gh_dash.py`.

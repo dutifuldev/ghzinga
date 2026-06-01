@@ -48,7 +48,7 @@ The run covers the required terminal sizes:
 | Medium | `120x36` | `captures/ghzinga-pr-81834/medium/` |
 | Large | `160x50` | `captures/ghzinga-pr-81834/large/` |
 
-Each size directory includes `.txt`, `.ansi`, and `.png` frames, plus
+Each size directory includes `.txt` and `.ansi` frames, plus
 `manifest.json`. The manifests record the source revision, target resource,
 command, requested and actual tmux size, active tab, and keys used for each
 frame.

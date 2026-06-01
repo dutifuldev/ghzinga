@@ -20,11 +20,11 @@ The preview captures are in:
 
 Useful reference frames:
 
-- PR body: `medium/01_overview_down.png`, `large/00_overview_top.png`, `narrow/04_overview_down.png`
-- Comments/activity: `medium/20_activity_top.png`, `large/20_activity_top.png`, `narrow/32_activity_down.png`
-- Commits: `medium/40_commits_top.png`, `large/40_commits_top.png`, `narrow/62_commits_down.png`
-- CI/checks: `medium/50_checks_top.png`, `large/50_checks_top.png`, `narrow/73_checks_down.png`
-- Changed files: `medium/60_files_top.png`, `large/60_files_top.png`, `narrow/90_files_top.png`
+- PR body: `medium/01_overview_down.txt`, `large/00_overview_top.txt`, `narrow/04_overview_down.txt`
+- Comments/activity: `medium/20_activity_top.txt`, `large/20_activity_top.txt`, `narrow/32_activity_down.txt`
+- Commits: `medium/40_commits_top.txt`, `large/40_commits_top.txt`, `narrow/62_commits_down.txt`
+- CI/checks: `medium/50_checks_top.txt`, `large/50_checks_top.txt`, `narrow/73_checks_down.txt`
+- Changed files: `medium/60_files_top.txt`, `large/60_files_top.txt`, `narrow/90_files_top.txt`
 
 The captures show both the rendered UI and the adaptation behavior:
 
@@ -166,7 +166,7 @@ The root view then composes the current section and sidebar:
 - bottom mode uses `lipgloss.JoinVertical`
 - right mode uses `lipgloss.JoinHorizontal`
 
-That is exactly what the captures show. `medium/50_checks_top.png` has a full-width bottom preview under the row list. `large/50_checks_top.png` has the preview on the right with the PR list compressed to the left.
+That is exactly what the captures show. `medium/50_checks_top.txt` has a full-width bottom preview under the row list. `large/50_checks_top.txt` has the preview on the right with the PR list compressed to the left.
 
 ## Sidebar Viewport
 
