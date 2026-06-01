@@ -76,6 +76,24 @@ pub(crate) fn is_auth_unavailable(error: &anyhow::Error) -> bool {
     error.downcast_ref::<GithubAuthError>().is_some()
 }
 
+pub(crate) fn should_try_public_rest_fallback(error: &anyhow::Error) -> bool {
+    is_auth_unavailable(error) || is_token_rejected_by_github(error)
+}
+
+fn is_token_rejected_by_github(error: &anyhow::Error) -> bool {
+    let message = error
+        .chain()
+        .map(|cause| cause.to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_ascii_lowercase();
+    message.contains("http 401")
+        || message.contains("bad credentials")
+        || message.contains("requires authentication")
+        || message.contains("resource not accessible by personal access token")
+        || message.contains("although you appear to have the correct authorization credentials")
+}
+
 pub(crate) fn gh_execute_error(command: &str, error: &io::Error) -> String {
     if error.kind() == io::ErrorKind::NotFound {
         return format!(
@@ -213,5 +231,34 @@ mod tests {
         let message = gh_failure_message("gh auth token", "token retrieval failed");
 
         assert_eq!(message, "`gh auth token` failed: token retrieval failed");
+    }
+
+    #[test]
+    fn public_rest_fallback_includes_unavailable_auth() {
+        let error = anyhow::Error::new(GithubAuthError::Unavailable(
+            "`gh auth token` returned an empty token".into(),
+        ));
+
+        assert!(should_try_public_rest_fallback(&error));
+    }
+
+    #[test]
+    fn public_rest_fallback_includes_rejected_token_errors() {
+        for message in [
+            "GitHub GraphQL request failed with HTTP 401 Unauthorized: {\"message\":\"Bad credentials\"}",
+            "GitHub GraphQL request returned errors: FORBIDDEN: Resource not accessible by personal access token",
+            "GitHub GraphQL request failed: Although you appear to have the correct authorization credentials, the organization requires SAML SSO.",
+        ] {
+            let error = anyhow::anyhow!(message);
+
+            assert!(should_try_public_rest_fallback(&error), "{message}");
+        }
+    }
+
+    #[test]
+    fn public_rest_fallback_does_not_include_unrelated_api_errors() {
+        let error = anyhow::anyhow!("GitHub GraphQL request failed with HTTP 500: server error");
+
+        assert!(!should_try_public_rest_fallback(&error));
     }
 }
