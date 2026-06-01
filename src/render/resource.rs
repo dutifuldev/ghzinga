@@ -2071,7 +2071,7 @@ fn linked_resource_tokens(resource: &Resource) -> Vec<&str> {
 }
 
 fn is_link_candidate_token(token: &str) -> bool {
-    token.contains("github.com") || token.starts_with('#') || token.contains("](#")
+    token.contains("github.com") || token.contains('#') || token.contains("](")
 }
 
 fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarget)> {
@@ -3044,6 +3044,25 @@ mod tests {
     }
 
     #[test]
+    fn render_registers_owner_repo_hash_link_hit_area() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body = "Cross repo follow-up dutifuldev/ghzinga#12.".into();
+        resource.related_resources.clear();
+        let mut state = AppState::new(resource);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::Navigate(id) if id.canonical_name() == "dutifuldev/ghzinga#12"
+        )));
+    }
+
+    #[test]
     fn render_registers_markdown_relative_issue_link_hit_area() {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -3082,6 +3101,28 @@ mod tests {
             &area.target,
             HitTarget::Navigate(id)
                 if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
+        )));
+    }
+
+    #[test]
+    fn links_tab_detects_owner_repo_hash_references() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body = "Cross repo follow-up dutifuldev/ghzinga#12.".into();
+        resource.related_resources.clear();
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Links);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("dutifuldev/ghzinga#12"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::Navigate(id) if id.canonical_name() == "dutifuldev/ghzinga#12"
         )));
     }
 
