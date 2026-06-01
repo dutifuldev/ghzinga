@@ -419,12 +419,13 @@ scripts/live-smoke.sh
 
 This calls GitHub with the normal direct HTTP path and validates high-signal PR
 Overview, Activity, Commits, Checks, Files, and Links tabs plus live issue
-Overview, Activity, and Links tabs. It also reruns public PR and issue Overview
+Overview, Activity, and Links tabs. It also reruns public PR Overview,
+Activity, Checks, and Files plus public issue Overview, Activity, and Links
 with `GH_TOKEN` and `GITHUB_TOKEN` blank and `PATH` pointed at an empty
 directory, proving public fallback rendering works without a usable token or
 `gh` executable. If GitHub's shared unauthenticated quota for the current IP is
-exhausted, those public fallback cases are skipped by default; set
-`GZG_LIVE_REQUIRE_PUBLIC_FALLBACK=1` to make that condition fatal. The script is
-intentionally not part of CI because it depends on network availability and
-current GitHub API quota. Override the public targets with `GZG_LIVE_PR_TARGET`
-and `GZG_LIVE_ISSUE_TARGET`.
+exhausted, those public fallback cases are skipped by default after the first
+rate-limit response; set `GZG_LIVE_REQUIRE_PUBLIC_FALLBACK=1` to make that
+condition fatal. The script is intentionally not part of CI because it depends
+on network availability and current GitHub API quota. Override the public
+targets with `GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
