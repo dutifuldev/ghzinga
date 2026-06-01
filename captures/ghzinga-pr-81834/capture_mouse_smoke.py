@@ -111,6 +111,22 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
         write_frame(ROOT, "00_initial_overview", frames)
 
+        overview_more = find_marker_position(SESSION, "[+ more]", line_contains="commit fb948c9")
+        mouse_coordinates["overview_more"] = list(overview_more)
+        send_mouse_click(SESSION, *overview_more)
+        wait_for_text(SESSION, "committed: 1mo ago")
+        require_screen_contains("[- less]")
+        write_frame(ROOT, "05_mouse_overview_more", frames)
+
+        overview_less = find_marker_position(SESSION, "[- less]", line_contains="commit fb948c9")
+        mouse_coordinates["overview_less"] = list(overview_less)
+        send_mouse_click(SESSION, *overview_less)
+        wait_for_text(SESSION, "[+ more]")
+        text = capture_plain(SESSION)
+        if "committed: 1mo ago" in text:
+            raise RuntimeError(f"overview less left commit detail expanded:\n{text}")
+        write_frame(ROOT, "06_mouse_overview_less", frames)
+
         files_tab = find_marker_position(SESSION, "Files", line_contains="Overview")
         mouse_coordinates["files_tab"] = list(files_tab)
         send_mouse_click(SESSION, *files_tab)
@@ -246,6 +262,13 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "[Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
         ],
+        "05_mouse_overview_more": [
+            "[Overview]",
+            "* commit fb948c9",
+            "[- less]",
+            "committed: 1mo ago",
+        ],
+        "06_mouse_overview_less": ["[Overview]", "* commit fb948c9", "[+ more]"],
         "10_mouse_files_tab": ["[Files]", "docs/plugins/plugin-inventory.md", "[expand all]"],
         "20_mouse_expand_all": [
             "[Files]",
@@ -282,6 +305,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
                 errors.append(f"{txt_path} missing marker {marker!r}")
         if name == "30_mouse_collapse_all" and "path: docs/plugins/plugin-inventory.md" in text:
             errors.append(f"{txt_path} still shows expanded file detail after collapse")
+        if name == "06_mouse_overview_less" and "committed: 1mo ago" in text:
+            errors.append(f"{txt_path} still shows expanded commit detail after collapse")
 
     if errors:
         raise SystemExit("Mouse smoke validation failed:\n- " + "\n- ".join(errors))
