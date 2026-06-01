@@ -5,20 +5,21 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "afa368257e9d848715fded60b3d881855f50ee14",
+  "git_commit": "3f485a96f930b9ac3197a328f82cc679e4651d0d",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
-    "open_url": "https://github.com/openclaw/openclaw/pull/81834",
-    "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
+    "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
+    "open_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
+    "copy_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
   },
   "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"ascii\"\nspacing = \"compact\"\n",
   "quit_exited": true,
   "mouse_coordinates": {
     "overview_more": [
       47,
-      28
+      27
     ],
     "overview_less": [
       47,
@@ -63,6 +64,18 @@
     "linked_issue": [
       4,
       11
+    ],
+    "activity_tab_for_detail": [
+      15,
+      7
+    ],
+    "activity_details": [
+      4,
+      12
+    ],
+    "overview_tab_after_detail": [
+      5,
+      7
     ],
     "refresh": [
       4,
@@ -163,6 +176,21 @@
       "name": "60_keyboard_back_after_navigation",
       "txt": "60_keyboard_back_after_navigation.txt",
       "ansi": "60_keyboard_back_after_navigation.ansi"
+    },
+    {
+      "name": "62_mouse_activity_tab_for_detail",
+      "txt": "62_mouse_activity_tab_for_detail.txt",
+      "ansi": "62_mouse_activity_tab_for_detail.ansi"
+    },
+    {
+      "name": "63_mouse_activity_details_open",
+      "txt": "63_mouse_activity_details_open.txt",
+      "ansi": "63_mouse_activity_details_open.ansi"
+    },
+    {
+      "name": "64_mouse_back_to_overview_after_detail",
+      "txt": "64_mouse_back_to_overview_after_detail.txt",
+      "ansi": "64_mouse_back_to_overview_after_detail.ansi"
     },
     {
       "name": "65_mouse_footer_refresh",

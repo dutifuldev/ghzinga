@@ -232,7 +232,9 @@ Mouse:
 - click file rows in the Files tab to expand or collapse per-file details, then
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
 - click GitHub issue/PR references to navigate
-- click exact GitHub URLs, such as check runs, deployment logs, and comment permalinks, to open them in the browser
+- click exact GitHub URLs, such as check runs, deployment logs, and comment
+  permalinks, to open them in the browser; footer `[copy]` and `[open]`
+  prefer the first visible URL before falling back to the current PR/issue URL
 - click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, `[quit]`, and
   the active-tab expand/collapse control in the footer
 - use the mouse wheel to scroll
@@ -319,10 +321,11 @@ validator verifies that real terminal mouse clicks can expand and collapse a
 visible content row, switch to Files, expand all rows, collapse them again,
 switch to Links, activate a linked issue row, replace the current TUI view with
 that issue, navigate back, click footer `[refresh]` until the fixture-mode
-refresh status is visible, click footer `[copy]` and `[open]` through
-capture-local adapter commands, open the help and settings overlays through the
-footer, click a settings row until the capture-local config save is visible, and
-click `[quit]` until the tmux session exits. CI also rejects tracked or generated
+refresh status is visible, click an activity `[details]` permalink, click footer
+`[copy]` and `[open]` through capture-local adapter commands for that visible
+permalink, open the help and settings overlays through the footer, click a
+settings row until the capture-local config save is visible, and click `[quit]`
+until the tmux session exits. CI also rejects tracked or generated
 PNG files under `captures/`; UX evidence is kept as terminal text and ANSI
 transcripts only.
 
