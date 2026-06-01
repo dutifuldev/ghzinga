@@ -4,6 +4,7 @@ pub mod resource;
 pub mod spacing;
 pub mod symbols;
 pub mod theme;
+pub mod time;
 
 pub use layout::ViewRects;
 pub use resource::render_app;

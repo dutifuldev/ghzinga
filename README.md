@@ -164,14 +164,16 @@ For pull requests:
   state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
 - commits from the base GitHub response, with expandable commit bodies and
-  authored/committed dates; `--api-depth full` or `GZG_API_DEPTH=full` enables
+  compact human-readable authored/committed dates such as `2w ago`;
+  `--api-depth full` or `GZG_API_DEPTH=full` enables
   extra GraphQL calls for exhaustive commit pagination, coauthor pagination, and
   deployment metadata
 - paginated CI/check status grouped by state, including suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
-  status/conclusion, timestamps, and details URLs on expanded check rows; public
-  unauthenticated fallback also shows public check runs and status contexts for
-  the PR head commit, while marking GraphQL-only suite grouping as unavailable
+  status/conclusion, compact human-readable timestamps, and details URLs on
+  expanded check rows; public unauthenticated fallback also shows public check
+  runs and status contexts for the PR head commit, while marking GraphQL-only
+  suite grouping as unavailable
 - changed files, with gh-dash-style file summary rows and separately expandable
   in-TUI patch context when a file row is expanded; patch additions use a green
   background tint, deletions use a red background tint, and hunk headers use an
