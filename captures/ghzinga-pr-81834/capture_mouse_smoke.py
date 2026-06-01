@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -39,17 +40,26 @@ def wait_for_text(session: str, needle: str, timeout: float = 10.0):
     raise RuntimeError(f"{session} did not render {needle!r}. Last screen:\n{last}")
 
 
-def find_marker_position(session: str, marker: str, line_contains: str | None = None) -> tuple[int, int]:
-    text = capture_plain(session)
-    for row, line in enumerate(text.splitlines(), start=1):
-        if line_contains and line_contains not in line:
-            continue
-        column = line.find(marker)
-        if column >= 0:
-            # xterm SGR mouse coordinates are 1-based; click inside the marker.
-            return column + 2, row
+def find_marker_position(
+    session: str,
+    marker: str,
+    line_contains: str | None = None,
+    timeout: float = 5.0,
+) -> tuple[int, int]:
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        last = capture_plain(session)
+        for row, line in enumerate(last.splitlines(), start=1):
+            if line_contains and line_contains not in line:
+                continue
+            column = line.find(marker)
+            if column >= 0:
+                # xterm SGR mouse coordinates are 1-based; click inside the marker.
+                return column + 2, row
+        time.sleep(0.25)
     detail = f" on a line containing {line_contains!r}" if line_contains else ""
-    raise RuntimeError(f"could not find marker {marker!r}{detail}:\n{text}")
+    raise RuntimeError(f"could not find marker {marker!r}{detail}:\n{last}")
 
 
 def send_mouse_click(session: str, column: int, row: int):
@@ -93,12 +103,21 @@ def write_navigation_fixture():
     NAVIGATION_FIXTURE.write_text(json.dumps(resource, indent=2) + "\n")
 
 
+def capture_config_path() -> Path:
+    return ROOT / "capture-empty-config.toml"
+
+
+def capture_config_env() -> str:
+    return f"GZG_CONFIG_PATH={shlex.quote(str(capture_config_path()))}"
+
+
 def capture_mouse_smoke():
     ROOT.mkdir(parents=True, exist_ok=True)
+    capture_config_path().unlink(missing_ok=True)
     write_navigation_fixture()
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
-        f"cd {REPO} && TERM=xterm-256color {BIN} {TARGET} "
+        f"cd {REPO} && TERM=xterm-256color {capture_config_env()} {BIN} {TARGET} "
         f"--offline-fixture {NAVIGATION_FIXTURE} "
         f"--offline-resource-fixture {NAVIGATION_TARGET_FIXTURE} "
         f"--refresh-seconds 0"
@@ -183,6 +202,7 @@ def capture_mouse_smoke():
             "extra_fixtures": [str(NAVIGATION_TARGET_FIXTURE.relative_to(REPO))],
             "binary": str(BIN),
             "git_commit": git_commit(),
+            "config_path": str(capture_config_path()),
             "command": command,
             "actual_tmux_size": tmux_size(SESSION),
             "mouse_coordinates": mouse_coordinates,
@@ -263,6 +283,13 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         errors.append(
             f"actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {COLS}x{ROWS}"
         )
+    expected_config_path = str(capture_config_path())
+    if manifest.get("config_path") != expected_config_path:
+        errors.append(
+            f"config_path is {manifest.get('config_path')!r}, expected {expected_config_path!r}"
+        )
+    if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("command", ""):
+        errors.append("manifest command does not isolate config with GZG_CONFIG_PATH")
 
     expected = {
         "00_initial_overview": [
