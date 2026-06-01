@@ -206,6 +206,8 @@ def capture_frame(
         actual_size = tmux_size(session)
         meta.setdefault("actual_tmux_size", actual_size)
         wait_for_loaded(session)
+        # Let the first full-frame draw settle after the load marker appears.
+        time.sleep(2.0)
         for key in keys or []:
             send(session, key)
         write_capture(
