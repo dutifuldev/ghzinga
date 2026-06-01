@@ -500,6 +500,10 @@ Issue tabs:
   web diff style: inserted lines get a green-tinted background and deleted lines
   get a red-tinted background. Text foreground should remain readable on that
   background instead of using only foreground red/green.
+- Patch code rows should not show raw unified-diff `+` or `-` markers. The
+  renderer should strip only the change marker column for addition, deletion,
+  and context rows, preserve all code indentation that follows it, and leave
+  hunk headers plus file metadata visible.
 
 ## Participant Enrichment
 

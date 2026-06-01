@@ -192,8 +192,9 @@ For pull requests:
   suite grouping as unavailable
 - changed files, with gh-dash-style file summary rows and separately expandable
   in-TUI patch context when a file row is expanded; patch additions use a green
-  background tint, deletions use a red background tint, and hunk headers use an
-  accent color by default
+  background tint, deletions use a red background tint, hunk headers use an
+  accent color by default, and patch code hides raw unified-diff `+` / `-`
+  markers while preserving indentation
 - detected issue/PR links, including bare `#123` references, Markdown links, and
   paginated GitHub relationship links
 

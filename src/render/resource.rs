@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
     Frame,
 };
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::{
     app::{AppState, BlockId, Tab},
@@ -2248,31 +2248,109 @@ fn diff_patch_rows(patch: &str, width: usize, palette: &Palette) -> Vec<ContentR
     patch
         .lines()
         .flat_map(|line| {
-            let style = diff_line_style(line, palette);
-            markdown::wrap_plain_text(line, width)
+            let kind = diff_line_kind(line);
+            let style = diff_line_style(kind, palette);
+            let text = diff_line_text(line, kind);
+            wrap_diff_text(text, width)
                 .into_iter()
                 .map(move |line| ContentRow::styled(line, style))
         })
         .collect()
 }
 
-fn diff_line_style(line: &str, palette: &Palette) -> Style {
-    if line.starts_with('+') {
-        Style::default().fg(palette.panel_bg).bg(palette.green)
+#[derive(Clone, Copy)]
+enum DiffLineKind {
+    Addition,
+    Deletion,
+    Context,
+    Hunk,
+    Metadata,
+}
+
+fn diff_line_kind(line: &str) -> DiffLineKind {
+    if line.starts_with("@@") {
+        DiffLineKind::Hunk
+    } else if is_diff_metadata_line(line) {
+        DiffLineKind::Metadata
+    } else if line.starts_with('+') {
+        DiffLineKind::Addition
     } else if line.starts_with('-') {
-        Style::default().fg(palette.panel_bg).bg(palette.red)
-    } else if line.starts_with("@@") {
-        Style::default()
-            .fg(palette.teal)
-            .add_modifier(Modifier::BOLD)
-    } else if line.starts_with("diff --git")
+        DiffLineKind::Deletion
+    } else if line.starts_with(' ') {
+        DiffLineKind::Context
+    } else {
+        DiffLineKind::Metadata
+    }
+}
+
+fn is_diff_metadata_line(line: &str) -> bool {
+    line.starts_with("diff --git")
         || line.starts_with("index ")
         || line.starts_with("new file mode ")
         || line.starts_with("deleted file mode ")
-    {
-        Style::default().fg(palette.overlay1)
-    } else {
-        Style::default().fg(palette.text)
+        || line.starts_with("old mode ")
+        || line.starts_with("new mode ")
+        || line.starts_with("similarity index ")
+        || line.starts_with("dissimilarity index ")
+        || line.starts_with("rename from ")
+        || line.starts_with("rename to ")
+        || line.starts_with("copy from ")
+        || line.starts_with("copy to ")
+        || line.starts_with("--- ")
+        || line.starts_with("+++ ")
+        || line.starts_with("\\ No newline")
+}
+
+fn diff_line_text(line: &str, kind: DiffLineKind) -> &str {
+    match kind {
+        DiffLineKind::Addition | DiffLineKind::Deletion | DiffLineKind::Context => {
+            line.get(1..).unwrap_or("")
+        }
+        DiffLineKind::Hunk | DiffLineKind::Metadata => line,
+    }
+}
+
+fn wrap_diff_text(text: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    if text.is_empty() {
+        return vec![" ".to_string()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut current_width = 0;
+
+    for ch in text.chars() {
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+        if current_width > 0 && current_width + ch_width > width {
+            lines.push(current);
+            current = String::new();
+            current_width = 0;
+        }
+        current.push(ch);
+        current_width += ch_width;
+        if current_width >= width {
+            lines.push(current);
+            current = String::new();
+            current_width = 0;
+        }
+    }
+
+    if !current.is_empty() || lines.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn diff_line_style(kind: DiffLineKind, palette: &Palette) -> Style {
+    match kind {
+        DiffLineKind::Addition => Style::default().fg(palette.panel_bg).bg(palette.green),
+        DiffLineKind::Deletion => Style::default().fg(palette.panel_bg).bg(palette.red),
+        DiffLineKind::Hunk => Style::default()
+            .fg(palette.teal)
+            .add_modifier(Modifier::BOLD),
+        DiffLineKind::Metadata => Style::default().fg(palette.overlay1),
+        DiffLineKind::Context => Style::default().fg(palette.text),
     }
 }
 
@@ -4801,7 +4879,8 @@ mod tests {
 
         assert!(content.contains("patch"));
         assert!(content.contains("diff --git"));
-        assert!(content.contains("+import speech"));
+        assert!(content.contains("import speech"));
+        assert!(!content.contains("+import speech"));
     }
 
     #[test]
@@ -4845,7 +4924,7 @@ mod tests {
             row_primary_style(
                 &rows
                     .iter()
-                    .find(|row| line_text(&row.line) == "-import old")
+                    .find(|row| line_text(&row.line) == "import old")
                     .expect("deletion row")
                     .line
             )
@@ -4856,7 +4935,7 @@ mod tests {
             row_primary_style(
                 &rows
                     .iter()
-                    .find(|row| line_text(&row.line) == "+import speech")
+                    .find(|row| line_text(&row.line) == "import speech")
                     .expect("addition row")
                     .line
             )
@@ -4873,6 +4952,63 @@ mod tests {
             )
             .fg,
             Some(palette.teal)
+        );
+    }
+
+    #[test]
+    fn diff_rows_hide_change_markers_and_preserve_indentation() {
+        let palette = Palette::default_dark();
+        let patch = [
+            "diff --git a/src/main.rs b/src/main.rs",
+            "--- a/src/main.rs",
+            "+++ b/src/main.rs",
+            "@@ -1,4 +1,4 @@",
+            "-    let old_value = 1;",
+            "+    let new_value = 1;",
+            "     println!(\"still indented\");",
+            "+",
+        ]
+        .join("\n");
+        let rows = diff_patch_rows(&patch, 120, &palette);
+
+        let rendered = rows
+            .iter()
+            .map(|row| line_text(&row.line))
+            .collect::<Vec<_>>();
+
+        assert!(rendered.contains(&"--- a/src/main.rs".to_string()));
+        assert!(rendered.contains(&"+++ b/src/main.rs".to_string()));
+        assert!(rendered.contains(&"    let old_value = 1;".to_string()));
+        assert!(rendered.contains(&"    let new_value = 1;".to_string()));
+        let context_line = rendered
+            .iter()
+            .find(|line| line.ends_with("println!(\"still indented\");"))
+            .expect("context line");
+        assert!(context_line.starts_with("    "));
+        assert!(rendered.contains(&" ".to_string()));
+        assert!(!rendered.contains(&"-    let old_value = 1;".to_string()));
+        assert!(!rendered.contains(&"+    let new_value = 1;".to_string()));
+        assert_eq!(
+            row_primary_style(
+                &rows
+                    .iter()
+                    .find(|row| line_text(&row.line) == "    let old_value = 1;")
+                    .expect("deletion row")
+                    .line
+            )
+            .bg,
+            Some(palette.red)
+        );
+        assert_eq!(
+            row_primary_style(
+                &rows
+                    .iter()
+                    .find(|row| line_text(&row.line) == "    let new_value = 1;")
+                    .expect("addition row")
+                    .line
+            )
+            .bg,
+            Some(palette.green)
         );
     }
 
@@ -4901,9 +5037,9 @@ mod tests {
 
         let content = draw(&mut state, 120, 80);
 
-        assert!(content.contains("+patch line 0"));
-        assert!(content.contains("+patch line 17"));
-        assert!(!content.contains("+patch line 29"));
+        assert!(content.contains("patch line 0"));
+        assert!(content.contains("patch line 17"));
+        assert!(!content.contains("patch line 29"));
         assert!(content.contains("[+ more patch]"));
         assert!(state
             .hit_areas
@@ -4919,7 +5055,7 @@ mod tests {
 
         let content = draw(&mut state, 120, 80);
 
-        assert!(content.contains("+patch line 29"));
+        assert!(content.contains("patch line 29"));
         assert!(content.contains("[- less patch]"));
     }
 
