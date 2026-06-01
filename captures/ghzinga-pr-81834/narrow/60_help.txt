@@ -1,10 +1,10 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
-feat(senseaudio): add SenseAudio TTS provider                                   
---------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks  Files [Links]                             
-OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
-OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
-warn Warnings: 1                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                
+  feat(senseaudio): add SenseAudio TTS provider                                 
+  ────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks  Files [Links]                           
+  OK OPEN  by @KLilyZ  comments 7  reactions 4                                  
+  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22               
+  warn Warnings: 1                                                              
   Help                                                                          
                                                                                 
   Mouse                                                                         
@@ -20,5 +20,5 @@ warn Warnings: 1
   - ?: toggle this help                                                         
   - s: open or close settings                                                   
   - t / y / p in settings: cycle theme / symbol style / spacing                 
-[refresh] [open] [settings] [help] [quit] scroll 0/10 0%                        
-r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
+  [refresh] [open] [settings] [help] [quit] scroll 0/11 0%                      
+  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

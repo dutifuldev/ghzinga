@@ -1,9 +1,9 @@
 {
-  "target": "openclaw/openclaw#81834",
-  "title": "feat(senseaudio): add SenseAudio TTS provider",
+  "target": "https://github.com/openclaw/openclaw/issues/88499",
+  "title": "openai-responses provider: 404 on previous_response_id when store=false",
   "mode": "issue",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "50c609838d79a022059cb0e3345ce605612cc255",
+  "git_commit": "084359ecd7f2145d18d28cc1c24a6dac3896cf76",
   "sizes": [
     {
       "label": "narrow",

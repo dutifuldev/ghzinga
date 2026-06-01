@@ -1,15 +1,10 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
-feat(senseaudio): add SenseAudio TTS provider                                   
---------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks [Files] Links                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
-OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
-warn Warnings: 1                                                                
-                                                                                
-  +74   -14   MODIFIED docs/providers/senseaudio.md [+ more]                    
-                                                                                
-  +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                  
-                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                
+  feat(senseaudio): add SenseAudio TTS provider                                 
+  ────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks [Files] Links                            
+  OK OPEN  by @KLilyZ  comments 7  reactions 4                                  
+  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22               
+  warn Warnings: 1                                                              
   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [+ more]      
                                                                                 
   +1    -1    MODIFIED extensions/senseaudio/package.json [+ more]              
@@ -20,5 +15,10 @@ warn Warnings: 1
                                                                                 
   +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [+ more]        
                                                                                 
-[refresh] [open] [settings] [help] [quit] scroll 10/17 58%                      
-r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
+  +1    -0    MODIFIED extensions/senseaudio/test-api.ts [+ more]               
+                                                                                
+  +296  -0    ADDED    extensions/senseaudio/tts.test.ts [+ more]               
+                                                                                
+  +160  -0    ADDED    extensions/senseaudio/tts.ts [+ more]                    
+  [refresh] [open] [settings] [help] [quit] scroll 10/14 71%                    
+  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

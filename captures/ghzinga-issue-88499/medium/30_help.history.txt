@@ -1,9 +1,9 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks  Files [Links]                                                                     
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
+  openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
+  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity [Links]                                                                                           
+  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
+                                                                                                                        
   Help                                                                                                                  
                                                                                                                         
   Mouse                                                                                                                 
@@ -21,6 +21,7 @@ warn Warnings: 1
   - r: refresh now                                                                                                      
   - o: open current resource in browser                                                                                 
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
+  - v: reverse chronological feed order                                                                                 
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
   - e: expand or collapse the main body                                                                                 
   - Backspace: return after following a link                                                                            
@@ -32,5 +33,4 @@ warn Warnings: 1
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-[refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                           
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                         

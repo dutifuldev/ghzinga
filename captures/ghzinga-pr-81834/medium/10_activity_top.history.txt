@@ -1,14 +1,9 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                                                                      
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
-  Activity (7 entries)                                                                                                  
-  --------------------------------------------------------------------------------------------------------------------  
-                                                                                                                        
-  [expand all]                                                                                                          
-                                                                                                                        
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                        
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Commits  Checks  Files  Links                                                                    
+  OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22         
+  warn Warnings: 1                                                                                                      
   Comment by @github-actions 2026-05-14T14:05:57Z                                                                       
   meta: association CONTRIBUTOR                                                                                         
   [details]                                                                                                             
@@ -33,4 +28,9 @@ warn Warnings: 1
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The      
   remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider  
   <id>.                                                                                                                 
-[refresh] [open] [settings] [help] [quit] scroll 0/53 0% ...                                                            
+  [+ more]                                                                                                              
+                                                                                                                        
+  Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                               
+  meta: association NONE                                                                                                
+  [details]                                                                                                             
+  [refresh] [open] [settings] [help] [quit] scroll 0/50 0% ...                                                          

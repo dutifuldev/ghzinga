@@ -1,13 +1,8 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                  
-feat(senseaudio): add SenseAudio TTS provider                                                                                                                   
-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-[Overview] Activity  Commits  Checks  Files  Links                                                                                                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
-                                                                                                                                                                
-  Conversation                                                                                                                                                  
-  ----------------------------------------------------------------------------------------------------------------------                                        
-                                                                                                                                                                
-  [expand all]                                                                                                                                                  
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
+  feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+  [Overview] Activity  Commits  Checks  Files  Links                                                                                                            
+  OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                               
                                                                                                                                                                 
   * @KLilyZ opened 2026-05-14T14:05:46Z                                                                                                                         
   Summary                                                                                                                                                       
@@ -23,7 +18,7 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
                                                                                                                                                                 
   Change Type (select all)                                                                                                                                      
   [+ more]                                                                                                                                                      
-  ----------------------------------------------------------------------------------------------------------------------                                        
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                       
   meta: association CONTRIBUTOR                                                                                                                                 
@@ -37,7 +32,7 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
   Changed files:                                                                                                                                                
   - extensions/senseaudio/package.json                                                                                                                          
   [+ more]                                                                                                                                                      
-  ----------------------------------------------------------------------------------------------------------------------                                        
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                                               
   meta: association NONE                                                                                                                                        
@@ -47,4 +42,9 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
   Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
   helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
                                                                                                                                                                 
-[refresh] [open] [settings] [help] [quit] scroll 0/125 0% ...                                                                                                   
+  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The                                              
+  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider                                          
+  <id>.                                                                                                                                                         
+  [+ more]                                                                                                                                                      
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+  [refresh] [open] [settings] [help] [quit] scroll 0/122 0% ...                                                                                                 

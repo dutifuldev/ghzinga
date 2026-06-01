@@ -1,15 +1,10 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
-feat(senseaudio): add SenseAudio TTS provider                                   
---------------------------------------------------------------------------------
-[Overview] Activity  Commits  Checks  Files  Links                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
-OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
-warn Warnings: 1                                                                
-  Conversation                                                                  
-  ----------------------------------------------------------------------------  
-                                                                                
-  [expand all]                                                                  
-                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                
+  feat(senseaudio): add SenseAudio TTS provider                                 
+  ────────────────────────────────────────────────────────────────────────────  
+  [Overview] Activity  Commits  Checks  Files  Links                            
+  OK OPEN  by @KLilyZ  comments 7  reactions 4                                  
+  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22               
+  warn Warnings: 1                                                              
   * @KLilyZ opened 2026-05-14T14:05:46Z                                         
   Summary                                                                       
                                                                                 
@@ -20,5 +15,10 @@ warn Warnings: 1
   Synthesizes via /v1/t2a_v2, lists system voices via /v1/get_voice,            
   transcodes MP3→opus for voice-note targets. Errors split into HTTP /          
   base_resp.status_code / missing-audio buckets.                                
-[refresh] [open] [settings] [help] [quit] scroll 0/159 0%                       
-r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
+  - What did NOT change: no core code; ASR untouched; streaming, telephony,     
+  voice cloning, text-generated voices out of scope.                            
+                                                                                
+  [+ more]                                                                      
+  ────────────────────────────────────────────────────────────────────────────  
+  [refresh] [open] [settings] [help] [quit] scroll 0/155 0%                     
+  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

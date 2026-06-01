@@ -1,14 +1,9 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                          
-feat(senseaudio): add SenseAudio TTS provider                                                                           
-------------------------------------------------------------------------------------------------------------------------
- Overview  Activity  Commits  Checks [Files] Links                                                                      
-OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22           
-warn Warnings: 1                                                                                                        
-  Files changed (14)                                                                                                    
-  --------------------------------------------------------------------------------------------------------------------  
-                                                                                                                        
-  [expand all]                                                                                                          
-                                                                                                                        
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                        
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+   Overview  Activity  Commits  Checks [Files] Links                                                                    
+  OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22         
+  warn Warnings: 1                                                                                                      
   +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                        
                                                                                                                         
   +1    -1    MODIFIED docs/plugins/reference.md [+ more]                                                               
@@ -33,4 +28,9 @@ warn Warnings: 1
                                                                                                                         
   +296  -0    ADDED    extensions/senseaudio/tts.test.ts [+ more]                                                       
                                                                                                                         
-[refresh] [open] [settings] [help] [quit] scroll 0/3 0% ...                                                             
+  +160  -0    ADDED    extensions/senseaudio/tts.ts [+ more]                                                            
+                                                                                                                        
+  +2    -0    MODIFIED src/plugin-sdk/test-helpers/plugin-registration-contract-cases.ts [+ more]                       
+                                                                                                                        
+  [expand all]                                                                                                          
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                         

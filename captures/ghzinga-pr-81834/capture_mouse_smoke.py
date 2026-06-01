@@ -108,21 +108,23 @@ def capture_mouse_smoke():
     try:
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
-        wait_for_text(SESSION, "Conversation")
+        wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
         write_frame(ROOT, "00_initial_overview", frames)
 
         files_tab = find_marker_position(SESSION, "Files", line_contains="Overview")
         mouse_coordinates["files_tab"] = list(files_tab)
         send_mouse_click(SESSION, *files_tab)
-        wait_for_text(SESSION, "Files changed")
+        wait_for_text(SESSION, "docs/plugins/plugin-inventory.md")
         require_screen_contains("[Files]")
         write_frame(ROOT, "10_mouse_files_tab", frames)
 
         expand_all = find_marker_position(SESSION, "[expand all]")
         mouse_coordinates["expand_all"] = list(expand_all)
         send_mouse_click(SESSION, *expand_all)
-        wait_for_text(SESSION, "[collapse all]")
         require_screen_contains("path: docs/plugins/plugin-inventory.md")
+        tmux("send-keys", "-t", SESSION, "End")
+        time.sleep(0.5)
+        wait_for_text(SESSION, "[collapse all]")
         write_frame(ROOT, "20_mouse_expand_all", frames)
 
         collapse_all = find_marker_position(SESSION, "[collapse all]")
@@ -137,7 +139,7 @@ def capture_mouse_smoke():
         links_tab = find_marker_position(SESSION, "Links", line_contains="[Files]")
         mouse_coordinates["links_tab"] = list(links_tab)
         send_mouse_click(SESSION, *links_tab)
-        wait_for_text(SESSION, "Links")
+        wait_for_text(SESSION, NAVIGATION_TARGET)
         require_screen_contains(f"  {NAVIGATION_TARGET}")
         write_frame(ROOT, "40_mouse_links_tab", frames)
 
@@ -195,12 +197,15 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         )
 
     expected = {
-        "00_initial_overview": ["[Overview]", "Conversation"],
-        "10_mouse_files_tab": ["[Files]", "Files changed", "[expand all]"],
+        "00_initial_overview": [
+            "[Overview]",
+            "Problem: senseaudio bundled plugin only has ASR; no TTS.",
+        ],
+        "10_mouse_files_tab": ["[Files]", "docs/plugins/plugin-inventory.md", "[expand all]"],
         "20_mouse_expand_all": [
             "[Files]",
             "[collapse all]",
-            "path: docs/plugins/plugin-inventory.md",
+            "path: docs/plugins/reference.md",
         ],
         "30_mouse_collapse_all": ["[Files]", "[expand all]"],
         "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],

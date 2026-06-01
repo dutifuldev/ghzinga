@@ -1,15 +1,10 @@
-openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                  
-feat(senseaudio): add SenseAudio TTS provider                                   
---------------------------------------------------------------------------------
- Overview [Activity] Commits  Checks  Files  Links                              
-OK OPEN  by @KLilyZ  comments 7  reactions 4                                    
-OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22                 
-warn Warnings: 1                                                                
-  Dependency Changes Detected                                                   
-                                                                                
-  This PR changes dependency-related files. Maintainers should confirm these    
-  changes are intentional.                                                      
-                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                
+  feat(senseaudio): add SenseAudio TTS provider                                 
+  ────────────────────────────────────────────────────────────────────────────  
+   Overview [Activity] Commits  Checks  Files  Links                            
+  OK OPEN  by @KLilyZ  comments 7  reactions 4                                  
+  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22               
+  warn Warnings: 1                                                              
   Changed files:                                                                
   [+ more]                                                                      
                                                                                 
@@ -20,5 +15,10 @@ warn Warnings: 1
                                                                                 
   Summary The PR adds a SenseAudio speech provider to the bundled senseaudio    
   plugin, including TTS and voice-list HTTP helpers, voice-note opus            
-[refresh] [open] [settings] [help] [quit] scroll 10/69 14%                      
-r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch |      
+  transcoding, registration metadata, docs, inventory updates, and tests.       
+                                                                                
+  Reproducibility: not applicable. for the requested feature because current    
+  main simply lacks SenseAudio TTS. The remaining docs bug is                   
+  [+ more]                                                                      
+  [refresh] [open] [settings] [help] [quit] scroll 10/66 15%                    
+  r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  
