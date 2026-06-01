@@ -39,6 +39,17 @@ struct StyledPiece {
     style: Style,
 }
 
+#[derive(Clone)]
+struct FooterItem {
+    label: String,
+    style: Style,
+    target: Option<HitTarget>,
+}
+
+struct FooterLine {
+    items: Vec<FooterItem>,
+}
+
 struct CheckGroupRenderContext<'a> {
     expanded_blocks: &'a std::collections::HashSet<BlockId>,
     width: usize,
@@ -2268,12 +2279,12 @@ fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
 fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
     let symbols = state.symbols.symbols();
     let mut controls = vec![
-        (symbols.footer_refresh, HitTarget::Refresh),
-        (symbols.footer_copy, HitTarget::CopyVisibleUrl),
-        (symbols.footer_open, HitTarget::OpenVisibleUrl),
-        (symbols.footer_settings, HitTarget::Settings),
-        (symbols.footer_help, HitTarget::Help),
-        (symbols.footer_quit, HitTarget::Quit),
+        footer_control(symbols.footer_refresh, HitTarget::Refresh, palette),
+        footer_control(symbols.footer_copy, HitTarget::CopyVisibleUrl, palette),
+        footer_control(symbols.footer_open, HitTarget::OpenVisibleUrl, palette),
+        footer_control(symbols.footer_settings, HitTarget::Settings, palette),
+        footer_control(symbols.footer_help, HitTarget::Help, palette),
+        footer_control(symbols.footer_quit, HitTarget::Quit, palette),
     ];
     if !state.show_help && !state.show_settings {
         if let Some(control) = expand_all_control(
@@ -2281,51 +2292,12 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
             &state.expanded_blocks,
             &symbols,
         ) {
-            controls.push(control);
+            controls.push(footer_control(control.0, control.1, palette));
         }
-    }
-    let mut x = area.x;
-    let mut y = area.y;
-    let mut control_spans = Vec::new();
-    let mut control_lines = Vec::<Line<'static>>::new();
-    for (label, target) in controls.iter() {
-        let raw_width = UnicodeWidthStr::width(*label) as u16;
-        if x > area.x && x.saturating_add(raw_width) > area.x.saturating_add(area.width) {
-            control_lines.push(Line::from(control_spans));
-            control_spans = Vec::new();
-            x = area.x;
-            y = y.saturating_add(1);
-        }
-        if y >= area.y.saturating_add(area.height) {
-            break;
-        }
-        let label = fit_label_to_width(label, area.width);
-        let width = UnicodeWidthStr::width(label.as_str()) as u16;
-        if width == 0 {
-            continue;
-        }
-        state
-            .hit_areas
-            .push(HitArea::new(Rect::new(x, y, width, 1), target.clone()));
-        if x > area.x {
-            control_spans.push(Span::raw(" "));
-        }
-        control_spans.push(Span::styled(label, button_style(palette)));
-        x = x.saturating_add(width + 1);
     }
     let scroll = scroll_summary(state);
-    let scroll_width = UnicodeWidthStr::width(scroll.as_str()) as u16;
-    let used_width = x.saturating_sub(area.x).saturating_sub(1);
-    if !control_spans.is_empty()
-        && y < area.y.saturating_add(area.height)
-        && used_width.saturating_add(1).saturating_add(scroll_width) <= area.width
-    {
-        control_spans.push(Span::raw(" "));
-        control_spans.push(Span::styled(scroll.clone(), dim_style(palette)));
-    }
-    if !control_spans.is_empty() {
-        control_lines.push(Line::from(control_spans));
-    }
+    let control_lines = footer_control_lines(controls, &scroll, area.width, palette);
+    let control_lines = footer_visible_control_lines(control_lines, area.height as usize);
 
     let default_message = format!(
         "r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order {} | arrows/page scroll | e more/less | tab {} | {}",
@@ -2349,21 +2321,175 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     } else {
         Style::default().fg(palette.subtext0)
     };
-    let remaining = area.height.saturating_sub(control_lines.len() as u16) as usize;
-    let mut lines = control_lines;
+    let control_height = control_lines.len().min(area.height as usize);
+    let remaining = area.height.saturating_sub(control_height as u16) as usize;
+    let mut message_lines = Vec::<Line<'static>>::new();
     if remaining > 0 {
         for line in markdown::wrap_plain_text(&message, area.width as usize)
             .into_iter()
             .take(remaining)
         {
-            lines.push(Line::from(Span::styled(line, message_style)));
+            message_lines.push(Line::from(Span::styled(line, message_style)));
         }
-    } else if let Some(last) = lines.last_mut() {
-        last.spans.push(Span::styled(" ...", dim_style(palette)));
     }
-    Paragraph::new(lines)
+    Paragraph::new(message_lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+    render_footer_controls(frame, area, state, control_lines);
+}
+
+fn footer_control(label: &str, target: HitTarget, palette: &Palette) -> FooterItem {
+    FooterItem {
+        label: label.to_string(),
+        style: button_style(palette),
+        target: Some(target),
+    }
+}
+
+fn footer_scroll_item(scroll: &str, palette: &Palette) -> FooterItem {
+    FooterItem {
+        label: scroll.to_string(),
+        style: dim_style(palette),
+        target: None,
+    }
+}
+
+fn footer_control_lines(
+    controls: Vec<FooterItem>,
+    scroll: &str,
+    width: u16,
+    palette: &Palette,
+) -> Vec<FooterLine> {
+    if width == 0 {
+        return Vec::new();
+    }
+    let lines = wrap_footer_items(&controls, width);
+    let Some(scroll_index) = footer_scroll_insert_index(&controls) else {
+        return lines;
+    };
+
+    let mut with_scroll = controls;
+    with_scroll.insert(scroll_index, footer_scroll_item(scroll, palette));
+    let candidate = wrap_footer_items(&with_scroll, width);
+    if candidate.len() <= lines.len() {
+        candidate
+    } else {
+        lines
+    }
+}
+
+fn footer_scroll_insert_index(controls: &[FooterItem]) -> Option<usize> {
+    if controls.is_empty() {
+        return None;
+    }
+    let last_index = controls.len().saturating_sub(1);
+    if footer_item_is_expand_all(&controls[last_index]) {
+        Some(last_index)
+    } else {
+        Some(controls.len())
+    }
+}
+
+fn wrap_footer_items(items: &[FooterItem], width: u16) -> Vec<FooterLine> {
+    let mut lines = Vec::<FooterLine>::new();
+    let mut current = FooterLine { items: Vec::new() };
+    let mut current_width = 0u16;
+    for item in items {
+        let label = fit_label_to_width(&item.label, width);
+        let item_width = UnicodeWidthStr::width(label.as_str()) as u16;
+        if item_width == 0 {
+            continue;
+        }
+        let required_width = if current.items.is_empty() {
+            item_width
+        } else {
+            item_width.saturating_add(1)
+        };
+        if !current.items.is_empty() && current_width.saturating_add(required_width) > width {
+            lines.push(current);
+            current = FooterLine { items: Vec::new() };
+            current_width = 0;
+        }
+        current.items.push(FooterItem {
+            label,
+            style: item.style,
+            target: item.target.clone(),
+        });
+        current_width = current_width.saturating_add(if current_width == 0 {
+            item_width
+        } else {
+            item_width.saturating_add(1)
+        });
+    }
+    if !current.items.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn footer_visible_control_lines(lines: Vec<FooterLine>, max_lines: usize) -> Vec<FooterLine> {
+    if max_lines == 0 || lines.len() <= max_lines {
+        return lines;
+    }
+    if let Some(expand_index) = lines.iter().position(footer_line_has_expand_all) {
+        if expand_index >= max_lines {
+            let mut visible = lines
+                .into_iter()
+                .enumerate()
+                .filter_map(|(index, line)| {
+                    (index < max_lines.saturating_sub(1) || index == expand_index).then_some(line)
+                })
+                .collect::<Vec<_>>();
+            visible.truncate(max_lines);
+            return visible;
+        }
+    }
+    lines.into_iter().take(max_lines).collect()
+}
+
+fn footer_line_has_expand_all(line: &FooterLine) -> bool {
+    line.items.iter().any(footer_item_is_expand_all)
+}
+
+fn footer_item_is_expand_all(item: &FooterItem) -> bool {
+    matches!(
+        &item.target,
+        Some(HitTarget::ExpandBlocks(_) | HitTarget::CollapseBlocks(_))
+    )
+}
+
+fn render_footer_controls(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    control_lines: Vec<FooterLine>,
+) {
+    let line_count = control_lines.len().min(area.height as usize);
+    let start_y = area
+        .y
+        .saturating_add(area.height.saturating_sub(line_count as u16));
+    for (line_index, line) in control_lines.into_iter().take(line_count).enumerate() {
+        let y = start_y.saturating_add(line_index as u16);
+        let mut x = area.x;
+        let mut spans = Vec::<Span<'static>>::new();
+        for (item_index, item) in line.items.into_iter().enumerate() {
+            if item_index > 0 {
+                spans.push(Span::raw(" "));
+                x = x.saturating_add(1);
+            }
+            let width = UnicodeWidthStr::width(item.label.as_str()) as u16;
+            if let Some(target) = item.target {
+                state
+                    .hit_areas
+                    .push(HitArea::new(Rect::new(x, y, width, 1), target));
+            }
+            spans.push(Span::styled(item.label, item.style));
+            x = x.saturating_add(width);
+        }
+        Paragraph::new(Line::from(spans))
+            .style(Style::default())
+            .render(Rect::new(area.x, y, area.width, 1), frame.buffer_mut());
+    }
 }
 
 fn scroll_summary(state: &AppState) -> String {
@@ -4158,7 +4284,7 @@ mod tests {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
         })
         .expect("footer expand all target");
-        assert!(expand_rect.y >= footer.y);
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
 
         let intent = click_rendered_target(
             &mut state,
@@ -4175,6 +4301,31 @@ mod tests {
         let content = draw(&mut state, 120, 36);
 
         assert!(content.contains("[collapse all]"));
+    }
+
+    #[test]
+    fn wrapped_footer_keeps_expand_all_pinned_to_bottom_command_bar() {
+        let mut state = AppState::new(pr_resource());
+        let content = draw(&mut state, 24, 24);
+        let footer = chrome_area_for_spacing(
+            rects_for_spacing(Rect::new(0, 0, 24, 24), state.spacing).footer,
+            state.spacing,
+        );
+
+        assert!(content.contains("[refresh]"));
+        assert!(content.contains("[copy]"));
+        assert!(content.contains("[open]"));
+        assert!(content.contains("[expand all]"));
+
+        let refresh_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::Refresh).unwrap();
+        let expand_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
+        })
+        .expect("footer expand all target");
+
+        assert!(refresh_rect.y >= footer.y);
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
     }
 
     #[test]
@@ -4658,7 +4809,7 @@ mod tests {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.iter().any(|block| matches!(block, BlockId::Patch(_))))
         })
         .expect("footer files expand all target");
-        assert!(expand_rect.y >= footer.y);
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
 
         let intent = click_rendered_target(
             &mut state,
