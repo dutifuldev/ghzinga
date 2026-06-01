@@ -22,12 +22,12 @@
   diff --git a/extensions/senseaudio/speech-provider.ts b/extensions/senseaudio/speech-provider.ts                   │  
   new file mode 100644                                                                                               │  
   @@ -0,0 +1,6 @@                                                                                                    │  
-  +export async function synthesizeSpeech(input: string) {                                                           │  
-  + const response = await fetch('/v1/t2a_v2', { method: 'POST' });                                                  █  
-  + if (!response.ok) throw new Error('SenseAudio synthesis failed');                                                █  
-  + return response.arrayBuffer();                                                                                   █  
-  +}                                                                                                                 █  
-  +export async function listVoices() { return fetch('/v1/get_voice'); }                                             █  
+  export async function synthesizeSpeech(input: string) {                                                            │  
+    const response = await fetch('/v1/t2a_v2', { method: 'POST' });                                                  █  
+    if (!response.ok) throw new Error('SenseAudio synthesis failed');                                                █  
+    return response.arrayBuffer();                                                                                   █  
+  }                                                                                                                  █  
+  export async function listVoices() { return fetch('/v1/get_voice'); }                                              █  
   [- less patch]                                                                                                     █  
   [- less]                                                                                                           █  
                                                                                                                      █  
