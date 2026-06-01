@@ -53,5 +53,9 @@ run_case pr_links "$pr_target" links \
   "[Links]" "openclaw/openclaw#"
 run_case issue_overview "$issue_target" overview \
   "[Overview]" "Activity  Links" "Bug Description" "[expand all]"
+run_case issue_activity "$issue_target" activity \
+  "[Activity]" "Comment by" "[details]"
+run_case issue_links "$issue_target" links \
+  "[Links]" "openclaw/openclaw#"
 
 printf 'OK: live GitHub smoke checks passed. Override targets with GZG_LIVE_PR_TARGET and GZG_LIVE_ISSUE_TARGET.\n'
