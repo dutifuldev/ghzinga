@@ -52,7 +52,7 @@ installed `gh` CLI is used only as a fallback credential source via
 | gh-dash-style scroll orientation | `footer_renders_scroll_position_cue_when_space_allows` verifies the footer exposes the scroll cue in the rendered chrome; `scroll_summary_reports_current_limit_and_percent` verifies current row, maximum row, clamping, and percentage math |
 | Transient content scrollbar | `scrolling_reveals_transient_scrollbar` verifies scroll input makes the scrollbar state visible and that it fades after the configured render countdown; `content_scrollbar_is_transient_after_scroll_input` verifies the Ratatui-rendered content pane has no thumb at rest, shows the thumb after scroll input, and hides it again after subsequent renders; PR/issue PageDown capture validators assert saved scroll captures include a visible scrollbar thumb |
 | Narrow/medium/large UX rendering | regenerated tmux captures for `80x24`, `120x36`, `160x50` in PR and issue capture directories; `captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only` verifies PR frame coverage, markers, footer controls, generated files, actual tmux dimensions, PR body/comment/review/commit/check/file/link content markers, and that app/rendering source paths have not changed since the manifest revision; the same script with `--root captures/ghzinga-issue-88499 --mode issue --validate-only` verifies issue frames plus body/comment/link content markers; CI runs both validate-only checks |
-| Current-resource browser open and visible URL copy | reducer tests for `o`, `y`, `[open]`, and `[copy]`; `ResourceId::web_url` tests verify PR and issue URL construction; `keyboard_y_copies_first_visible_open_url`, `keyboard_y_copies_first_visible_navigation_target`, and `keyboard_y_falls_back_to_current_resource_url` verify app-level copy behavior for visible content links and current-resource fallback; `url_open_command_uses_browser_env_when_available` and `url_open_command_preserves_browser_arguments` verify the direct browser adapter; `clipboard_command_uses_explicit_env_command`, `clipboard_command_prefers_wayland_when_available`, and `clipboard_command_uses_xclip_for_x11` verify the direct clipboard adapter; no `gh` shell-out is used for browser opening or clipboard copy |
+| Visible URL browser open and copy | reducer tests for `o`, `y`, `[open]`, and `[copy]`; `ResourceId::web_url` tests verify PR and issue URL construction; `keyboard_o_opens_first_visible_url`, `keyboard_o_falls_back_to_current_resource_url`, `keyboard_y_copies_first_visible_open_url`, `keyboard_y_copies_first_visible_navigation_target`, and `keyboard_y_falls_back_to_current_resource_url` verify app-level browser/copy behavior for visible content links and current-resource fallback; `url_open_command_uses_browser_env_when_available` and `url_open_command_preserves_browser_arguments` verify the direct browser adapter; `clipboard_command_uses_explicit_env_command`, `clipboard_command_prefers_wayland_when_available`, and `clipboard_command_uses_xclip_for_x11` verify the direct clipboard adapter; no `gh` shell-out is used for browser opening or clipboard copy |
 
 ## Capture Evidence
 
@@ -135,11 +135,10 @@ cargo test builds_kind_aware_web_urls
 cargo test gh_cli_shell_out_is_only_for_auth_token_fallback
 ```
 
-Current-resource open now uses the same direct browser adapter as exact clicked
-URLs. URL copy uses the first visible GitHub URL or navigation target when one
-is available, falls back to the current PR/issue URL, and uses a direct
-clipboard adapter that can be overridden with `GZG_COPY_COMMAND`. The installed
-`gh` CLI remains limited to the `gh auth token` credential fallback.
+Browser open and URL copy use the first visible GitHub URL or navigation target
+when one is available, fall back to the current PR/issue URL, and use direct
+adapters. The clipboard adapter can be overridden with `GZG_COPY_COMMAND`. The
+installed `gh` CLI remains limited to the `gh auth token` credential fallback.
 
 ## Remaining Risk
 

@@ -283,10 +283,6 @@ async fn handle_intent(
             }
             false
         }
-        AppIntent::OpenResource(id) => {
-            open_resource(state, &id).await;
-            false
-        }
         AppIntent::OpenUrl(url) => {
             open_url(state, &url).await;
             false
@@ -579,10 +575,6 @@ fn clipboard_command(
             }
         }
     }
-}
-
-async fn open_resource(state: &mut AppState, id: &ResourceId) {
-    open_url(state, &id.web_url()).await;
 }
 
 fn start_background_fetch(
