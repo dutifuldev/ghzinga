@@ -18,7 +18,13 @@ OFFLINE_RESOURCE_FIXTURES = []
 APP_FRESHNESS_PATHS = [
     "Cargo.lock",
     "Cargo.toml",
-    "src",
+    "src/app",
+    "src/domain",
+    "src/github",
+    "src/input",
+    "src/render",
+    "src/runner.rs",
+    "src/terminal",
     "fixtures",
 ]
 
