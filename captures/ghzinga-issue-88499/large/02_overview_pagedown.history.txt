@@ -17,7 +17,8 @@
                                                                                                                        │                                        
   Related issues: #84904 and #87310.                                                                                   │                                        
   [- less]                                                                                                             │                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       █                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
                                                                                                                        █                                        
   comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                 █                                        
   meta: association CONTRIBUTOR                                                                                        █                                        
@@ -29,11 +30,13 @@
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI    █                                        
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-onl█                                        
   path.                                                                                                                █                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
                                                                                                                        █                                        
-  - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                          █                                        
-  added label provider: openai-responses                                                                               █                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
+                                                                                                                       │                                        
+  - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                          │                                        
+  added label provider: openai-responses                                                                               │                                        
+                                                                                                                       │                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
                                                                                                                        │                                        
   comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                       │                                        
   meta: association CONTRIBUTOR                                                                                        │                                        
@@ -41,10 +44,7 @@
   Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when             │                                        
   previous_response_id is sent after an unstored first response. Removing the previous response reference makes the nex│                                        
   request succeed, which points at replay state rather than authentication or model availability.                      │                                        
+                                                                                                                       │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
                                                                                                                        │                                        
-  - Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                          │                                        
-  closed this with fix validation                                                                                      │                                        
-                                                                                                                       │                                        
-  Details                                                                                                              │                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/22 45% ...                                                                                         
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/26 38% ...                                                                                         

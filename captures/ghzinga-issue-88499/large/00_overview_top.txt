@@ -22,6 +22,7 @@
   The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes                                           
   replay safe.                                                                                                                                                  
   [+ more]                                                                                                                                                      
+                                                                                                                                                                
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                          
@@ -34,17 +35,16 @@
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
   path.                                                                                                                                                         
+                                                                                                                                                                
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                                                                   
   added label provider: openai-responses                                                                                                                        
+                                                                                                                                                                
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                                                
   meta: association CONTRIBUTOR                                                                                                                                 
   [details]                                                                                                                                                     
   Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when                                                      
-  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next                                        
-  request succeed, which points at replay state rather than authentication or model availability.                                                               
-  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/17 0% ...                                                                                           
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/21 0% ...                                                                                           
