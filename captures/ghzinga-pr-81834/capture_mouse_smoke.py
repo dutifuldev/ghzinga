@@ -170,6 +170,13 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, f"returned to {TARGET}")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
+        help_button = find_marker_position(SESSION, "[help]")
+        mouse_coordinates["help"] = list(help_button)
+        send_mouse_click(SESSION, *help_button)
+        wait_for_text(SESSION, "Keyboard")
+        wait_for_text(SESSION, "Mouse")
+        write_frame(ROOT, "70_mouse_footer_help", frames)
+
         manifest = {
             "target": TARGET,
             "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
@@ -287,6 +294,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             f"returned to {TARGET}",
         ],
+        "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():

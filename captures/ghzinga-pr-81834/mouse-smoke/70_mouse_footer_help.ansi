@@ -1,0 +1,36 @@
+[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;122;162;247mopenclaw/openclaw#81834[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;158;206;106m[PR OPEN][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 1d ago[38;2;192;202;245m                                                                      
+  feat(senseaudio): add SenseAudio TTS provider                                                                         
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+  [1m[38;2;26;27;38m[48;2;158;206;106mOK OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @KLilyZ[38;2;192;202;245m  [38;2;122;162;247mfeat/senseaudio-tts -> main[38;2;192;202;245m  [1m[38;2;26;27;38m[48;2;158;206;106mOK checks PASS (1 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m5 files[38;2;192;202;245m  [1m[38;2;125;207;255mdiff 1122[0m[38;2;192;202;245m[48;2;26;27;38m      
+  [1m[38;2;158;206;106m+1100[0m[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;247;118;142m-22[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                            
+  [38;2;169;177;214minfo returned to openclaw/openclaw#81834[38;2;192;202;245m                                                                              
+  [1m[38;2;26;27;38m[48;2;122;162;247m[Overview][0m[38;2;169;177;214m[48;2;26;27;38m Activity  Commits  Checks  Files  Links [38;2;192;202;245m                                                                   
+                                                                                                                        
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+                                                                                                                        
+  [1m[38;2;122;162;247mHelp[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                  
+                                                                                                                        
+  [1m[38;2;122;162;247mMouse[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                 
+  - Click tabs to switch sections.                                                                                      
+  - Click [+ more] / [- less] or [expand all] / [collapse all] to expand or collapse long text, checks, and files.      
+  - Click visible GitHub issue or PR references to navigate.                                                            
+  - Click settings rows to apply theme and symbol preferences.                                                          
+  - Use the mouse wheel to scroll the current view.                                                                     
+                                                                                                                        
+  [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                              
+  - q: quit                                                                                                             
+  - ?: toggle this help                                                                                                 
+  - s: open or close settings                                                                                           
+  - t / y / p in settings: cycle theme / symbol style / spacing                                                         
+  - r: refresh now                                                                                                      
+  - y: copy first visible URL, or current resource URL                                                                  
+  - o: open first visible URL, or current resource                                                                      
+  - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
+  - 1-6: jump to the visible tab in that position                                                                       
+  - v: reverse chronological feed order                                                                                 
+  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
+  - e: expand or collapse the main body                                                                                 
+  - Backspace: return after following a link                                                                            
+                                                                                                                        
+  [1m[38;2;122;162;247mRefresh[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                               
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/3 0% ...[38;2;192;202;245m                                                    
