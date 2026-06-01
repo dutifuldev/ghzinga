@@ -165,7 +165,8 @@ For pull requests:
 - changed files, with gh-dash-style file summary rows and separately expandable
   in-TUI patch context when a file row is expanded; patch additions render green,
   deletions render red, and hunk headers use an accent color by default
-- detected issue/PR links, including paginated GitHub relationship links
+- detected issue/PR links, including bare `#123` references, Markdown links, and
+  paginated GitHub relationship links
 
 For issues:
 
@@ -179,7 +180,8 @@ For issues:
   items, and converted discussions; comments and timeline events are paginated so
   long histories are not capped at the first page
 - comment author association, edit/minimized flags, reactions, and permalinks
-- detected issue/PR links, including paginated GitHub relationship links
+- detected issue/PR links, including bare `#123` references, Markdown links, and
+  paginated GitHub relationship links
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse
