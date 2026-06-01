@@ -3436,7 +3436,8 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit]"));
+        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit] scroll 0/"));
+        assert!(content.contains("[expand all]"));
         assert!(state
             .hit_areas
             .iter()
@@ -3467,6 +3468,13 @@ mod tests {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
         })
         .expect("expand all target");
+        let footer = chrome_area_for_spacing(
+            rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
+            state.spacing,
+        );
+
+        assert_eq!(expand_rect.y, quit_rect.y);
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
         assert!(expand_rect.x > quit_rect.x);
     }
 
