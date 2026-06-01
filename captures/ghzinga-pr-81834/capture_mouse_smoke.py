@@ -214,6 +214,8 @@ def read_saved_config() -> str:
         'theme = "default"',
         'symbols = "ascii"',
         'spacing = "compact"',
+        'width_mode = "fixed"',
+        "fixed_width = 118",
     ):
         if expected not in contents:
             raise RuntimeError(f"{capture_config_path()} missing {expected!r}:\n{contents}")
@@ -610,6 +612,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         'theme = "default"',
         'symbols = "ascii"',
         'spacing = "compact"',
+        'width_mode = "fixed"',
+        "fixed_width = 118",
     ):
         if expected_config_line not in saved_config:
             errors.append(f"manifest saved_config missing {expected_config_line!r}")

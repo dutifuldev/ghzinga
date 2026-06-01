@@ -36,13 +36,21 @@ Default config:
 theme = "default"
 symbols = "ascii"
 spacing = "comfortable"
+width_mode = "fixed"
+fixed_width = 118
 ```
 
 Supported values:
 
-- `ui.theme`: `default`, `solarized-dark`
+- `ui.theme`: Herdr-style built-ins: `default`, `catppuccin`,
+  `catppuccin-latte`, `terminal`, `tokyo-night`, `tokyo-night-day`, `dracula`,
+  `nord`, `gruvbox`, `gruvbox-light`, `one-dark`, `one-light`, `solarized`,
+  `solarized-light`, `kanagawa`, `kanagawa-lotus`, `rose-pine`,
+  `rose-pine-dawn`, and `vesper`
 - `ui.symbols`: `ascii`, `emoji`
 - `ui.spacing`: `comfortable`, `compact`
+- `ui.width_mode`: `fixed`, `full`
+- `ui.fixed_width`: fixed readable content width in terminal columns
 
 Rules:
 
@@ -69,17 +77,21 @@ works for both issues and pull requests.
 
 Initial controls:
 
-- Theme rows: `default`, `solarized-dark`
+- Theme rows: all built-in Herdr palettes
 - Symbol rows: `ascii`, `emoji`
 - Spacing rows: `comfortable`, `compact`, presented like a Gmail-style density
   choice where `comfortable` is the gh-dash-like reading mode and `compact` is
   the dense small-terminal mode.
+- Width rows: `fixed`, `full`, and fixed-width presets. Files stay full-width
+  because diffs need horizontal room.
 - Current values are bold and accented.
 - Mouse click applies a row immediately.
 - Keyboard shortcuts while settings are open:
   - `t`: cycle theme
   - `y`: cycle symbol style
   - `p`: cycle spacing mode
+  - `w`: cycle fixed/full width mode
+  - `-` / `+`: decrease/increase fixed readable width
   - `s` or `Esc`: close settings
   - `?`: help remains available
 

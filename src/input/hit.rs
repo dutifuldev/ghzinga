@@ -23,6 +23,8 @@ pub enum HitTarget {
     SetTheme(String),
     SetSymbols(String),
     SetSpacing(String),
+    SetWidthMode(String),
+    SetFixedWidth(u16),
 }
 
 impl HitTarget {
@@ -38,6 +40,8 @@ impl HitTarget {
                 | Self::SetTheme(_)
                 | Self::SetSymbols(_)
                 | Self::SetSpacing(_)
+                | Self::SetWidthMode(_)
+                | Self::SetFixedWidth(_)
         )
     }
 }

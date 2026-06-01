@@ -2,7 +2,11 @@ use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceKind};
 use crate::input::HitArea;
-use crate::render::{SpacingMode, SymbolMode, ThemeName};
+use crate::render::{
+    normalize_fixed_width, ContentWidthMode, SpacingMode, SymbolMode, ThemeName,
+    DEFAULT_FIXED_CONTENT_WIDTH, FIXED_CONTENT_WIDTH_STEP, MAX_FIXED_CONTENT_WIDTH,
+    MIN_FIXED_CONTENT_WIDTH,
+};
 
 const SCROLLBAR_VISIBLE_FRAMES: u8 = 12;
 
@@ -102,6 +106,8 @@ pub struct AppState {
     pub theme: ThemeName,
     pub symbols: SymbolMode,
     pub spacing: SpacingMode,
+    pub width_mode: ContentWidthMode,
+    pub fixed_width: u16,
     pub config_path: PathBuf,
 }
 
@@ -130,6 +136,8 @@ impl AppState {
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
             spacing: SpacingMode::Comfortable,
+            width_mode: ContentWidthMode::Fixed,
+            fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,
             config_path: crate::config::config_path(),
         }
     }
@@ -359,11 +367,34 @@ impl AppState {
         true
     }
 
+    pub fn set_width_mode(&mut self, width_mode: ContentWidthMode) -> bool {
+        if self.width_mode == width_mode {
+            return false;
+        }
+        self.width_mode = width_mode;
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+        true
+    }
+
+    pub fn set_fixed_width(&mut self, fixed_width: u16) -> bool {
+        let fixed_width = normalize_fixed_width(fixed_width);
+        if self.fixed_width == fixed_width {
+            return false;
+        }
+        self.fixed_width = fixed_width;
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+        true
+    }
+
     pub fn cycle_theme(&mut self) -> bool {
-        let next = match self.theme {
-            ThemeName::Default => ThemeName::SolarizedDark,
-            ThemeName::SolarizedDark => ThemeName::Default,
-        };
+        let themes = ThemeName::ALL;
+        let index = themes
+            .iter()
+            .position(|theme| *theme == self.theme)
+            .unwrap_or(0);
+        let next = themes[(index + 1) % themes.len()];
         self.set_theme(next)
     }
 
@@ -381,6 +412,30 @@ impl AppState {
             SpacingMode::Compact => SpacingMode::Comfortable,
         };
         self.set_spacing(next)
+    }
+
+    pub fn cycle_width_mode(&mut self) -> bool {
+        let next = match self.width_mode {
+            ContentWidthMode::Fixed => ContentWidthMode::Full,
+            ContentWidthMode::Full => ContentWidthMode::Fixed,
+        };
+        self.set_width_mode(next)
+    }
+
+    pub fn increase_fixed_width(&mut self) -> bool {
+        self.set_fixed_width(
+            self.fixed_width
+                .saturating_add(FIXED_CONTENT_WIDTH_STEP)
+                .min(MAX_FIXED_CONTENT_WIDTH),
+        )
+    }
+
+    pub fn decrease_fixed_width(&mut self) -> bool {
+        self.set_fixed_width(
+            self.fixed_width
+                .saturating_sub(FIXED_CONTENT_WIDTH_STEP)
+                .max(MIN_FIXED_CONTENT_WIDTH),
+        )
     }
 
     pub fn set_scroll_limit(&mut self, limit: u16) {

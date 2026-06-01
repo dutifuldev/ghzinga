@@ -6,7 +6,10 @@ use std::{
 
 use serde::Deserialize;
 
-use crate::render::{SpacingMode, SymbolMode, ThemeName};
+use crate::render::{
+    normalize_fixed_width, ContentWidthMode, SpacingMode, SymbolMode, ThemeName,
+    DEFAULT_FIXED_CONTENT_WIDTH,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AppConfig {
@@ -18,6 +21,8 @@ pub struct UiConfig {
     pub theme: ThemeName,
     pub symbols: SymbolMode,
     pub spacing: SpacingMode,
+    pub width_mode: ContentWidthMode,
+    pub fixed_width: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,6 +42,8 @@ struct RawUiConfig {
     theme: Option<String>,
     symbols: Option<String>,
     spacing: Option<String>,
+    width_mode: Option<String>,
+    fixed_width: Option<u16>,
 }
 
 impl Default for UiConfig {
@@ -45,6 +52,8 @@ impl Default for UiConfig {
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
             spacing: SpacingMode::Comfortable,
+            width_mode: ContentWidthMode::Fixed,
+            fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,
         }
     }
 }
@@ -65,10 +74,24 @@ impl AppConfig {
         self
     }
 
+    pub fn with_width_mode(mut self, width_mode: ContentWidthMode) -> Self {
+        self.ui.width_mode = width_mode;
+        self
+    }
+
+    pub fn with_fixed_width(mut self, fixed_width: u16) -> Self {
+        self.ui.fixed_width = normalize_fixed_width(fixed_width);
+        self
+    }
+
     pub fn to_toml(self) -> String {
         format!(
-            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\nspacing = \"{}\"\n",
-            self.ui.theme, self.ui.symbols, self.ui.spacing
+            "[ui]\ntheme = \"{}\"\nsymbols = \"{}\"\nspacing = \"{}\"\nwidth_mode = \"{}\"\nfixed_width = {}\n",
+            self.ui.theme,
+            self.ui.symbols,
+            self.ui.spacing,
+            self.ui.width_mode,
+            self.ui.fixed_width
         )
     }
 }
@@ -168,6 +191,17 @@ fn parse_config(contents: &str, diagnostics: &mut Vec<String>) -> AppConfig {
                 }
             }
         }
+        if let Some(width_mode) = ui.width_mode {
+            match ContentWidthMode::from_str(&width_mode) {
+                Ok(width_mode) => config.ui.width_mode = width_mode,
+                Err(error) => {
+                    diagnostics.push(format!("invalid ui.width_mode `{width_mode}`: {error}"));
+                }
+            }
+        }
+        if let Some(fixed_width) = ui.fixed_width {
+            config.ui.fixed_width = normalize_fixed_width(fixed_width);
+        }
     }
     config
 }
@@ -192,13 +226,15 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n",
+            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n",
             &mut diagnostics,
         );
 
-        assert_eq!(config.ui.theme, ThemeName::SolarizedDark);
+        assert_eq!(config.ui.theme, ThemeName::Solarized);
         assert_eq!(config.ui.symbols, SymbolMode::Emoji);
         assert_eq!(config.ui.spacing, SpacingMode::Compact);
+        assert_eq!(config.ui.width_mode, ContentWidthMode::Full);
+        assert_eq!(config.ui.fixed_width, 132);
         assert!(diagnostics.is_empty());
     }
 
@@ -207,15 +243,29 @@ mod tests {
         let mut diagnostics = Vec::new();
 
         let config = parse_config(
-            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\nspacing = \"wide\"\n",
+            "[ui]\ntheme = \"loud\"\nsymbols = \"icons\"\nspacing = \"wide\"\nwidth_mode = \"middle\"\n",
             &mut diagnostics,
         );
 
         assert_eq!(config, AppConfig::default());
-        assert_eq!(diagnostics.len(), 3);
+        assert_eq!(diagnostics.len(), 4);
         assert!(diagnostics[0].contains("invalid ui.theme"));
         assert!(diagnostics[1].contains("invalid ui.symbols"));
         assert!(diagnostics[2].contains("invalid ui.spacing"));
+        assert!(diagnostics[3].contains("invalid ui.width_mode"));
+    }
+
+    #[test]
+    fn fixed_width_is_clamped_from_config() {
+        let mut diagnostics = Vec::new();
+
+        let config = parse_config("[ui]\nfixed_width = 12\n", &mut diagnostics);
+
+        assert_eq!(
+            config.ui.fixed_width,
+            crate::render::MIN_FIXED_CONTENT_WIDTH
+        );
+        assert!(diagnostics.is_empty());
     }
 
     #[test]
@@ -239,16 +289,18 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("nested/config.toml");
         let config = AppConfig::default()
-            .with_theme(ThemeName::SolarizedDark)
+            .with_theme(ThemeName::Solarized)
             .with_symbols(SymbolMode::Emoji)
-            .with_spacing(SpacingMode::Compact);
+            .with_spacing(SpacingMode::Compact)
+            .with_width_mode(ContentWidthMode::Full)
+            .with_fixed_width(132);
 
         save_to_path(&path, config).unwrap();
 
         let contents = fs::read_to_string(path).unwrap();
         assert_eq!(
             contents,
-            "[ui]\ntheme = \"solarized-dark\"\nsymbols = \"emoji\"\nspacing = \"compact\"\n"
+            "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n"
         );
     }
 }

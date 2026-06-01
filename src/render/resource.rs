@@ -12,8 +12,8 @@ use crate::{
     domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
     render::{
-        markdown, time::compact_relative_time, time::relative_time_phrase, Palette, SpacingMode,
-        SymbolMode, Symbols, ThemeName, ViewRects,
+        markdown, time::compact_relative_time, time::relative_time_phrase, ContentWidthMode,
+        Palette, SpacingMode, SymbolMode, Symbols, ThemeName, ViewRects,
     },
 };
 
@@ -61,9 +61,8 @@ struct CheckGroupRenderContext<'a> {
 }
 
 const COMFORTABLE_GUTTER: u16 = 2;
-const COMFORTABLE_MAX_READABLE_WIDTH: u16 = 118;
 const COMFORTABLE_MIN_CAP_WIDTH: u16 =
-    COMFORTABLE_MAX_READABLE_WIDTH + (COMFORTABLE_GUTTER * 2) + 12;
+    crate::render::DEFAULT_FIXED_CONTENT_WIDTH + (COMFORTABLE_GUTTER * 2) + 12;
 
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
@@ -265,8 +264,16 @@ fn register_header_identity_hit_area(
             label_width.min(area.width),
             1,
         ),
-        HitTarget::OpenHeaderUrl(state.resource.id.web_url()),
+        HitTarget::OpenHeaderUrl(resource_link_url(&state.resource)),
     ));
+}
+
+fn resource_link_url(resource: &Resource) -> String {
+    if resource.url.trim().is_empty() {
+        resource.id.web_url()
+    } else {
+        resource.url.clone()
+    }
 }
 
 fn header_identity_width(
@@ -793,7 +800,7 @@ fn refresh_changes_summary(state: &AppState) -> Option<String> {
 }
 
 fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let content_area = content_area_for_spacing(area, state.spacing, active_content_tab(state));
+    let content_area = content_area_for_state(area, state, active_content_tab(state));
     let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
     let rows =
@@ -954,16 +961,46 @@ fn active_content_tab(state: &AppState) -> Tab {
     }
 }
 
+fn content_area_for_state(area: Rect, state: &AppState, tab: Tab) -> Rect {
+    content_area_for_preferences(
+        area,
+        state.spacing,
+        state.width_mode,
+        state.fixed_width,
+        tab,
+    )
+}
+
+#[cfg(test)]
 fn content_area_for_spacing(area: Rect, spacing: SpacingMode, tab: Tab) -> Rect {
+    content_area_for_preferences(
+        area,
+        spacing,
+        ContentWidthMode::Fixed,
+        crate::render::DEFAULT_FIXED_CONTENT_WIDTH,
+        tab,
+    )
+}
+
+fn content_area_for_preferences(
+    area: Rect,
+    spacing: SpacingMode,
+    width_mode: ContentWidthMode,
+    fixed_width: u16,
+    tab: Tab,
+) -> Rect {
     if spacing == SpacingMode::Compact || area.width < 48 {
         return area;
     }
 
     let width_after_gutter = area.width.saturating_sub(COMFORTABLE_GUTTER * 2);
-    let width = if tab == Tab::Files || area.width < COMFORTABLE_MIN_CAP_WIDTH {
+    let width = if tab == Tab::Files
+        || width_mode == ContentWidthMode::Full
+        || area.width < COMFORTABLE_MIN_CAP_WIDTH
+    {
         width_after_gutter
     } else {
-        width_after_gutter.min(COMFORTABLE_MAX_READABLE_WIDTH)
+        width_after_gutter.min(crate::render::normalize_fixed_width(fixed_width))
     };
 
     Rect::new(
@@ -1154,7 +1191,8 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- q: quit",
             "- ?: toggle this help",
             "- s: open or close settings",
-            "- t / y / p in settings: cycle theme / symbol style / spacing",
+            "- t / y / p / w in settings: cycle theme / symbols / spacing / width mode",
+            "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
@@ -1200,19 +1238,48 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
         button_style(palette),
     ));
     rows.push(ContentRow::plain(""));
-    rows.push(heading_row("Theme", palette));
+    rows.push(heading_row("Width", palette));
     rows.push(settings_option_row(
-        "default",
-        "Tokyo-inspired default dark colors",
-        state.theme == ThemeName::Default,
-        HitTarget::SetTheme("default".into()),
+        "fixed",
+        "Cap reading tabs to the configured width",
+        state.width_mode == ContentWidthMode::Fixed,
+        HitTarget::SetWidthMode("fixed".into()),
         palette,
     ));
     rows.push(settings_option_row(
-        "solarized-dark",
-        "Solarized dark colors",
-        state.theme == ThemeName::SolarizedDark,
-        HitTarget::SetTheme("solarized-dark".into()),
+        "full",
+        "Use the full content width",
+        state.width_mode == ContentWidthMode::Full,
+        HitTarget::SetWidthMode("full".into()),
+        palette,
+    ));
+    rows.push(ContentRow::styled(
+        format!("Fixed width: {} columns", state.fixed_width),
+        dim_style(palette),
+    ));
+    for width in [88, 100, 118, 132, 148] {
+        rows.push(settings_option_row(
+            width.to_string(),
+            "Fixed-width preset",
+            state.fixed_width == width,
+            HitTarget::SetFixedWidth(width),
+            palette,
+        ));
+    }
+    rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Spacing", palette));
+    rows.push(settings_option_row(
+        "comfortable",
+        "Gmail-style density with gh-dash-like spacing",
+        state.spacing == SpacingMode::Comfortable,
+        HitTarget::SetSpacing("comfortable".into()),
+        palette,
+    ));
+    rows.push(settings_option_row(
+        "compact",
+        "Dense rows for smaller terminals",
+        state.spacing == SpacingMode::Compact,
+        HitTarget::SetSpacing("compact".into()),
         palette,
     ));
     rows.push(ContentRow::plain(""));
@@ -1232,25 +1299,20 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
         palette,
     ));
     rows.push(ContentRow::plain(""));
-    rows.push(heading_row("Spacing", palette));
-    rows.push(settings_option_row(
-        "comfortable",
-        "Gmail-style density with gh-dash-like spacing",
-        state.spacing == SpacingMode::Comfortable,
-        HitTarget::SetSpacing("comfortable".into()),
-        palette,
-    ));
-    rows.push(settings_option_row(
-        "compact",
-        "Dense rows for smaller terminals",
-        state.spacing == SpacingMode::Compact,
-        HitTarget::SetSpacing("compact".into()),
-        palette,
-    ));
+    rows.push(heading_row("Theme", palette));
+    for theme in ThemeName::ALL {
+        rows.push(settings_option_row(
+            theme.to_string(),
+            theme_description(*theme),
+            state.theme == *theme,
+            HitTarget::SetTheme(theme.to_string()),
+            palette,
+        ));
+    }
     rows.extend(
         [
             "",
-            "Keyboard: t theme | y symbols | p spacing | s or Esc close",
+            "Keyboard: t theme | y symbols | p spacing | w width mode | -/+ width | s or Esc close",
             "Changes are applied live and saved immediately.",
         ]
         .into_iter()
@@ -1261,12 +1323,14 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
 }
 
 fn settings_option_row(
-    name: &'static str,
-    description: &'static str,
+    name: impl Into<String>,
+    description: impl Into<String>,
     selected: bool,
     target: HitTarget,
     palette: &Palette,
 ) -> ContentRow {
+    let name = name.into();
+    let description = description.into();
     let marker = if selected { "[x]" } else { "[ ]" };
     let marker_style = if selected {
         Style::default()
@@ -1292,6 +1356,30 @@ fn settings_option_row(
         ]),
         target,
     )
+}
+
+fn theme_description(theme: ThemeName) -> &'static str {
+    match theme {
+        ThemeName::Default => "Current default Tokyo Night colors",
+        ThemeName::Catppuccin => "Herdr Catppuccin Mocha",
+        ThemeName::CatppuccinLatte => "Herdr Catppuccin Latte",
+        ThemeName::Terminal => "Terminal ANSI colors",
+        ThemeName::TokyoNight => "Herdr Tokyo Night",
+        ThemeName::TokyoNightDay => "Herdr Tokyo Night Day",
+        ThemeName::Dracula => "Herdr Dracula",
+        ThemeName::Nord => "Herdr Nord",
+        ThemeName::Gruvbox => "Herdr Gruvbox dark",
+        ThemeName::GruvboxLight => "Herdr Gruvbox light",
+        ThemeName::OneDark => "Herdr One Dark",
+        ThemeName::OneLight => "Herdr One Light",
+        ThemeName::Solarized => "Herdr Solarized dark",
+        ThemeName::SolarizedLight => "Herdr Solarized light",
+        ThemeName::Kanagawa => "Herdr Kanagawa",
+        ThemeName::KanagawaLotus => "Herdr Kanagawa Lotus",
+        ThemeName::RosePine => "Herdr Rose Pine",
+        ThemeName::RosePineDawn => "Herdr Rose Pine Dawn",
+        ThemeName::Vesper => "Herdr Vesper",
+    }
 }
 
 fn overview_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -3978,6 +4066,38 @@ mod tests {
     }
 
     #[test]
+    fn width_mode_full_uses_available_content_width() {
+        let area = Rect::new(0, 4, 160, 20);
+
+        let full = content_area_for_preferences(
+            area,
+            SpacingMode::Comfortable,
+            ContentWidthMode::Full,
+            118,
+            Tab::Overview,
+        );
+
+        assert_eq!(full.x, 2);
+        assert_eq!(full.width, 156);
+    }
+
+    #[test]
+    fn fixed_width_setting_controls_reading_width() {
+        let area = Rect::new(0, 4, 180, 20);
+
+        let fixed = content_area_for_preferences(
+            area,
+            SpacingMode::Comfortable,
+            ContentWidthMode::Fixed,
+            132,
+            Tab::Overview,
+        );
+
+        assert_eq!(fixed.x, 2);
+        assert_eq!(fixed.width, 132);
+    }
+
+    #[test]
     fn comfortable_spacing_keeps_files_full_width_for_diffs() {
         let area = Rect::new(0, 4, 160, 20);
 
@@ -4897,7 +5017,7 @@ mod tests {
 
     #[test]
     fn renders_settings_view_with_clickable_options() {
-        let backend = TestBackend::new(100, 30);
+        let backend = TestBackend::new(120, 60);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut state = AppState::new(pr_resource());
         state.show_settings = true;
@@ -4909,14 +5029,19 @@ mod tests {
 
         assert!(content.contains("Settings"));
         assert!(content.contains("Config:"));
-        assert!(content.contains("solarized-dark"));
+        assert!(content.contains("solarized"));
+        assert!(content.contains("rose-pine"));
         assert!(content.contains("emoji"));
         assert!(content.contains("comfortable"));
         assert!(content.contains("compact"));
+        assert!(content.contains("Width"));
+        assert!(content.contains("fixed"));
+        assert!(content.contains("full"));
+        assert!(content.contains("118"));
         assert!(state
             .hit_areas
             .iter()
-            .any(|area| area.target == HitTarget::SetTheme("solarized-dark".into())));
+            .any(|area| area.target == HitTarget::SetTheme("solarized".into())));
         assert!(state
             .hit_areas
             .iter()
@@ -4925,6 +5050,14 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::SetSpacing("compact".into())));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetWidthMode("full".into())));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetFixedWidth(132)));
         assert!(state
             .hit_areas
             .iter()
