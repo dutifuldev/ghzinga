@@ -75,6 +75,26 @@ def send_mouse_click(session: str, column: int, row: int):
     time.sleep(0.5)
 
 
+def click_marker_until_text(
+    session: str,
+    marker: str,
+    expected: str,
+    timeout: float = 10.0,
+) -> tuple[int, int]:
+    deadline = time.time() + timeout
+    last_position = find_marker_position(session, marker)
+    while time.time() < deadline:
+        last_position = find_marker_position(session, marker)
+        send_mouse_click(session, *last_position)
+        if expected in capture_plain(session):
+            return last_position
+        time.sleep(0.25)
+    raise RuntimeError(
+        f"{session} did not render {expected!r} after clicking {marker!r}. "
+        f"Last screen:\n{capture_plain(session)}"
+    )
+
+
 def send_key(session: str, key: str):
     tmux("send-keys", "-t", session, key)
     time.sleep(0.5)
@@ -436,10 +456,12 @@ def capture_mouse_smoke():
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, load_full_command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
         wait_for_text(SESSION, "[load full]")
-        load_full_button = find_marker_position(SESSION, "[load full]")
+        load_full_button = click_marker_until_text(
+            SESSION,
+            "[load full]",
+            "offline fixture mode: full-depth load skipped",
+        )
         mouse_coordinates["load_full"] = list(load_full_button)
-        send_mouse_click(SESSION, *load_full_button)
-        wait_for_text(SESSION, "offline fixture mode: full-depth load skipped")
         write_frame(ROOT, "90_mouse_footer_load_full", frames)
         manifest["load_full_fixture"] = str(LOAD_FULL_FIXTURE.relative_to(REPO))
         manifest["load_full_command"] = load_full_command
