@@ -380,6 +380,32 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
     )
 }
 
+pub(crate) fn issue_linked_branches_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      linkedBranches(first: 100, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          ref {
+            name
+            repository {
+              nameWithOwner
+              url
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn comments_query(kind: ResourceKind) -> String {
     let selector = selector(kind);
     format!(
