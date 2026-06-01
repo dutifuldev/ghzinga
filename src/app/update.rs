@@ -216,6 +216,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             AppIntent::None
         }
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
+        HitTarget::OpenHeaderUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::CopyVisibleUrl => AppIntent::CopyUrl(visible_or_current_url(state)),
         HitTarget::OpenVisibleUrl => AppIntent::OpenUrl(visible_or_current_url(state)),

@@ -11,6 +11,7 @@ pub enum HitTarget {
     CollapseBlocks(Vec<BlockId>),
     Navigate(ResourceId),
     OpenUrl(String),
+    OpenHeaderUrl(String),
     Refresh,
     LoadFullDepth,
     CopyVisibleUrl,
