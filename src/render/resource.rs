@@ -46,13 +46,6 @@ struct CheckGroupRenderContext<'a> {
     symbols: &'a Symbols,
 }
 
-#[derive(Default)]
-struct ActivityCounts {
-    comments: usize,
-    reviews: usize,
-    timeline: usize,
-}
-
 const COMFORTABLE_GUTTER: u16 = 2;
 const COMFORTABLE_MAX_READABLE_WIDTH: u16 = 118;
 const COMFORTABLE_MIN_CAP_WIDTH: u16 =
@@ -119,15 +112,15 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         &state.resource,
         &palette,
     );
-    render_tabs(
-        frame,
-        chrome_area_for_spacing(rects.tabs, state.spacing),
-        state,
-        &palette,
-    );
     render_status(
         frame,
         chrome_area_for_spacing(rects.status, state.spacing),
+        state,
+        &palette,
+    );
+    render_tabs(
+        frame,
+        chrome_area_for_spacing(rects.tabs, state.spacing),
         state,
         &palette,
     );
@@ -280,63 +273,21 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
             resource_state_symbol(resource, &symbols),
             resource.state
         ),
-        style: resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
+        style: resource_state_badge_style(resource, palette),
     });
-    if let Some(message) = loading_status_text(state) {
-        push_status_piece(
-            &mut pieces,
-            message,
-            Style::default()
-                .fg(palette.accent)
-                .add_modifier(Modifier::BOLD),
-        );
-    }
     push_status_piece(
         &mut pieces,
         format!("{} @{}", symbols.author, resource.author),
         Style::default().fg(palette.subtext0),
     );
-    let activity_counts = activity_counts(resource);
-    push_status_piece(
-        &mut pieces,
-        format!("{} {}", symbols.comments, activity_counts.comments),
-        Style::default().fg(palette.teal),
-    );
-    if activity_counts.reviews > 0 {
-        push_status_piece(
-            &mut pieces,
-            status_labeled_count(symbols.activity_review, "reviews", activity_counts.reviews),
-            Style::default().fg(palette.green),
-        );
-    }
-    if activity_counts.timeline > 0 {
-        push_status_piece(
-            &mut pieces,
-            status_labeled_count(
-                symbols.activity_timeline,
-                "timeline",
-                activity_counts.timeline,
-            ),
-            Style::default().fg(palette.subtext0),
-        );
-    }
-    push_status_piece(
-        &mut pieces,
-        format!("{} {}", symbols.reactions, resource.reactions.total()),
-        Style::default().fg(palette.yellow),
-    );
-    if !resource.assignees.is_empty() {
-        push_status_piece(
-            &mut pieces,
-            format!(
-                "{} {}",
-                symbols.assignees,
-                people_summary(&resource.assignees)
-            ),
-            Style::default().fg(palette.blue),
-        );
-    }
     if resource.is_pull_request() {
+        if let Some(pr) = &resource.pull_request {
+            push_status_piece(
+                &mut pieces,
+                branch_summary(pr),
+                Style::default().fg(palette.accent),
+            );
+        }
         push_status_piece(
             &mut pieces,
             format!(
@@ -344,83 +295,59 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
                 checks_symbol(resource, &symbols),
                 checks_summary(resource)
             ),
-            checks_style(resource, palette).add_modifier(Modifier::BOLD),
+            checks_badge_style(resource, palette),
         );
-        if let Some(threads) = review_threads_summary(resource) {
-            push_status_piece(
-                &mut pieces,
-                format!("{} {threads}", symbols.threads),
-                Style::default().fg(palette.peach),
-            );
-        }
         if let Some(pr) = &resource.pull_request {
+            let total_delta = pr.additions.saturating_add(pr.deletions);
             push_status_piece(
                 &mut pieces,
-                format!(
-                    "{} {} +{} -{}",
-                    symbols.files,
-                    pr.files.len(),
-                    pr.additions,
-                    pr.deletions
-                ),
+                file_count_summary(symbols.files, pr.files.len()),
                 Style::default().fg(palette.subtext0),
             );
+            push_status_piece(
+                &mut pieces,
+                format!("diff {total_delta}"),
+                Style::default()
+                    .fg(palette.teal)
+                    .add_modifier(Modifier::BOLD),
+            );
+            push_status_piece(
+                &mut pieces,
+                format!("+{}", pr.additions),
+                Style::default()
+                    .fg(palette.green)
+                    .add_modifier(Modifier::BOLD),
+            );
+            push_status_piece(
+                &mut pieces,
+                format!("-{}", pr.deletions),
+                Style::default()
+                    .fg(palette.red)
+                    .add_modifier(Modifier::BOLD),
+            );
         }
     }
-    if !resource.warnings.is_empty() {
-        push_status_piece(
-            &mut pieces,
-            format!("{} Warnings: {}", symbols.warning, resource.warnings.len()),
-            Style::default()
-                .fg(palette.yellow)
-                .add_modifier(Modifier::BOLD),
-        );
-    }
-    if let Some(refresh) = refresh_summary(state) {
-        push_status_piece(
-            &mut pieces,
-            format!("{} {refresh}", symbols.refresh),
-            Style::default().fg(palette.accent),
-        );
-    }
-    if let Some(changes) = refresh_changes_summary(state) {
-        push_status_piece(
-            &mut pieces,
-            format!("{} {changes}", symbols.changed),
-            Style::default()
-                .fg(palette.green)
-                .add_modifier(Modifier::BOLD),
-        );
-    }
 
-    let mut lines = wrap_styled_pieces(&pieces, area.width as usize);
-    if let Some(message) = status_detail_line(state, &symbols) {
-        let style = if state.last_error.is_some() {
-            Style::default()
-                .fg(palette.red)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(palette.subtext0)
-        };
-        lines.extend(
-            markdown::wrap_plain_text(&message, area.width as usize)
-                .into_iter()
-                .map(|line| Line::from(Span::styled(line, style))),
-        );
+    let detail = status_detail_line(state, &symbols);
+    let detail_rows = usize::from(area.height > 1);
+    let summary_rows = (area.height as usize).saturating_sub(detail_rows).max(1);
+    let mut lines = fit_lines_to_height(
+        wrap_styled_pieces(&pieces, area.width as usize),
+        summary_rows,
+        area.width as usize,
+        palette,
+    );
+    if area.height > 1 {
+        lines.extend(status_detail_lines(
+            detail.as_deref(),
+            state.last_error.is_some(),
+            area.width as usize,
+            detail_rows,
+            palette,
+        ));
     }
     if lines.is_empty() {
         lines.push(separator_line(area.width, palette));
-    }
-    if lines.len() > area.height as usize {
-        lines.truncate(area.height as usize);
-        if let Some(last) = lines.last_mut() {
-            *last = Line::from(Span::styled(
-                truncate_display("...", area.width as usize),
-                Style::default()
-                    .fg(palette.overlay1)
-                    .add_modifier(Modifier::BOLD),
-            ));
-        }
     }
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
@@ -441,6 +368,16 @@ fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
     if let Some(message) = &state.status_message {
         return Some(format!("{} {message}", symbols.info));
     }
+    let mut details = Vec::new();
+    if let Some(refresh) = refresh_summary(state) {
+        details.push(format!("{} {refresh}", symbols.refresh));
+    }
+    if let Some(changes) = refresh_changes_summary(state) {
+        details.push(format!("{} {changes}", symbols.changed));
+    }
+    if !details.is_empty() {
+        return Some(details.join("  "));
+    }
     None
 }
 
@@ -450,31 +387,81 @@ fn loading_status_text(state: &AppState) -> Option<String> {
     Some(format!("Loading {indicator}: {message}"))
 }
 
-fn status_labeled_count(symbol: &str, label: &str, count: usize) -> String {
-    if symbol == label || label.strip_suffix('s') == Some(symbol) {
-        format!("{label} {count}")
+fn branch_summary(pr: &crate::domain::PullRequest) -> String {
+    let head = if pr.head_ref.trim().is_empty() {
+        "head"
     } else {
-        format!("{symbol} {label} {count}")
+        pr.head_ref.as_str()
+    };
+    let base = if pr.base_ref.trim().is_empty() {
+        "base"
+    } else {
+        pr.base_ref.as_str()
+    };
+    format!("{head} -> {base}")
+}
+
+fn file_count_summary(symbol: &str, count: usize) -> String {
+    let noun = if count == 1 { "file" } else { "files" };
+    if symbol == "files" {
+        format!("{count} {noun}")
+    } else {
+        format!("{symbol} {count} {noun}")
     }
 }
 
-fn activity_counts(resource: &Resource) -> ActivityCounts {
-    let mut counts = ActivityCounts::default();
-    for entry in &resource.activity {
-        match entry.kind {
-            crate::domain::ActivityKind::Comment | crate::domain::ActivityKind::CommitComment => {
-                counts.comments += 1;
-            }
-            crate::domain::ActivityKind::Review => {
-                counts.reviews += 1;
-            }
-            crate::domain::ActivityKind::ReviewComment => {}
-            crate::domain::ActivityKind::Timeline => {
-                counts.timeline += 1;
-            }
+fn status_detail_lines(
+    detail: Option<&str>,
+    is_error: bool,
+    width: usize,
+    max_rows: usize,
+    palette: &Palette,
+) -> Vec<Line<'static>> {
+    if max_rows == 0 {
+        return Vec::new();
+    }
+    let Some(detail) = detail else {
+        return vec![Line::from("")];
+    };
+    let style = if is_error {
+        Style::default()
+            .fg(palette.red)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(palette.subtext0)
+    };
+    fit_lines_to_height(
+        markdown::wrap_plain_text(detail, width)
+            .into_iter()
+            .map(|line| Line::from(Span::styled(line, style)))
+            .collect(),
+        max_rows,
+        width,
+        palette,
+    )
+}
+
+fn fit_lines_to_height(
+    mut lines: Vec<Line<'static>>,
+    max_rows: usize,
+    width: usize,
+    palette: &Palette,
+) -> Vec<Line<'static>> {
+    if lines.len() <= max_rows {
+        return lines;
+    }
+    lines.truncate(max_rows);
+    if let Some(last) = lines.last_mut() {
+        if UnicodeWidthStr::width(line_text(last).as_str()).saturating_add(4) <= width {
+            last.spans.push(Span::styled(
+                " ...",
+                Style::default()
+                    .fg(palette.overlay1)
+                    .add_modifier(Modifier::BOLD),
+            ));
         }
     }
-    counts
+    lines
 }
 
 fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>> {
@@ -533,6 +520,19 @@ fn resource_state_style(resource: &Resource, palette: &Palette) -> Style {
     Style::default().fg(color)
 }
 
+fn resource_state_badge_style(resource: &Resource, palette: &Palette) -> Style {
+    let color = match resource.state.to_ascii_uppercase().as_str() {
+        "OPEN" => palette.green,
+        "MERGED" => palette.accent,
+        "CLOSED" => palette.red,
+        _ => palette.surface1,
+    };
+    Style::default()
+        .fg(palette.panel_bg)
+        .bg(color)
+        .add_modifier(Modifier::BOLD)
+}
+
 fn checks_symbol(resource: &Resource, symbols: &Symbols) -> &'static str {
     match summarize_checks(resource).as_str() {
         "PASS" => symbols.checks_pass,
@@ -542,13 +542,17 @@ fn checks_symbol(resource: &Resource, symbols: &Symbols) -> &'static str {
     }
 }
 
-fn checks_style(resource: &Resource, palette: &Palette) -> Style {
-    match summarize_checks(resource).as_str() {
-        "PASS" => Style::default().fg(palette.green),
-        "FAIL" => Style::default().fg(palette.red),
-        "PENDING" => Style::default().fg(palette.yellow),
-        _ => Style::default().fg(palette.subtext0),
-    }
+fn checks_badge_style(resource: &Resource, palette: &Palette) -> Style {
+    let color = match summarize_checks(resource).as_str() {
+        "PASS" => palette.green,
+        "FAIL" => palette.red,
+        "PENDING" => palette.yellow,
+        _ => palette.surface1,
+    };
+    Style::default()
+        .fg(palette.panel_bg)
+        .bg(color)
+        .add_modifier(Modifier::BOLD)
 }
 
 fn check_status_symbol(status: CheckStatus, symbols: &Symbols) -> &'static str {
@@ -2754,7 +2758,7 @@ mod tests {
     }
 
     #[test]
-    fn status_counts_comments_reviews_and_timeline_separately() {
+    fn status_band_shows_high_signal_pr_summary_without_activity_counts() {
         let backend = TestBackend::new(140, 36);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
@@ -2783,11 +2787,21 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("comments 2"));
-        assert!(content.contains("reviews 1"));
-        assert!(content.contains("- timeline 1"));
-        assert!(content.contains("1 unresolved / 1 thread"));
-        assert!(!content.contains("comments 5"));
+        assert!(content.contains("OK OPEN"));
+        assert!(content.contains("feat/senseaudio-tts -> main"));
+        assert!(content.contains("OK checks PASS"));
+        assert!(content.contains("1 file"));
+        assert!(content.contains("diff 1122"));
+        assert!(content.contains("+1100"));
+        assert!(content.contains("-22"));
+        assert!(!content.contains("comments 2"));
+        assert!(!content.contains("reviews 1"));
+        assert!(!content.contains("timeline 1"));
+        assert!(!content.contains("unresolved /"));
+        assert_eq!(
+            resource_state_badge_style(&state.resource, &Palette::default_dark()).bg,
+            Some(Palette::default_dark().green)
+        );
     }
 
     #[test]
@@ -2837,6 +2851,9 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
+        assert!(content.contains("feat/senseaudio-tts -> main"));
+        assert!(content.contains("OK checks PASS"));
+        assert!(content.contains("+1100"));
         assert!(content.contains("Loading |: refreshing openclaw/openclaw#81834 from GitHub"));
 
         state.advance_loading_frame();

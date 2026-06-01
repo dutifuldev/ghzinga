@@ -10,7 +10,7 @@ date: 2026-05-31
 
 Make the fixed TUI chrome behave elegantly across narrow, medium, and large
 terminals. The body content already uses display-width-aware wrapping; this
-slice focuses on the chrome around it: header, tabs, status band, and footer
+slice focuses on the chrome around it: header, status band, tabs, and footer
 controls.
 
 ## gh-dash Ideas To Reuse
@@ -24,6 +24,8 @@ string. The useful patterns for `ghzinga` are:
 - keep the scrollable preview/content viewport independent from fixed chrome
 - show a compact scroll percentage so the reader can understand where the
   current viewport sits inside a long preview
+- keep navigation selectors at the bottom of the fixed top chrome, immediately
+  before scrollable content
 - reserve extra rows for narrow terminals instead of letting controls overlap
 
 `ghzinga` should keep its Ratatui implementation simpler than `gh-dash`, but the
@@ -53,11 +55,19 @@ relative position and whether there is more content below.
      a row and cannot fit
    - register hit areas against the displayed width
    - in comfortable mode, apply the same left/right padding as the content
-     viewport so the title, navigation, status, content, and footer align
+     viewport so the title, status, navigation, content, and footer align
    - when the header wraps, spend reserved rows on identity, state, updated
      time, and title in that priority order instead of silently hiding updated
      metadata behind title wrapping
 3. Improve status wrapping:
+   - render status above the tab selector so tabs are the final fixed chrome row
+     before content
+   - keep resource state as a background-highlighted badge
+   - include PR branch direction, aggregate checks, changed-file count, and
+     additions/deletions instead of lower-signal
+     comment/review/reaction/thread/warning counts
+   - reserve a separate status-detail row for loading, refresh, and error
+     messages so loading text does not push branch/check/file status sideways
    - wrap oversized status chips by display width before falling back to
      truncation
    - keep the style of every continuation line
