@@ -16,7 +16,7 @@ impl ViewRects {
         let mut header_height = chrome_height(area.width, &[(56, 4), (u16::MAX, 3)]);
         let mut tabs_height = chrome_height(area.width, &[(38, 3), (78, 2), (u16::MAX, 1)]);
         let mut status_height = chrome_height(area.width, &[(52, 4), (u16::MAX, 3)]);
-        let mut footer_height = chrome_height(area.width, &[(52, 3), (92, 2), (u16::MAX, 1)]);
+        let mut footer_height = chrome_height(area.width, &[(52, 3), (u16::MAX, 2)]);
         let minimum_content_height = u16::from(area.height >= 8);
         let max_chrome = area.height.saturating_sub(minimum_content_height);
         while header_height + tabs_height + status_height + footer_height > max_chrome {

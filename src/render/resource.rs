@@ -2211,14 +2211,14 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         }
     }
     let scroll = scroll_summary(state);
-    let control_lines = footer_control_lines(controls, &scroll, area.width, palette);
+    let control_lines = footer_control_lines(controls, area.width);
     let control_lines = footer_visible_control_lines(control_lines, area.height as usize);
 
     let default_message = format!(
-        "r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order {} | a all | arrows/page scroll | e more/less | tab {} | {}",
-        if state.reverse_chronological { "newest" } else { "oldest" },
+        "{} | tab {} | order {} | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page scroll | e more/less",
+        scroll,
         state.active_tab.label(),
-        scroll
+        if state.reverse_chronological { "newest" } else { "oldest" },
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
@@ -2261,48 +2261,11 @@ fn footer_control(label: &str, target: HitTarget, palette: &Palette) -> FooterIt
     }
 }
 
-fn footer_scroll_item(scroll: &str, palette: &Palette) -> FooterItem {
-    FooterItem {
-        label: scroll.to_string(),
-        style: dim_style(palette),
-        target: None,
-    }
-}
-
-fn footer_control_lines(
-    controls: Vec<FooterItem>,
-    scroll: &str,
-    width: u16,
-    palette: &Palette,
-) -> Vec<FooterLine> {
+fn footer_control_lines(controls: Vec<FooterItem>, width: u16) -> Vec<FooterLine> {
     if width == 0 {
         return Vec::new();
     }
-    let lines = wrap_footer_items(&controls, width);
-    let Some(scroll_index) = footer_scroll_insert_index(&controls) else {
-        return lines;
-    };
-
-    let mut with_scroll = controls;
-    with_scroll.insert(scroll_index, footer_scroll_item(scroll, palette));
-    let candidate = wrap_footer_items(&with_scroll, width);
-    if candidate.len() <= lines.len() {
-        candidate
-    } else {
-        lines
-    }
-}
-
-fn footer_scroll_insert_index(controls: &[FooterItem]) -> Option<usize> {
-    if controls.is_empty() {
-        return None;
-    }
-    let last_index = controls.len().saturating_sub(1);
-    if footer_item_is_expand_all(&controls[last_index]) {
-        Some(last_index)
-    } else {
-        Some(controls.len())
-    }
+    wrap_footer_items(&controls, width)
 }
 
 fn wrap_footer_items(items: &[FooterItem], width: u16) -> Vec<FooterLine> {
@@ -2777,6 +2740,18 @@ mod tests {
         format!("{:?}", terminal.backend().buffer())
     }
 
+    fn draw_row_text(state: &mut AppState, width: u16, height: u16, y: u16) -> String {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render_app(frame, state)).unwrap();
+        (0..width)
+            .map(|x| terminal.backend().buffer()[(x, y)].symbol())
+            .collect::<Vec<_>>()
+            .join("")
+            .trim_end()
+            .to_string()
+    }
+
     fn draw_cell_symbol(state: &mut AppState, width: u16, height: u16, x: u16, y: u16) -> String {
         let backend = TestBackend::new(width, height);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2973,7 +2948,7 @@ mod tests {
 
     #[test]
     fn renders_enrichment_warnings() {
-        let backend = TestBackend::new(120, 36);
+        let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
         resource.warnings = vec!["timeline unavailable: permission denied".into()];
@@ -3436,7 +3411,8 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit] scroll 0/"));
+        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit] [expand all]"));
+        assert!(content.contains("scroll 0/"));
         assert!(content.contains("[expand all]"));
         assert!(state
             .hit_areas
@@ -4224,6 +4200,26 @@ mod tests {
         let content = draw(&mut state, 120, 36);
 
         assert!(content.contains("[collapse all]"));
+    }
+
+    #[test]
+    fn footer_expand_all_is_final_bottom_bar_command_not_scroll_status() {
+        let mut state = AppState::new(pr_resource());
+        let footer = chrome_area_for_spacing(
+            rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
+            state.spacing,
+        );
+
+        let bottom = draw_row_text(
+            &mut state,
+            120,
+            36,
+            footer.y.saturating_add(footer.height.saturating_sub(1)),
+        );
+
+        assert!(bottom.contains("[refresh] [copy] [open]"));
+        assert!(bottom.ends_with("[expand all]"));
+        assert!(!bottom.contains("scroll "));
     }
 
     #[test]

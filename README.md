@@ -202,9 +202,10 @@ content. The fixed bottom command bar also shows `[expand all]` or
 `[collapse all]` after `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`,
 and `[quit]` when the current tab has expandable rows; that control opens or
 folds every expandable row in the active tab without requiring a scroll to the
-bottom of the content. The rendered content window only registers hit targets
-for the visible rows, so long paginated GitHub histories remain scrollable
-without turning every off-screen row into an active terminal target.
+bottom of the content. Scroll position stays in the footer message line rather
+than between command buttons. The rendered content window only registers hit
+targets for the visible rows, so long paginated GitHub histories remain
+scrollable without turning every off-screen row into an active terminal target.
 
 The TUI adapts to terminal width. Header metadata, tabs, the status band, and
 footer controls wrap into extra rows on narrow terminals instead of silently
