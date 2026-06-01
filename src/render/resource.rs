@@ -674,6 +674,7 @@ fn resource_state_style(resource: &Resource, palette: &Palette) -> Style {
         "OPEN" => palette.green,
         "MERGED" => palette.accent,
         "CLOSED" => palette.red,
+        "LOADING" => palette.yellow,
         _ => palette.subtext0,
     };
     Style::default().fg(color)
@@ -684,6 +685,7 @@ fn resource_state_badge_style(resource: &Resource, palette: &Palette) -> Style {
         "OPEN" => palette.green,
         "MERGED" => palette.accent,
         "CLOSED" => palette.red,
+        "LOADING" => palette.yellow,
         _ => palette.surface1,
     };
     Style::default()
