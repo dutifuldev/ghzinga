@@ -15,6 +15,9 @@ from capture_ghzinga import (  # noqa: E402
     capture_ansi,
     capture_plain,
     git_commit,
+    portable_command,
+    repo_relative_path,
+    resolve_repo_path,
     tmux,
     tmux_size,
 )
@@ -33,6 +36,7 @@ COLS = 120
 ROWS = 36
 CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/issues/88499"
 DETAIL_URL = "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
+EXPANDED_BODY_MARKER = "Related regressions were discussed"
 
 
 def wait_for_text(session: str, needle: str, timeout: float = 10.0):
@@ -106,6 +110,7 @@ def require_screen_contains(marker: str):
 
 def write_navigation_fixture():
     resource = json.loads(FIXTURE.read_text())
+    resource["activity"][0]["url"] = DETAIL_URL
     resource["related_resources"] = [
         *resource.get("related_resources", []),
         {
@@ -192,7 +197,7 @@ def capture_mouse_smoke():
         overview_more = find_marker_position(SESSION, "[+ more]")
         mouse_coordinates["overview_more"] = list(overview_more)
         send_mouse_click(SESSION, *overview_more)
-        wait_for_text(SESSION, "Actual Behavior")
+        wait_for_text(SESSION, EXPANDED_BODY_MARKER)
         require_screen_contains("[- less]")
         write_frame(ROOT, "05_mouse_overview_more", frames)
 
@@ -201,19 +206,19 @@ def capture_mouse_smoke():
         send_mouse_click(SESSION, *overview_less)
         wait_for_text(SESSION, "[+ more]")
         text = capture_plain(SESSION)
-        if "Actual Behavior" in text:
+        if EXPANDED_BODY_MARKER in text:
             raise RuntimeError(f"overview less left issue body expanded:\n{text}")
         write_frame(ROOT, "06_mouse_overview_less", frames)
 
         send_key(SESSION, "a")
-        wait_for_text(SESSION, "Actual Behavior")
+        wait_for_text(SESSION, EXPANDED_BODY_MARKER)
         require_screen_contains("[- less]")
         write_frame(ROOT, "07_keyboard_expand_all", frames)
 
         send_key(SESSION, "a")
         wait_for_text(SESSION, "[+ more]")
         text = capture_plain(SESSION)
-        if "Actual Behavior" in text:
+        if EXPANDED_BODY_MARKER in text:
             raise RuntimeError(f"keyboard collapse all left issue body expanded:\n{text}")
         write_frame(ROOT, "08_keyboard_collapse_all", frames)
 
@@ -278,10 +283,10 @@ def capture_mouse_smoke():
             "target": TARGET,
             "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
             "extra_fixtures": [str(NAVIGATION_TARGET_FIXTURE.relative_to(REPO))],
-            "binary": str(BIN),
+            "binary": repo_relative_path(BIN),
             "git_commit": git_commit(),
-            "config_path": str(capture_config_path()),
-            "command": command,
+            "config_path": repo_relative_path(capture_config_path()),
+            "command": portable_command(command),
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
                 "detail_url": DETAIL_URL,
@@ -370,12 +375,15 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         errors.append(
             f"actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {COLS}x{ROWS}"
         )
-    expected_config_path = str(capture_config_path())
-    if manifest.get("config_path") != expected_config_path:
+    expected_config_path = capture_config_path().resolve()
+    expected_config_value = repo_relative_path(expected_config_path)
+    expected_config_env = f"GZG_CONFIG_PATH=./{expected_config_value}"
+    if resolve_repo_path(manifest.get("config_path")).resolve() != expected_config_path:
         errors.append(
-            f"config_path is {manifest.get('config_path')!r}, expected {expected_config_path!r}"
+            f"config_path is {manifest.get('config_path')!r}, expected {expected_config_value!r}"
         )
-    if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("command", ""):
+    command = portable_command(manifest.get("command", ""))
+    if expected_config_env not in command:
         errors.append("manifest command does not isolate config with GZG_CONFIG_PATH")
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):
@@ -417,11 +425,11 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         ],
         "05_mouse_overview_more": [
             "[Overview]",
-            "Actual Behavior",
+            EXPANDED_BODY_MARKER,
             "[- less]",
         ],
         "06_mouse_overview_less": ["[Overview]", "Bug Description", "[+ more]"],
-        "07_keyboard_expand_all": ["[Overview]", "Actual Behavior", "[- less]"],
+        "07_keyboard_expand_all": ["[Overview]", EXPANDED_BODY_MARKER, "[- less]"],
         "08_keyboard_collapse_all": ["[Overview]", "Bug Description", "[+ more]"],
         "10_mouse_activity_tab": ["[Activity]", "Comment by @clawsweeper", "[details]"],
         "11_mouse_activity_details_open": [
@@ -463,9 +471,9 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         for marker in markers:
             if marker not in text:
                 errors.append(f"{txt_path} missing marker {marker!r}")
-        if name == "06_mouse_overview_less" and "Actual Behavior" in text:
+        if name == "06_mouse_overview_less" and EXPANDED_BODY_MARKER in text:
             errors.append(f"{txt_path} still shows expanded issue body after collapse")
-        if name == "08_keyboard_collapse_all" and "Actual Behavior" in text:
+        if name == "08_keyboard_collapse_all" and EXPANDED_BODY_MARKER in text:
             errors.append(f"{txt_path} still shows expanded issue body after keyboard collapse")
 
     if errors:
