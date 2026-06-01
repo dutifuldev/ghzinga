@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "62683ff4db54203d9cd1206fd6f890c09c217bbe",
+  "git_commit": "f5ce32bd35b36e4f0e98ea3a7e5ab3359cab054d",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
@@ -36,6 +36,10 @@
     "linked_issue": [
       4,
       11
+    ],
+    "help": [
+      39,
+      36
     ]
   },
   "frames": [
@@ -83,6 +87,11 @@
       "name": "60_keyboard_back_after_navigation",
       "txt": "60_keyboard_back_after_navigation.txt",
       "ansi": "60_keyboard_back_after_navigation.ansi"
+    },
+    {
+      "name": "70_mouse_footer_help",
+      "txt": "70_mouse_footer_help.txt",
+      "ansi": "70_mouse_footer_help.ansi"
     }
   ]
 }
