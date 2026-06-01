@@ -21,6 +21,10 @@ pub struct Cli {
     #[arg(long, value_name = "PATH")]
     pub offline_fixture: Option<PathBuf>,
 
+    /// Additional normalized resource fixture for offline click-through navigation.
+    #[arg(long, value_name = "PATH")]
+    pub offline_resource_fixture: Vec<PathBuf>,
+
     /// Disable mouse capture.
     #[arg(long)]
     pub no_mouse: bool,
@@ -98,6 +102,23 @@ mod tests {
         assert_eq!(
             cli.offline_fixture.unwrap(),
             PathBuf::from("fixtures/pr-81834.json")
+        );
+    }
+
+    #[test]
+    fn parses_additional_offline_resource_fixtures() {
+        let cli = Cli::parse_from([
+            "ghzinga",
+            "--offline-fixture",
+            "fixtures/pr-81834.json",
+            "--offline-resource-fixture",
+            "fixtures/issue-66943.json",
+            "openclaw/openclaw#81834",
+        ]);
+
+        assert_eq!(
+            cli.offline_resource_fixture,
+            [PathBuf::from("fixtures/issue-66943.json")]
         );
     }
 

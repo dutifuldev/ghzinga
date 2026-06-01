@@ -42,6 +42,10 @@ xterm SGR mouse click events:
 1. Click the `Files` tab.
 2. Click `[expand all]`.
 3. Click `[collapse all]`.
+4. Click the `Links` tab.
+5. Click a linked issue row and verify the TUI replaces the current PR with the
+   linked issue.
+6. Press Backspace and verify the TUI returns to the original PR.
 
 Regenerate mouse smoke captures:
 

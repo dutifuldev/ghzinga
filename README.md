@@ -84,6 +84,7 @@ gzg openclaw/openclaw#81834 --symbols emoji
 gzg openclaw/openclaw#81834 --spacing compact
 gzg openclaw/openclaw#81834 --once
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
+gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-resource-fixture fixtures/issue-66943.json
 ```
 
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
@@ -94,6 +95,8 @@ density setting. Comfortable is the default and adds gh-dash-like breathing room
 between repeated rows, a small content gutter, and hanging indents for wrapped
 long lines; compact keeps more rows visible in small terminals. CLI theme,
 symbol, and spacing flags override saved config for that run only.
+`--offline-resource-fixture` can be repeated when an offline fixture run needs
+click-through navigation to linked issues or PRs without calling GitHub.
 
 ## Configuration
 
@@ -264,7 +267,8 @@ GitHub Actions runs these same checks for pull requests and pushes to `main`.
 It also runs the saved PR and issue capture validators so checked-in UX evidence
 cannot silently drift behind the app rendering code. A tmux mouse-smoke capture
 validator verifies that real terminal mouse clicks can switch to Files, expand
-all rows, collapse them again, switch to Links, and activate a linked issue row.
+all rows, collapse them again, switch to Links, activate a linked issue row,
+replace the current TUI view with that issue, and navigate back.
 
 The repository includes tmux capture artifacts for PR and issue views:
 

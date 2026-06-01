@@ -21,7 +21,9 @@ BIN = REPO / "target" / "debug" / "gzg"
 TARGET = "openclaw/openclaw#81834"
 FIXTURE = REPO / "fixtures" / "pr-81834.json"
 NAVIGATION_FIXTURE = ROOT / "navigation-fixture.json"
+NAVIGATION_TARGET_FIXTURE = REPO / "fixtures" / "issue-66943.json"
 NAVIGATION_TARGET = "openclaw/openclaw#66943"
+NAVIGATION_TARGET_TITLE = "feat: add SenseAudio audio transcription provider"
 SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
@@ -101,7 +103,9 @@ def capture_mouse_smoke():
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
         f"cd {REPO} && TERM=xterm-256color {BIN} {TARGET} "
-        f"--offline-fixture {NAVIGATION_FIXTURE} --refresh-seconds 0"
+        f"--offline-fixture {NAVIGATION_FIXTURE} "
+        f"--offline-resource-fixture {NAVIGATION_TARGET_FIXTURE} "
+        f"--refresh-seconds 0"
     )
     frames = []
     mouse_coordinates = {}
@@ -146,12 +150,18 @@ def capture_mouse_smoke():
         linked_issue = find_marker_position(SESSION, NAVIGATION_TARGET)
         mouse_coordinates["linked_issue"] = list(linked_issue)
         send_mouse_click(SESSION, *linked_issue)
-        wait_for_text(SESSION, f"cannot navigate to {NAVIGATION_TARGET}")
+        wait_for_text(SESSION, NAVIGATION_TARGET_TITLE)
         write_frame(ROOT, "50_mouse_navigation_row", frames)
+
+        tmux("send-keys", "-t", SESSION, "Bspace")
+        wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
+        wait_for_text(SESSION, f"returned to {TARGET}")
+        write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
         manifest = {
             "target": TARGET,
             "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
+            "extra_fixtures": [str(NAVIGATION_TARGET_FIXTURE.relative_to(REPO))],
             "binary": str(BIN),
             "git_commit": git_commit(),
             "command": command,
@@ -175,6 +185,9 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     if not manifest_path.exists():
         raise SystemExit(f"missing {manifest_path}")
     manifest = read_json(manifest_path)
+    for extra_fixture in manifest.get("extra_fixtures", []):
+        if not (REPO / extra_fixture).exists():
+            errors.append(f"manifest extra fixture {extra_fixture} is missing")
     fixture_path = REPO / manifest.get("fixture", "")
     if not fixture_path.exists():
         errors.append(f"manifest fixture {fixture_path} is missing")
@@ -210,9 +223,14 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "30_mouse_collapse_all": ["[Files]", "[expand all]"],
         "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
         "50_mouse_navigation_row": [
-            "[Links]",
-            NAVIGATION_TARGET,
-            f"cannot navigate to {NAVIGATION_TARGET}",
+            "[Overview]",
+            NAVIGATION_TARGET_TITLE,
+            "opened openclaw/openclaw#66943",
+        ],
+        "60_keyboard_back_after_navigation": [
+            "[Overview]",
+            "Problem: senseaudio bundled plugin only has ASR; no TTS.",
+            f"returned to {TARGET}",
         ],
     }
     frames = {frame.get("name"): frame for frame in manifest.get("frames", [])}
