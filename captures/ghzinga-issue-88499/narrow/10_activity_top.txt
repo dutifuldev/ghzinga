@@ -1,5 +1,5 @@
                                                                                 
-  openclaw/openclaw#88499 [Issue CLOSED] updated 1d                             
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d   
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                         
