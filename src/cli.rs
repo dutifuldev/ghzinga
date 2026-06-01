@@ -6,6 +6,8 @@ use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
 use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
+pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
+
 #[derive(Debug, Parser)]
 #[command(
     author,
@@ -30,7 +32,7 @@ pub struct Cli {
     pub no_mouse: bool,
 
     /// Refresh interval in seconds.
-    #[arg(long, default_value_t = 300)]
+    #[arg(long, default_value_t = DEFAULT_REFRESH_SECONDS)]
     pub refresh_seconds: u64,
 
     /// Render one frame and exit. Useful for tests and terminal capture.
@@ -84,7 +86,7 @@ mod tests {
     fn default_refresh_interval_is_conservative() {
         let cli = Cli::parse_from(["ghzinga", "openclaw/openclaw#81834"]);
 
-        assert_eq!(cli.refresh_seconds, 300);
+        assert_eq!(cli.refresh_seconds, DEFAULT_REFRESH_SECONDS);
     }
 
     #[test]

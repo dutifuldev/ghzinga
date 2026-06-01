@@ -304,7 +304,8 @@ Data loaded for issue:
 
 Refresh:
 
-- default interval: 60 seconds
+- default interval: 300 seconds; this intentionally preserves GitHub API quota
+  while still supporting immediate manual refresh
 - manual refresh: `r`
 - display last refreshed time and whether content changed
 - show a visible loading state while refresh, link navigation, or back
