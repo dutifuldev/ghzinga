@@ -287,19 +287,19 @@ def capture_mouse_smoke():
         mouse_coordinates["checks_tab"] = list(checks_tab)
         send_mouse_click(SESSION, *checks_tab)
         wait_for_text(SESSION, "Summary: PASS")
-        wait_for_text(SESSION, "[OK PASS] All checks [+ more]")
+        wait_for_text(SESSION, "[OK PASS] suite/CI [+ more]")
         write_frame(ROOT, "35_mouse_checks_tab", frames)
 
-        check_row = find_marker_position(SESSION, "[+ more]", line_contains="All checks")
+        check_row = find_marker_position(SESSION, "[+ more]", line_contains="suite/CI")
         mouse_coordinates["check_row_more"] = list(check_row)
         send_mouse_click(SESSION, *check_row)
         wait_for_text(SESSION, "summary: 38 skipped, 2 neutral, 86 successful")
         write_frame(ROOT, "36_mouse_check_row_more", frames)
 
-        check_row_less = find_marker_position(SESSION, "[- less]", line_contains="All checks")
+        check_row_less = find_marker_position(SESSION, "[- less]", line_contains="suite/CI")
         mouse_coordinates["check_row_less"] = list(check_row_less)
         send_mouse_click(SESSION, *check_row_less)
-        wait_for_text(SESSION, "[OK PASS] All checks [+ more]")
+        wait_for_text(SESSION, "[OK PASS] suite/CI [+ more]")
         text = capture_plain(SESSION)
         if "summary: 38 skipped, 2 neutral, 86 successful" in text:
             raise RuntimeError(f"check row less left check detail expanded:\n{text}")
@@ -569,22 +569,22 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "20_mouse_expand_all": [
             "[Files]",
             "[collapse all]",
-            "path: docs/plugins/reference.md",
+            "path: extensions/senseaudio/speech-provider.ts",
         ],
         "30_mouse_collapse_all": ["[Files]", "[expand all]"],
         "35_mouse_checks_tab": [
             "[Checks]",
             "Summary: PASS",
-            "[OK PASS] All checks [+ more]",
+            "[OK PASS] suite/CI [+ more]",
         ],
         "36_mouse_check_row_more": [
             "[Checks]",
-            "[OK PASS] All checks [- less]",
+            "[OK PASS] suite/CI [- less]",
             "summary: 38 skipped, 2 neutral, 86 successful",
         ],
         "37_mouse_check_row_less": [
             "[Checks]",
-            "[OK PASS] All checks [+ more]",
+            "[OK PASS] suite/CI [+ more]",
         ],
         "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
         "50_mouse_navigation_row": [
