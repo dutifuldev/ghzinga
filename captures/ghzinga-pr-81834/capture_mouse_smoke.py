@@ -175,6 +175,42 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def collect_manifest_frames(frame_entries: list[dict], manifest_path: Path, errors: list[str]) -> dict:
+    frames = {}
+    for frame in frame_entries:
+        name = frame.get("name")
+        if not name:
+            errors.append(f"{manifest_path} contains a frame without a name")
+            continue
+        if name in frames:
+            errors.append(f"{manifest_path} contains duplicate frame {name}")
+            continue
+        frames[name] = frame
+    return frames
+
+
+def self_test():
+    errors = []
+    frames = collect_manifest_frames(
+        [
+            {"name": "first", "txt": "first.txt", "ansi": "first.ansi"},
+            {"name": "first", "txt": "duplicate.txt", "ansi": "duplicate.ansi"},
+            {"txt": "unnamed.txt", "ansi": "unnamed.ansi"},
+        ],
+        Path("manifest.json"),
+        errors,
+    )
+    if frames != {"first": {"name": "first", "txt": "first.txt", "ansi": "first.ansi"}}:
+        raise SystemExit(f"self-test frame collection produced unexpected frames: {frames!r}")
+    expected_errors = {
+        "manifest.json contains duplicate frame first",
+        "manifest.json contains a frame without a name",
+    }
+    if set(errors) != expected_errors:
+        raise SystemExit(f"self-test frame collection produced unexpected errors: {errors!r}")
+    print("OK: mouse-smoke validator self-test passed.")
+
+
 def validate_mouse_smoke(allow_stale_revision: bool = False):
     errors = []
     manifest_path = ROOT / "manifest.json"
@@ -229,7 +265,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             f"returned to {TARGET}",
         ],
     }
-    frames = {frame.get("name"): frame for frame in manifest.get("frames", [])}
+    frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():
         frame = frames.get(name)
         if not frame:
@@ -256,8 +292,11 @@ def main():
     parser = argparse.ArgumentParser(description="Capture ghzinga mouse smoke in tmux")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--allow-stale-revision", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
-    if args.validate_only:
+    if args.self_test:
+        self_test()
+    elif args.validate_only:
         validate_mouse_smoke(args.allow_stale_revision)
     else:
         capture_mouse_smoke()
