@@ -8,6 +8,10 @@ autobins = false
 name = "gzg"
 path = "src/main.rs"
 
+[[bin]]
+name = "ghzinga"
+path = "src/bin/ghzinga.rs"
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }

@@ -5,4 +5,5 @@ pub mod domain;
 pub mod github;
 pub mod input;
 pub mod render;
+pub mod runner;
 pub mod terminal;

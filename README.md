@@ -20,7 +20,29 @@ Architecture guardrails are documented in
 
 ## Install
 
-Build from this checkout:
+Install from this checkout:
+
+```sh
+cargo install --path .
+```
+
+That installs both commands:
+
+- `gzg`, the short command
+- `ghzinga`, the long command name
+
+Both commands run the same TUI entrypoint. Cargo installs them as two executable
+commands. For a real filesystem link, use the repo installer instead:
+
+```sh
+scripts/install.sh
+```
+
+That installs `gzg` and creates `ghzinga -> gzg` in the install bin directory.
+Use `scripts/install.sh --root /path/to/root` to choose a different install
+root.
+
+Build without installing:
 
 ```sh
 cargo build --release
@@ -30,12 +52,14 @@ Run the debug build during development:
 
 ```sh
 cargo run --bin gzg -- openclaw/openclaw#81834
+cargo run --bin ghzinga -- openclaw/openclaw#81834
 ```
 
 Run the built binary:
 
 ```sh
 target/release/gzg openclaw/openclaw#81834
+target/release/ghzinga openclaw/openclaw#81834
 ```
 
 ## Usage

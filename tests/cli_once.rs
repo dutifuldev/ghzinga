@@ -9,6 +9,14 @@ fn gzg_command() -> Command {
     cmd
 }
 
+fn ghzinga_command() -> Command {
+    let config_path = std::env::temp_dir().join("ghzinga-cli-once-alias-empty-config.toml");
+    let _ = std::fs::remove_file(&config_path);
+    let mut cmd = Command::cargo_bin("ghzinga").unwrap();
+    cmd.env("GZG_CONFIG_PATH", config_path);
+    cmd
+}
+
 #[test]
 fn once_renders_pr_fixture_through_binary() {
     let mut cmd = gzg_command();
@@ -26,6 +34,25 @@ fn once_renders_pr_fixture_through_binary() {
         "[Overview] Activity  Commits  Checks  Files  Links",
     ))
     .stdout(contains("* @KLilyZ opened"))
+    .stdout(contains("checks PASS"));
+}
+
+#[test]
+fn once_renders_pr_fixture_through_long_binary_name() {
+    let mut cmd = ghzinga_command();
+
+    cmd.args([
+        "openclaw/openclaw#81834",
+        "--offline-fixture",
+        "fixtures/pr-81834.json",
+        "--once",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("openclaw/openclaw#81834"))
+    .stdout(contains(
+        "[Overview] Activity  Commits  Checks  Files  Links",
+    ))
     .stdout(contains("checks PASS"));
 }
 
