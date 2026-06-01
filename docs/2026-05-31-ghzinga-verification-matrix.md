@@ -86,7 +86,8 @@ marker and content check verifies:
 - Issue captures include the issue body, activity comments, and detected
   issue/comment links
 - Mouse smoke captures include real tmux clicks on an Overview `[+ more]` /
-  `[- less]` content control, the Files and Links tabs, real footer clicks on
+  `[- less]` content control, the Files, Checks, and Links tabs, individual
+  file-row and check-row expand/collapse controls, real footer clicks on
   `[expand all]`, `[collapse all]`, `[refresh]`, `[copy]`, `[open]`, `[help]`,
   `[settings]`, and `[quit]`, and a real click on a linked issue row that
   reaches the navigation path
@@ -102,12 +103,13 @@ Click behavior is verified at two levels:
    assert the resulting behavior.
 3. The tmux mouse-smoke capture sends xterm SGR mouse click sequences to the
    running TUI and validates the captured terminal frame after each click,
-   including single-content expansion/collapse, footer bulk expansion/collapse,
-   footer refresh status routing in fixture mode, footer copy/open URL routing
-   through capture-local adapter commands, tab switching, linked-resource
-   navigation, Backspace history, footer help/settings overlay opening,
-   settings-row persistence into capture-local TOML, and a footer quit click
-   that exits the tmux session.
+   including single-content expansion/collapse, individual file-row and
+   check-row expansion/collapse, footer bulk expansion/collapse, footer refresh
+   status routing in fixture mode, footer copy/open URL routing through
+   capture-local adapter commands, tab switching, linked-resource navigation,
+   Backspace history, footer help/settings overlay opening, settings-row
+   persistence into capture-local TOML, and a footer quit click that exits the
+   tmux session.
 
 Covered click targets:
 

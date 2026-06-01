@@ -187,7 +187,8 @@ sends xterm SGR mouse events to the running process, and saves the resulting
 terminal frames for:
 
 - tab switching
-- file expansion
+- individual file-row expansion and collapse
+- individual check-row expansion and collapse
 - tab-level expand all
 - tab-level collapse all
 - Links-tab navigation target clicks
@@ -197,7 +198,7 @@ terminal frames for:
 - settings-row clicks persist capture-local TOML and update the settings view
 - footer quit exits the tmux session
 
-The broader mouse routing matrix is still covered through render-to-click
+The broader mouse routing matrix is also covered through render-to-click
 integration tests that render the actual Ratatui UI, click the registered hit
 rectangles, and verify body expansion, file expansion, issue/PR link navigation
 intent, refresh, copy, help, settings, quit, exact URL opening, and footer
