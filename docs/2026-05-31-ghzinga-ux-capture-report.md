@@ -182,9 +182,9 @@ tests, and `Right` remains a documented fallback that works under tmux.
 ## Mouse Coverage
 
 The capture runs verify rendered views, keyboard-driven navigation evidence, and
-real tmux mouse-click evidence. The `mouse-smoke` capture starts the TUI in tmux,
-sends xterm SGR mouse events to the running process, and saves the resulting
-terminal frames for:
+real tmux mouse-click evidence. The PR and issue `mouse-smoke` captures start
+the TUI in tmux, send xterm SGR mouse events to the running process, and save
+the resulting terminal frames for:
 
 - tab switching
 - individual file-row expansion and collapse
@@ -193,6 +193,8 @@ terminal frames for:
 - tab-level collapse all
 - Links-tab navigation target clicks
 - Activity-tab `[details]` permalink clicks through the browser adapter
+- issue body expansion/collapse, issue Activity-tab permalink clicks, and issue
+  Links-tab navigation clicks
 - footer refresh clicks through the fixture-mode status path
 - footer copy/open clicks through capture-local adapter commands, including the
   first-visible-URL priority when an activity permalink is on screen

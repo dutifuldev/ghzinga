@@ -1,0 +1,117 @@
+{
+  "target": "https://github.com/openclaw/openclaw/issues/88499",
+  "fixture": "captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json",
+  "extra_fixtures": [
+    "fixtures/issue-66943.json"
+  ],
+  "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
+  "git_commit": "74d34edc7ee98dba961329b3cd4e209826c6d0c4",
+  "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml",
+  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
+  "actual_tmux_size": "120x36",
+  "adapter_outputs": {
+    "detail_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
+    "open_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
+    "copy_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
+  },
+  "quit_exited": true,
+  "mouse_coordinates": {
+    "overview_more": [
+      4,
+      24
+    ],
+    "overview_less": [
+      4,
+      29
+    ],
+    "activity_tab": [
+      15,
+      7
+    ],
+    "activity_details": [
+      4,
+      13
+    ],
+    "links_tab": [
+      25,
+      7
+    ],
+    "linked_issue": [
+      4,
+      15
+    ],
+    "refresh": [
+      4,
+      36
+    ],
+    "copy": [
+      14,
+      36
+    ],
+    "open": [
+      21,
+      36
+    ],
+    "quit": [
+      46,
+      36
+    ]
+  },
+  "frames": [
+    {
+      "name": "00_initial_overview",
+      "txt": "00_initial_overview.txt",
+      "ansi": "00_initial_overview.ansi"
+    },
+    {
+      "name": "05_mouse_overview_more",
+      "txt": "05_mouse_overview_more.txt",
+      "ansi": "05_mouse_overview_more.ansi"
+    },
+    {
+      "name": "06_mouse_overview_less",
+      "txt": "06_mouse_overview_less.txt",
+      "ansi": "06_mouse_overview_less.ansi"
+    },
+    {
+      "name": "10_mouse_activity_tab",
+      "txt": "10_mouse_activity_tab.txt",
+      "ansi": "10_mouse_activity_tab.ansi"
+    },
+    {
+      "name": "11_mouse_activity_details_open",
+      "txt": "11_mouse_activity_details_open.txt",
+      "ansi": "11_mouse_activity_details_open.ansi"
+    },
+    {
+      "name": "30_mouse_links_tab",
+      "txt": "30_mouse_links_tab.txt",
+      "ansi": "30_mouse_links_tab.ansi"
+    },
+    {
+      "name": "40_mouse_navigation_row",
+      "txt": "40_mouse_navigation_row.txt",
+      "ansi": "40_mouse_navigation_row.ansi"
+    },
+    {
+      "name": "50_keyboard_back_after_navigation",
+      "txt": "50_keyboard_back_after_navigation.txt",
+      "ansi": "50_keyboard_back_after_navigation.ansi"
+    },
+    {
+      "name": "60_mouse_footer_refresh",
+      "txt": "60_mouse_footer_refresh.txt",
+      "ansi": "60_mouse_footer_refresh.ansi"
+    },
+    {
+      "name": "61_mouse_footer_copy",
+      "txt": "61_mouse_footer_copy.txt",
+      "ansi": "61_mouse_footer_copy.ansi"
+    },
+    {
+      "name": "62_mouse_footer_open",
+      "txt": "62_mouse_footer_open.txt",
+      "ansi": "62_mouse_footer_open.ansi"
+    }
+  ]
+}
