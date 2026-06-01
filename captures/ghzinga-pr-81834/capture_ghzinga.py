@@ -139,12 +139,19 @@ def tmux_size(session: str) -> str:
     ).stdout.strip()
 
 
+def load_needles() -> list[str]:
+    needle = LOAD_NEEDLE.strip()
+    if len(needle) <= 48:
+        return [needle]
+    return [needle, needle[:48].rstrip()]
+
+
 def wait_for_loaded(session: str, timeout: float = 45.0):
     deadline = time.time() + timeout
     last = ""
     while time.time() < deadline:
         last = capture_plain(session)
-        if LOAD_NEEDLE in last and "Overview" in last:
+        if any(needle in last for needle in load_needles()) and "Overview" in last:
             return
         time.sleep(0.5)
     raise RuntimeError(f"{session} did not load ghzinga. Last screen:\n{last}")
@@ -436,6 +443,19 @@ def self_test():
     }
     if set(errors) != expected_size_errors:
         raise SystemExit(f"self-test size collection produced unexpected errors: {errors!r}")
+
+    global LOAD_NEEDLE
+    original_load_needle = LOAD_NEEDLE
+    try:
+        LOAD_NEEDLE = "openai-responses provider: 404 on previous_response_id when store=false (default)"
+        expected_needles = [
+            "openai-responses provider: 404 on previous_response_id when store=false (default)",
+            "openai-responses provider: 404 on previous_respo",
+        ]
+        if load_needles() != expected_needles:
+            raise SystemExit(f"self-test load needles were unexpected: {load_needles()!r}")
+    finally:
+        LOAD_NEEDLE = original_load_needle
     print("OK: capture validator self-test passed.")
 
 

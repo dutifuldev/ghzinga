@@ -314,11 +314,12 @@ scripts/verify-no-png-captures.sh
 GitHub Actions runs these same checks for pull requests and pushes to `main`.
 It also runs the saved PR and issue capture validators so checked-in UX evidence
 cannot silently drift behind the app rendering code. A tmux mouse-smoke capture
-validator verifies that real terminal mouse clicks can switch to Files, expand
-all rows, collapse them again, switch to Links, activate a linked issue row,
-replace the current TUI view with that issue, and navigate back. CI also rejects
-tracked or generated PNG files under `captures/`; UX evidence is kept as
-terminal text and ANSI transcripts only.
+validator verifies that real terminal mouse clicks can expand and collapse a
+visible content row, switch to Files, expand all rows, collapse them again,
+switch to Links, activate a linked issue row, replace the current TUI view with
+that issue, and navigate back. CI also rejects tracked or generated PNG files
+under `captures/`; UX evidence is kept as terminal text and ANSI transcripts
+only.
 
 The repository includes tmux capture artifacts for PR and issue views. Captures
 are stored as terminal text and ANSI transcripts; PNG screenshots are not
