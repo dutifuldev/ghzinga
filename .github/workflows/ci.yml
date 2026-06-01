@@ -44,6 +44,9 @@ jobs:
       - name: Check SimpleDoc
         run: npx -y @simpledoc/simpledoc check
 
+      - name: Reject PNG capture artifacts
+        run: scripts/verify-no-png-captures.sh
+
       - name: Validate captured UX evidence
         run: |
           python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
