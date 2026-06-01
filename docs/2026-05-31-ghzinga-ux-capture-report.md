@@ -192,8 +192,10 @@ terminal frames for:
 - tab-level expand all
 - tab-level collapse all
 - Links-tab navigation target clicks
+- Activity-tab `[details]` permalink clicks through the browser adapter
 - footer refresh clicks through the fixture-mode status path
-- footer copy/open clicks through capture-local adapter commands
+- footer copy/open clicks through capture-local adapter commands, including the
+  first-visible-URL priority when an activity permalink is on screen
 - footer help and settings overlay clicks
 - settings-row clicks persist capture-local TOML and update the settings view
 - footer quit exits the tmux session

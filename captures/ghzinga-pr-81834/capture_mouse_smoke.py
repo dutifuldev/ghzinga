@@ -28,6 +28,7 @@ SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
 CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/pull/81834"
+DETAIL_URL = "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
 
 
 def wait_for_text(session: str, needle: str, timeout: float = 10.0):
@@ -103,6 +104,7 @@ def require_screen_contains(marker: str):
 
 def write_navigation_fixture():
     resource = json.loads(FIXTURE.read_text())
+    resource["activity"][0]["url"] = DETAIL_URL
     resource["related_resources"] = [
         {
             "owner": "openclaw",
@@ -304,6 +306,26 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, f"returned to {TARGET}")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
+        activity_tab = find_marker_position(SESSION, "Activity", line_contains="[Overview]")
+        mouse_coordinates["activity_tab_for_detail"] = list(activity_tab)
+        send_mouse_click(SESSION, *activity_tab)
+        wait_for_text(SESSION, "Comment by @github-actions")
+        wait_for_text(SESSION, "[details]")
+        write_frame(ROOT, "62_mouse_activity_tab_for_detail", frames)
+
+        activity_details = find_marker_position(SESSION, "[details]")
+        mouse_coordinates["activity_details"] = list(activity_details)
+        send_mouse_click(SESSION, *activity_details)
+        wait_for_text(SESSION, f"opened {DETAIL_URL}")
+        require_file_contains(open_log_path(), DETAIL_URL)
+        write_frame(ROOT, "63_mouse_activity_details_open", frames)
+
+        overview_tab = find_marker_position(SESSION, "Overview", line_contains="[Activity]")
+        mouse_coordinates["overview_tab_after_detail"] = list(overview_tab)
+        send_mouse_click(SESSION, *overview_tab)
+        wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
+        write_frame(ROOT, "64_mouse_back_to_overview_after_detail", frames)
+
         refresh_button = find_marker_position(SESSION, "[refresh]")
         mouse_coordinates["refresh"] = list(refresh_button)
         send_mouse_click(SESSION, *refresh_button)
@@ -313,15 +335,15 @@ def capture_mouse_smoke():
         copy_button = find_marker_position(SESSION, "[copy]")
         mouse_coordinates["copy"] = list(copy_button)
         send_mouse_click(SESSION, *copy_button)
-        wait_for_text(SESSION, f"copied {CURRENT_RESOURCE_URL}")
-        require_file_contains(copy_log_path(), CURRENT_RESOURCE_URL)
+        wait_for_text(SESSION, f"copied {DETAIL_URL}")
+        require_file_contains(copy_log_path(), DETAIL_URL)
         write_frame(ROOT, "66_mouse_footer_copy", frames)
 
         open_button = find_marker_position(SESSION, "[open]")
         mouse_coordinates["open"] = list(open_button)
         send_mouse_click(SESSION, *open_button)
-        wait_for_text(SESSION, f"opened {CURRENT_RESOURCE_URL}")
-        require_file_contains(open_log_path(), CURRENT_RESOURCE_URL)
+        wait_for_text(SESSION, f"opened {DETAIL_URL}")
+        require_file_contains(open_log_path(), DETAIL_URL)
         write_frame(ROOT, "67_mouse_footer_open", frames)
 
         help_button = find_marker_position(SESSION, "[help]")
@@ -364,8 +386,9 @@ def capture_mouse_smoke():
             "command": command,
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
-                "open_url": CURRENT_RESOURCE_URL,
-                "copy_url": CURRENT_RESOURCE_URL,
+                "detail_url": DETAIL_URL,
+                "open_url": DETAIL_URL,
+                "copy_url": DETAIL_URL,
             },
             "saved_config": saved_config,
             "quit_exited": True,
@@ -438,6 +461,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             for item in fixture.get("related_resources", [])
         ):
             errors.append(f"manifest fixture {fixture_path} does not include {NAVIGATION_TARGET}")
+        if not any(item.get("url") == DETAIL_URL for item in fixture.get("activity", [])):
+            errors.append(f"manifest fixture {fixture_path} does not include {DETAIL_URL}")
     if not allow_stale_revision:
         reason = app_tree_freshness_error(manifest.get("git_commit"), git_commit())
         if reason:
@@ -459,8 +484,9 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         if variable not in manifest.get("command", ""):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
     expected_adapter_outputs = {
-        "open_url": CURRENT_RESOURCE_URL,
-        "copy_url": CURRENT_RESOURCE_URL,
+        "detail_url": DETAIL_URL,
+        "open_url": DETAIL_URL,
+        "copy_url": DETAIL_URL,
     }
     if manifest.get("adapter_outputs") != expected_adapter_outputs:
         errors.append(
@@ -475,6 +501,9 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "file_row_less",
         "check_row_more",
         "check_row_less",
+        "activity_tab_for_detail",
+        "activity_details",
+        "overview_tab_after_detail",
         "copy",
         "open",
         "settings_compact",
@@ -545,13 +574,27 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             f"returned to {TARGET}",
         ],
+        "62_mouse_activity_tab_for_detail": [
+            "[Activity]",
+            "Comment by @github-actions",
+            "[details]",
+        ],
+        "63_mouse_activity_details_open": [
+            "[Activity]",
+            f"opened {DETAIL_URL}",
+            "[details]",
+        ],
+        "64_mouse_back_to_overview_after_detail": [
+            "[Overview]",
+            "Problem: senseaudio bundled plugin only has ASR; no TTS.",
+        ],
         "65_mouse_footer_refresh": [
             "[Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             "offline fixture mode: refresh skipped",
         ],
-        "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
-        "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
+        "66_mouse_footer_copy": ["[Overview]", f"copied {DETAIL_URL}", "[copy]"],
+        "67_mouse_footer_open": ["[Overview]", f"opened {DETAIL_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
