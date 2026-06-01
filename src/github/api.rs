@@ -1813,6 +1813,16 @@ struct PrView {
     is_cross_repository: bool,
     #[serde(default)]
     maintainer_can_modify: bool,
+    #[serde(default)]
+    locked: bool,
+    active_lock_reason: Option<String>,
+    #[serde(default)]
+    is_in_merge_queue: bool,
+    #[serde(default)]
+    is_merge_queue_enabled: bool,
+    #[serde(default)]
+    can_be_rebased: bool,
+    total_comments_count: Option<u64>,
     changed_files: Option<u64>,
     #[serde(default)]
     closed: bool,
@@ -2234,7 +2244,19 @@ fn pr_resource_metadata(pr: &PrView) -> Vec<MetadataItem> {
         "Maintainer can modify",
         pr.maintainer_can_modify,
     );
+    push_bool_metadata(&mut items, "Locked", pr.locked);
+    push_nonempty_metadata(&mut items, "Lock reason", pr.active_lock_reason.as_deref());
+    push_bool_metadata(&mut items, "In merge queue", pr.is_in_merge_queue);
+    push_bool_metadata(&mut items, "Merge queue enabled", pr.is_merge_queue_enabled);
+    push_bool_metadata(&mut items, "Can be rebased", pr.can_be_rebased);
     push_nonempty_metadata(&mut items, "Mergeable", pr.mergeable.as_deref());
+    push_nonempty_metadata(
+        &mut items,
+        "Total comments",
+        pr.total_comments_count
+            .map(|count| count.to_string())
+            .as_deref(),
+    );
     push_nonempty_metadata(
         &mut items,
         "Changed files",
@@ -5351,6 +5373,18 @@ mod tests {
     }
 
     #[test]
+    fn base_pr_query_requests_current_status_metadata() {
+        let query = base_pr_query();
+
+        assert!(query.contains("locked"));
+        assert!(query.contains("activeLockReason"));
+        assert!(query.contains("isInMergeQueue"));
+        assert!(query.contains("isMergeQueueEnabled"));
+        assert!(query.contains("canBeRebased"));
+        assert!(query.contains("totalCommentsCount"));
+    }
+
+    #[test]
     fn base_issue_query_requests_current_status_metadata() {
         let query = base_issue_query();
 
@@ -7319,6 +7353,12 @@ mod tests {
                 "isDraft": false,
                 "isCrossRepository": true,
                 "maintainerCanModify": true,
+                "locked": true,
+                "activeLockReason": "RESOLVED",
+                "isInMergeQueue": true,
+                "isMergeQueueEnabled": true,
+                "canBeRebased": true,
+                "totalCommentsCount": 42,
                 "changedFiles": 14,
                 "closed": false,
                 "closedAt": null,
@@ -7347,6 +7387,30 @@ mod tests {
             .metadata
             .iter()
             .any(|item| item.label == "Cross repository" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Locked" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Lock reason" && item.value == "RESOLVED"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "In merge queue" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Merge queue enabled" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Can be rebased" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Total comments" && item.value == "42"));
         assert!(resource
             .metadata
             .iter()

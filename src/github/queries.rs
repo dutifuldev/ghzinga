@@ -38,6 +38,12 @@ query($owner: String!, $name: String!, $number: Int!) {
       isDraft
       isCrossRepository
       maintainerCanModify
+      locked
+      activeLockReason
+      isInMergeQueue
+      isMergeQueueEnabled
+      canBeRebased
+      totalCommentsCount
       changedFiles
       closed
       closedAt
