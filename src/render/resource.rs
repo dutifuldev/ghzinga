@@ -11,7 +11,10 @@ use crate::{
     app::{AppState, BlockId, Tab},
     domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
     input::{HitArea, HitTarget},
-    render::{markdown, Palette, SpacingMode, SymbolMode, Symbols, ThemeName, ViewRects},
+    render::{
+        markdown, time::compact_relative_time, time::relative_time_phrase, Palette, SpacingMode,
+        SymbolMode, Symbols, ThemeName, ViewRects,
+    },
 };
 
 struct ContentRow {
@@ -163,7 +166,7 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette
     let mut header = Vec::new();
     let width = area.width as usize;
     let content_rows = area.height.saturating_sub(1) as usize;
-    let updated = format!("updated {}", resource.updated_at);
+    let updated = format!("updated {}", compact_relative_time(&resource.updated_at));
     let state = format!("[{} {}]", kind, resource.state);
     if content_rows > 0 {
         let include_updated_in_meta = content_rows < 3 && width >= 56;
@@ -1394,7 +1397,9 @@ fn push_body_timeline_rows(
     rows.push(ContentRow::styled(
         format!(
             "{} @{} opened {}",
-            symbols.body, resource.author, resource.created_at
+            symbols.body,
+            resource.author,
+            relative_time_phrase(&resource.created_at)
         ),
         heading_style(palette),
     ));
@@ -1438,7 +1443,7 @@ fn push_commit_timeline_rows(
             "* commit {} by @{} {} [{}] {}",
             truncate_ascii(&commit.oid, 8),
             commit.author,
-            commit.committed_at,
+            relative_time_phrase(&commit.committed_at),
             commit.status.label(),
             marker
         ),
@@ -1471,7 +1476,7 @@ fn push_activity_timeline_rows(
             activity_icon(entry, &symbols),
             entry.kind.label(),
             entry.author,
-            entry.updated_at
+            relative_time_phrase(&entry.updated_at)
         ),
         activity_heading_style(entry, palette),
     ));
@@ -1587,7 +1592,7 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
             "{} by @{} {}",
             entry.kind.label(),
             entry.author,
-            entry.updated_at
+            relative_time_phrase(&entry.updated_at)
         )));
         if let Some(path) = &entry.path {
             rows.push(ContentRow::plain(format!(
@@ -1662,8 +1667,12 @@ fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conten
             link_style(palette),
         ));
         rows.push(
-            ContentRow::plain(format!("@{} {}", commit.author, commit.committed_at))
-                .with_comfortable_gap_after(),
+            ContentRow::plain(format!(
+                "@{} {}",
+                commit.author,
+                relative_time_phrase(&commit.committed_at)
+            ))
+            .with_comfortable_gap_after(),
         );
         if expanded {
             push_expanded_commit_details(&mut rows, commit, width, resource);
@@ -1691,11 +1700,14 @@ fn push_expanded_commit_details(
         )));
     }
     if let Some(authored_at) = commit.authored_at.as_deref() {
-        rows.push(ContentRow::plain(format!("authored: {authored_at}")));
+        rows.push(ContentRow::plain(format!(
+            "authored: {}",
+            relative_time_phrase(authored_at)
+        )));
     }
     rows.push(ContentRow::plain(format!(
         "committed: {}",
-        commit.committed_at
+        relative_time_phrase(&commit.committed_at)
     )));
     if !commit.deployments.is_empty() {
         rows.push(ContentRow::plain("deployments"));
@@ -1703,7 +1715,9 @@ fn push_expanded_commit_details(
             rows.push(ContentRow::plain(truncate_ascii(
                 &format!(
                     "- {} [{}] {}",
-                    deployment.environment, deployment.state, deployment.updated_at
+                    deployment.environment,
+                    deployment.state,
+                    relative_time_phrase(&deployment.updated_at)
                 ),
                 width,
             )));
@@ -1863,10 +1877,16 @@ fn push_check_group(
                 rows.push(ContentRow::plain(format!("github conclusion: {raw}")));
             }
             if let Some(started) = check.started_at.as_deref() {
-                rows.push(ContentRow::plain(format!("started: {started}")));
+                rows.push(ContentRow::plain(format!(
+                    "started: {}",
+                    relative_time_phrase(started)
+                )));
             }
             if let Some(completed) = check.completed_at.as_deref() {
-                rows.push(ContentRow::plain(format!("completed: {completed}")));
+                rows.push(ContentRow::plain(format!(
+                    "completed: {}",
+                    relative_time_phrase(completed)
+                )));
             }
             if let Some(url) = check.details_url.as_deref() {
                 rows.push(linkable_check_url_row(url));
@@ -2715,7 +2735,7 @@ mod tests {
                     body: "Registers a SenseAudio speech provider.\n\nCo-Authored-By: Claude <noreply@anthropic.com>".into(),
                     author: "KLilyZ".into(),
                     authors: vec!["KLilyZ".into(), "claude".into()],
-                    authored_at: Some("2026-05-14T13:10:00Z".into()),
+                    authored_at: Some("2w".into()),
                     committed_at: "1mo".into(),
                     status: CheckStatus::Success,
                     deployments: Vec::new(),
@@ -4364,8 +4384,9 @@ mod tests {
         let content = draw(&mut state, 120, 80);
 
         assert!(content.contains("authors: KLilyZ, claude"));
-        assert!(content.contains("authored: 2026-05-14T13:10:00Z"));
-        assert!(content.contains("committed: 1mo"));
+        assert!(content.contains("authored: 2w ago"));
+        assert!(content.contains("committed: 1mo ago"));
+        assert!(!content.contains("authored: 2026-"));
         assert!(content.contains("Registers a SenseAudio speech provider."));
         assert!(content.contains("[- less]"));
     }
@@ -5069,8 +5090,8 @@ mod tests {
             status: CheckStatus::Failure,
             summary: Some("failed because the test command exited with status 1".into()),
             details_url: Some("https://github.com/openclaw/openclaw/actions/runs/1/job/2".into()),
-            started_at: Some("2026-05-30T03:28:54Z".into()),
-            completed_at: Some("2026-05-30T03:28:56Z".into()),
+            started_at: Some("2d".into()),
+            completed_at: Some("2d".into()),
             raw_status: Some("COMPLETED".into()),
             raw_conclusion: Some("FAILURE".into()),
         }];
@@ -5103,8 +5124,9 @@ mod tests {
         assert!(content.contains("status: FAIL"));
         assert!(content.contains("github status: COMPLETED"));
         assert!(content.contains("github conclusion: FAILURE"));
-        assert!(content.contains("started: 2026-05-30T03:28:54Z"));
-        assert!(content.contains("completed: 2026-05-30T03:28:56Z"));
+        assert!(content.contains("started: 2d ago"));
+        assert!(content.contains("completed: 2d ago"));
+        assert!(!content.contains("started: 2026-"));
         assert!(
             content.contains("details: https://github.com/openclaw/openclaw/actions/runs/1/job/2")
         );
