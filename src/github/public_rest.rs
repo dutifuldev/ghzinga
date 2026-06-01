@@ -4,8 +4,8 @@ use serde_json::Value;
 
 use crate::{
     domain::{
-        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, MetadataItem,
-        PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
+        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
+        MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
     },
     github::transport::{
         run_rest_get_with, GithubHttpTransport, ReqwestGithubHttpTransport, GITHUB_JSON_ACCEPT,
@@ -53,7 +53,7 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
-    let commits = match fetch_public_rest_commits(id).await {
+    let mut commits = match fetch_public_rest_commits(id).await {
         Ok(commits) => commits,
         Err(error) => {
             warnings.push(format!("public commit list unavailable: {error}"));
@@ -79,6 +79,12 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
+    if let Some(sha) = head_sha.as_deref() {
+        match fetch_public_rest_head_deployments(id, sha).await {
+            Ok(deployments) => apply_public_rest_head_deployments(&mut commits, sha, deployments),
+            Err(error) => warnings.push(format!("public head deployments unavailable: {error}")),
+        }
+    }
     let mut activity = comments;
     activity.extend(reviews);
     activity.extend(review_comments);
@@ -392,6 +398,51 @@ async fn fetch_public_rest_status_contexts_with(
         .collect())
 }
 
+async fn fetch_public_rest_head_deployments(
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<Deployment>> {
+    fetch_public_rest_head_deployments_with(&ReqwestGithubHttpTransport, id, sha).await
+}
+
+async fn fetch_public_rest_head_deployments_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<Deployment>> {
+    let deployments = fetch_public_rest_pages_with::<RestDeploymentDto>(
+        transport,
+        &format!("/repos/{}/{}/deployments?sha={}", id.owner, id.repo, sha),
+    )
+    .await?;
+    let mut mapped = Vec::with_capacity(deployments.len());
+    for deployment in deployments {
+        let statuses = fetch_public_rest_deployment_statuses_with(transport, id, deployment.id)
+            .await
+            .with_context(|| format!("deployment {} statuses unavailable", deployment.id))?;
+        mapped.push(rest_deployment(
+            deployment,
+            latest_rest_deployment_status(statuses),
+        ));
+    }
+    Ok(mapped)
+}
+
+async fn fetch_public_rest_deployment_statuses_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+    deployment_id: u64,
+) -> anyhow::Result<Vec<RestDeploymentStatusDto>> {
+    fetch_public_rest_pages_with::<RestDeploymentStatusDto>(
+        transport,
+        &format!(
+            "/repos/{}/{}/deployments/{}/statuses",
+            id.owner, id.repo, deployment_id
+        ),
+    )
+    .await
+}
+
 fn rest_pull_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
 }
@@ -659,6 +710,28 @@ struct RestStatusDto {
     updated_at: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct RestDeploymentDto {
+    id: u64,
+    environment: Option<String>,
+    task: Option<String>,
+    description: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestDeploymentStatusDto {
+    state: Option<String>,
+    description: Option<String>,
+    environment: Option<String>,
+    target_url: Option<String>,
+    environment_url: Option<String>,
+    log_url: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+}
+
 fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
     ReactionCounts {
         thumbs_up: reactions.thumbs_up,
@@ -755,6 +828,72 @@ fn rest_status_context(status: RestStatusDto) -> CheckRun {
     }
 }
 
+fn rest_deployment(
+    deployment: RestDeploymentDto,
+    latest_status: Option<RestDeploymentStatusDto>,
+) -> Deployment {
+    let status = latest_status;
+    let environment = status
+        .as_ref()
+        .and_then(|status| status.environment.clone())
+        .or(deployment.environment)
+        .or(deployment.task)
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "deployment".to_string());
+    let state = status
+        .as_ref()
+        .and_then(|status| status.state.clone())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "UNKNOWN".to_string())
+        .to_ascii_uppercase();
+    let description = status
+        .as_ref()
+        .and_then(|status| status.description.clone())
+        .or(deployment.description)
+        .filter(|value| !value.trim().is_empty());
+    let environment_url = status
+        .as_ref()
+        .and_then(|status| status.environment_url.clone().or(status.target_url.clone()))
+        .filter(|value| !value.trim().is_empty());
+    let log_url = status
+        .as_ref()
+        .and_then(|status| status.log_url.clone())
+        .filter(|value| !value.trim().is_empty());
+    let created_at = status
+        .as_ref()
+        .and_then(|status| status.created_at.clone())
+        .or(deployment.created_at);
+    let updated_at = status
+        .and_then(|status| status.updated_at)
+        .or(deployment.updated_at)
+        .unwrap_or_else(|| "unknown".to_string());
+    Deployment {
+        environment,
+        state,
+        description,
+        environment_url,
+        log_url,
+        created_at,
+        updated_at,
+    }
+}
+
+fn latest_rest_deployment_status(
+    statuses: Vec<RestDeploymentStatusDto>,
+) -> Option<RestDeploymentStatusDto> {
+    statuses.into_iter().max_by(|left, right| {
+        deployment_status_timestamp(left).cmp(deployment_status_timestamp(right))
+    })
+}
+
+fn deployment_status_timestamp(status: &RestDeploymentStatusDto) -> &str {
+    status
+        .updated_at
+        .as_deref()
+        .or(status.created_at.as_deref())
+        .unwrap_or("")
+}
+
 fn deduped_public_checks(checks: Vec<CheckRun>) -> Vec<CheckRun> {
     let mut by_name = std::collections::HashMap::new();
     for check in checks {
@@ -763,6 +902,19 @@ fn deduped_public_checks(checks: Vec<CheckRun>) -> Vec<CheckRun> {
     let mut checks = by_name.into_values().collect::<Vec<_>>();
     checks.sort_by(|left, right| left.name.cmp(&right.name));
     checks
+}
+
+fn apply_public_rest_head_deployments(
+    commits: &mut [Commit],
+    head_sha: &str,
+    deployments: Vec<Deployment>,
+) {
+    if deployments.is_empty() {
+        return;
+    }
+    if let Some(commit) = commits.iter_mut().find(|commit| commit.oid == head_sha) {
+        commit.deployments = deployments;
+    }
 }
 
 fn rest_issue_resource(
@@ -1496,6 +1648,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn public_rest_head_deployments_without_auth_and_preserve_latest_status_urls() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&json!([
+                    {
+                        "id": 7,
+                        "environment": "preview",
+                        "task": "deploy",
+                        "description": "Deploy request",
+                        "created_at": "2026-05-31T00:00:00Z",
+                        "updated_at": "2026-05-31T00:01:00Z"
+                    }
+                ]))
+                .unwrap(),
+            },
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&json!([
+                    {
+                        "state": "queued",
+                        "description": "Waiting for worker",
+                        "environment": "preview",
+                        "environment_url": "https://preview.example.test/old",
+                        "log_url": "https://logs.example.test/old",
+                        "created_at": "2026-05-31T00:02:00Z",
+                        "updated_at": "2026-05-31T00:02:00Z"
+                    },
+                    {
+                        "state": "success",
+                        "description": "Preview deployed",
+                        "environment": "preview",
+                        "environment_url": "https://preview.example.test/current",
+                        "log_url": "https://logs.example.test/current",
+                        "target_url": "https://target.example.test/current",
+                        "created_at": "2026-05-31T00:03:00Z",
+                        "updated_at": "2026-05-31T00:04:00Z"
+                    }
+                ]))
+                .unwrap(),
+            },
+        ]);
+
+        let deployments = fetch_public_rest_head_deployments_with(&transport, &id, "abc123")
+            .await
+            .expect("public head deployments");
+
+        assert_eq!(deployments.len(), 1);
+        assert_eq!(deployments[0].environment, "preview");
+        assert_eq!(deployments[0].state, "SUCCESS");
+        assert_eq!(
+            deployments[0].description.as_deref(),
+            Some("Preview deployed")
+        );
+        assert_eq!(
+            deployments[0].environment_url.as_deref(),
+            Some("https://preview.example.test/current")
+        );
+        assert_eq!(
+            deployments[0].log_url.as_deref(),
+            Some("https://logs.example.test/current")
+        );
+        assert_eq!(
+            deployments[0].created_at.as_deref(),
+            Some("2026-05-31T00:03:00Z")
+        );
+        assert_eq!(deployments[0].updated_at, "2026-05-31T00:04:00Z");
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/deployments?sha=abc123&per_page=100&page=1"
+        );
+        assert_eq!(
+            requests[1].url,
+            "https://api.github.com/repos/openclaw/openclaw/deployments/7/statuses?per_page=100&page=1"
+        );
+        assert_eq!(requests[0].token, None);
+        assert_eq!(requests[1].token, None);
+    }
+
+    #[tokio::test]
     async fn public_rest_status_contexts_without_auth() {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
         let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
@@ -1840,6 +2075,20 @@ mod tests {
             },
             author: None,
         })];
+        let mut deployed_commits = commits.clone();
+        apply_public_rest_head_deployments(
+            &mut deployed_commits,
+            "abcdef123456",
+            vec![Deployment {
+                environment: "preview".into(),
+                state: "SUCCESS".into(),
+                description: Some("Preview deployed".into()),
+                environment_url: Some("https://preview.example.test".into()),
+                log_url: Some("https://logs.example.test".into()),
+                created_at: Some("2026-05-31T00:00:00Z".into()),
+                updated_at: "2026-05-31T00:01:00Z".into(),
+            }],
+        );
         let files = vec![rest_file(RestFileDto {
             filename: "src/lib.rs".into(),
             additions: 10,
@@ -1848,13 +2097,15 @@ mod tests {
             patch: Some("@@ -1 +1 @@\n-old\n+new".into()),
         })];
 
-        let pr = rest_pull_request(&pull, commits, Vec::new(), files);
+        let pr = rest_pull_request(&pull, deployed_commits, Vec::new(), files);
 
         assert_eq!(pr.base_ref, "main");
         assert_eq!(pr.head_ref, "feature");
         assert_eq!(pr.requested_reviewers, ["reviewer"]);
         assert_eq!(pr.commits[0].message, "feat: public fallback");
         assert_eq!(pr.commits[0].body, "body");
+        assert_eq!(pr.commits[0].deployments[0].environment, "preview");
+        assert_eq!(pr.commits[0].deployments[0].state, "SUCCESS");
         assert_eq!(pr.files[0].path, "src/lib.rs");
         assert_eq!(pr.files[0].change_type, "MODIFIED");
         assert!(pr
