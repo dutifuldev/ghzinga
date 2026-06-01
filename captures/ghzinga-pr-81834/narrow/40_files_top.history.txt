@@ -20,5 +20,5 @@
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                  
                                                                                 
   +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [+ more]        
-  scroll 0/1 0% | tab Files | order oldest | r refresh | y copy | o open | s    
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

@@ -29,8 +29,8 @@
   [x] comfortable  Gmail-style density with gh-dash-like spacing                                                        
   [ ] compact  Dense rows for smaller terminals                                                                         
                                                                                                                         
-  Symbols                                                                                                               
-  [x] ascii  Plain terminal-safe labels                                                                                 
+  Scrollbar                                                                                                             
+  [x] on-scroll  Show while scrolling, then fade                                                                        
   opened https://github.com/openclaw/openclaw/pull/81834                                                                
   [refresh] [copy] [open] [settings] [help] [quit]                                                                      
                                                                                                                         

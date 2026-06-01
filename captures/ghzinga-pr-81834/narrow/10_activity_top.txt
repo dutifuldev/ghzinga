@@ -20,5 +20,5 @@
   Comment by @osolmaz 1mo ago                                                   
   extensions/senseaudio/tts.ts:99                                               
   Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio   
-  scroll 0/26 0% | tab Activity | order oldest | r refresh | y copy | o open |  
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

@@ -20,5 +20,5 @@
                                                                              █  
   Comment by @KLilyZ 2w ago                                                  │  
   Follow-up note: voice list failures now surface the provider error,        │  
-  scroll 20/26 76% | tab Activity | order oldest | r refresh | y copy | o open  
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

@@ -45,6 +45,6 @@
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
-  scroll 0/0 100% | tab Activity | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page   
+                                                                                                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 
                                                                                                                                                                 

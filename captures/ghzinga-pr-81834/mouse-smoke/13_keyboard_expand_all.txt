@@ -31,6 +31,6 @@
   path: docs/providers/senseaudio.md                                                                                    
   change: MODIFIED, additions: 74, deletions: 14                                                                        
   patch: not loaded                                                                                                     
-  scroll 0/24 0% | tab Files | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab      
+                                                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [collapse all]                                                       
                                                                                                                         

@@ -31,6 +31,6 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
   comment Comment by @github-actions 1mo ago                                                                            
-  scroll 0/56 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab   
+                                                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
                                                                                                                         

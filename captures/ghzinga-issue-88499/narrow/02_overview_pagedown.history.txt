@@ -20,5 +20,5 @@
   Related regressions were discussed in #84904 and #87310.                   │  
   [- less]                                                                   │  
                                                                              │  
-  scroll 10/53 18% | tab Overview | order oldest | r refresh | y copy | o open  
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
