@@ -38,6 +38,7 @@ symbols = "ascii"
 spacing = "comfortable"
 width_mode = "fixed"
 fixed_width = 118
+scrollbar = "on-scroll"
 ```
 
 Supported values:
@@ -51,6 +52,7 @@ Supported values:
 - `ui.spacing`: `comfortable`, `compact`
 - `ui.width_mode`: `fixed`, `full`
 - `ui.fixed_width`: fixed readable content width in terminal columns
+- `ui.scrollbar`: `always`, `on-scroll`, `hidden`
 
 Rules:
 
@@ -84,6 +86,9 @@ Initial controls:
   the dense small-terminal mode.
 - Width rows: `fixed`, `full`, and fixed-width presets. Files stay full-width
   because diffs need horizontal room.
+- Scrollbar rows: `on-scroll`, `always`, `hidden`. Ratatui renders the
+  scrollbar; ghzinga owns mouse click/drag mapping from the visible track to the
+  current scroll offset.
 - Current values are bold and accented.
 - Mouse click applies a row immediately.
 - Keyboard shortcuts while settings are open:
@@ -91,6 +96,7 @@ Initial controls:
   - `y`: cycle symbol style
   - `p`: cycle spacing mode
   - `w`: cycle fixed/full width mode
+  - `b`: cycle scrollbar visibility
   - `-` / `+`: decrease/increase fixed readable width
   - `s` or `Esc`: close settings
   - `?`: help remains available

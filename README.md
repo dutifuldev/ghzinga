@@ -88,6 +88,7 @@ gzg openclaw/openclaw#81834 --symbols emoji
 gzg openclaw/openclaw#81834 --spacing compact
 gzg openclaw/openclaw#81834 --width-mode full
 gzg openclaw/openclaw#81834 --fixed-width 132
+gzg openclaw/openclaw#81834 --scrollbar always
 gzg openclaw/openclaw#81834 --once
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-resource-fixture fixtures/issue-66943.json
@@ -106,11 +107,12 @@ breathing room between repeated rows, a small content gutter, top/bottom chrome
 padding, and hanging indents for wrapped long lines; compact keeps more rows
 visible in small terminals. `--width-mode` accepts `fixed` and `full`;
 `--fixed-width` sets the fixed readable width in columns. Files stay full width
-so diffs have room. `--api-depth`
+so diffs have room. `--scrollbar` accepts `always`, `on-scroll`, and `hidden`.
+`--api-depth`
 accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
 conservative; full follows all supported paginated GraphQL enrichment paths.
-CLI theme, symbol, spacing, and width flags override saved config for that run
-only.
+CLI theme, symbol, spacing, width, and scrollbar flags override saved config for
+that run only.
 `--offline-resource-fixture` can be repeated when an offline fixture run needs
 click-through navigation to linked issues or PRs without calling GitHub.
 
@@ -135,6 +137,7 @@ symbols = "ascii"
 spacing = "comfortable"
 width_mode = "fixed"
 fixed_width = 118
+scrollbar = "on-scroll"
 ```
 
 The app works without a config file. Invalid known values fall back to safe
@@ -142,9 +145,9 @@ defaults and show a warning in the status band. Unknown fields are ignored so
 future config additions do not break older files.
 
 Open settings inside the TUI with `s` or the footer `[settings]` control. Theme,
-symbol, spacing, width mode, and fixed width changes apply live and are saved
-back to `config.toml`; write errors are shown in the status band without
-crashing the app.
+symbol, spacing, width mode, fixed width, and scrollbar changes apply live and
+are saved back to `config.toml`; write errors are shown in the status band
+without crashing the app.
 
 ## What It Shows
 
@@ -213,12 +216,13 @@ For issues:
 
 Long body text, comments, checks, and files are truncated by default where
 needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse
-content. The fixed bottom command bar also shows `[expand all]` or
+content. The fixed bottom command bar shows `[expand all]` or
 `[collapse all]` after `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`,
 and `[quit]` when the current tab has expandable rows; that control opens or
 folds every expandable row in the active tab without requiring a scroll to the
-bottom of the content. Scroll position stays in the footer message line rather
-than between command buttons. The rendered content window only registers hit
+bottom of the content. The footer message area is reserved for transient
+loading, save, status, and error messages; shortcut help lives in the Help view
+instead of an always-on footer cheat sheet. The rendered content window only registers hit
 targets for the visible rows, so long paginated GitHub histories remain
 scrollable without turning every off-screen row into an active terminal target.
 If the normal economical API depth sees that GitHub has more pages behind a
@@ -231,17 +235,14 @@ footer controls wrap into extra rows on narrow terminals instead of silently
 overlapping. Long content uses display-width-aware wrapping and truncation, so
 emoji and wide characters do not corrupt the layout.
 
-The footer shows the active tab and scroll position as current row, maximum row,
-and percentage, so long PR conversations and diff views keep the same quick
-orientation cue as a gh-dash preview pane.
-
 When content is scrollable, ghzinga also shows a slim Ratatui scrollbar on the
 right edge while you scroll with the keyboard or mouse wheel. The thumb reaches
 the bottom at the final scroll position, including comfortable-mode bottom
 padding, and endpoint rendering keeps the thumb contiguous at the top and
-bottom edges. The scrollbar is transient: it appears during movement, including
-edge-scroll attempts, then fades after a few render frames so it does not
-permanently take reading space.
+bottom edges. The scrollbar mode is configurable: `on-scroll` appears during
+movement and fades, `always` keeps it visible whenever content can scroll, and
+`hidden` disables it. When the scrollbar is visible, click or drag its right-edge
+track to jump through the content.
 
 By default, ghzinga renders with plain ASCII symbols so it works in terminals
 without special fonts or emoji support. Use `--symbols emoji` to opt into the
@@ -269,6 +270,7 @@ Mouse:
   `[load full]` when shown, and the active-tab expand/collapse control in the
   footer
 - use the mouse wheel to scroll
+- click or drag the visible right-edge scrollbar to scroll
 
 Keyboard:
 
@@ -277,6 +279,7 @@ Keyboard:
 - `s`: open or close settings
 - `t` / `y` / `p` / `w` while settings are open: cycle theme / symbol style /
   spacing / width mode
+- `b` while settings are open: cycle scrollbar visibility
 - `-` / `+` while settings are open: decrease or increase fixed content width
 - `r`: refresh now
 - `f`: load full supported GitHub pagination when a partial-depth warning is

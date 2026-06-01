@@ -138,7 +138,7 @@ fn once_uses_config_symbols_when_cli_does_not_override() {
     let config_path = dir.path().join("config.toml");
     std::fs::write(
         &config_path,
-        "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n",
+        "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\nscrollbar = \"always\"\n",
     )
     .unwrap();
     let mut cmd = Command::cargo_bin("gzg").unwrap();
@@ -165,7 +165,7 @@ fn once_cli_ui_flags_override_saved_config() {
     let config_path = dir.path().join("config.toml");
     std::fs::write(
         &config_path,
-        "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\n",
+        "[ui]\ntheme = \"solarized\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"full\"\nfixed_width = 132\nscrollbar = \"always\"\n",
     )
     .unwrap();
     let mut cmd = Command::cargo_bin("gzg").unwrap();

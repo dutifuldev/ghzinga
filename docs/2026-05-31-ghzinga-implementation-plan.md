@@ -375,10 +375,10 @@ Visual style:
   not push branch/check/file status sideways.
 - Buttons and expandable controls use bold styling and text labels, for example
   `[+ more]`, `[- less]`, `[refresh]`, `[open]`.
-- The footer keeps a gh-dash-style scroll position cue for the active tab,
-  rendered with plain ASCII as current row, maximum row, and percentage. Long
-  conversations, checks, and file diffs should always tell the user where they
-  are in the scrollable preview.
+- The footer does not keep an always-on scroll/shortcut cheat sheet. Scroll
+  orientation is handled by the configurable right-edge scrollbar, while the
+  footer message area is reserved for transient status, loading, save, and error
+  messages.
 - Default symbols are plain ASCII so no special terminal font, Nerd Font, or
   emoji support is required. `--symbols emoji` may opt into richer markers, but
   every marker must retain a nearby text label.

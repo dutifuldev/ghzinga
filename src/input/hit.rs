@@ -25,6 +25,8 @@ pub enum HitTarget {
     SetSpacing(String),
     SetWidthMode(String),
     SetFixedWidth(u16),
+    SetScrollbar(String),
+    Scrollbar { top: u16, height: u16 },
 }
 
 impl HitTarget {
@@ -42,6 +44,7 @@ impl HitTarget {
                 | Self::SetSpacing(_)
                 | Self::SetWidthMode(_)
                 | Self::SetFixedWidth(_)
+                | Self::SetScrollbar(_)
         )
     }
 }

@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use crate::app::{AppState, BlockId};
 use crate::input::{hit_test, HitTarget};
-use crate::render::{ContentWidthMode, SpacingMode, SymbolMode, ThemeName};
+use crate::render::{ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppIntent {
@@ -112,6 +112,13 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
                 AppIntent::None
             }
         }
+        KeyCode::Char('b') if state.show_settings && is_plain_shortcut(key) => {
+            if state.cycle_scrollbar() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
         KeyCode::Char('+') | KeyCode::Char('=')
             if state.show_settings && is_plain_shortcut(key) =>
         {
@@ -214,7 +221,19 @@ fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
             let Some(target) = hit_test(&state.hit_areas, mouse.column, mouse.row) else {
                 return AppIntent::None;
             };
+            if let HitTarget::Scrollbar { top, height } = target {
+                state.begin_scrollbar_drag(top, height, mouse.row);
+                return AppIntent::None;
+            }
             apply_target(state, target)
+        }
+        MouseEventKind::Drag(MouseButton::Left) => {
+            state.drag_scrollbar(mouse.row);
+            AppIntent::None
+        }
+        MouseEventKind::Up(MouseButton::Left) => {
+            state.end_scrollbar_drag();
+            AppIntent::None
         }
         _ => AppIntent::None,
     }
@@ -287,6 +306,11 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
                 AppIntent::None
             }
         }
+        HitTarget::SetScrollbar(scrollbar) => match scrollbar.parse::<ScrollbarMode>() {
+            Ok(scrollbar) if state.set_scrollbar(scrollbar) => AppIntent::SaveSettings,
+            _ => AppIntent::None,
+        },
+        HitTarget::Scrollbar { .. } => AppIntent::None,
     }
 }
 
@@ -509,7 +533,7 @@ mod tests {
 
     #[test]
     fn settings_control_shortcuts_do_not_change_preferences() {
-        for shortcut in ['t', 'y', 'p', 'w', '+', '-'] {
+        for shortcut in ['t', 'y', 'p', 'w', 'b', '+', '-'] {
             let mut state = AppState::new(resource());
             state.show_settings = true;
             let theme = state.theme;
@@ -517,6 +541,7 @@ mod tests {
             let spacing = state.spacing;
             let width_mode = state.width_mode;
             let fixed_width = state.fixed_width;
+            let scrollbar = state.scrollbar;
 
             let intent = apply_event(
                 &mut state,
@@ -532,6 +557,7 @@ mod tests {
             assert_eq!(state.spacing, spacing, "Ctrl-{shortcut}");
             assert_eq!(state.width_mode, width_mode, "Ctrl-{shortcut}");
             assert_eq!(state.fixed_width, fixed_width, "Ctrl-{shortcut}");
+            assert_eq!(state.scrollbar, scrollbar, "Ctrl-{shortcut}");
             assert!(state.show_settings, "Ctrl-{shortcut}");
         }
     }
@@ -1153,6 +1179,14 @@ mod tests {
         assert_eq!(width_mode, AppIntent::SaveSettings);
         assert_eq!(state.width_mode, ContentWidthMode::Full);
 
+        let scrollbar = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('b'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(scrollbar, AppIntent::SaveSettings);
+        assert_eq!(state.scrollbar, ScrollbarMode::Always);
+
         let width = apply_event(
             &mut state,
             AppEvent::Key(KeyEvent::new(KeyCode::Char('+'), KeyModifiers::empty())),
@@ -1256,6 +1290,76 @@ mod tests {
 
         assert_eq!(fixed_width, AppIntent::SaveSettings);
         assert_eq!(state.fixed_width, 132);
+
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 5, 20, 1),
+            HitTarget::SetScrollbar("hidden".into()),
+        ));
+        let scrollbar = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 5,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(scrollbar, AppIntent::SaveSettings);
+        assert_eq!(state.scrollbar, ScrollbarMode::Hidden);
+    }
+
+    #[test]
+    fn mouse_scrollbar_click_and_drag_updates_scroll_position() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(100);
+        state.scrollbar = ScrollbarMode::Always;
+        state.hit_areas.push(HitArea::new(
+            Rect::new(79, 10, 1, 21),
+            HitTarget::Scrollbar {
+                top: 10,
+                height: 21,
+            },
+        ));
+
+        let click = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 79,
+                row: 20,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(click, AppIntent::None);
+        assert_eq!(state.scroll, 50);
+        assert!(state.scrollbar_drag.is_some());
+
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Drag(MouseButton::Left),
+                column: 79,
+                row: 30,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(state.scroll, 100);
+
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Up(MouseButton::Left),
+                column: 79,
+                row: 30,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert!(state.scrollbar_drag.is_none());
     }
 
     #[test]

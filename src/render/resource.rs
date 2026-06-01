@@ -13,7 +13,7 @@ use crate::{
     input::{HitArea, HitTarget},
     render::{
         markdown, time::compact_relative_time, time::relative_time_phrase, ContentWidthMode,
-        Palette, SpacingMode, SymbolMode, Symbols, ThemeName, ViewRects,
+        Palette, ScrollbarMode, SpacingMode, SymbolMode, Symbols, ThemeName, ViewRects,
     },
 };
 
@@ -840,7 +840,7 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
 fn render_scrollbar(
     frame: &mut Frame<'_>,
     area: Rect,
-    state: &AppState,
+    state: &mut AppState,
     palette: &Palette,
     row_count: usize,
 ) {
@@ -861,6 +861,18 @@ fn render_scrollbar(
         .begin_symbol(None)
         .end_symbol(None)
         .render(area, frame.buffer_mut(), &mut scrollbar_state);
+    state.hit_areas.push(HitArea::new(
+        Rect::new(
+            area.x.saturating_add(area.width.saturating_sub(1)),
+            area.y,
+            1,
+            area.height,
+        ),
+        HitTarget::Scrollbar {
+            top: area.y,
+            height: area.height,
+        },
+    ));
     snap_scrollbar_endpoint(frame, area, state, palette, content_length);
 }
 
@@ -1191,7 +1203,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- q: quit",
             "- ?: toggle this help",
             "- s: open or close settings",
-            "- t / y / p / w in settings: cycle theme / symbols / spacing / width mode",
+            "- t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar",
             "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
             "- f: load full GitHub pages when a partial-depth warning is shown",
@@ -1283,6 +1295,29 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
         palette,
     ));
     rows.push(ContentRow::plain(""));
+    rows.push(heading_row("Scrollbar", palette));
+    for (name, description, mode) in [
+        (
+            "on-scroll",
+            "Show while scrolling, then fade",
+            ScrollbarMode::OnScroll,
+        ),
+        (
+            "always",
+            "Show whenever content can scroll",
+            ScrollbarMode::Always,
+        ),
+        ("hidden", "Never show the scrollbar", ScrollbarMode::Hidden),
+    ] {
+        rows.push(settings_option_row(
+            name,
+            description,
+            state.scrollbar == mode,
+            HitTarget::SetScrollbar(name.into()),
+            palette,
+        ));
+    }
+    rows.push(ContentRow::plain(""));
     rows.push(heading_row("Symbols", palette));
     rows.push(settings_option_row(
         "ascii",
@@ -1312,7 +1347,7 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
     rows.extend(
         [
             "",
-            "Keyboard: t theme | y symbols | p spacing | w width mode | -/+ width | s or Esc close",
+            "Keyboard: t theme | y symbols | p spacing | w width mode | b scrollbar | -/+ width | s or Esc close",
             "Changes are applied live and saved immediately.",
         ]
         .into_iter()
@@ -2406,32 +2441,17 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
             controls.push(footer_control(control.0, control.1, palette));
         }
     }
-    let scroll = scroll_summary(state);
     let control_lines = footer_control_lines(controls, area.width);
     let bottom_padding = footer_bottom_padding_rows(area, state.spacing);
     let control_capacity = (area.height as usize).saturating_sub(bottom_padding);
     let control_lines = footer_visible_control_lines(control_lines, control_capacity);
 
-    let full_hint = if state.resource.has_partial_depth_warning() {
-        " | f full"
-    } else {
-        ""
-    };
-    let default_message = format!(
-        "{} | tab {} | order {} | r refresh{} | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page scroll | e more/less",
-        scroll,
-        state.active_tab.label(),
-        if state.reverse_chronological { "newest" } else { "oldest" },
-        full_hint,
-    );
     let message = if let Some(error) = &state.last_error {
-        format!("ERROR: {error}")
+        Some(format!("ERROR: {error}"))
     } else if let Some(message) = loading_status_text(state) {
-        message
-    } else if let Some(message) = &state.status_message {
-        message.clone()
+        Some(message)
     } else {
-        default_message
+        state.status_message.clone()
     };
     let message_style = if state.last_error.is_some() {
         Style::default()
@@ -2444,7 +2464,10 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let remaining = area.height.saturating_sub(control_height as u16) as usize;
     let mut message_lines = Vec::<Line<'static>>::new();
     if remaining > 0 {
-        for line in markdown::wrap_plain_text(&message, area.width as usize)
+        for line in message
+            .as_deref()
+            .map(|message| markdown::wrap_plain_text(message, area.width as usize))
+            .unwrap_or_default()
             .into_iter()
             .take(remaining)
         {
@@ -2580,17 +2603,6 @@ fn render_footer_controls(
             .style(Style::default())
             .render(Rect::new(area.x, y, area.width, 1), frame.buffer_mut());
     }
-}
-
-fn scroll_summary(state: &AppState) -> String {
-    let limit = state.scroll_limit;
-    let current = state.scroll.min(limit);
-    let percent = if limit == 0 {
-        100
-    } else {
-        ((u32::from(current) * 100) / u32::from(limit)).min(100)
-    };
-    format!("scroll {current}/{limit} {percent}%")
 }
 
 fn checks_summary(resource: &Resource) -> String {
@@ -3626,7 +3638,7 @@ mod tests {
         let content = format!("{:?}", terminal.backend().buffer());
 
         assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit] [expand all]"));
-        assert!(content.contains("scroll 0/"));
+        assert!(!content.contains("scroll 0/"));
         assert!(content.contains("[expand all]"));
         assert!(state
             .hit_areas
@@ -3691,7 +3703,6 @@ mod tests {
         let load_full = partial_content.find("[load full]").unwrap();
         let expand_all = partial_content.find("[expand all]").unwrap();
         assert!(load_full < expand_all);
-        assert!(partial_content.contains("f full"));
         assert!(partial_state
             .hit_areas
             .iter()
@@ -3699,13 +3710,14 @@ mod tests {
     }
 
     #[test]
-    fn footer_renders_scroll_position_cue_when_space_allows() {
+    fn footer_omits_verbose_shortcut_and_scroll_hint() {
         let mut state = AppState::new(pr_resource());
 
         let content = draw(&mut state, 120, 36);
 
-        assert!(content.contains("scroll 0/"));
-        assert!(content.contains("0%"));
+        assert!(!content.contains("scroll 0/"));
+        assert!(!content.contains("arrows/page scroll"));
+        assert!(!content.contains("1-6/tab switch"));
     }
 
     #[test]
@@ -3724,6 +3736,28 @@ mod tests {
         }
         let settled = draw(&mut state, 120, 20);
         assert!(!settled.contains('█'));
+    }
+
+    #[test]
+    fn content_scrollbar_modes_control_rendering_and_hit_area() {
+        let mut always = AppState::new(pr_resource());
+        always.scrollbar = ScrollbarMode::Always;
+        let content = draw(&mut always, 120, 20);
+        assert!(content.contains('█'));
+        assert!(always
+            .hit_areas
+            .iter()
+            .any(|area| matches!(area.target, HitTarget::Scrollbar { .. })));
+
+        let mut hidden = AppState::new(pr_resource());
+        hidden.scrollbar = ScrollbarMode::Hidden;
+        hidden.scroll_down(5);
+        let content = draw(&mut hidden, 120, 20);
+        assert!(!content.contains('█'));
+        assert!(hidden
+            .hit_areas
+            .iter()
+            .all(|area| !matches!(area.target, HitTarget::Scrollbar { .. })));
     }
 
     #[test]
@@ -3834,22 +3868,6 @@ mod tests {
         assert_eq!(scrollbar_endpoint_thumb_length(20, 20), 10);
         assert_eq!(scrollbar_endpoint_thumb_length(20, 10), 14);
         assert_eq!(scrollbar_endpoint_thumb_length(0, 10), 0);
-    }
-
-    #[test]
-    fn scroll_summary_reports_current_limit_and_percent() {
-        let mut state = AppState::new(pr_resource());
-        state.scroll = 100;
-        state.scroll_limit = 200;
-
-        assert_eq!(scroll_summary(&state), "scroll 100/200 50%");
-
-        state.scroll = 300;
-        assert_eq!(scroll_summary(&state), "scroll 200/200 100%");
-
-        state.scroll = 0;
-        state.scroll_limit = 0;
-        assert_eq!(scroll_summary(&state), "scroll 0/0 100%");
     }
 
     #[test]
@@ -5017,7 +5035,7 @@ mod tests {
 
     #[test]
     fn renders_settings_view_with_clickable_options() {
-        let backend = TestBackend::new(120, 60);
+        let backend = TestBackend::new(120, 80);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut state = AppState::new(pr_resource());
         state.show_settings = true;
@@ -5035,6 +5053,10 @@ mod tests {
         assert!(content.contains("comfortable"));
         assert!(content.contains("compact"));
         assert!(content.contains("Width"));
+        assert!(content.contains("Scrollbar"));
+        assert!(content.contains("on-scroll"));
+        assert!(content.contains("always"));
+        assert!(content.contains("hidden"));
         assert!(content.contains("fixed"));
         assert!(content.contains("full"));
         assert!(content.contains("118"));
@@ -5058,6 +5080,10 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::SetFixedWidth(132)));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::SetScrollbar("always".into())));
         assert!(state
             .hit_areas
             .iter()

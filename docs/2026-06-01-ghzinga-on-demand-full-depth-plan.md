@@ -44,8 +44,9 @@ visible way to load the complete supported data set in place.
 - `[load full]` is only visible when it can do something useful.
 - `[expand all]` / `[collapse all]` remains the final footer command when both
   controls are present.
-- The footer hint line mentions `f full` only when the current resource has a
-  partial-depth warning.
+- The footer does not render an always-on shortcut hint line. The action remains
+  discoverable through `[load full]`, the Help view, and the README shortcut
+  list.
 - The action is mouse-clickable and keyboard-accessible.
 
 ## Verification
