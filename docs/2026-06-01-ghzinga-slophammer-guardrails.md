@@ -46,7 +46,7 @@ src/domain/
   -> typed PR/issue model and parsing; no IO, TUI, network, or process code
 
 src/github/
-  -> direct GitHub API adapter, auth token fallback, DTO normalization
+  -> direct GitHub API adapter, public REST fallback, auth token fallback, DTO normalization
 
 src/render/
   -> Ratatui rendering and hit-area registration; no network, process, or fs IO
@@ -91,6 +91,8 @@ reach back into TUI layers.
 - `src/terminal` stays out of domain, data, input, render, and app layers
 - GitHub data transport does not regress to `gh pr view`, `gh issue view`, or
   `gh api`; the only allowed `gh` use in the GitHub adapter is `gh auth token`
+- unauthenticated public REST fallback code lives behind the GitHub adapter
+  boundary, not in the runner or renderer
 - `TerminalGuard` must be safe during partial setup: raw mode, alternate screen,
   and mouse capture are tracked independently so a setup error unwinds through
   the same restoration path as a normal exit

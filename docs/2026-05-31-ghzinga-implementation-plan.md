@@ -150,6 +150,7 @@ src/
   github/
     mod.rs                GitHub gateway trait
     api.rs                resource fetch/enrichment orchestration and normalization
+    public_rest.rs        unauthenticated public PR/issue fallback adapter
     auth.rs               token resolution from env or `gh auth token`
     transport.rs          mockable reqwest-backed GraphQL/REST transport
     queries.rs            GraphQL query strings
