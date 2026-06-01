@@ -478,6 +478,24 @@ Rules:
 - Public unauthenticated REST fallback should continue to render the issue and
   should explicitly warn that issue relationships are GraphQL-only.
 
+## Issue Duplicate Enrichment
+
+GitHub issues can be marked as duplicates of another issue. Timeline events show
+when that happened, but the current duplicate target is status metadata and
+should remain visible even if the event is far down the history.
+
+Rules:
+
+- Fetch `duplicateOf` for issues with a direct GraphQL query.
+- Add a `Duplicate of` metadata row when GitHub returns a target issue.
+- Add the duplicate target to `Resource.related_resources` so the Links tab and
+  click navigation can open it.
+- Map `url` first, falling back to the issue number in the current repository
+  when GraphQL omits the URL.
+- Treat a missing resource or missing `duplicateOf` field as no duplicate target.
+- Public unauthenticated REST fallback should continue to render the issue and
+  should explicitly warn that duplicate issue enrichment is GraphQL-only.
+
 ## Issue Linked Branch Enrichment
 
 GitHub issues can expose branches linked to the issue. Those branches are part

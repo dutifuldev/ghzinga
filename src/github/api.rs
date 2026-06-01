@@ -14,7 +14,7 @@ use crate::domain::{
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
     comments_query, commit_authors_query, commit_comment_thread_comments_query,
-    commit_deployment_items_query, commit_deployments_query, commits_query,
+    commit_deployment_items_query, commit_deployments_query, commits_query, issue_duplicate_query,
     issue_linked_branches_query, issue_parent_query, issue_relationships_query, labels_query,
     linked_resources_query, participants_query, project_items_query, review_requests_query,
     review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
@@ -304,7 +304,7 @@ async fn fetch_public_rest_issue(
     let mut resource = rest_issue_resource(issue, id, comments);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, linked branches, relationship links, and review data".into(),
+        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, duplicate issue targets, linked branches, relationship links, and review data".into(),
     );
     Ok(resource)
 }
@@ -460,6 +460,19 @@ async fn enrich_issue_relationships(resource: &mut Resource, id: &ResourceId) {
         Err(error) => push_enrichment_warning(resource, "parent issue unavailable", &error),
     }
 
+    match fetch_issue_duplicate(id).await {
+        Ok(Some(duplicate)) => {
+            apply_issue_relationship_metadata(
+                &mut resource.metadata,
+                "Duplicate of",
+                vec![duplicate.clone()],
+            );
+            append_related_resources(resource, vec![duplicate]);
+        }
+        Ok(None) => {}
+        Err(error) => push_enrichment_warning(resource, "duplicate issue unavailable", &error),
+    }
+
     for kind in IssueRelationshipKind::ALL {
         match fetch_issue_relationships(id, kind).await {
             Ok(related) => {
@@ -570,6 +583,14 @@ async fn run_graphql_linked_resources(
 
 async fn run_graphql_issue_parent(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
     run_graphql_query(issue_parent_query(), owner_repo_number_variables(id, None)).await
+}
+
+async fn run_graphql_issue_duplicate(id: &ResourceId) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        issue_duplicate_query(),
+        owner_repo_number_variables(id, None),
+    )
+    .await
 }
 
 async fn run_graphql_issue_relationships(
@@ -1081,6 +1102,30 @@ struct IssueParentRepository {
 #[serde(rename_all = "camelCase")]
 struct IssueParentResource {
     parent: Option<RelatedResourceDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueDuplicateResponse {
+    data: IssueDuplicateData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueDuplicateData {
+    repository: Option<IssueDuplicateRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueDuplicateRepository {
+    issue: Option<IssueDuplicateResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueDuplicateResource {
+    duplicate_of: Option<RelatedResourceDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2602,6 +2647,13 @@ async fn fetch_issue_parent(id: &ResourceId) -> anyhow::Result<Option<ResourceId
     Ok(issue_parent_from_response(response, id))
 }
 
+async fn fetch_issue_duplicate(id: &ResourceId) -> anyhow::Result<Option<ResourceId>> {
+    let output = run_graphql_issue_duplicate(id).await?;
+    let response: IssueDuplicateResponse =
+        serde_json::from_slice(&output).context("failed to parse issue duplicate GraphQL JSON")?;
+    Ok(issue_duplicate_from_response(response, id))
+}
+
 async fn fetch_issue_relationships(
     id: &ResourceId,
     kind: IssueRelationshipKind,
@@ -2737,6 +2789,18 @@ fn issue_parent_from_response(
         .issue?
         .parent
         .and_then(|parent| related_resource_id(parent, ResourceKind::Issue, requested))
+}
+
+fn issue_duplicate_from_response(
+    response: IssueDuplicateResponse,
+    requested: &ResourceId,
+) -> Option<ResourceId> {
+    response
+        .data
+        .repository?
+        .issue?
+        .duplicate_of
+        .and_then(|duplicate| related_resource_id(duplicate, ResourceKind::Issue, requested))
 }
 
 #[cfg(test)]
@@ -5677,6 +5741,16 @@ mod tests {
     }
 
     #[test]
+    fn issue_duplicate_query_requests_duplicate_reference() {
+        let query = issue_duplicate_query();
+
+        assert!(query.contains("issue(number: $number)"));
+        assert!(query.contains("duplicateOf"));
+        assert!(query.contains("number"));
+        assert!(query.contains("url"));
+    }
+
+    #[test]
     fn issue_relationships_query_requests_connection_and_pagination_state() {
         let query = issue_relationships_query("blockedBy");
 
@@ -6135,6 +6209,63 @@ mod tests {
 
         assert_eq!(parent.canonical_name(), "openclaw/openclaw#90001");
         assert_eq!(parent.kind_hint, Some(ResourceKind::Issue));
+    }
+
+    #[test]
+    fn issue_duplicate_from_response_maps_url_or_number() {
+        let requested = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let duplicate = issue_duplicate_from_response(
+            IssueDuplicateResponse {
+                data: IssueDuplicateData {
+                    repository: Some(IssueDuplicateRepository {
+                        issue: Some(IssueDuplicateResource {
+                            duplicate_of: Some(RelatedResourceDto {
+                                number: None,
+                                url: Some("https://github.com/other/repo/issues/12".into()),
+                            }),
+                        }),
+                    }),
+                },
+            },
+            &requested,
+        )
+        .expect("duplicate issue");
+
+        assert_eq!(duplicate.canonical_name(), "other/repo#12");
+        assert_eq!(duplicate.kind_hint, Some(ResourceKind::Issue));
+
+        let duplicate = issue_duplicate_from_response(
+            IssueDuplicateResponse {
+                data: IssueDuplicateData {
+                    repository: Some(IssueDuplicateRepository {
+                        issue: Some(IssueDuplicateResource {
+                            duplicate_of: Some(RelatedResourceDto {
+                                number: Some(90001),
+                                url: None,
+                            }),
+                        }),
+                    }),
+                },
+            },
+            &requested,
+        )
+        .expect("duplicate issue fallback number");
+
+        assert_eq!(duplicate.canonical_name(), "openclaw/openclaw#90001");
+        assert_eq!(duplicate.kind_hint, Some(ResourceKind::Issue));
+
+        let no_duplicate = issue_duplicate_from_response(
+            IssueDuplicateResponse {
+                data: IssueDuplicateData {
+                    repository: Some(IssueDuplicateRepository {
+                        issue: Some(IssueDuplicateResource { duplicate_of: None }),
+                    }),
+                },
+            },
+            &requested,
+        );
+
+        assert!(no_duplicate.is_none());
     }
 
     #[test]
