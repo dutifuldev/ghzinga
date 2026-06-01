@@ -25,7 +25,7 @@ fn once_renders_pr_fixture_through_binary() {
     .stdout(contains(
         "[Overview] Activity  Commits  Checks  Files  Links",
     ))
-    .stdout(contains("Conversation"))
+    .stdout(contains("* @KLilyZ opened"))
     .stdout(contains("checks PASS"));
 }
 
@@ -80,7 +80,7 @@ fn once_can_render_pr_files_tab() {
     .assert()
     .success()
     .stdout(contains("[Files]"))
-    .stdout(contains("Files changed (5)"))
+    .stdout(contains("extensions/senseaudio/index.ts"))
     .stdout(contains("[+ more]"));
 }
 

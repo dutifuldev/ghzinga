@@ -56,6 +56,10 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.toggle_settings();
             AppIntent::None
         }
+        KeyCode::Char('v') => {
+            state.toggle_feed_order();
+            AppIntent::None
+        }
         KeyCode::Esc if state.show_settings => {
             state.close_settings();
             AppIntent::None
@@ -296,6 +300,22 @@ mod tests {
 
         assert_eq!(intent, AppIntent::Quit);
         assert!(state.should_quit);
+    }
+
+    #[test]
+    fn keyboard_v_toggles_feed_order_and_resets_scroll() {
+        let mut state = AppState::new(resource());
+        state.scroll = 7;
+        state.set_scroll_limit(10);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::empty())),
+        );
+
+        assert!(state.reverse_chronological);
+        assert_eq!(state.scroll, 0);
+        assert_eq!(state.scroll_limit, u16::MAX);
     }
 
     #[test]

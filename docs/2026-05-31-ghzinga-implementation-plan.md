@@ -369,8 +369,8 @@ Visual style:
   - `solarized-dark`: Solarized Dark colors from Herdr's palette
 - Line and separator rendering borrows Herdr's understated approach:
   - fill the terminal background with the active palette's panel color
-  - use ASCII separators such as `-` in dim surface colors instead of
-    boxed panels around every region
+  - use continuous horizontal rule glyphs in dim surface colors instead of
+    dash runs or boxed panels around every region
   - use plain left guide markers such as `|` for preformatted code or dense
     quoted blocks when that helps scanning
   - keep borders structural and quiet, with color and bold carrying most of the
@@ -385,6 +385,11 @@ Responsive behavior:
   when the terminal is narrow.
 - Wrap tab labels and footer controls using display width; click hit areas must
   follow the wrapped visual position.
+- In comfortable spacing, apply equal left/right padding to header, tabs,
+  status, content, and footer so the whole preview reads as one aligned column.
+- When the header wraps, keep resource identity, state, updated time, and title
+  visible whenever the reserved header rows allow it. Do not spend every row on
+  the title and silently drop updated/status context.
 - Truncate only low-priority metadata when a fixed-height region cannot grow
   further.
 - Use display-width-aware wrapping for long words, emoji, and wide characters.
@@ -415,23 +420,40 @@ Issue tabs:
 
 ## Chronological Overview Rules
 
-- The first Overview section is `Conversation`.
+- The tab selector already names the active view, so Overview should not render
+  a second `Conversation` heading under the selector.
 - The opening body is rendered as an authored timeline card using the resource
   author and created timestamp.
+- In normal order, the opening body is always the first Overview item even when
+  a commit timestamp predates the PR/issue created timestamp.
+- In reversed order, the opening body is always the final Overview item.
 - PR commits are inserted into the same stream using `committed_at`, or
   `authored_at` when commit time is missing.
 - Activity entries use their existing `updated_at` value.
 - Items sort ascending by timestamp, with stable tie-breaking that keeps the
   opening body first, then commits, then activity entries when timestamps match.
+- Chronological tabs support a keyboard shortcut to reverse the visible order.
+  Reversed order should apply consistently to Overview, Activity, and Commits.
 - Each item starts with a bold colored heading and a quiet separator so it is
   clear where one item ends and the next begins.
 - Expand/collapse controls stay per item. Long comments and the opening body
   are truncated by default; expanded state reuses existing `BlockId`s.
+- Tab-level `[expand all]` and `[collapse all]` controls belong at the end of
+  the feed/list next to other actions, not at the top.
 - GitHub API pagination remains an adapter concern. The renderer receives the
   normalized full resource and virtualizes the terminal work by only registering
   hit targets for visible rows after scroll clipping.
 - If a timestamp is relative or not parseable, preserve the adapter order and
   display the timestamp text as-is rather than hiding the item.
+
+## Files And Diff Rendering
+
+- The Files tab selector already labels the view, so the tab content should
+  start with changed-file rows rather than a redundant `Files changed` heading.
+- Diff additions and deletions should use background tinting, closer to GitHub's
+  web diff style: inserted lines get a green-tinted background and deleted lines
+  get a red-tinted background. Text foreground should remain readable on that
+  background instead of using only foreground red/green.
 
 ## Participant Enrichment
 
