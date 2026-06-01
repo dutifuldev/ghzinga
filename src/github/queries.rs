@@ -357,6 +357,21 @@ query($owner: String!, $name: String!, $number: Int!) {
 "#
 }
 
+pub(crate) fn issue_duplicate_query() -> &'static str {
+    r#"
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      duplicateOf {
+        number
+        url
+      }
+    }
+  }
+}
+"#
+}
+
 pub(crate) fn issue_relationships_query(connection: &str) -> String {
     format!(
         r#"
