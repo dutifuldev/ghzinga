@@ -64,6 +64,15 @@
       "updated_at": "3w ago",
       "path": null,
       "line": null
+    },
+    {
+      "id": "review-1",
+      "kind": "review",
+      "author": "osolmaz",
+      "body": "Codex review: needs changes before merge. Please keep the SenseAudio provider surface narrow, verify the voice listing error path, and make sure the new speech provider file is covered by targeted extension tests.",
+      "updated_at": "2w ago",
+      "path": null,
+      "line": null
     }
   ],
   "related_resources": [
@@ -92,9 +101,14 @@
     ],
     "checks": [
       {
-        "name": "All checks",
+        "name": "suite/CI",
         "status": "success",
         "summary": "38 skipped, 2 neutral, 86 successful"
+      },
+      {
+        "name": "All checks",
+        "status": "success",
+        "summary": "aggregate branch protection check"
       }
     ],
     "files": [
@@ -127,6 +141,13 @@
         "additions": 3,
         "deletions": 1,
         "change_type": "MODIFIED"
+      },
+      {
+        "path": "extensions/senseaudio/speech-provider.ts",
+        "additions": 1018,
+        "deletions": 2,
+        "change_type": "ADDED",
+        "patch": "diff --git a/extensions/senseaudio/speech-provider.ts b/extensions/senseaudio/speech-provider.ts\nnew file mode 100644\n@@ -0,0 +1,6 @@\n+export async function synthesizeSpeech(input: string) {\n+  const response = await fetch('/v1/t2a_v2', { method: 'POST' });\n+  if (!response.ok) throw new Error('SenseAudio synthesis failed');\n+  return response.arrayBuffer();\n+}\n+export async function listVoices() { return fetch('/v1/get_voice'); }"
       }
     ]
   }

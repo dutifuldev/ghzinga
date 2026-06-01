@@ -32,5 +32,5 @@
   direct-OpenAI-only path.                                                                                           │  
                                                                                                                      │  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
-                                                                                                                     │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/38 26% [expand all]                                        
+  scroll 10/39 25% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help |         
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         

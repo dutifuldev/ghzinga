@@ -1,50 +1,50 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                                                              
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22                                  
                                                                                                                                                                 
                                                                                                                                                                 
   [Overview] Activity  Commits  Checks  Files  Links                                                                                                            
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
-  * @KLilyZ opened 2026-05-14T14:05:46Z                                                                                                                         
+  * @KLilyZ opened 1mo ago                                                                                                                                      
   Summary                                                                                                                                                       
-                                                                                                                                                                
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                                                                    
-  - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with the                                        
-  ASR added in #66943.                                                                                                                                          
+  - Why it matters: completes the round trip in the same plugin.                                                                                                
   - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices                                         
-  via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code /                                               
-  missing-audio buckets.                                                                                                                                        
-  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of                                         
-  scope.                                                                                                                                                        
+  via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                                                                             
                                                                                                                                                                 
-  Change Type (select all)                                                                                                                                      
-  [+ more]                                                                                                                                                      
+  Validation                                                                                                                                                    
+  - Targeted extension tests passed.                                                                                                                            
+  - Contract plugin tests passed.                                                                                                                               
+                                                                                                                                                                
+  Scope                                                                                                                                                         
+  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                                                                
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
-  comment Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                       
-  meta: association CONTRIBUTOR                                                                                                                                 
-  [details]                                                                                                                                                     
-  <!-- openclaw:dependency-change-awareness -->                                                                                                                 
+  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                                                           
+  feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
                                                                                                                                                                 
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
+  comment Comment by @github-actions 1mo ago                                                                                                                    
   Dependency Changes Detected                                                                                                                                   
-                                                                                                                                                                
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                           
                                                                                                                                                                 
   Changed files:                                                                                                                                                
   - extensions/senseaudio/package.json                                                                                                                          
-  [+ more]                                                                                                                                                      
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
-  comment Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                                               
-  meta: association NONE                                                                                                                                        
-  [details]                                                                                                                                                     
-  Codex review: needs changes before merge.                                                                                                                     
+  comment Comment by @osolmaz 1mo ago                                                                                                                           
+  extensions/senseaudio/tts.ts:99                                                                                                                               
+  Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice                                              
+  listing, tests, and docs. Needs maintainer review before merge.                                                                                               
                                                                                                                                                                 
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
-  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/138 0% [expand all]                                                                                 
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
+  - Timeline by @osolmaz 1mo ago                                                                                                                                
+  scroll 0/28 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page    
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 

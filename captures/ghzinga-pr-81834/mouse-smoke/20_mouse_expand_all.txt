@@ -1,36 +1,36 @@
   openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
                                                                                                                         
    Overview  Activity  Commits  Checks [Files] Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  [- less]                                                                                                           │  
-                                                                                                                     │  
-  +1    -1    MODIFIED docs/plugins/reference.md [- less]                                                            │  
-  path: docs/plugins/reference.md                                                                                    │  
-  change: MODIFIED, additions: 1, deletions: 1                                                                       │  
   patch: not loaded                                                                                                  │  
   [- less]                                                                                                           │  
                                                                                                                      │  
-  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [- less]                                                 │  
-  path: docs/plugins/reference/senseaudio.md                                                                         │  
-  change: MODIFIED, additions: 3, deletions: 3                                                                       │  
+  +3    -1    MODIFIED extensions/senseaudio/index.ts [- less]                                                       │  
+  path: extensions/senseaudio/index.ts                                                                               │  
+  change: MODIFIED, additions: 3, deletions: 1                                                                       │  
   patch: not loaded                                                                                                  │  
   [- less]                                                                                                           │  
                                                                                                                      │  
-  +74   -14   MODIFIED docs/providers/senseaudio.md [- less]                                                         █  
-  path: docs/providers/senseaudio.md                                                                                 █  
-  change: MODIFIED, additions: 74, deletions: 14                                                                     █  
-  patch: not loaded                                                                                                  █  
+  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [- less]                                             │  
+  path: extensions/senseaudio/speech-provider.ts                                                                     │  
+  change: ADDED, additions: 1018, deletions: 2                                                                       │  
+  patch                                                                                                              │  
+  diff --git a/extensions/senseaudio/speech-provider.ts b/extensions/senseaudio/speech-provider.ts                   │  
+  new file mode 100644                                                                                               │  
+  @@ -0,0 +1,6 @@                                                                                                    │  
+  +export async function synthesizeSpeech(input: string) {                                                           █  
+  + const response = await fetch('/v1/t2a_v2', { method: 'POST' });                                                  █  
+  + if (!response.ok) throw new Error('SenseAudio synthesis failed');                                                █  
+  + return response.arrayBuffer();                                                                                   █  
+  +}                                                                                                                 █  
+  +export async function listVoices() { return fetch('/v1/get_voice'); }                                             █  
+  [- less patch]                                                                                                     █  
   [- less]                                                                                                           █  
                                                                                                                      █  
-  +3    -1    MODIFIED extensions/senseaudio/index.ts [- less]                                                       █  
-  path: extensions/senseaudio/index.ts                                                                               █  
-  change: MODIFIED, additions: 3, deletions: 1                                                                       █  
-  patch: not loaded                                                                                                  █  
-  [- less]                                                                                                           █  
-                                                                                                                     █  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 5/5 100% [collapse all]                                       
+  scroll 22/22 100% | tab Files | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab   
+  [refresh] [copy] [open] [settings] [help] [quit] [collapse all]                                                       

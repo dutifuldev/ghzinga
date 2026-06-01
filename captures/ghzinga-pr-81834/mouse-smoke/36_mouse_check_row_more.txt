@@ -1,23 +1,24 @@
   openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
                                                                                                                         
    Overview  Activity  Commits [Checks] Files  Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  Summary: PASS (1 pass, 0 pending, 0 fail)                                                                             
-  1 total: 1 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                   
+  Summary: PASS (2 pass, 0 pending, 0 fail)                                                                             
+  2 total: 2 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                   
                                                                                                                         
-  Passing (1)                                                                                                           
-  [OK PASS] All checks [- less]                                                                                         
-  name: All checks                                                                                                      
+  Passing (2)                                                                                                           
+  [OK PASS] suite/CI [- less]                                                                                           
+  name: suite/CI                                                                                                        
   status: PASS                                                                                                          
   summary: 38 skipped, 2 neutral, 86 successful                                                                         
   [- less]                                                                                                              
                                                                                                                         
+  [OK PASS] All checks [+ more]                                                                                         
                                                                                                                         
                                                                                                                         
                                                                                                                         
@@ -31,6 +32,5 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% [collapse all]                                       
+  scroll 0/0 100% | tab Checks | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab    
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
