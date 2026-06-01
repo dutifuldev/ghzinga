@@ -202,10 +202,15 @@ Advantages:
 - if no token is available, public repositories should still render a useful
   read-only REST fallback for the requested PR or issue; private repositories
   and richer GraphQL-only metadata continue to require a token
-- public REST fallback collections must paginate comments, PR commits, and
-  changed files with `per_page=100` until GitHub returns fewer than 100 items so
-  unauthenticated public views do not silently truncate large resources at page
-  one
+- public REST fallback collections must paginate comments, PR commits, changed
+  files, check runs, and check suites with `per_page=100` until GitHub returns
+  fewer than 100 items so unauthenticated public views do not silently truncate
+  large resources at page one
+- public REST fallback should combine check runs, check suites, and legacy
+  commit statuses for the PR head SHA. Check suites are available without
+  authentication for public resources through GitHub's
+  `/repos/{owner}/{repo}/commits/{ref}/check-suites` REST endpoint; GraphQL is
+  still needed for richer workflow-run names when REST does not expose them.
 - keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
 - easy to mock in tests by abstracting HTTP transport
 

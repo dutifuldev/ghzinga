@@ -97,7 +97,7 @@ pub(super) async fn fetch_public_rest_pr(
     resource.pull_request = Some(pull_request);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, projects, participants, relationship links, and check-suite workflow grouping".into(),
+        "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, projects, participants, relationship links, and richer check-suite workflow names when REST does not expose them".into(),
     );
     Ok(resource)
 }
@@ -297,11 +297,49 @@ async fn fetch_public_rest_checks(
         Ok(check_runs) => checks.extend(check_runs),
         Err(error) => warnings.push(format!("public check runs unavailable: {error}")),
     }
+    match fetch_public_rest_check_suites(id, sha).await {
+        Ok(check_suites) => checks.extend(check_suites),
+        Err(error) => warnings.push(format!("public check suites unavailable: {error}")),
+    }
     match fetch_public_rest_status_contexts(id, sha).await {
         Ok(statuses) => checks.extend(statuses),
         Err(error) => warnings.push(format!("public status contexts unavailable: {error}")),
     }
     deduped_public_checks(checks)
+}
+
+async fn fetch_public_rest_check_suites(
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<CheckRun>> {
+    fetch_public_rest_check_suites_with(&ReqwestGithubHttpTransport, id, sha).await
+}
+
+async fn fetch_public_rest_check_suites_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<CheckRun>> {
+    let mut page = 1;
+    let mut checks = Vec::new();
+    loop {
+        let path = format!(
+            "/repos/{}/{}/commits/{}/check-suites?per_page={REST_PAGE_SIZE}&page={page}",
+            id.owner, id.repo, sha
+        );
+        let page_dto: RestCheckSuitesPageDto = run_public_rest_json_with(transport, &path).await?;
+        let is_last_page = page_dto.check_suites.len() < REST_PAGE_SIZE;
+        checks.extend(
+            page_dto
+                .check_suites
+                .into_iter()
+                .map(|suite| rest_check_suite(suite, id, sha)),
+        );
+        if is_last_page {
+            return Ok(checks);
+        }
+        page += 1;
+    }
 }
 
 async fn fetch_public_rest_check_runs(id: &ResourceId, sha: &str) -> anyhow::Result<Vec<CheckRun>> {
@@ -558,6 +596,37 @@ struct RestCheckRunsPageDto {
 }
 
 #[derive(Debug, Deserialize)]
+struct RestCheckSuitesPageDto {
+    check_suites: Vec<RestCheckSuiteDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCheckSuiteDto {
+    id: Option<u64>,
+    status: Option<String>,
+    conclusion: Option<String>,
+    url: Option<String>,
+    html_url: Option<String>,
+    check_runs_url: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+    app: Option<RestCheckSuiteAppDto>,
+    workflow_run: Option<RestCheckSuiteWorkflowRunDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCheckSuiteAppDto {
+    name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCheckSuiteWorkflowRunDto {
+    name: Option<String>,
+    html_url: Option<String>,
+    url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct RestCheckRunDto {
     name: String,
     status: Option<String>,
@@ -619,6 +688,54 @@ fn rest_check_run(check: RestCheckRunDto) -> CheckRun {
         details_url: check.details_url.or(check.html_url),
         started_at: check.started_at,
         completed_at: check.completed_at,
+        raw_status,
+        raw_conclusion,
+    }
+}
+
+fn rest_check_suite(suite: RestCheckSuiteDto, id: &ResourceId, sha: &str) -> CheckRun {
+    let raw_status = suite.status.filter(|value| !value.is_empty());
+    let raw_conclusion = suite.conclusion.filter(|value| !value.is_empty());
+    let workflow_name = suite
+        .workflow_run
+        .as_ref()
+        .and_then(|run| run.name.as_ref())
+        .filter(|value| !value.is_empty())
+        .cloned();
+    let app_name = suite
+        .app
+        .as_ref()
+        .and_then(|app| app.name.as_ref())
+        .filter(|value| !value.is_empty())
+        .cloned();
+    let name = workflow_name
+        .as_ref()
+        .or(app_name.as_ref())
+        .map(|name| format!("suite/{name}"))
+        .unwrap_or_else(|| "suite/check suite".to_string());
+    let details_url = suite
+        .workflow_run
+        .and_then(|run| run.html_url.or(run.url))
+        .or_else(|| {
+            suite.id.map(|suite_id| {
+                format!(
+                    "https://github.com/{}/{}/commit/{}/checks?check_suite_id={}",
+                    id.owner, id.repo, sha, suite_id
+                )
+            })
+        })
+        .or(suite.html_url)
+        .or(suite.check_runs_url)
+        .or(suite.url)
+        .filter(|value| !value.is_empty());
+    let summary = app_name.map(|app| format!("check suite from {app}"));
+    CheckRun {
+        name,
+        status: CheckStatus::from_github(raw_status.as_deref(), raw_conclusion.as_deref()),
+        summary,
+        details_url,
+        started_at: suite.created_at,
+        completed_at: suite.updated_at,
         raw_status,
         raw_conclusion,
     }
@@ -1298,6 +1415,82 @@ mod tests {
         assert_eq!(
             requests[0].url,
             "https://api.github.com/repos/openclaw/openclaw/commits/abc123/check-runs?per_page=100&page=1"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_check_suites_page_without_auth_and_preserve_suite_rollups() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!({
+                "total_count": 2,
+                "check_suites": [
+                    {
+                        "id": 5,
+                        "status": "completed",
+                        "conclusion": "action_required",
+                        "url": "https://api.github.com/repos/openclaw/openclaw/check-suites/5",
+                        "check_runs_url": "https://api.github.com/repos/openclaw/openclaw/check-suites/5/check-runs",
+                        "created_at": "2026-05-31T00:00:00Z",
+                        "updated_at": "2026-05-31T00:05:00Z",
+                        "app": {"name": "GitHub Actions"},
+                        "workflow_run": {
+                            "name": "CI",
+                            "html_url": "https://github.com/openclaw/openclaw/actions/runs/5",
+                            "url": "https://api.github.com/repos/openclaw/openclaw/actions/runs/5"
+                        }
+                    },
+                    {
+                        "id": 6,
+                        "status": "queued",
+                        "conclusion": null,
+                        "url": "https://api.github.com/repos/openclaw/openclaw/check-suites/6",
+                        "app": {"name": "codecov"}
+                    }
+                ]
+            }))
+            .unwrap(),
+        }]);
+
+        let checks = fetch_public_rest_check_suites_with(&transport, &id, "abc123")
+            .await
+            .expect("public check suites");
+
+        assert_eq!(checks.len(), 2);
+        assert_eq!(checks[0].name, "suite/CI");
+        assert_eq!(checks[0].status, CheckStatus::Pending);
+        assert_eq!(checks[0].raw_status.as_deref(), Some("completed"));
+        assert_eq!(checks[0].raw_conclusion.as_deref(), Some("action_required"));
+        assert_eq!(
+            checks[0].details_url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/actions/runs/5")
+        );
+        assert_eq!(
+            checks[0].summary.as_deref(),
+            Some("check suite from GitHub Actions")
+        );
+        assert_eq!(
+            checks[0].started_at.as_deref(),
+            Some("2026-05-31T00:00:00Z")
+        );
+        assert_eq!(
+            checks[0].completed_at.as_deref(),
+            Some("2026-05-31T00:05:00Z")
+        );
+        assert_eq!(checks[1].name, "suite/codecov");
+        assert_eq!(checks[1].status, CheckStatus::Pending);
+        assert_eq!(
+            checks[1].details_url.as_deref(),
+            Some("https://github.com/openclaw/openclaw/commit/abc123/checks?check_suite_id=6")
+        );
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].method, GithubHttpMethod::Get);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/commits/abc123/check-suites?per_page=100&page=1"
         );
         assert_eq!(requests[0].token, None);
     }
