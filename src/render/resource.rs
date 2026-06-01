@@ -824,27 +824,82 @@ fn render_scrollbar(
         .begin_symbol(None)
         .end_symbol(None)
         .render(area, frame.buffer_mut(), &mut scrollbar_state);
-    snap_scrollbar_endpoint(frame, area, state, palette);
+    snap_scrollbar_endpoint(frame, area, state, palette, content_length);
 }
 
-fn snap_scrollbar_endpoint(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
+fn snap_scrollbar_endpoint(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &AppState,
+    palette: &Palette,
+    content_length: usize,
+) {
     if state.scroll_limit == 0 {
         return;
     }
     let current = state.scroll.min(state.scroll_limit);
+    if current == 0 {
+        paint_scrollbar_endpoint_thumb(frame, area, palette, content_length, ScrollEndpoint::Top);
+    } else if current == state.scroll_limit {
+        paint_scrollbar_endpoint_thumb(
+            frame,
+            area,
+            palette,
+            content_length,
+            ScrollEndpoint::Bottom,
+        );
+    }
+}
+
+enum ScrollEndpoint {
+    Top,
+    Bottom,
+}
+
+fn paint_scrollbar_endpoint_thumb(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    palette: &Palette,
+    content_length: usize,
+    endpoint: ScrollEndpoint,
+) {
     let Some(x) = area.x.checked_add(area.width.saturating_sub(1)) else {
         return;
     };
-    let y = if current == 0 {
-        area.y
-    } else if current == state.scroll_limit {
-        area.y.saturating_add(area.height.saturating_sub(1))
-    } else {
-        return;
+    let thumb_len = scrollbar_endpoint_thumb_length(area.height, content_length);
+    let top = area.y;
+    let bottom = area.y.saturating_add(area.height.saturating_sub(1));
+    for y in top..=bottom {
+        frame.buffer_mut()[(x, y)]
+            .set_symbol("│")
+            .set_style(dim_style(palette).bg(palette.panel_bg));
+    }
+    let thumb_start = match endpoint {
+        ScrollEndpoint::Top => top,
+        ScrollEndpoint::Bottom => bottom.saturating_sub(thumb_len.saturating_sub(1)),
     };
-    frame.buffer_mut()[(x, y)]
-        .set_symbol("█")
-        .set_style(Style::default().fg(palette.accent).bg(palette.panel_bg));
+    let thumb_end = thumb_start
+        .saturating_add(thumb_len.saturating_sub(1))
+        .min(bottom);
+    for y in thumb_start..=thumb_end {
+        frame.buffer_mut()[(x, y)]
+            .set_symbol("█")
+            .set_style(Style::default().fg(palette.accent).bg(palette.panel_bg));
+    }
+}
+
+fn scrollbar_endpoint_thumb_length(viewport_height: u16, content_length: usize) -> u16 {
+    if viewport_height == 0 {
+        return 0;
+    }
+    let track_length = f64::from(viewport_height);
+    let viewport_length = f64::from(viewport_height);
+    let max_viewport_position = content_length.saturating_sub(1) as f64 + viewport_length;
+    if max_viewport_position <= 0.0 {
+        return 1;
+    }
+    ((viewport_length * track_length / max_viewport_position).round() as u16)
+        .clamp(1, viewport_height)
 }
 
 fn scrollbar_content_length(state: &AppState, viewport_height: u16, row_count: usize) -> usize {
@@ -2709,6 +2764,26 @@ mod tests {
         terminal.backend().buffer()[(x, y)].symbol().to_string()
     }
 
+    fn draw_column_symbols(
+        state: &mut AppState,
+        width: u16,
+        height: u16,
+        x: u16,
+        y: u16,
+        column_height: u16,
+    ) -> Vec<String> {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render_app(frame, state)).unwrap();
+        (0..column_height)
+            .map(|offset| {
+                terminal.backend().buffer()[(x, y.saturating_add(offset))]
+                    .symbol()
+                    .to_string()
+            })
+            .collect()
+    }
+
     fn rendered_target_rect(state: &AppState, target: impl Fn(&HitTarget) -> bool) -> Option<Rect> {
         state
             .hit_areas
@@ -3451,6 +3526,42 @@ mod tests {
     }
 
     #[test]
+    fn content_scrollbar_bottom_endpoint_is_contiguous_thumb() {
+        let mut resource = pr_resource();
+        let activity = resource.activity[0].clone();
+        for _ in 0..40 {
+            resource.activity.push(activity.clone());
+        }
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Activity);
+        draw(&mut state, 120, 36);
+        state.scroll_to_bottom();
+
+        let rects = rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing);
+        let content_area =
+            content_area_for_spacing(rects.content, state.spacing, active_content_tab(&state));
+        let symbols = draw_column_symbols(
+            &mut state,
+            120,
+            36,
+            content_area.x + content_area.width - 1,
+            content_area.y,
+            content_area.height,
+        );
+        let trailing_thumb = symbols
+            .iter()
+            .rev()
+            .take_while(|symbol| symbol.as_str() == "█")
+            .count();
+        let thumb_above_endpoint = symbols[..symbols.len().saturating_sub(trailing_thumb)]
+            .iter()
+            .any(|symbol| symbol == "█");
+
+        assert!(trailing_thumb > 0);
+        assert!(!thumb_above_endpoint);
+    }
+
+    #[test]
     fn scrollbar_content_length_tracks_rows_not_only_scroll_limit() {
         let mut state = AppState::new(pr_resource());
         state.scroll_limit = 80;
@@ -3460,6 +3571,14 @@ mod tests {
 
         state.scroll = 80;
         assert_eq!(scrollbar_position(&state, 100), 99);
+    }
+
+    #[test]
+    fn scrollbar_endpoint_thumb_length_keeps_visible_proportion() {
+        assert_eq!(scrollbar_endpoint_thumb_length(20, 100), 3);
+        assert_eq!(scrollbar_endpoint_thumb_length(20, 20), 10);
+        assert_eq!(scrollbar_endpoint_thumb_length(20, 10), 14);
+        assert_eq!(scrollbar_endpoint_thumb_length(0, 10), 0);
     }
 
     #[test]

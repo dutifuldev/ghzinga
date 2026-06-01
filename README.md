@@ -209,7 +209,8 @@ orientation cue as a gh-dash preview pane.
 When content is scrollable, ghzinga also shows a slim Ratatui scrollbar on the
 right edge while you scroll with the keyboard or mouse wheel. The thumb reaches
 the bottom at the final scroll position, including comfortable-mode bottom
-padding. The scrollbar is transient: it appears during movement, including
+padding, and endpoint rendering keeps the thumb contiguous at the top and
+bottom edges. The scrollbar is transient: it appears during movement, including
 edge-scroll attempts, then fades after a few render frames so it does not
 permanently take reading space.
 
