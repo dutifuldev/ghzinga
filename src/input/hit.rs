@@ -12,6 +12,7 @@ pub enum HitTarget {
     Navigate(ResourceId),
     OpenUrl(String),
     Refresh,
+    LoadFullDepth,
     CopyVisibleUrl,
     OpenVisibleUrl,
     Quit,
@@ -32,6 +33,7 @@ impl HitTarget {
                 | Self::CollapseBlocks(_)
                 | Self::Navigate(_)
                 | Self::OpenUrl(_)
+                | Self::LoadFullDepth
                 | Self::SetTheme(_)
                 | Self::SetSymbols(_)
                 | Self::SetSpacing(_)

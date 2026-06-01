@@ -4,6 +4,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub const FULL_DEPTH_WARNING_HINT: &str = "set --api-depth full or GZG_API_DEPTH=full";
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResourceIdError {
     #[error("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")]
@@ -204,6 +206,12 @@ impl Resource {
 
     pub fn is_pull_request(&self) -> bool {
         self.pull_request.is_some()
+    }
+
+    pub fn has_partial_depth_warning(&self) -> bool {
+        self.warnings
+            .iter()
+            .any(|warning| warning.contains(FULL_DEPTH_WARNING_HINT))
     }
 
     pub fn fingerprint(&self) -> String {
@@ -729,6 +737,37 @@ mod tests {
         resource.activity[0].reactions.eyes = 1;
 
         assert_ne!(before, resource.fingerprint());
+    }
+
+    #[test]
+    fn detects_partial_depth_warning_marker() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "1").unwrap();
+        let mut resource = Resource {
+            id,
+            title: "title".into(),
+            url: "https://github.com/openclaw/openclaw/issues/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "created".into(),
+            updated_at: "updated".into(),
+            labels: Vec::new(),
+            assignees: Vec::new(),
+            reactions: ReactionCounts::default(),
+            body: "body".into(),
+            activity: Vec::new(),
+            related_resources: Vec::new(),
+            metadata: Vec::new(),
+            warnings: Vec::new(),
+            pull_request: None,
+        };
+
+        assert!(!resource.has_partial_depth_warning());
+
+        resource.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+
+        assert!(resource.has_partial_depth_warning());
     }
 
     #[test]

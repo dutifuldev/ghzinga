@@ -8,6 +8,7 @@ use crate::render::{SpacingMode, SymbolMode, ThemeName};
 pub enum AppIntent {
     None,
     Refresh,
+    LoadFullDepth,
     Navigate(crate::domain::ResourceId),
     OpenUrl(String),
     CopyUrl(String),
@@ -46,6 +47,14 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         KeyCode::Char('r') if is_plain_shortcut(key) => {
             state.refresh_requested = true;
             AppIntent::Refresh
+        }
+        KeyCode::Char('f')
+            if !state.show_help
+                && !state.show_settings
+                && state.resource.has_partial_depth_warning()
+                && is_plain_shortcut(key) =>
+        {
+            AppIntent::LoadFullDepth
         }
         KeyCode::Char('o') if is_plain_shortcut(key) => {
             AppIntent::OpenUrl(visible_or_current_url(state))
@@ -214,6 +223,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.refresh_requested = true;
             AppIntent::Refresh
         }
+        HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
             state.should_quit = true;
             AppIntent::Quit
@@ -271,7 +281,9 @@ mod tests {
 
     use super::*;
     use crate::app::Tab;
-    use crate::domain::{PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind};
+    use crate::domain::{
+        PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT,
+    };
     use crate::input::HitArea;
     use ratatui::layout::Rect;
 
@@ -433,7 +445,9 @@ mod tests {
 
     #[test]
     fn control_letter_shortcuts_are_limited_to_tmux_safe_exceptions() {
-        for shortcut in ['a', 'b', 'd', 'e', 'o', 'q', 'r', 's', 'u', 'v', 'y', '?'] {
+        for shortcut in [
+            'a', 'b', 'd', 'e', 'f', 'o', 'q', 'r', 's', 'u', 'v', 'y', '?',
+        ] {
             let mut state = AppState::new(resource());
             state.scroll = 4;
             state.set_scroll_limit(9);
@@ -548,6 +562,30 @@ mod tests {
     }
 
     #[test]
+    fn keyboard_f_loads_full_depth_only_when_partial_warning_is_present() {
+        let mut complete_state = AppState::new(resource());
+
+        let intent = apply_event(
+            &mut complete_state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+
+        let mut partial_state = AppState::new(resource());
+        partial_state.resource.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+
+        let intent = apply_event(
+            &mut partial_state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::LoadFullDepth);
+    }
+
+    #[test]
     fn mouse_click_on_tab_changes_active_tab() {
         let mut state = AppState::new(resource());
         state.hit_areas.push(HitArea::new(
@@ -657,6 +695,27 @@ mod tests {
 
         assert_eq!(intent, AppIntent::Refresh);
         assert!(state.refresh_requested);
+    }
+
+    #[test]
+    fn mouse_click_on_load_full_target_requests_full_depth_load() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 11, 1),
+            HitTarget::LoadFullDepth,
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(intent, AppIntent::LoadFullDepth);
     }
 
     #[test]
