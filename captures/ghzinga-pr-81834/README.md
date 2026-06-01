@@ -47,8 +47,13 @@ xterm SGR mouse click events:
    linked issue.
 7. Press Backspace and verify the TUI returns to the original PR.
 8. Click footer `[refresh]` and verify the fixture-mode refresh status appears.
-9. Click footer `[help]`.
-10. Click footer `[settings]`.
+9. Click footer `[copy]` and verify a capture-local copy command receives the
+   current PR URL.
+10. Click footer `[open]` and verify a capture-local opener receives the current
+    PR URL.
+11. Click footer `[help]`.
+12. Click footer `[settings]`.
+13. Click footer `[quit]` and verify the tmux session exits.
 
 Regenerate mouse smoke captures:
 

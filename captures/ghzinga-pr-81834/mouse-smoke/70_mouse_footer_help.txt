@@ -3,7 +3,7 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122
   +1100  -22
-  info offline fixture mode: refresh skipped
+  info opened https://github.com/openclaw/openclaw/pull/81834
   [Overview] Activity  Commits  Checks  Files  Links
 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

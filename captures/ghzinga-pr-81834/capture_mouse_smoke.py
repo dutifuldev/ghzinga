@@ -27,6 +27,7 @@ NAVIGATION_TARGET_TITLE = "feat: add SenseAudio audio transcription provider"
 SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
+CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/pull/81834"
 
 
 def wait_for_text(session: str, needle: str, timeout: float = 10.0):
@@ -68,6 +69,16 @@ def send_mouse_click(session: str, column: int, row: int):
     time.sleep(0.5)
 
 
+def wait_for_session_exit(session: str, timeout: float = 5.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = tmux("has-session", "-t", session, check=False)
+        if result.returncode != 0:
+            return
+        time.sleep(0.25)
+    raise RuntimeError(f"{session} did not exit after quit click")
+
+
 def write_frame(out_dir: Path, name: str, frames: list[dict]):
     plain = capture_plain(SESSION)
     ansi = capture_ansi(SESSION)
@@ -103,6 +114,25 @@ def write_navigation_fixture():
     NAVIGATION_FIXTURE.write_text(json.dumps(resource, indent=2) + "\n")
 
 
+def write_helper_scripts():
+    opener = ROOT / "capture-open-url.sh"
+    copier = ROOT / "capture-copy-url.sh"
+    opener.write_text(f"#!/bin/sh\nprintf '%s\\n' \"$1\" > {shlex.quote(str(open_log_path()))}\n")
+    copier.write_text(f"#!/bin/sh\ncat > {shlex.quote(str(copy_log_path()))}\n")
+    opener.chmod(0o755)
+    copier.chmod(0o755)
+
+
+def remove_helper_scripts():
+    for path in (
+        ROOT / "capture-open-url.sh",
+        ROOT / "capture-copy-url.sh",
+        open_log_path(),
+        copy_log_path(),
+    ):
+        path.unlink(missing_ok=True)
+
+
 def capture_config_path() -> Path:
     return ROOT / "capture-empty-config.toml"
 
@@ -111,13 +141,37 @@ def capture_config_env() -> str:
     return f"GZG_CONFIG_PATH={shlex.quote(str(capture_config_path()))}"
 
 
+def open_log_path() -> Path:
+    return ROOT / "capture-open-url.txt"
+
+
+def copy_log_path() -> Path:
+    return ROOT / "capture-copy-url.txt"
+
+
+def capture_adapter_env() -> str:
+    return (
+        f"BROWSER={shlex.quote(str(ROOT / 'capture-open-url.sh'))} "
+        f"GZG_COPY_COMMAND={shlex.quote(str(ROOT / 'capture-copy-url.sh'))}"
+    )
+
+
+def require_file_contains(path: Path, expected: str):
+    actual = path.read_text().strip() if path.exists() else ""
+    if actual != expected:
+        raise RuntimeError(f"{path} contains {actual!r}, expected {expected!r}")
+
+
 def capture_mouse_smoke():
     ROOT.mkdir(parents=True, exist_ok=True)
     capture_config_path().unlink(missing_ok=True)
+    remove_helper_scripts()
+    write_helper_scripts()
     write_navigation_fixture()
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
-        f"cd {REPO} && TERM=xterm-256color {capture_config_env()} {BIN} {TARGET} "
+        f"cd {REPO} && TERM=xterm-256color {capture_config_env()} "
+        f"{capture_adapter_env()} {BIN} {TARGET} "
         f"--offline-fixture {NAVIGATION_FIXTURE} "
         f"--offline-resource-fixture {NAVIGATION_TARGET_FIXTURE} "
         f"--refresh-seconds 0"
@@ -196,6 +250,20 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "offline fixture mode: refresh skipped")
         write_frame(ROOT, "65_mouse_footer_refresh", frames)
 
+        copy_button = find_marker_position(SESSION, "[copy]")
+        mouse_coordinates["copy"] = list(copy_button)
+        send_mouse_click(SESSION, *copy_button)
+        wait_for_text(SESSION, f"copied {CURRENT_RESOURCE_URL}")
+        require_file_contains(copy_log_path(), CURRENT_RESOURCE_URL)
+        write_frame(ROOT, "66_mouse_footer_copy", frames)
+
+        open_button = find_marker_position(SESSION, "[open]")
+        mouse_coordinates["open"] = list(open_button)
+        send_mouse_click(SESSION, *open_button)
+        wait_for_text(SESSION, f"opened {CURRENT_RESOURCE_URL}")
+        require_file_contains(open_log_path(), CURRENT_RESOURCE_URL)
+        write_frame(ROOT, "67_mouse_footer_open", frames)
+
         help_button = find_marker_position(SESSION, "[help]")
         mouse_coordinates["help"] = list(help_button)
         send_mouse_click(SESSION, *help_button)
@@ -212,6 +280,12 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Spacing")
         write_frame(ROOT, "80_mouse_footer_settings", frames)
 
+        actual_tmux_size = tmux_size(SESSION)
+        quit_button = find_marker_position(SESSION, "[quit]")
+        mouse_coordinates["quit"] = list(quit_button)
+        send_mouse_click(SESSION, *quit_button)
+        wait_for_session_exit(SESSION)
+
         manifest = {
             "target": TARGET,
             "fixture": str(NAVIGATION_FIXTURE.relative_to(REPO)),
@@ -220,13 +294,19 @@ def capture_mouse_smoke():
             "git_commit": git_commit(),
             "config_path": str(capture_config_path()),
             "command": command,
-            "actual_tmux_size": tmux_size(SESSION),
+            "actual_tmux_size": actual_tmux_size,
+            "adapter_outputs": {
+                "open_url": CURRENT_RESOURCE_URL,
+                "copy_url": CURRENT_RESOURCE_URL,
+            },
+            "quit_exited": True,
             "mouse_coordinates": mouse_coordinates,
             "frames": frames,
         }
         (ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     finally:
         tmux("kill-session", "-t", SESSION, check=False)
+        remove_helper_scripts()
     validate_mouse_smoke()
 
 
@@ -306,6 +386,24 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         )
     if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("command", ""):
         errors.append("manifest command does not isolate config with GZG_CONFIG_PATH")
+    for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
+        if variable not in manifest.get("command", ""):
+            errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
+    expected_adapter_outputs = {
+        "open_url": CURRENT_RESOURCE_URL,
+        "copy_url": CURRENT_RESOURCE_URL,
+    }
+    if manifest.get("adapter_outputs") != expected_adapter_outputs:
+        errors.append(
+            f"adapter_outputs is {manifest.get('adapter_outputs')!r}, "
+            f"expected {expected_adapter_outputs!r}"
+        )
+    if manifest.get("quit_exited") is not True:
+        errors.append("manifest does not record successful quit exit")
+    coordinates = manifest.get("mouse_coordinates", {})
+    for target in ("copy", "open", "quit"):
+        if target not in coordinates:
+            errors.append(f"manifest missing {target} mouse coordinate")
 
     expected = {
         "00_initial_overview": [
@@ -342,6 +440,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             "offline fixture mode: refresh skipped",
         ],
+        "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
+        "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
     }
