@@ -4,6 +4,7 @@ use clap::Parser;
 
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
+use crate::github::api::ApiDepth;
 use crate::render::{SpacingMode, SymbolMode, ThemeName};
 
 pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
@@ -34,6 +35,10 @@ pub struct Cli {
     /// Refresh interval in seconds.
     #[arg(long, default_value_t = DEFAULT_REFRESH_SECONDS)]
     pub refresh_seconds: u64,
+
+    /// GitHub API depth: partial keeps quota low, full follows all supported pages.
+    #[arg(long, value_name = "DEPTH")]
+    pub api_depth: Option<ApiDepth>,
 
     /// Render one frame and exit. Useful for tests and terminal capture.
     #[arg(long)]
@@ -136,6 +141,13 @@ mod tests {
         let cli = Cli::parse_from(["ghzinga", "--tab", "checks", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.tab, Some(Tab::Checks));
+    }
+
+    #[test]
+    fn parses_api_depth() {
+        let cli = Cli::parse_from(["ghzinga", "--api-depth", "full", "openclaw/openclaw#81834"]);
+
+        assert_eq!(cli.api_depth, Some(ApiDepth::Full));
     }
 
     #[test]

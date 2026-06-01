@@ -1,6 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
+    fmt,
     future::Future,
+    str::FromStr,
 };
 
 use anyhow::Context;
@@ -32,17 +34,91 @@ pub trait GithubGateway {
     ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct GithubApiGateway;
+#[derive(Debug, Clone)]
+pub struct GithubApiGateway {
+    api_depth: ApiDepth,
+}
+
+impl GithubApiGateway {
+    pub fn new(api_depth: ApiDepth) -> Self {
+        Self { api_depth }
+    }
+
+    pub fn from_env() -> Self {
+        Self::new(ApiDepth::from_env())
+    }
+}
+
+impl Default for GithubApiGateway {
+    fn default() -> Self {
+        Self::from_env()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ApiDepth {
+    #[default]
+    Partial,
+    Full,
+}
+
+impl ApiDepth {
+    pub fn from_env() -> Self {
+        std::env::var("GZG_API_DEPTH")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_default()
+    }
+
+    fn is_full(self) -> bool {
+        self == Self::Full
+    }
+}
+
+impl fmt::Display for ApiDepth {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Partial => formatter.write_str("partial"),
+            Self::Full => formatter.write_str("full"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApiDepthParseError(String);
+
+impl fmt::Display for ApiDepthParseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid API depth {:?}; expected partial or full",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ApiDepthParseError {}
+
+impl FromStr for ApiDepth {
+    type Err = ApiDepthParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "partial" | "normal" | "default" => Ok(Self::Partial),
+            "full" | "exhaustive" => Ok(Self::Full),
+            _ => Err(ApiDepthParseError(value.into())),
+        }
+    }
+}
 
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         match id.kind_hint {
-            Some(ResourceKind::PullRequest) => fetch_pr(id).await,
-            Some(ResourceKind::Issue) => fetch_issue(id).await,
-            None => match fetch_pr(id).await {
+            Some(ResourceKind::PullRequest) => fetch_pr(id, self.api_depth).await,
+            Some(ResourceKind::Issue) => fetch_issue(id, self.api_depth).await,
+            None => match fetch_pr(id, self.api_depth).await {
                 Ok(resource) => Ok(resource),
-                Err(pr_error) => fetch_issue(id)
+                Err(pr_error) => fetch_issue(id, self.api_depth)
                     .await
                     .with_context(|| format!("failed as PR first: {pr_error}")),
             },
@@ -107,7 +183,7 @@ pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
     graphql_preview("issue", id)
 }
 
-async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
+async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_pr(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -115,7 +191,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
         }
         Err(error) => return Err(error),
     };
-    let full_depth = full_graphql_enrichment_enabled();
+    let full_depth = api_depth.is_full();
     let partial_depth_warnings = if full_depth {
         Vec::new()
     } else {
@@ -181,7 +257,7 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     Ok(resource)
 }
 
-async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
+async fn fetch_issue(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_issue(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -189,7 +265,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
         }
         Err(error) => return Err(error),
     };
-    let full_depth = full_graphql_enrichment_enabled();
+    let full_depth = api_depth.is_full();
     let partial_depth_warnings = if full_depth {
         Vec::new()
     } else {
@@ -216,12 +292,6 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     }
     sort_activity(&mut resource.activity);
     Ok(resource)
-}
-
-fn full_graphql_enrichment_enabled() -> bool {
-    std::env::var("GZG_API_DEPTH")
-        .map(|value| value.eq_ignore_ascii_case("full"))
-        .unwrap_or(false)
 }
 
 fn base_pr_partial_depth_warnings(raw: &[u8]) -> Vec<String> {
@@ -277,7 +347,7 @@ fn partial_depth_warnings(resource: &Value, connections: &[(&[&str], &str)]) -> 
         Vec::new()
     } else {
         vec![format!(
-            "normal API depth shows the first 100 only for {}; set GZG_API_DEPTH=full for exhaustive pagination",
+            "normal API depth shows the first 100 only for {}; set --api-depth full or GZG_API_DEPTH=full for exhaustive pagination",
             truncated.join(", ")
         )]
     }
@@ -4745,6 +4815,16 @@ mod tests {
     }
 
     #[test]
+    fn api_depth_parses_user_facing_names() {
+        assert_eq!("partial".parse::<ApiDepth>().unwrap(), ApiDepth::Partial);
+        assert_eq!("normal".parse::<ApiDepth>().unwrap(), ApiDepth::Partial);
+        assert_eq!("default".parse::<ApiDepth>().unwrap(), ApiDepth::Partial);
+        assert_eq!("full".parse::<ApiDepth>().unwrap(), ApiDepth::Full);
+        assert_eq!("exhaustive".parse::<ApiDepth>().unwrap(), ApiDepth::Full);
+        assert!("deep".parse::<ApiDepth>().is_err());
+    }
+
+    #[test]
     fn pr_diff_uses_rest_pull_diff_path() {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
 
@@ -4897,6 +4977,7 @@ mod tests {
         assert!(warnings[0].contains("commits"));
         assert!(warnings[0].contains("checks"));
         assert!(warnings[0].contains("comments"));
+        assert!(warnings[0].contains("--api-depth full"));
         assert!(warnings[0].contains("GZG_API_DEPTH=full"));
         assert!(!warnings[0].contains("assignees"));
         assert!(!warnings[0].contains("changed files"));
@@ -4926,6 +5007,7 @@ mod tests {
         assert!(warnings[0].contains("assignees"));
         assert!(warnings[0].contains("linked closing pull requests"));
         assert!(warnings[0].contains("comments"));
+        assert!(warnings[0].contains("--api-depth full"));
         assert!(warnings[0].contains("GZG_API_DEPTH=full"));
         assert!(!warnings[0].contains("labels"));
     }
