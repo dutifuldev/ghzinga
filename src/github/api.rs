@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use crate::domain::{
     ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
+    FULL_DEPTH_WARNING_HINT,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 use crate::github::{
@@ -347,7 +348,7 @@ fn partial_depth_warnings(resource: &Value, connections: &[(&[&str], &str)]) -> 
         Vec::new()
     } else {
         vec![format!(
-            "normal API depth shows the first 100 only for {}; set --api-depth full or GZG_API_DEPTH=full for exhaustive pagination",
+            "normal API depth shows the first 100 only for {}; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination",
             truncated.join(", ")
         )]
     }

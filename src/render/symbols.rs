@@ -79,6 +79,7 @@ pub struct Symbols {
     pub footer_refresh: &'static str,
     pub footer_copy: &'static str,
     pub footer_open: &'static str,
+    pub footer_load_full: &'static str,
     pub footer_settings: &'static str,
     pub footer_help: &'static str,
     pub footer_quit: &'static str,
@@ -127,6 +128,7 @@ impl Symbols {
             footer_refresh: "[refresh]",
             footer_copy: "[copy]",
             footer_open: "[open]",
+            footer_load_full: "[load full]",
             footer_settings: "[settings]",
             footer_help: "[help]",
             footer_quit: "[quit]",
@@ -175,6 +177,7 @@ impl Symbols {
             footer_refresh: "[🔄 refresh]",
             footer_copy: "[📋 copy]",
             footer_open: "[🌐 open]",
+            footer_load_full: "[⬇ full]",
             footer_settings: "[⚙ settings]",
             footer_help: "[❔ help]",
             footer_quit: "[⏻ quit]",
@@ -186,7 +189,7 @@ impl Symbols {
 mod tests {
     use super::*;
 
-    fn symbol_values(symbols: Symbols) -> [&'static str; 43] {
+    fn symbol_values(symbols: Symbols) -> [&'static str; 44] {
         [
             symbols.state_open,
             symbols.state_merged,
@@ -228,6 +231,7 @@ mod tests {
             symbols.footer_refresh,
             symbols.footer_copy,
             symbols.footer_open,
+            symbols.footer_load_full,
             symbols.footer_settings,
             symbols.footer_help,
             symbols.footer_quit,
@@ -268,6 +272,7 @@ mod tests {
             symbols.footer_refresh,
             symbols.footer_copy,
             symbols.footer_open,
+            symbols.footer_load_full,
             symbols.footer_settings,
             symbols.footer_help,
             symbols.footer_quit,

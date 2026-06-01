@@ -481,6 +481,11 @@ Issue tabs:
   scrollable feed/list. They operate on every expandable `BlockId` in the
   active tab, so users can expand or collapse the whole current view without
   scrolling to find the control.
+- If normal API depth reports more GitHub pages for first-page collections, the
+  fixed bottom command bar also shows `[load full]` before expand/collapse-all.
+  Clicking it, or pressing `f`, refetches the current resource with full
+  supported pagination while preserving the economical default for ordinary
+  startup, refresh, and auto-refresh.
 - GitHub API pagination remains an adapter concern. The renderer receives the
   normalized full resource and virtualizes the terminal work by only registering
   hit targets for visible rows after scroll clipping.
@@ -587,6 +592,7 @@ Keyboard:
 - `q`: quit
 - `?`: help overlay
 - `r`: refresh now
+- `f`: load full supported GitHub pagination when a partial-depth warning is visible
 - `Tab` / `Shift+Tab`: next/previous tab
 - `Left` / `Right`: next/previous tab
 - `1`-`6`: jump to the visible tab in that position

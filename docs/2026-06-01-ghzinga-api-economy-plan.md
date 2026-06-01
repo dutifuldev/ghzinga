@@ -35,7 +35,11 @@ points without changing the visible result for normal PRs.
 5. Keep `--api-depth full` and `GZG_API_DEPTH=full` as explicit escape hatches
    for exhaustive pagination when the user is willing to spend more GraphQL
    quota.
-6. Keep targeted default enrichments only where they add data the base query does not
+6. When the app has already loaded a resource and detects a partial-depth
+   warning, expose an in-TUI `[load full]` action and `f` shortcut. This spends
+   full-depth GraphQL quota once for the current resource without changing the
+   economical default startup, manual refresh, or auto-refresh policy.
+7. Keep targeted default enrichments only where they add data the base query does not
    have:
    - PR review threads
    - chronological timeline events
@@ -43,7 +47,7 @@ points without changing the visible result for normal PRs.
    - PR diff patches through REST
    - issue-only relationship and linked-branch metadata
    - participants metadata
-7. Make background refresh conservative by default. Manual refresh remains
+8. Make background refresh conservative by default. Manual refresh remains
    immediate, but auto-refresh should default to five minutes instead of one
    minute.
 
@@ -69,6 +73,8 @@ should not probe GraphQL again until the reset time has passed.
 
 - Unit tests should cover GraphQL rate-limit preflight parsing and cooldown.
 - Unit tests should cover the default refresh interval.
+- Unit tests should cover conditional `[load full]` visibility, keyboard/mouse
+  intent routing, and full-depth fetch outcomes.
 - Architecture tests should continue to ensure data transport uses direct HTTP
   and only shells out to `gh` for token fallback.
 - Existing capture validation should still pass because the visible first-page

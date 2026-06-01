@@ -12,7 +12,7 @@ use crate::{
     config::{self, AppConfig},
     domain::ResourceId,
     github::{
-        api::{GithubApiGateway, GithubGateway},
+        api::{ApiDepth, GithubApiGateway, GithubGateway},
         load_fixture,
     },
     render::render_app,
@@ -31,6 +31,7 @@ const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
 #[derive(Debug, Clone)]
 enum FetchAction {
     Refresh { id: ResourceId },
+    LoadFull { id: ResourceId },
     Navigate { from: ResourceId, to: ResourceId },
     Back { to: ResourceId },
 }
@@ -38,7 +39,7 @@ enum FetchAction {
 impl FetchAction {
     fn target(&self) -> &ResourceId {
         match self {
-            Self::Refresh { id } => id,
+            Self::Refresh { id } | Self::LoadFull { id } => id,
             Self::Navigate { to, .. } | Self::Back { to } => to,
         }
     }
@@ -46,6 +47,9 @@ impl FetchAction {
     fn loading_message(&self) -> String {
         match self {
             Self::Refresh { id } => format!("refreshing {} from GitHub", id.canonical_name()),
+            Self::LoadFull { id } => {
+                format!("loading full data for {} from GitHub", id.canonical_name())
+            }
             Self::Navigate { to, .. } => format!("opening {} from GitHub", to.canonical_name()),
             Self::Back { to } => format!("returning to {} from GitHub", to.canonical_name()),
         }
@@ -68,6 +72,20 @@ impl FetchSource {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<crate::domain::Resource> {
         match self {
             Self::Github(gateway) => gateway.fetch_resource(id).await,
+            Self::OfflineFixtures(fixtures) => fixtures.fetch_resource(id),
+        }
+    }
+
+    async fn fetch_resource_full_depth(
+        &self,
+        id: &ResourceId,
+    ) -> anyhow::Result<crate::domain::Resource> {
+        match self {
+            Self::Github(_) => {
+                GithubApiGateway::new(ApiDepth::Full)
+                    .fetch_resource(id)
+                    .await
+            }
             Self::OfflineFixtures(fixtures) => fixtures.fetch_resource(id),
         }
     }
@@ -268,6 +286,24 @@ async fn handle_intent(
                 }
             } else {
                 state.status_message = Some("offline fixture mode: refresh skipped".into());
+            }
+            false
+        }
+        AppIntent::LoadFullDepth => {
+            if !state.resource.has_partial_depth_warning() {
+                state.status_message = Some("full GitHub data is already loaded".into());
+            } else if fetch_source.is_live_github() {
+                let id = state.resource.id.clone();
+                if start_background_fetch(
+                    state,
+                    FetchAction::LoadFull { id },
+                    fetch_source,
+                    fetch_tx,
+                ) {
+                    *last_refresh = Instant::now();
+                }
+            } else {
+                state.status_message = Some("offline fixture mode: full-depth load skipped".into());
             }
             false
         }
@@ -593,7 +629,10 @@ fn start_background_fetch(
     state.begin_loading(target.clone(), message);
     let tx = fetch_tx.clone();
     tokio::spawn(async move {
-        let result = fetch_source.fetch_resource(&target).await;
+        let result = match &action {
+            FetchAction::LoadFull { .. } => fetch_source.fetch_resource_full_depth(&target).await,
+            _ => fetch_source.fetch_resource(&target).await,
+        };
         let _ = tx.send(FetchOutcome {
             action,
             result,
@@ -614,6 +653,11 @@ fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     match (outcome.action, outcome.result) {
         (FetchAction::Refresh { .. }, Ok(resource)) => {
             state.apply_refreshed_resource(resource, outcome.refreshed_at);
+        }
+        (FetchAction::LoadFull { .. }, Ok(resource)) => {
+            let name = resource.id.canonical_name();
+            state.apply_refreshed_resource(resource, outcome.refreshed_at);
+            state.status_message = Some(format!("loaded full GitHub data for {name}"));
         }
         (FetchAction::Navigate { from, .. }, Ok(resource)) => {
             state.history.push(from);
@@ -698,15 +742,16 @@ mod tests {
     };
 
     use crate::{
-        app::AppState,
-        domain::{ReactionCounts, Resource, ResourceId, ResourceKind},
+        app::{AppIntent, AppState},
+        domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
         github::api::{GithubApiGateway, GithubGateway},
     };
 
     use super::{
-        apply_fetch_outcome, auto_refresh_due, clipboard_command, maybe_auto_refresh_with_start,
-        navigate_back, navigate_to_resource, start_background_fetch, url_open_command,
-        ClipboardPlatform, FetchAction, FetchOutcome, FetchSource, OfflineFixtureSource,
+        apply_fetch_outcome, auto_refresh_due, clipboard_command, handle_intent,
+        maybe_auto_refresh_with_start, navigate_back, navigate_to_resource, start_background_fetch,
+        url_open_command, ClipboardPlatform, FetchAction, FetchOutcome, FetchSource,
+        OfflineFixtureSource,
     };
 
     struct FakeGateway {
@@ -915,6 +960,66 @@ mod tests {
         assert_eq!(state.last_refresh_had_changes, Some(true));
         assert_eq!(state.last_refresh_changed_sections, ["summary"]);
         assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn full_depth_fetch_outcome_preserves_view_and_reports_loaded_status() {
+        let mut initial = issue_resource(1, "Initial issue");
+        initial.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+        let mut full = issue_resource(1, "Initial issue");
+        full.body = "full body with later comments".into();
+        let mut state = AppState::new(initial);
+        state.set_tab(crate::app::Tab::Activity);
+        state.set_scroll_limit(10);
+        state.scroll_down(4);
+        let id = state.resource.id.clone();
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::LoadFull { id },
+                result: Ok(full),
+                refreshed_at: "12:34:56 UTC".into(),
+            },
+        );
+
+        assert_eq!(state.active_tab, crate::app::Tab::Activity);
+        assert_eq!(state.scroll, 4);
+        assert_eq!(state.resource.body, "full body with later comments");
+        assert!(!state.resource.has_partial_depth_warning());
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("loaded full GitHub data for owner/repo#1")
+        );
+    }
+
+    #[tokio::test]
+    async fn full_depth_intent_skips_offline_fixture_mode() {
+        let mut fixture = issue_resource(1, "Initial issue");
+        fixture.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+        let mut state = AppState::new(fixture.clone());
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let should_quit = handle_intent(
+            &mut state,
+            AppIntent::LoadFullDepth,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture])),
+            &mut last_refresh,
+            &fetch_tx,
+        )
+        .await;
+
+        assert!(!should_quit);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("offline fixture mode: full-depth load skipped")
+        );
+        assert!(fetch_rx.try_recv().is_err());
     }
 
     #[test]

@@ -206,6 +206,10 @@ bottom of the content. Scroll position stays in the footer message line rather
 than between command buttons. The rendered content window only registers hit
 targets for the visible rows, so long paginated GitHub histories remain
 scrollable without turning every off-screen row into an active terminal target.
+If the normal economical API depth sees that GitHub has more pages behind a
+first-page collection, the footer also shows `[load full]` before the
+expand/collapse-all control; clicking it refetches the current resource with
+full supported pagination without restarting the TUI.
 
 The TUI adapts to terminal width. Header metadata, tabs, the status band, and
 footer controls wrap into extra rows on narrow terminals instead of silently
@@ -242,8 +246,9 @@ Mouse:
 - click exact GitHub URLs, such as check runs, deployment logs, and comment
   permalinks, to open them in the browser; footer `[copy]` and `[open]`
   prefer the first visible URL before falling back to the current PR/issue URL
-- click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, `[quit]`, and
-  the active-tab expand/collapse control in the footer
+- click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, `[quit]`,
+  `[load full]` when shown, and the active-tab expand/collapse control in the
+  footer
 - use the mouse wheel to scroll
 
 Keyboard:
@@ -253,6 +258,8 @@ Keyboard:
 - `s`: open or close settings
 - `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
 - `r`: refresh now
+- `f`: load full supported GitHub pagination when a partial-depth warning is
+  shown
 - `y`: copy the first visible GitHub URL, or the current PR/issue URL if no
   visible link is available
 - `o`: open the first visible GitHub URL, or the current PR/issue URL if no
@@ -292,7 +299,10 @@ Normal mode avoids duplicate first-page GraphQL enrichment; set
 matters more than quota.
 When normal mode sees that a first-page collection has more than 100 items
 behind it, the TUI shows a warning naming the partial sections and the full-depth
-escape hatch.
+escape hatch. The same condition enables the footer `[load full]` action and
+the `f` shortcut, which run a one-off full-depth refetch for the current
+resource while keeping normal startup, auto-refresh, and manual refresh
+economical.
 
 The horizontal status band shows the last refresh time and whether the fetched
 resource changed. Change detection includes comment/review bodies and

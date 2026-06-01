@@ -1072,6 +1072,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- s: open or close settings",
             "- t / y / p in settings: cycle theme / symbol style / spacing",
             "- r: refresh now",
+            "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
             "- o: open first visible URL, or current resource",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
@@ -2202,6 +2203,13 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         footer_control(symbols.footer_quit, HitTarget::Quit, palette),
     ];
     if !state.show_help && !state.show_settings {
+        if state.resource.has_partial_depth_warning() {
+            controls.push(footer_control(
+                symbols.footer_load_full,
+                HitTarget::LoadFullDepth,
+                palette,
+            ));
+        }
         if let Some(control) = expand_all_control(
             state.active_tab_expandable_blocks(),
             &state.expanded_blocks,
@@ -2214,11 +2222,17 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let control_lines = footer_control_lines(controls, area.width);
     let control_lines = footer_visible_control_lines(control_lines, area.height as usize);
 
+    let full_hint = if state.resource.has_partial_depth_warning() {
+        " | f full"
+    } else {
+        ""
+    };
     let default_message = format!(
-        "{} | tab {} | order {} | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page scroll | e more/less",
+        "{} | tab {} | order {} | r refresh{} | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page scroll | e more/less",
         scroll,
         state.active_tab.label(),
         if state.reverse_chronological { "newest" } else { "oldest" },
+        full_hint,
     );
     let message = if let Some(error) = &state.last_error {
         format!("ERROR: {error}")
@@ -2627,6 +2641,7 @@ mod tests {
     use crate::domain::{
         ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
         MetadataItem, PullRequest, ReactionCounts, ResourceId, ResourceKind,
+        FULL_DEPTH_WARNING_HINT,
     };
 
     fn pr_resource() -> Resource {
@@ -3452,6 +3467,36 @@ mod tests {
         assert_eq!(expand_rect.y, quit_rect.y);
         assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
         assert!(expand_rect.x > quit_rect.x);
+    }
+
+    #[test]
+    fn footer_shows_load_full_only_for_partial_depth_resources() {
+        let mut complete_state = AppState::new(pr_resource());
+        let complete_content = draw(&mut complete_state, 120, 36);
+
+        assert!(!complete_content.contains("[load full]"));
+        assert!(!complete_state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::LoadFullDepth));
+
+        let mut partial_resource = pr_resource();
+        partial_resource.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+        let mut partial_state = AppState::new(partial_resource);
+        let partial_content = draw(&mut partial_state, 120, 36);
+
+        assert!(partial_content
+            .contains("[refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]"));
+        let load_full = partial_content.find("[load full]").unwrap();
+        let expand_all = partial_content.find("[expand all]").unwrap();
+        assert!(load_full < expand_all);
+        assert!(partial_content.contains("f full"));
+        assert!(partial_state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::LoadFullDepth));
     }
 
     #[test]
