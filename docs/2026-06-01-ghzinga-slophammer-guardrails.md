@@ -101,6 +101,10 @@ reach back into TUI layers.
 - `TerminalGuard` must be safe during partial setup: raw mode, alternate screen,
   and mouse capture are tracked independently so a setup error unwinds through
   the same restoration path as a normal exit
+- `TerminalGuard` installs a panic hook before entering raw mode. The hook
+  restores mouse capture, alternate screen, and raw mode before delegating to
+  the default panic hook, so panic diagnostics are printed to a normal terminal
+  instead of the alternate screen.
 
 CI runs these checks through `cargo test`.
 

@@ -185,6 +185,8 @@ fn ci_workflow_delegates_to_full_local_gate() {
         "cargo test",
         "cargo clippy --all-targets --all-features -- -D warnings",
         "scripts/verify-install.sh",
+        "sh -n scripts/live-smoke.sh",
+        "GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh",
         "npx -y @simpledoc/simpledoc check",
         "scripts/verify-no-png-captures.sh",
         "capture_ghzinga.py --self-test",
@@ -197,6 +199,27 @@ fn ci_workflow_delegates_to_full_local_gate() {
             "local CI gate is missing `{expected_check}`"
         );
     }
+}
+
+#[test]
+fn terminal_guard_restores_before_panic_output() {
+    let source = fs::read_to_string("src/terminal/mod.rs").expect("read terminal adapter source");
+
+    assert!(source.contains("panic::set_hook"));
+    assert!(source.contains("restore_terminal_state();"));
+    assert!(source.contains("default_hook(info);"));
+    let hook_start = source.find("panic::set_hook").expect("panic hook");
+    let hook_source = &source[hook_start..];
+    assert!(
+        hook_source
+            .find("restore_terminal_state();")
+            .expect("restore call")
+            < hook_source
+                .find("default_hook(info);")
+                .expect("default hook call"),
+        "panic hook should restore terminal state before default panic output"
+    );
+    assert!(source.contains("snapshot_and_clear"));
 }
 
 #[test]
