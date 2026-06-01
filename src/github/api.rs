@@ -14,10 +14,11 @@ use crate::domain::{
 use crate::github::queries::{
     assignees_query, base_issue_query, base_pr_query, changed_files_query, check_suites_query,
     comments_query, commit_authors_query, commit_comment_thread_comments_query,
-    commit_deployment_items_query, commit_deployments_query, commits_query, issue_parent_query,
-    issue_relationships_query, labels_query, linked_resources_query, participants_query,
-    project_items_query, review_requests_query, review_thread_comments_query, review_threads_query,
-    reviews_query, status_rollup_query, timeline_query,
+    commit_deployment_items_query, commit_deployments_query, commits_query,
+    issue_linked_branches_query, issue_parent_query, issue_relationships_query, labels_query,
+    linked_resources_query, participants_query, project_items_query, review_requests_query,
+    review_thread_comments_query, review_threads_query, reviews_query, status_rollup_query,
+    timeline_query,
 };
 use crate::github::transport::{
     run_graphql_query, run_rest_get, run_rest_get_with, GithubHttpTransport,
@@ -189,6 +190,7 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     enrich_participants(&mut resource, id, ResourceKind::Issue).await;
     enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
     enrich_issue_relationships(&mut resource, id).await;
+    enrich_issue_linked_branches(&mut resource, id).await;
     match fetch_comment_activity(id, ResourceKind::Issue).await {
         Ok(comments) => replace_comment_activity(&mut resource, comments),
         Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
@@ -302,7 +304,7 @@ async fn fetch_public_rest_issue(
     let mut resource = rest_issue_resource(issue, id, comments);
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, relationship links, and review data".into(),
+        "public REST fallback omits GraphQL-only enrichment such as rich timeline events, projects, participants, issue relationships, linked branches, relationship links, and review data".into(),
     );
     Ok(resource)
 }
@@ -473,6 +475,13 @@ async fn enrich_issue_relationships(resource: &mut Resource, id: &ResourceId) {
     }
 }
 
+async fn enrich_issue_linked_branches(resource: &mut Resource, id: &ResourceId) {
+    match fetch_issue_linked_branches(id).await {
+        Ok(branches) => apply_linked_branch_metadata(&mut resource.metadata, branches),
+        Err(error) => push_enrichment_warning(resource, "linked branches unavailable", &error),
+    }
+}
+
 fn append_related_resources(resource: &mut Resource, related: Vec<ResourceId>) {
     let mut seen = resource
         .related_resources
@@ -570,6 +579,17 @@ async fn run_graphql_issue_relationships(
 ) -> anyhow::Result<Vec<u8>> {
     let query = issue_relationships_query(kind.connection());
     run_graphql_query(&query, owner_repo_number_variables(id, after)).await
+}
+
+async fn run_graphql_issue_linked_branches(
+    id: &ResourceId,
+    after: Option<&str>,
+) -> anyhow::Result<Vec<u8>> {
+    run_graphql_query(
+        issue_linked_branches_query(),
+        owner_repo_number_variables(id, after),
+    )
+    .await
 }
 
 fn graphql_preview(selector: &str, id: &ResourceId) -> Vec<String> {
@@ -1089,6 +1109,58 @@ struct IssueRelationshipsResource {
     tracked_in_issues: Option<LinkedResourcesConnection>,
     blocked_by: Option<LinkedResourcesConnection>,
     blocking: Option<LinkedResourcesConnection>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueLinkedBranchesResponse {
+    data: IssueLinkedBranchesData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueLinkedBranchesData {
+    repository: Option<IssueLinkedBranchesRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueLinkedBranchesRepository {
+    issue: Option<IssueLinkedBranchesResource>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueLinkedBranchesResource {
+    linked_branches: IssueLinkedBranchesConnection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueLinkedBranchesConnection {
+    page_info: PageInfoDto,
+    nodes: Vec<LinkedBranchDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LinkedBranchDto {
+    #[serde(rename = "ref")]
+    branch_ref: Option<BranchRefDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BranchRefDto {
+    name: Option<String>,
+    repository: Option<BranchRepositoryDto>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BranchRepositoryDto {
+    name_with_owner: Option<String>,
+    url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2364,6 +2436,21 @@ fn apply_participant_metadata(items: &mut Vec<MetadataItem>, participants: Vec<S
     push_vec_metadata(items, "Participants", participants);
 }
 
+fn apply_linked_branch_metadata(items: &mut Vec<MetadataItem>, branches: Vec<String>) {
+    let branches = deduped_nonempty_strings(branches);
+    if branches.is_empty() {
+        return;
+    }
+    if let Some(item) = items
+        .iter_mut()
+        .find(|item| item.label == "Linked branches")
+    {
+        item.value = branches.join(", ");
+        return;
+    }
+    push_vec_metadata(items, "Linked branches", branches);
+}
+
 fn apply_issue_relationship_metadata(
     items: &mut Vec<MetadataItem>,
     label: &str,
@@ -2542,6 +2629,27 @@ async fn fetch_issue_relationships(
     }
 }
 
+async fn fetch_issue_linked_branches(id: &ResourceId) -> anyhow::Result<Vec<String>> {
+    let mut branches = Vec::new();
+    let mut after = None;
+    loop {
+        let output = run_graphql_issue_linked_branches(id, after.as_deref()).await?;
+        let response: IssueLinkedBranchesResponse = serde_json::from_slice(&output)
+            .context("failed to parse issue linked branches GraphQL JSON")?;
+        let Some(page) = issue_linked_branches_page(response) else {
+            return Ok(branches);
+        };
+        branches.extend(page.branches);
+        if !page.has_next_page {
+            return Ok(branches);
+        }
+        let Some(cursor) = page.end_cursor else {
+            anyhow::bail!("linked branches page reported next page without an end cursor");
+        };
+        after = Some(cursor);
+    }
+}
+
 struct LabelsPage {
     labels: Vec<String>,
     has_next_page: bool,
@@ -2573,6 +2681,12 @@ struct LinkedResourcesPage {
 }
 
 type IssueRelationshipsPage = LinkedResourcesPage;
+
+struct IssueLinkedBranchesPage {
+    branches: Vec<String>,
+    has_next_page: bool,
+    end_cursor: Option<String>,
+}
 
 #[cfg(test)]
 fn labels_from_response(response: LabelsResponse) -> Vec<String> {
@@ -2633,6 +2747,13 @@ fn issue_relationships_from_response(
 ) -> Vec<ResourceId> {
     issue_relationships_page(response, kind, requested)
         .map(|page| page.related_resources)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+fn issue_linked_branches_from_response(response: IssueLinkedBranchesResponse) -> Vec<String> {
+    issue_linked_branches_page(response)
+        .map(|page| page.branches)
         .unwrap_or_default()
 }
 
@@ -2736,6 +2857,47 @@ fn issue_relationship_connection(
         IssueRelationshipKind::BlockedBy => resource.blocked_by,
         IssueRelationshipKind::Blocking => resource.blocking,
     }
+}
+
+fn issue_linked_branches_page(
+    response: IssueLinkedBranchesResponse,
+) -> Option<IssueLinkedBranchesPage> {
+    let repository = response.data.repository?;
+    let resource = repository.issue?;
+    let page_info = resource.linked_branches.page_info;
+    Some(IssueLinkedBranchesPage {
+        branches: linked_branch_labels(resource.linked_branches.nodes),
+        has_next_page: page_info.has_next_page,
+        end_cursor: page_info.end_cursor,
+    })
+}
+
+fn linked_branch_labels(branches: Vec<LinkedBranchDto>) -> Vec<String> {
+    branches
+        .into_iter()
+        .filter_map(linked_branch_label)
+        .collect()
+}
+
+fn linked_branch_label(branch: LinkedBranchDto) -> Option<String> {
+    let branch_ref = branch.branch_ref?;
+    let branch_name = branch_ref.name?.trim().to_string();
+    if branch_name.is_empty() {
+        return None;
+    }
+    let repository_name = branch_ref
+        .repository
+        .and_then(|repository| {
+            repository
+                .name_with_owner
+                .or(repository.url)
+                .map(|value| value.trim().to_string())
+        })
+        .filter(|value| !value.is_empty());
+    Some(match repository_name {
+        Some(repository_name) => format!("{repository_name}:{branch_name}"),
+        None => branch_name,
+    })
 }
 
 fn value_titles(values: &[Value]) -> Vec<String> {
@@ -5529,6 +5691,23 @@ mod tests {
     }
 
     #[test]
+    fn issue_linked_branches_query_requests_ref_repository_and_pagination_state() {
+        let query = issue_linked_branches_query();
+
+        assert!(query.contains("issue(number: $number)"));
+        assert!(query.contains("$after: String"));
+        assert!(query.contains("linkedBranches(first: 100, after: $after)"));
+        assert!(query.contains("pageInfo"));
+        assert!(query.contains("hasNextPage"));
+        assert!(query.contains("endCursor"));
+        assert!(query.contains("ref"));
+        assert!(query.contains("name"));
+        assert!(query.contains("repository"));
+        assert!(query.contains("nameWithOwner"));
+        assert!(query.contains("url"));
+    }
+
+    #[test]
     fn reviews_query_requests_pagination_state_and_reaction_fields() {
         let query = reviews_query();
 
@@ -6040,6 +6219,67 @@ mod tests {
     }
 
     #[test]
+    fn issue_linked_branches_page_preserves_pagination_state_and_labels() {
+        let page = issue_linked_branches_page(IssueLinkedBranchesResponse {
+            data: IssueLinkedBranchesData {
+                repository: Some(IssueLinkedBranchesRepository {
+                    issue: Some(IssueLinkedBranchesResource {
+                        linked_branches: IssueLinkedBranchesConnection {
+                            page_info: PageInfoDto {
+                                has_next_page: true,
+                                end_cursor: Some("branch-cursor-2".into()),
+                            },
+                            nodes: vec![
+                                LinkedBranchDto {
+                                    branch_ref: Some(BranchRefDto {
+                                        name: Some("feature/status".into()),
+                                        repository: Some(BranchRepositoryDto {
+                                            name_with_owner: Some("openclaw/openclaw".into()),
+                                            url: Some(
+                                                "https://github.com/openclaw/openclaw".into(),
+                                            ),
+                                        }),
+                                    }),
+                                },
+                                LinkedBranchDto {
+                                    branch_ref: Some(BranchRefDto {
+                                        name: Some("local-only".into()),
+                                        repository: None,
+                                    }),
+                                },
+                                LinkedBranchDto {
+                                    branch_ref: Some(BranchRefDto {
+                                        name: Some(" ".into()),
+                                        repository: Some(BranchRepositoryDto {
+                                            name_with_owner: Some("ignored/repo".into()),
+                                            url: None,
+                                        }),
+                                    }),
+                                },
+                                LinkedBranchDto { branch_ref: None },
+                            ],
+                        },
+                    }),
+                }),
+            },
+        })
+        .expect("linked branches page");
+
+        assert!(page.has_next_page);
+        assert_eq!(page.end_cursor.as_deref(), Some("branch-cursor-2"));
+        assert_eq!(
+            page.branches,
+            vec!["openclaw/openclaw:feature/status", "local-only"]
+        );
+
+        let branches = issue_linked_branches_from_response(IssueLinkedBranchesResponse {
+            data: IssueLinkedBranchesData { repository: None },
+        });
+
+        assert!(branches.is_empty());
+    }
+
+    #[test]
     fn apply_project_metadata_replaces_existing_value_and_dedupes() {
         let mut metadata = vec![
             MetadataItem {
@@ -6111,6 +6351,37 @@ mod tests {
         assert_eq!(metadata.len(), 2);
         assert_eq!(metadata[1].label, "Blocked by");
         assert_eq!(metadata[1].value, "openclaw/openclaw#88499, other/repo#12");
+    }
+
+    #[test]
+    fn apply_linked_branch_metadata_replaces_existing_value_and_dedupes() {
+        let mut metadata = vec![
+            MetadataItem {
+                label: "Closed".into(),
+                value: "no".into(),
+            },
+            MetadataItem {
+                label: "Linked branches".into(),
+                value: "old".into(),
+            },
+        ];
+
+        apply_linked_branch_metadata(
+            &mut metadata,
+            vec![
+                " openclaw/openclaw:feature/status ".into(),
+                "openclaw/openclaw:feature/status".into(),
+                "dutifuldev/ghzinga:issue-branch".into(),
+                "".into(),
+            ],
+        );
+
+        assert_eq!(metadata.len(), 2);
+        assert_eq!(metadata[1].label, "Linked branches");
+        assert_eq!(
+            metadata[1].value,
+            "openclaw/openclaw:feature/status, dutifuldev/ghzinga:issue-branch"
+        );
     }
 
     #[test]

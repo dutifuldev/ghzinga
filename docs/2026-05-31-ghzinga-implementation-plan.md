@@ -478,6 +478,27 @@ Rules:
 - Public unauthenticated REST fallback should continue to render the issue and
   should explicitly warn that issue relationships are GraphQL-only.
 
+## Issue Linked Branch Enrichment
+
+GitHub issues can expose branches linked to the issue. Those branches are part
+of the current work-in-progress status even when no pull request exists yet, so
+`ghzinga` should show them in issue metadata.
+
+Rules:
+
+- Fetch `linkedBranches` for issues with a direct paginated GraphQL query.
+- Page the connection with `first: 100` and `after` until `hasNextPage` is
+  false.
+- Render each branch as `owner/repo:branch` when GitHub returns repository
+  context, falling back to the branch name when the repository is absent.
+- Deduplicate and trim branch labels before writing metadata, replacing an
+  existing `Linked branches` row if one is already present.
+- Treat missing repositories/resources/connections as an empty branch list.
+- If GitHub reports another page without an `endCursor`, fail linked-branch
+  enrichment with a warning instead of looping forever.
+- Public unauthenticated REST fallback should continue to render the issue and
+  should explicitly warn that linked branch enrichment is GraphQL-only.
+
 ## Input Model
 
 Keyboard:
