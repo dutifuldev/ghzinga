@@ -8,43 +8,43 @@
   [1m[38;2;122;162;247m* @xneone opened 2026-05-31T02:21:19Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                         
   Bug Description                                                                                                                                               
                                                                                                                                                                 
-  When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false (or                                         
-  omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same session,                                        
-  the gateway includes previous_response_id referencing the previous response. Since that response was never persisted                                          
-  server-side, the API returns a 404:                                                                                                                           
-                                                                                                                                                                
+  When using a provider configured with api: openai-responses, the gateway sends store=false or omits store, which                                              
+  defaults to false. On subsequent turns within the same session, the gateway includes previous_response_id referencing                                         
+  the previous response. Since that response was never persisted server-side, the API returns a 404.                                                            
                                                                                                                                                                 
   HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store                                         
   set to true, or remove this item from your input.                                                                                                             
                                                                                                                                                                 
-                                                                                                                                                                
+  Expected Behavior                                                                                                                                             
+  The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes                                           
+  replay safe.                                                                                                                                                  
   [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
   [38;2;86;95;137m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m                                        
                                                                                                                                                                 
   [1m[38;2;125;207;255mcomment Comment by @clawsweeper 2026-05-31T02:28:16Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          
-  meta: association CONTRIBUTOR, edited                                                                                                                         
+  meta: association CONTRIBUTOR                                                                                                                                 
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,                                          
-  2026, 10:28 PM ET / 02:28 UTC._                                                                                                                               
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                                                            
                                                                                                                                                                 
   Summary                                                                                                                                                       
   Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers                                             
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
   path.                                                                                                                                                         
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
   [38;2;86;95;137m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m                                        
                                                                                                                                                                 
-  [1m[38;2;125;207;255mcomment Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                
+  [1m[38;2;169;177;214m- Timeline by @osolmaz 2026-05-31T03:00:00Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                   
+  added label provider: openai-responses                                                                                                                        
+  [38;2;86;95;137m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m                                        
+                                                                                                                                                                
+  [1m[38;2;125;207;255mcomment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                
   meta: association CONTRIBUTOR                                                                                                                                 
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                  
+  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when                                                      
+  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next                                        
+  request succeed, which points at replay state rather than authentication or model availability.                                                               
+  [38;2;86;95;137m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m                                        
                                                                                                                                                                 
-  Environment:                                                                                                                                                  
-  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                   
-  - OS: macOS arm64                                                                                                                                             
-  - Channel: Slack, channel-scoped session                                                                                                                      
-  - Provider/API path: openai / openai-responses                                                                                                                
-  - Model: gpt-5.5                                                                                                                                              
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
-  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/68 0% ...[38;2;192;202;245m                                                                                                  
+  [1m[38;2;169;177;214m- Timeline by @osolmaz 2026-06-01T03:20:12Z[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                   
+  closed this with fix validation                                                                                                                               
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/13 0% ...[38;2;192;202;245m                                                                                                  

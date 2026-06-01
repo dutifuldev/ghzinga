@@ -1,50 +1,50 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                                                              
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100  -22                                  
                                                                                                                                                                 
                                                                                                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                                                                                                            
-  Summary: PASS (80 pass, 0 pending, 0 fail)                                                                                                                    
-  113 total: 80 pass, 0 pending, 0 fail, 33 skipped, 0 neutral, 0 unknown                                                                                       
+  Summary: PASS (1 pass, 0 pending, 0 fail)                                                                                                                     
+  1 total: 1 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                                                           
                                                                                                                                                                 
-  Passing (80)                                                                                                                                                  
-  [OK PASS] suite/Auto response [+ more]                                                                                                                        
+  Passing (1)                                                                                                                                                   
+  [OK PASS] All checks [+ more]                                                                                                                                 
                                                                                                                                                                 
-  [OK PASS] suite/CI [+ more]                                                                                                                                   
                                                                                                                                                                 
-  [OK PASS] suite/CodeQL [+ more]                                                                                                                               
+  [expand all]                                                                                                                                                  
                                                                                                                                                                 
-  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                                                              
                                                                                                                                                                 
-  [OK PASS] suite/Dependency Guard [+ more]                                                                                                                     
                                                                                                                                                                 
-  [OK PASS] suite/GitHub Advanced Security [+ more]                                                                                                             
                                                                                                                                                                 
-  [OK PASS] suite/Labeler [+ more]                                                                                                                              
                                                                                                                                                                 
-  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                                                                   
                                                                                                                                                                 
-  [OK PASS] suite/Real behavior proof [+ more]                                                                                                                  
                                                                                                                                                                 
-  [OK PASS] suite/Socket Security [+ more]                                                                                                                      
                                                                                                                                                                 
-  [OK PASS] suite/Workflow Sanity [+ more]                                                                                                                      
                                                                                                                                                                 
-  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-  [OK PASS] Auto response/auto-response [+ more]                                                                                                                
                                                                                                                                                                 
-  [OK PASS] CI/preflight [+ more]                                                                                                                               
                                                                                                                                                                 
-  [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                                                              
                                                                                                                                                                 
-  [OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                                                                   
                                                                                                                                                                 
-  [OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]                                                                                     
                                                                                                                                                                 
-  [OK PASS] Dependency Guard/dependency-guard-detect [+ more]                                                                                                   
                                                                                                                                                                 
-  [refresh] [open] [settings] [help] [quit] scroll 0/191 0% ...                                                                                                 
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                                 

@@ -1,50 +1,50 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                                                              
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100  -22                                  
                                                                                                                                                                 
                                                                                                                                                                 
    Overview [Activity] Commits  Checks  Files  Links                                                                                                            
-  Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                               
-  meta: association CONTRIBUTOR                                                                                                                                 
-  [details]                                                                                                                                                     
-  <!-- openclaw:dependency-change-awareness -->                                                                                                                 
-                                                                                                                                                                
+  Comment by @github-actions 1mo ago                                                                                                                            
   Dependency Changes Detected                                                                                                                                   
-                                                                                                                                                                
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                           
                                                                                                                                                                 
   Changed files:                                                                                                                                                
   - extensions/senseaudio/package.json                                                                                                                          
-  [+ more]                                                                                                                                                      
                                                                                                                                                                 
-  Comment by @KLilyZ 2026-05-15T07:05:52Z                                                                                                                       
-  meta: association NONE                                                                                                                                        
-  [details]                                                                                                                                                     
-  Codex review: needs changes before merge.                                                                                                                     
+  Comment by @osolmaz 1mo ago                                                                                                                                   
+  extensions/senseaudio/tts.ts:99                                                                                                                               
+  Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice                                              
+  listing, tests, and docs. Needs maintainer review before merge.                                                                                               
                                                                                                                                                                 
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
-  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
+  Timeline by @osolmaz 1mo ago                                                                                                                                  
+  added label extensions: senseaudio                                                                                                                            
                                                                                                                                                                 
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The                                              
-  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider                                          
-  <id>.                                                                                                                                                         
-  [+ more]                                                                                                                                                      
+  Comment by @KLilyZ 3w ago                                                                                                                                     
+  Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The                                                 
+  remaining files are intentionally scoped to the bundled extension.                                                                                            
                                                                                                                                                                 
-  Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                                                       
-  meta: association NONE                                                                                                                                        
-  [details]                                                                                                                                                     
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                                                       
-  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,                                         
-  just flagging it in case it slipped past the queue.                                                                                                           
+  [expand all]                                                                                                                                                  
                                                                                                                                                                 
-  Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                                                                     
-  meta: association MEMBER                                                                                                                                      
-  [details]                                                                                                                                                     
-  <!-- dependency-guard-rebase-needed-backfill -->                                                                                                              
-  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.                                           
                                                                                                                                                                 
-  Comment by @clawsweeper 2026-05-30T03:28:55Z                                                                                                                  
-  meta: association CONTRIBUTOR, edited                                                                                                                         
-  [details]                                                                                                                                                     
-  [refresh] [open] [settings] [help] [quit] scroll 0/37 0% ...                                                                                                  
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+  [refresh] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                                                                 
