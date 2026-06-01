@@ -797,6 +797,9 @@ struct RestIssueDto {
     body: Option<String>,
     closed_at: Option<String>,
     state_reason: Option<String>,
+    #[serde(default)]
+    locked: bool,
+    active_lock_reason: Option<String>,
     milestone: Option<Value>,
 }
 
@@ -1086,6 +1089,23 @@ struct IssueRelationshipsResource {
     tracked_in_issues: Option<LinkedResourcesConnection>,
     blocked_by: Option<LinkedResourcesConnection>,
     blocking: Option<LinkedResourcesConnection>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IssueDependenciesSummaryDto {
+    blocked_by: u64,
+    blocking: u64,
+    total_blocked_by: u64,
+    total_blocking: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubIssuesSummaryDto {
+    total: u64,
+    completed: u64,
+    percent_completed: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1884,8 +1904,20 @@ struct IssueView {
     closed: bool,
     #[serde(default)]
     is_pinned: bool,
+    #[serde(default)]
+    locked: bool,
+    active_lock_reason: Option<String>,
+    issue_type: Option<Value>,
     state_reason: Option<String>,
     closed_at: Option<String>,
+    last_edited_at: Option<String>,
+    #[serde(default)]
+    created_via_email: bool,
+    tracked_issues_count: Option<u64>,
+    open_tracked_issues_count: Option<u64>,
+    closed_tracked_issues_count: Option<u64>,
+    issue_dependencies_summary: Option<IssueDependenciesSummaryDto>,
+    sub_issues_summary: Option<SubIssuesSummaryDto>,
     milestone: Option<Value>,
     #[serde(default)]
     project_items: Vec<Value>,
@@ -2083,8 +2115,33 @@ fn issue_metadata(issue: &IssueView) -> Vec<MetadataItem> {
     let mut items = Vec::new();
     push_bool_metadata(&mut items, "Closed", issue.closed);
     push_bool_metadata(&mut items, "Pinned", issue.is_pinned);
+    push_bool_metadata(&mut items, "Locked", issue.locked);
+    push_nonempty_metadata(
+        &mut items,
+        "Lock reason",
+        issue.active_lock_reason.as_deref(),
+    );
+    push_nonempty_metadata(
+        &mut items,
+        "Issue type",
+        value_title(issue.issue_type.as_ref()).as_deref(),
+    );
     push_nonempty_metadata(&mut items, "State reason", issue.state_reason.as_deref());
     push_nonempty_metadata(&mut items, "Closed at", issue.closed_at.as_deref());
+    push_nonempty_metadata(
+        &mut items,
+        "Last edited at",
+        issue.last_edited_at.as_deref(),
+    );
+    push_bool_metadata(&mut items, "Created via email", issue.created_via_email);
+    push_issue_count_metadata(
+        &mut items,
+        issue.tracked_issues_count,
+        issue.open_tracked_issues_count,
+        issue.closed_tracked_issues_count,
+    );
+    push_issue_dependency_metadata(&mut items, issue.issue_dependencies_summary.as_ref());
+    push_sub_issue_summary_metadata(&mut items, issue.sub_issues_summary.as_ref());
     push_nonempty_metadata(
         &mut items,
         "Milestone",
@@ -2092,6 +2149,79 @@ fn issue_metadata(issue: &IssueView) -> Vec<MetadataItem> {
     );
     push_vec_metadata(&mut items, "Projects", value_titles(&issue.project_items));
     items
+}
+
+fn push_issue_count_metadata(
+    items: &mut Vec<MetadataItem>,
+    total: Option<u64>,
+    open: Option<u64>,
+    closed: Option<u64>,
+) {
+    let Some(total) = total.filter(|count| *count > 0) else {
+        return;
+    };
+    let open = open.unwrap_or_default();
+    let closed = closed.unwrap_or_default();
+    push_nonempty_metadata(
+        items,
+        "Tracked issues",
+        Some(format!("{total} total, {open} open, {closed} closed").as_str()),
+    );
+}
+
+fn push_issue_dependency_metadata(
+    items: &mut Vec<MetadataItem>,
+    summary: Option<&IssueDependenciesSummaryDto>,
+) {
+    let Some(summary) = summary else {
+        return;
+    };
+    if summary.total_blocked_by > 0 {
+        push_nonempty_metadata(
+            items,
+            "Blocked by count",
+            Some(
+                format!(
+                    "{} total, {} open",
+                    summary.total_blocked_by, summary.blocked_by
+                )
+                .as_str(),
+            ),
+        );
+    }
+    if summary.total_blocking > 0 {
+        push_nonempty_metadata(
+            items,
+            "Blocking count",
+            Some(
+                format!(
+                    "{} total, {} open",
+                    summary.total_blocking, summary.blocking
+                )
+                .as_str(),
+            ),
+        );
+    }
+}
+
+fn push_sub_issue_summary_metadata(
+    items: &mut Vec<MetadataItem>,
+    summary: Option<&SubIssuesSummaryDto>,
+) {
+    let Some(summary) = summary.filter(|summary| summary.total > 0) else {
+        return;
+    };
+    push_nonempty_metadata(
+        items,
+        "Sub-issue summary",
+        Some(
+            format!(
+                "{} total, {} completed, {}%",
+                summary.total, summary.completed, summary.percent_completed
+            )
+            .as_str(),
+        ),
+    );
 }
 
 fn pr_resource_metadata(pr: &PrView) -> Vec<MetadataItem> {
@@ -2771,6 +2901,12 @@ fn rest_issue_metadata(issue: &RestIssueDto) -> Vec<MetadataItem> {
     let mut items = Vec::new();
     push_nonempty_metadata(&mut items, "State reason", issue.state_reason.as_deref());
     push_nonempty_metadata(&mut items, "Closed at", issue.closed_at.as_deref());
+    push_bool_metadata(&mut items, "Locked", issue.locked);
+    push_nonempty_metadata(
+        &mut items,
+        "Lock reason",
+        issue.active_lock_reason.as_deref(),
+    );
     push_nonempty_metadata(
         &mut items,
         "Milestone",
@@ -5015,6 +5151,8 @@ mod tests {
             body: Some("Issue body".into()),
             closed_at: None,
             state_reason: Some("REOPENED".into()),
+            locked: true,
+            active_lock_reason: Some("TOO_HEATED".into()),
             milestone: Some(json!({"title": "v1"})),
         };
         let activity = vec![rest_comment_activity((
@@ -5048,6 +5186,14 @@ mod tests {
             .metadata
             .iter()
             .any(|item| item.label == "Milestone" && item.value == "v1"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Locked" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Lock reason" && item.value == "TOO_HEATED"));
     }
 
     #[test]
@@ -5202,6 +5348,24 @@ mod tests {
         assert!(issue_query.contains("SUB_ISSUE_ADDED_EVENT"));
         assert!(issue_query.contains("BLOCKED_BY_ADDED_EVENT"));
         assert!(issue_query.contains("ConvertedToDiscussionEvent"));
+    }
+
+    #[test]
+    fn base_issue_query_requests_current_status_metadata() {
+        let query = base_issue_query();
+
+        assert!(query.contains("locked"));
+        assert!(query.contains("activeLockReason"));
+        assert!(query.contains("issueType { name }"));
+        assert!(query.contains("lastEditedAt"));
+        assert!(query.contains("createdViaEmail"));
+        assert!(query.contains("trackedIssuesCount"));
+        assert!(query.contains("openTrackedIssuesCount: trackedIssuesCount(states: OPEN)"));
+        assert!(query.contains("closedTrackedIssuesCount: trackedIssuesCount(states: CLOSED)"));
+        assert!(query.contains("issueDependenciesSummary"));
+        assert!(query.contains("totalBlockedBy"));
+        assert!(query.contains("subIssuesSummary"));
+        assert!(query.contains("percentCompleted"));
     }
 
     #[test]
@@ -7223,8 +7387,27 @@ mod tests {
                 "body": "body",
                 "closed": true,
                 "isPinned": true,
+                "locked": true,
+                "activeLockReason": "RESOLVED",
+                "issueType": {"name": "Task"},
                 "stateReason": "COMPLETED",
                 "closedAt": "closed",
+                "lastEditedAt": "edited",
+                "createdViaEmail": true,
+                "trackedIssuesCount": 5,
+                "openTrackedIssuesCount": 3,
+                "closedTrackedIssuesCount": 2,
+                "issueDependenciesSummary": {
+                    "blockedBy": 1,
+                    "blocking": 2,
+                    "totalBlockedBy": 4,
+                    "totalBlocking": 6
+                },
+                "subIssuesSummary": {
+                    "total": 8,
+                    "completed": 5,
+                    "percentCompleted": 62
+                },
                 "milestone": {"title": "v2"},
                 "projectItems": [{"project": {"title": "Triage"}}],
                 "closedByPullRequestsReferences": [],
@@ -7246,7 +7429,43 @@ mod tests {
         assert!(resource
             .metadata
             .iter()
+            .any(|item| item.label == "Locked" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Lock reason" && item.value == "RESOLVED"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Issue type" && item.value == "Task"));
+        assert!(resource
+            .metadata
+            .iter()
             .any(|item| item.label == "State reason" && item.value == "COMPLETED"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Last edited at" && item.value == "edited"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Created via email" && item.value == "yes"));
+        assert!(resource.metadata.iter().any(
+            |item| item.label == "Tracked issues" && item.value == "5 total, 3 open, 2 closed"
+        ));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Blocked by count" && item.value == "4 total, 1 open"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Blocking count" && item.value == "6 total, 2 open"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Sub-issue summary"
+                && item.value == "8 total, 5 completed, 62%"));
         assert!(resource
             .metadata
             .iter()

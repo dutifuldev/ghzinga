@@ -269,8 +269,9 @@ Data loaded for issue:
 - repo/name/owner/URL
 - number, title, body, state, author, created/updated timestamps
 - labels and assignees
-- metadata such as pinned state, state reason, closed time, milestone, and
-  project membership
+- metadata such as pinned state, locked state/reason, issue type, state reason,
+  closed time, last edit time, created-via-email flag, tracked issue counts,
+  dependency summaries, milestone, and project membership
 - current issue relationships: parent issue, sub-issues, tracked issues,
   tracked-in issues, blocked-by issues, and blocking issues
 - reactions counts

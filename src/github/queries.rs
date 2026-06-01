@@ -144,8 +144,27 @@ query($owner: String!, $name: String!, $number: Int!) {
       body
       closed
       isPinned
+      locked
+      activeLockReason
+      issueType { name }
       stateReason
       closedAt
+      lastEditedAt
+      createdViaEmail
+      trackedIssuesCount
+      openTrackedIssuesCount: trackedIssuesCount(states: OPEN)
+      closedTrackedIssuesCount: trackedIssuesCount(states: CLOSED)
+      issueDependenciesSummary {
+        blockedBy
+        blocking
+        totalBlockedBy
+        totalBlocking
+      }
+      subIssuesSummary {
+        total
+        completed
+        percentCompleted
+      }
       milestone { title }
       closedByPullRequestsReferences(first: 100) { nodes { number url } }
       comments(first: 100) {
