@@ -237,7 +237,8 @@ Keyboard:
 - `s`: open or close settings
 - `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
 - `r`: refresh now
-- `y`: copy the current PR or issue URL to the system clipboard
+- `y`: copy the first visible GitHub URL, or the current PR/issue URL if no
+  visible link is available
 - `o`: open the current resource URL in the browser
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
@@ -253,10 +254,11 @@ fallbacks when a terminal or multiplexer encodes Tab unusually.
 Live GitHub mode refreshes automatically every 300 seconds by default. Change the
 interval with `--refresh-seconds`; use `0` to disable automatic refresh. Manual
 refresh is always available with `r` or the `[refresh]` footer control.
-Clicking `[copy]` or pressing `y` copies the current PR or issue URL; set
-`GZG_COPY_COMMAND` to a command that reads clipboard text from stdin when the
-default platform clipboard command is not available in tmux, SSH, or headless
-sessions.
+Clicking `[copy]` or pressing `y` copies the first visible GitHub URL, such as a
+comment permalink, check-run URL, or linked issue/PR. If no visible link is
+available, it copies the current PR or issue URL. Set `GZG_COPY_COMMAND` to a
+command that reads clipboard text from stdin when the default platform clipboard
+command is not available in tmux, SSH, or headless sessions.
 
 `ghzinga` checks the GraphQL rate-limit bucket before authenticated GraphQL
 requests when its local decision cache is stale. If GraphQL is exhausted, it
