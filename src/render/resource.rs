@@ -159,7 +159,7 @@ fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
             rects.content.y = rects.content.y.saturating_add(1);
             rects.content.height = rects.content.height.saturating_sub(1);
         }
-        if rects.content.height > 3 {
+        if area.height >= 32 && rects.content.height > 3 {
             rects.footer.height = rects.footer.height.saturating_add(1);
             rects.footer.y = rects.footer.y.saturating_sub(1);
             rects.content.height = rects.content.height.saturating_sub(1);
@@ -265,7 +265,7 @@ fn register_header_identity_hit_area(
             label_width.min(area.width),
             1,
         ),
-        HitTarget::OpenUrl(state.resource.id.web_url()),
+        HitTarget::OpenHeaderUrl(state.resource.id.web_url()),
     ));
 }
 
@@ -1194,6 +1194,11 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
             .into_iter()
             .map(|line| ContentRow::styled(line, dim_style(palette))),
     );
+    rows.push(ContentRow::target_styled(
+        "[close settings]",
+        HitTarget::CloseSettings,
+        button_style(palette),
+    ));
     rows.push(ContentRow::plain(""));
     rows.push(heading_row("Theme", palette));
     rows.push(settings_option_row(
@@ -1241,12 +1246,6 @@ fn settings_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<Conte
         state.spacing == SpacingMode::Compact,
         HitTarget::SetSpacing("compact".into()),
         palette,
-    ));
-    rows.push(ContentRow::plain(""));
-    rows.push(ContentRow::target_styled(
-        "[close settings]",
-        HitTarget::CloseSettings,
-        button_style(palette),
     ));
     rows.extend(
         [
@@ -3433,6 +3432,7 @@ mod tests {
                 area.target,
                 HitTarget::Navigate(_)
                     | HitTarget::Tab(_)
+                    | HitTarget::OpenHeaderUrl(_)
                     | HitTarget::Refresh
                     | HitTarget::CopyVisibleUrl
                     | HitTarget::OpenVisibleUrl
@@ -4333,7 +4333,7 @@ mod tests {
         let rect = rendered_target_rect(&state, |target| {
             matches!(
                 target,
-                HitTarget::OpenUrl(url)
+                HitTarget::OpenHeaderUrl(url)
                     if url == "https://github.com/openclaw/openclaw/pull/81834"
             )
         })
@@ -4345,7 +4345,7 @@ mod tests {
         let intent = click_rendered_target(&mut state, |target| {
             matches!(
                 target,
-                HitTarget::OpenUrl(url)
+                HitTarget::OpenHeaderUrl(url)
                     if url == "https://github.com/openclaw/openclaw/pull/81834"
             )
         });
@@ -4366,7 +4366,7 @@ mod tests {
         let rect = rendered_target_rect(&state, |target| {
             matches!(
                 target,
-                HitTarget::OpenUrl(url)
+                HitTarget::OpenHeaderUrl(url)
                     if url == "https://github.com/openclaw/openclaw/pull/81834"
             )
         })
@@ -4421,7 +4421,7 @@ mod tests {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
         })
         .expect("footer expand all target");
-        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(2));
 
         let intent = click_rendered_target(
             &mut state,
@@ -4452,7 +4452,7 @@ mod tests {
             &mut state,
             120,
             36,
-            footer.y.saturating_add(footer.height.saturating_sub(1)),
+            footer.y.saturating_add(footer.height.saturating_sub(2)),
         );
 
         assert!(bottom.contains("[refresh] [copy] [open]"));
@@ -4991,7 +4991,7 @@ mod tests {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.iter().any(|block| matches!(block, BlockId::Patch(_))))
         })
         .expect("footer files expand all target");
-        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(2));
 
         let intent = click_rendered_target(
             &mut state,
