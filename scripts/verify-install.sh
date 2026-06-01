@@ -15,7 +15,7 @@ assert_output_contains() {
   needle="$2"
   if ! grep -Fq "$needle" "$output_file"; then
     printf 'Expected %s to contain: %s\n' "$output_file" "$needle" >&2
-    printf '--- output ---\n' >&2
+    printf '%s\n' '--- output ---' >&2
     cat "$output_file" >&2
     exit 1
   fi
@@ -28,7 +28,7 @@ run_once() {
     "$binary" openclaw/openclaw#81834 \
       --offline-fixture "${repo_root}/fixtures/pr-81834.json" \
       --once >"$output_file"
-  assert_output_contains "$output_file" "openclaw/openclaw#81834"
+  assert_output_contains "$output_file" "https://github.com/openclaw/openclaw/pull/81834"
   assert_output_contains "$output_file" "checks PASS"
 }
 
