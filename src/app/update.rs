@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use crate::app::{AppState, BlockId};
 use crate::input::{hit_test, HitTarget};
-use crate::render::{SpacingMode, SymbolMode, ThemeName};
+use crate::render::{ContentWidthMode, SpacingMode, SymbolMode, ThemeName};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppIntent {
@@ -100,6 +100,29 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         }
         KeyCode::Char('p') if state.show_settings && is_plain_shortcut(key) => {
             if state.cycle_spacing() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
+        KeyCode::Char('w') if state.show_settings && is_plain_shortcut(key) => {
+            if state.cycle_width_mode() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
+        KeyCode::Char('+') | KeyCode::Char('=')
+            if state.show_settings && is_plain_shortcut(key) =>
+        {
+            if state.increase_fixed_width() {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
+        KeyCode::Char('-') if state.show_settings && is_plain_shortcut(key) => {
+            if state.decrease_fixed_width() {
                 AppIntent::SaveSettings
             } else {
                 AppIntent::None
@@ -253,6 +276,17 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             Ok(spacing) if state.set_spacing(spacing) => AppIntent::SaveSettings,
             _ => AppIntent::None,
         },
+        HitTarget::SetWidthMode(width_mode) => match width_mode.parse::<ContentWidthMode>() {
+            Ok(width_mode) if state.set_width_mode(width_mode) => AppIntent::SaveSettings,
+            _ => AppIntent::None,
+        },
+        HitTarget::SetFixedWidth(width) => {
+            if state.set_fixed_width(width) {
+                AppIntent::SaveSettings
+            } else {
+                AppIntent::None
+            }
+        }
     }
 }
 
@@ -475,12 +509,14 @@ mod tests {
 
     #[test]
     fn settings_control_shortcuts_do_not_change_preferences() {
-        for shortcut in ['t', 'y', 'p'] {
+        for shortcut in ['t', 'y', 'p', 'w', '+', '-'] {
             let mut state = AppState::new(resource());
             state.show_settings = true;
             let theme = state.theme;
             let symbols = state.symbols;
             let spacing = state.spacing;
+            let width_mode = state.width_mode;
+            let fixed_width = state.fixed_width;
 
             let intent = apply_event(
                 &mut state,
@@ -494,6 +530,8 @@ mod tests {
             assert_eq!(state.theme, theme, "Ctrl-{shortcut}");
             assert_eq!(state.symbols, symbols, "Ctrl-{shortcut}");
             assert_eq!(state.spacing, spacing, "Ctrl-{shortcut}");
+            assert_eq!(state.width_mode, width_mode, "Ctrl-{shortcut}");
+            assert_eq!(state.fixed_width, fixed_width, "Ctrl-{shortcut}");
             assert!(state.show_settings, "Ctrl-{shortcut}");
         }
     }
@@ -1089,7 +1127,7 @@ mod tests {
         );
 
         assert_eq!(theme, AppIntent::SaveSettings);
-        assert_eq!(state.theme, ThemeName::SolarizedDark);
+        assert_eq!(state.theme, ThemeName::Catppuccin);
 
         let symbols = apply_event(
             &mut state,
@@ -1106,6 +1144,25 @@ mod tests {
 
         assert_eq!(spacing, AppIntent::SaveSettings);
         assert_eq!(state.spacing, SpacingMode::Compact);
+
+        let width_mode = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(width_mode, AppIntent::SaveSettings);
+        assert_eq!(state.width_mode, ContentWidthMode::Full);
+
+        let width = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('+'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(width, AppIntent::SaveSettings);
+        assert_eq!(
+            state.fixed_width,
+            crate::render::DEFAULT_FIXED_CONTENT_WIDTH + crate::render::FIXED_CONTENT_WIDTH_STEP
+        );
     }
 
     #[test]
@@ -1144,7 +1201,7 @@ mod tests {
         );
 
         assert_eq!(theme, AppIntent::SaveSettings);
-        assert_eq!(state.theme, ThemeName::SolarizedDark);
+        assert_eq!(state.theme, ThemeName::Solarized);
 
         state.hit_areas.clear();
         state.hit_areas.push(HitArea::new(
@@ -1163,6 +1220,42 @@ mod tests {
 
         assert_eq!(spacing, AppIntent::SaveSettings);
         assert_eq!(state.spacing, SpacingMode::Compact);
+
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 3, 20, 1),
+            HitTarget::SetWidthMode("full".into()),
+        ));
+        let width_mode = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 3,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(width_mode, AppIntent::SaveSettings);
+        assert_eq!(state.width_mode, ContentWidthMode::Full);
+
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 4, 20, 1),
+            HitTarget::SetFixedWidth(132),
+        ));
+        let fixed_width = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 4,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(fixed_width, AppIntent::SaveSettings);
+        assert_eq!(state.fixed_width, 132);
     }
 
     #[test]

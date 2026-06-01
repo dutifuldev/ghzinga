@@ -163,6 +163,8 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     state.theme = loaded_config.config.ui.theme;
     state.symbols = loaded_config.config.ui.symbols;
     state.spacing = loaded_config.config.ui.spacing;
+    state.width_mode = loaded_config.config.ui.width_mode;
+    state.fixed_width = loaded_config.config.ui.fixed_width;
     if !loaded_config.diagnostics.is_empty() {
         state.last_error = Some(loaded_config.diagnostics.join("; "));
     }
@@ -174,6 +176,12 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     }
     if let Some(spacing) = cli.spacing {
         state.spacing = spacing;
+    }
+    if let Some(width_mode) = cli.width_mode {
+        state.width_mode = width_mode;
+    }
+    if let Some(fixed_width) = cli.fixed_width {
+        state.fixed_width = crate::render::normalize_fixed_width(fixed_width);
     }
     if let Some(tab) = cli.tab {
         state.set_tab(tab);
@@ -359,7 +367,9 @@ fn save_settings(state: &mut AppState) {
     let config = AppConfig::default()
         .with_theme(state.theme)
         .with_symbols(state.symbols)
-        .with_spacing(state.spacing);
+        .with_spacing(state.spacing)
+        .with_width_mode(state.width_mode)
+        .with_fixed_width(state.fixed_width);
     match config::save_to_path(&state.config_path, config) {
         Ok(()) => {
             state.last_error = None;

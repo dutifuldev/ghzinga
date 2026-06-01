@@ -86,6 +86,8 @@ gzg openclaw/openclaw#81834 --no-mouse
 gzg openclaw/openclaw#81834 --theme solarized-dark
 gzg openclaw/openclaw#81834 --symbols emoji
 gzg openclaw/openclaw#81834 --spacing compact
+gzg openclaw/openclaw#81834 --width-mode full
+gzg openclaw/openclaw#81834 --fixed-width 132
 gzg openclaw/openclaw#81834 --once
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
 gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-resource-fixture fixtures/issue-66943.json
@@ -93,15 +95,22 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-r
 
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
-accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
-`emoji`. `--spacing` accepts `comfortable` and `compact`, similar to Gmail's
-density setting. Comfortable is the default and adds gh-dash-like breathing room
-between repeated rows, a small content gutter, top/bottom chrome padding, and
-hanging indents for wrapped long lines; compact keeps more rows visible in small
-terminals. `--api-depth`
+accepts Herdr-style built-ins: `default`, `catppuccin`, `catppuccin-latte`,
+`terminal`, `tokyo-night`, `tokyo-night-day`, `dracula`, `nord`, `gruvbox`,
+`gruvbox-light`, `one-dark`, `one-light`, `solarized`, `solarized-light`,
+`kanagawa`, `kanagawa-lotus`, `rose-pine`, `rose-pine-dawn`, and `vesper`.
+`solarized-dark` remains an alias for `solarized`. `--symbols` accepts `ascii`
+and `emoji`. `--spacing` accepts `comfortable` and `compact`, similar to
+Gmail's density setting. Comfortable is the default and adds gh-dash-like
+breathing room between repeated rows, a small content gutter, top/bottom chrome
+padding, and hanging indents for wrapped long lines; compact keeps more rows
+visible in small terminals. `--width-mode` accepts `fixed` and `full`;
+`--fixed-width` sets the fixed readable width in columns. Files stay full width
+so diffs have room. `--api-depth`
 accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
 conservative; full follows all supported paginated GraphQL enrichment paths.
-CLI theme, symbol, and spacing flags override saved config for that run only.
+CLI theme, symbol, spacing, and width flags override saved config for that run
+only.
 `--offline-resource-fixture` can be repeated when an offline fixture run needs
 click-through navigation to linked issues or PRs without calling GitHub.
 
@@ -124,6 +133,8 @@ Default config:
 theme = "default"
 symbols = "ascii"
 spacing = "comfortable"
+width_mode = "fixed"
+fixed_width = 118
 ```
 
 The app works without a config file. Invalid known values fall back to safe
@@ -131,8 +142,9 @@ defaults and show a warning in the status band. Unknown fields are ignored so
 future config additions do not break older files.
 
 Open settings inside the TUI with `s` or the footer `[settings]` control. Theme,
-symbol, and spacing changes apply live and are saved back to `config.toml`;
-write errors are shown in the status band without crashing the app.
+symbol, spacing, width mode, and fixed width changes apply live and are saved
+back to `config.toml`; write errors are shown in the status band without
+crashing the app.
 
 ## What It Shows
 
@@ -247,6 +259,8 @@ Mouse:
   bottom command bar to expand or collapse the current tab
 - click file rows in the Files tab to expand or collapse per-file details, then
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
+- click the header `owner/repo#number` identity to open the current GitHub
+  issue or PR
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment
   permalinks, to open them in the browser; footer `[copy]` and `[open]`
@@ -261,7 +275,9 @@ Keyboard:
 - `q` or `Ctrl-C`: quit
 - `?`: toggle help
 - `s`: open or close settings
-- `t` / `y` / `p` while settings are open: cycle theme / symbol style / spacing
+- `t` / `y` / `p` / `w` while settings are open: cycle theme / symbol style /
+  spacing / width mode
+- `-` / `+` while settings are open: decrease or increase fixed content width
 - `r`: refresh now
 - `f`: load full supported GitHub pagination when a partial-depth warning is
   shown

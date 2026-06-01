@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
 use crate::github::api::ApiDepth;
-use crate::render::{SpacingMode, SymbolMode, ThemeName};
+use crate::render::{ContentWidthMode, SpacingMode, SymbolMode, ThemeName};
 
 pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
 
@@ -48,7 +48,7 @@ pub struct Cli {
     #[arg(long, value_name = "TAB")]
     pub tab: Option<Tab>,
 
-    /// Override configured UI theme: default or solarized-dark.
+    /// Override configured UI theme.
     #[arg(long, value_name = "THEME")]
     pub theme: Option<ThemeName>,
 
@@ -59,6 +59,14 @@ pub struct Cli {
     /// Override configured spacing: comfortable or compact.
     #[arg(long, value_name = "SPACING")]
     pub spacing: Option<SpacingMode>,
+
+    /// Override configured content width mode: fixed or full.
+    #[arg(long, value_name = "MODE")]
+    pub width_mode: Option<ContentWidthMode>,
+
+    /// Override configured fixed content width.
+    #[arg(long, value_name = "COLUMNS")]
+    pub fixed_width: Option<u16>,
 }
 
 impl Cli {
@@ -159,7 +167,7 @@ mod tests {
             "openclaw/openclaw#81834",
         ]);
 
-        assert_eq!(cli.theme, Some(ThemeName::SolarizedDark));
+        assert_eq!(cli.theme, Some(ThemeName::Solarized));
     }
 
     #[test]
@@ -174,5 +182,20 @@ mod tests {
         let cli = Cli::parse_from(["ghzinga", "--spacing", "compact", "openclaw/openclaw#81834"]);
 
         assert_eq!(cli.spacing, Some(SpacingMode::Compact));
+    }
+
+    #[test]
+    fn parses_width_preferences() {
+        let cli = Cli::parse_from([
+            "ghzinga",
+            "--width-mode",
+            "full",
+            "--fixed-width",
+            "132",
+            "openclaw/openclaw#81834",
+        ]);
+
+        assert_eq!(cli.width_mode, Some(ContentWidthMode::Full));
+        assert_eq!(cli.fixed_width, Some(132));
     }
 }
