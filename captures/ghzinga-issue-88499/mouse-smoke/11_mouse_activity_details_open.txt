@@ -1,4 +1,4 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z                                                   
+  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                                                                    
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                 
@@ -8,7 +8,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                          
+  Comment by @clawsweeper 1d ago                                                                                        
   meta: association CONTRIBUTOR                                                                                         
   [details]                                                                                                             
   Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                    
@@ -19,17 +19,17 @@
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
   direct-OpenAI-only path.                                                                                              
                                                                                                                         
-  Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                             
+  Timeline by @osolmaz 1d ago                                                                                           
   added label provider: openai-responses                                                                                
                                                                                                                         
-  Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                
+  Comment by @tianxiaochannel-oss88 1d ago                                                                              
   meta: association CONTRIBUTOR                                                                                         
   [details]                                                                                                             
   Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when              
   previous_response_id is sent after an unstored first response. Removing the previous response reference makes the     
   next request succeed, which points at replay state rather than authentication or model availability.                  
                                                                                                                         
-  Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                             
+  Timeline by @osolmaz 11h ago                                                                                          
   closed this with fix validation                                                                                       
                                                                                                                         
   opened https://github.com/openclaw/openclaw/issues/88499#issuecomment-1                                               

@@ -1,4 +1,4 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z                                                                                           
+  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                                                                                                            
   openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                                                         
@@ -8,43 +8,43 @@
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
-  Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                  
-  meta: association CONTRIBUTOR                                                                                                                                 
+  Comment by @clawsweeper 1d ago                                                                                                                                
+  meta: association CONTRIBUTOR, edited                                                                                                                         
   [details]                                                                                                                                                     
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                                                            
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,                                          
+  2026, 10:28 PM ET / 02:28 UTC._                                                                                                                               
                                                                                                                                                                 
   Summary                                                                                                                                                       
   Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers                                             
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
   path.                                                                                                                                                         
+  [+ more]                                                                                                                                                      
                                                                                                                                                                 
-  Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                                                                     
-  added label provider: openai-responses                                                                                                                        
-                                                                                                                                                                
-  Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                                                        
+  Comment by @tianxiaochannel-oss88 1d ago                                                                                                                      
   meta: association CONTRIBUTOR                                                                                                                                 
   [details]                                                                                                                                                     
-  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when                                                      
-  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next                                        
-  request succeed, which points at replay state rather than authentication or model availability.                                                               
+  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                  
                                                                                                                                                                 
-  Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                                                                     
-  closed this with fix validation                                                                                                                               
+  Environment:                                                                                                                                                  
+  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                   
+  - OS: macOS arm64                                                                                                                                             
+  - Channel: Slack, channel-scoped session                                                                                                                      
+  - Provider/API path: openai / openai-responses                                                                                                                
+  - Model: gpt-5.5                                                                                                                                              
+  [+ more]                                                                                                                                                      
                                                                                                                                                                 
+  Comment by @temurkhan13 1d ago                                                                                                                                
+  meta: association NONE                                                                                                                                        
+  [details]                                                                                                                                                     
+  The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design.                                        
+  Server-side response chaining only works when the response was persisted, which is exactly what store=false turns off.                                        
+  So previous_response_id should not be on the request at all when store is false.                                                                              
                                                                                                                                                                 
+  There are two separate defects here and the fix needs both.                                                                                                   
                                                                                                                                                                 
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-  scroll 0/0 100% | tab Activity | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page   
+  The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side                                         
+  with previous_response_id (requires store=true), or resend the conversation context inline on each turn (works with                                           
+  [+ more]                                                                                                                                                      
+  scroll 0/27 0% | tab Activity | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page    
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 

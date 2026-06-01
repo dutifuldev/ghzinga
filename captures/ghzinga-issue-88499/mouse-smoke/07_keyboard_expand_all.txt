@@ -1,4 +1,4 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z                                                   
+  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                                                                    
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                 
@@ -8,7 +8,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * @xneone opened 2026-05-31T02:21:19Z                                                                                 
+  * @xneone opened 1d ago                                                                                               
   Bug Description                                                                                                       
                                                                                                                         
   When using a provider configured with api: openai-responses, the gateway sends store=false or omits store, which      
@@ -30,7 +30,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                  
+  comment Comment by @clawsweeper 1d ago                                                                                
   meta: association CONTRIBUTOR                                                                                         
   scroll 0/45 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab   
   [refresh] [copy] [open] [settings] [help] [quit] [collapse all]                                                       
