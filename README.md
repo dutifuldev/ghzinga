@@ -272,6 +272,9 @@ skips GraphQL until GitHub's reset time and uses the public REST fallback for
 public repositories instead of repeatedly spending failed GraphQL attempts.
 Normal mode avoids duplicate first-page GraphQL enrichment; set
 `GZG_API_DEPTH=full` only when exhaustive pagination matters more than quota.
+When normal mode sees that a first-page collection has more than 100 items
+behind it, the TUI shows a warning naming the partial sections and the full-depth
+escape hatch.
 
 The horizontal status band shows the last refresh time and whether the fetched
 resource changed. Change detection includes comment/review bodies and

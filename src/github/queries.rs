@@ -12,8 +12,8 @@ query($owner: String!, $name: String!, $number: Int!) {
       author { login }
       createdAt
       updatedAt
-      labels(first: 100) { nodes { name } }
-      assignees(first: 100) { nodes { login name } }
+      labels(first: 100) { pageInfo { hasNextPage } nodes { name } }
+      assignees(first: 100) { pageInfo { hasNextPage } nodes { login name } }
       reactionGroups { content users { totalCount } }
       body
       baseRefName
@@ -24,6 +24,7 @@ query($owner: String!, $name: String!, $number: Int!) {
       headRepositoryOwner { login }
       reviewDecision
       reviewRequests(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           requestedReviewer {
             __typename
@@ -32,7 +33,7 @@ query($owner: String!, $name: String!, $number: Int!) {
           }
         }
       }
-      closingIssuesReferences(first: 100) { nodes { number url } }
+      closingIssuesReferences(first: 100) { pageInfo { hasNextPage } nodes { number url } }
       mergeStateStatus
       mergeable
       isDraft
@@ -56,6 +57,7 @@ query($owner: String!, $name: String!, $number: Int!) {
       additions
       deletions
       commits(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           commit {
             oid
@@ -78,6 +80,7 @@ query($owner: String!, $name: String!, $number: Int!) {
       }
       statusCheckRollup {
         contexts(first: 100) {
+          pageInfo { hasNextPage }
           nodes {
             __typename
             ... on CheckRun {
@@ -97,8 +100,9 @@ query($owner: String!, $name: String!, $number: Int!) {
           }
         }
       }
-      files(first: 100) { nodes { path additions deletions changeType } }
+      files(first: 100) { pageInfo { hasNextPage } nodes { path additions deletions changeType } }
       comments(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           id
           author { login }
@@ -114,6 +118,7 @@ query($owner: String!, $name: String!, $number: Int!) {
         }
       }
       reviews(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           id
           author { login }
@@ -144,8 +149,8 @@ query($owner: String!, $name: String!, $number: Int!) {
       author { login }
       createdAt
       updatedAt
-      labels(first: 100) { nodes { name } }
-      assignees(first: 100) { nodes { login name } }
+      labels(first: 100) { pageInfo { hasNextPage } nodes { name } }
+      assignees(first: 100) { pageInfo { hasNextPage } nodes { login name } }
       reactionGroups { content users { totalCount } }
       body
       closed
@@ -172,8 +177,9 @@ query($owner: String!, $name: String!, $number: Int!) {
         percentCompleted
       }
       milestone { title }
-      closedByPullRequestsReferences(first: 100) { nodes { number url } }
+      closedByPullRequestsReferences(first: 100) { pageInfo { hasNextPage } nodes { number url } }
       comments(first: 100) {
+        pageInfo { hasNextPage }
         nodes {
           id
           author { login }
