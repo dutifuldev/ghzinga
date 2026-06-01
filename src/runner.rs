@@ -10,7 +10,7 @@ use crate::{
     app::{apply_event, AppEvent, AppIntent, AppState},
     cli::Cli,
     config::{self, AppConfig},
-    domain::ResourceId,
+    domain::{Resource, ResourceId},
     github::{
         api::{ApiDepth, GithubApiGateway, GithubGateway},
         load_fixture,
@@ -30,6 +30,7 @@ const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
 
 #[derive(Debug, Clone)]
 enum FetchAction {
+    Initial { id: ResourceId },
     Refresh { id: ResourceId },
     LoadFull { id: ResourceId },
     Navigate { from: ResourceId, to: ResourceId },
@@ -39,13 +40,14 @@ enum FetchAction {
 impl FetchAction {
     fn target(&self) -> &ResourceId {
         match self {
-            Self::Refresh { id } | Self::LoadFull { id } => id,
+            Self::Initial { id } | Self::Refresh { id } | Self::LoadFull { id } => id,
             Self::Navigate { to, .. } | Self::Back { to } => to,
         }
     }
 
     fn loading_message(&self) -> String {
         match self {
+            Self::Initial { id } => format!("opening {} from GitHub", id.canonical_name()),
             Self::Refresh { id } => format!("refreshing {} from GitHub", id.canonical_name()),
             Self::LoadFull { id } => {
                 format!("loading full data for {} from GitHub", id.canonical_name())
@@ -143,22 +145,35 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     let api_depth = cli
         .api_depth
         .unwrap_or_else(crate::github::api::ApiDepth::from_env);
-    let (resource, fetch_source) = if let Some(path) = &cli.offline_fixture {
+    let (mut state, fetch_source, initial_fetch) = if let Some(path) = &cli.offline_fixture {
         let resource = load_fixture(path)?;
         let fixture_source = OfflineFixtureSource::from_primary_and_paths(
             resource.clone(),
             &cli.offline_resource_fixture,
         )?;
-        (resource, FetchSource::OfflineFixtures(fixture_source))
+        (
+            AppState::new(resource),
+            FetchSource::OfflineFixtures(fixture_source),
+            None,
+        )
     } else {
         let gateway = GithubApiGateway::new(api_depth);
-        (
-            gateway.fetch_resource(&resource_id).await?,
-            FetchSource::Github(gateway),
-        )
+        let fetch_source = FetchSource::Github(gateway);
+        if cli.once {
+            (
+                AppState::new(fetch_source.fetch_resource(&resource_id).await?),
+                fetch_source,
+                None,
+            )
+        } else {
+            (
+                AppState::new(Resource::loading_placeholder(resource_id.clone())),
+                fetch_source,
+                Some(FetchAction::Initial { id: resource_id }),
+            )
+        }
     };
 
-    let mut state = AppState::new(resource);
     state.config_path = loaded_config.path.clone();
     state.theme = loaded_config.config.ui.theme;
     state.symbols = loaded_config.config.ui.symbols;
@@ -200,6 +215,7 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
         !cli.no_mouse,
         fetch_source,
         Duration::from_secs(cli.refresh_seconds),
+        initial_fetch,
     )
     .await
     .context("failed to run terminal UI")
@@ -218,10 +234,16 @@ async fn run_tui(
     mouse_enabled: bool,
     fetch_source: FetchSource,
     refresh_interval: Duration,
+    initial_fetch: Option<FetchAction>,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
     let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
     let mut last_refresh = Instant::now();
+    if let Some(action) = initial_fetch {
+        if start_background_fetch(state, action, fetch_source.clone(), &fetch_tx) {
+            last_refresh = Instant::now();
+        }
+    }
     loop {
         apply_completed_fetches(state, &mut fetch_rx);
         state.advance_loading_frame();
@@ -666,6 +688,14 @@ fn apply_completed_fetches(state: &mut AppState, fetch_rx: &mut UnboundedReceive
 fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     state.finish_loading();
     match (outcome.action, outcome.result) {
+        (FetchAction::Initial { .. }, Ok(resource)) => {
+            let name = resource.id.canonical_name();
+            let active_tab = state.active_tab;
+            state.replace_resource(resource);
+            state.set_tab(active_tab);
+            state.last_error = None;
+            state.status_message = Some(format!("loaded {name}"));
+        }
         (FetchAction::Refresh { .. }, Ok(resource)) => {
             state.apply_refreshed_resource(resource, outcome.refreshed_at);
         }
@@ -1008,6 +1038,69 @@ mod tests {
             state.status_message.as_deref(),
             Some("loaded full GitHub data for owner/repo#1")
         );
+    }
+
+    #[test]
+    fn initial_fetch_outcome_replaces_placeholder_with_loaded_resource() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let mut state = AppState::new(Resource::loading_placeholder(id.clone()));
+        state.set_tab(crate::app::Tab::Files);
+        state.begin_loading(id.clone(), "opening owner/repo#1 from GitHub");
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::Initial { id },
+                result: Ok(issue_resource(1, "Loaded issue")),
+                refreshed_at: "12:34:56 UTC".into(),
+            },
+        );
+
+        assert_eq!(state.resource.title, "Loaded issue");
+        assert_eq!(state.resource.state, "OPEN");
+        assert_eq!(state.active_tab, crate::app::Tab::Overview);
+        assert_eq!(state.status_message.as_deref(), Some("loaded owner/repo#1"));
+        assert!(state.loading.is_none());
+    }
+
+    #[tokio::test]
+    async fn initial_live_fetch_starts_before_first_draw() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let loaded = issue_resource(1, "Loaded issue");
+        let mut state = AppState::new(Resource::loading_placeholder(id.clone()));
+        state.set_tab(crate::app::Tab::Activity);
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let started = start_background_fetch(
+            &mut state,
+            FetchAction::Initial { id },
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([loaded])),
+            &fetch_tx,
+        );
+
+        assert!(started);
+        assert_eq!(
+            state.loading_message(),
+            Some("opening owner/repo#1 from GitHub")
+        );
+        assert_eq!(state.resource.title, "Loading owner/repo#1");
+
+        let outcome = fetch_rx.recv().await.expect("initial fetch outcome");
+        apply_fetch_outcome(&mut state, outcome);
+
+        assert_eq!(state.resource.title, "Loaded issue");
+        assert_eq!(state.active_tab, crate::app::Tab::Activity);
+        assert!(state.loading.is_none());
     }
 
     #[tokio::test]
