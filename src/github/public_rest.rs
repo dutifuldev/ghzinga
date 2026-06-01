@@ -139,7 +139,7 @@ async fn fetch_public_rest_pages<T: serde::de::DeserializeOwned>(
     fetch_public_rest_pages_with(&ReqwestGithubHttpTransport, base_path).await
 }
 
-pub(super) async fn fetch_public_rest_pages_with<T: serde::de::DeserializeOwned>(
+async fn fetch_public_rest_pages_with<T: serde::de::DeserializeOwned>(
     transport: &impl GithubHttpTransport,
     base_path: &str,
 ) -> anyhow::Result<Vec<T>> {
@@ -157,7 +157,7 @@ pub(super) async fn fetch_public_rest_pages_with<T: serde::de::DeserializeOwned>
     }
 }
 
-pub(super) fn public_rest_page_path(base_path: &str, page: u64) -> String {
+fn public_rest_page_path(base_path: &str, page: u64) -> String {
     let separator = if base_path.contains('?') { '&' } else { '?' };
     format!("{base_path}{separator}per_page={REST_PAGE_SIZE}&page={page}")
 }
@@ -202,128 +202,128 @@ fn rest_issue_path(id: &ResourceId) -> String {
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestUserDto {
-    pub(super) login: Option<String>,
+struct RestUserDto {
+    login: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestLabelDto {
-    pub(super) name: String,
+struct RestLabelDto {
+    name: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
-pub(super) struct RestReactionsDto {
+struct RestReactionsDto {
     #[serde(rename = "+1", default)]
-    pub(super) thumbs_up: u64,
+    thumbs_up: u64,
     #[serde(rename = "-1", default)]
-    pub(super) thumbs_down: u64,
+    thumbs_down: u64,
     #[serde(default)]
-    pub(super) laugh: u64,
+    laugh: u64,
     #[serde(default)]
-    pub(super) hooray: u64,
+    hooray: u64,
     #[serde(default)]
-    pub(super) confused: u64,
+    confused: u64,
     #[serde(default)]
-    pub(super) heart: u64,
+    heart: u64,
     #[serde(default)]
-    pub(super) rocket: u64,
+    rocket: u64,
     #[serde(default)]
-    pub(super) eyes: u64,
+    eyes: u64,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestIssueDto {
-    pub(super) number: u64,
-    pub(super) title: String,
-    pub(super) html_url: String,
-    pub(super) state: String,
-    pub(super) user: Option<RestUserDto>,
-    pub(super) created_at: String,
-    pub(super) updated_at: String,
+struct RestIssueDto {
+    number: u64,
+    title: String,
+    html_url: String,
+    state: String,
+    user: Option<RestUserDto>,
+    created_at: String,
+    updated_at: String,
     #[serde(default)]
-    pub(super) labels: Vec<RestLabelDto>,
+    labels: Vec<RestLabelDto>,
     #[serde(default)]
-    pub(super) assignees: Vec<RestUserDto>,
+    assignees: Vec<RestUserDto>,
     #[serde(default)]
-    pub(super) reactions: RestReactionsDto,
-    pub(super) body: Option<String>,
-    pub(super) closed_at: Option<String>,
-    pub(super) state_reason: Option<String>,
+    reactions: RestReactionsDto,
+    body: Option<String>,
+    closed_at: Option<String>,
+    state_reason: Option<String>,
     #[serde(default)]
-    pub(super) locked: bool,
-    pub(super) active_lock_reason: Option<String>,
-    pub(super) milestone: Option<Value>,
+    locked: bool,
+    active_lock_reason: Option<String>,
+    milestone: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestPullDto {
-    pub(super) title: String,
-    pub(super) html_url: String,
-    pub(super) state: String,
-    pub(super) user: Option<RestUserDto>,
-    pub(super) created_at: String,
-    pub(super) updated_at: String,
-    pub(super) base: Option<RestRefDto>,
-    pub(super) head: Option<RestRefDto>,
+struct RestPullDto {
+    title: String,
+    html_url: String,
+    state: String,
+    user: Option<RestUserDto>,
+    created_at: String,
+    updated_at: String,
+    base: Option<RestRefDto>,
+    head: Option<RestRefDto>,
     #[serde(default)]
-    pub(super) requested_reviewers: Vec<RestUserDto>,
-    pub(super) mergeable: Option<bool>,
-    pub(super) additions: Option<u64>,
-    pub(super) deletions: Option<u64>,
-    pub(super) changed_files: Option<u64>,
+    requested_reviewers: Vec<RestUserDto>,
+    mergeable: Option<bool>,
+    additions: Option<u64>,
+    deletions: Option<u64>,
+    changed_files: Option<u64>,
     #[serde(default)]
-    pub(super) draft: bool,
-    pub(super) merged_at: Option<String>,
-    pub(super) merge_commit_sha: Option<String>,
+    draft: bool,
+    merged_at: Option<String>,
+    merge_commit_sha: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct RestRefDto {
+struct RestRefDto {
     #[serde(rename = "ref")]
-    pub(super) reference: String,
+    reference: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestCommentDto {
-    pub(super) id: u64,
-    pub(super) user: Option<RestUserDto>,
-    pub(super) body: Option<String>,
-    pub(super) created_at: String,
-    pub(super) updated_at: String,
-    pub(super) html_url: Option<String>,
-    pub(super) author_association: Option<String>,
+struct RestCommentDto {
+    id: u64,
+    user: Option<RestUserDto>,
+    body: Option<String>,
+    created_at: String,
+    updated_at: String,
+    html_url: Option<String>,
+    author_association: Option<String>,
     #[serde(default)]
-    pub(super) reactions: RestReactionsDto,
+    reactions: RestReactionsDto,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestCommitDto {
-    pub(super) sha: String,
-    pub(super) commit: RestCommitInnerDto,
-    pub(super) author: Option<RestUserDto>,
+struct RestCommitDto {
+    sha: String,
+    commit: RestCommitInnerDto,
+    author: Option<RestUserDto>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestCommitInnerDto {
-    pub(super) message: String,
-    pub(super) author: Option<RestCommitPersonDto>,
-    pub(super) committer: Option<RestCommitPersonDto>,
+struct RestCommitInnerDto {
+    message: String,
+    author: Option<RestCommitPersonDto>,
+    committer: Option<RestCommitPersonDto>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestCommitPersonDto {
-    pub(super) name: Option<String>,
-    pub(super) date: Option<String>,
+struct RestCommitPersonDto {
+    name: Option<String>,
+    date: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct RestFileDto {
-    pub(super) filename: String,
-    pub(super) additions: u64,
-    pub(super) deletions: u64,
-    pub(super) status: String,
-    pub(super) patch: Option<String>,
+struct RestFileDto {
+    filename: String,
+    additions: u64,
+    deletions: u64,
+    status: String,
+    patch: Option<String>,
 }
 
 fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
@@ -339,7 +339,7 @@ fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
     }
 }
 
-pub(super) fn rest_issue_resource(
+fn rest_issue_resource(
     issue: RestIssueDto,
     requested: &ResourceId,
     activity: Vec<ActivityEntry>,
@@ -400,7 +400,7 @@ fn rest_issue_metadata(issue: &RestIssueDto) -> Vec<MetadataItem> {
     items
 }
 
-pub(super) fn rest_pr_metadata(pr: &RestPullDto) -> Vec<MetadataItem> {
+fn rest_pr_metadata(pr: &RestPullDto) -> Vec<MetadataItem> {
     let mut items = Vec::new();
     push_bool_metadata(&mut items, "Draft", pr.draft);
     push_nonempty_metadata(
@@ -413,7 +413,7 @@ pub(super) fn rest_pr_metadata(pr: &RestPullDto) -> Vec<MetadataItem> {
     items
 }
 
-pub(super) fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -> ActivityEntry {
+fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -> ActivityEntry {
     let includes_created_edit = comment.updated_at != comment.created_at;
     ActivityEntry {
         id: format!("rest-comment-{}", comment.id),
@@ -435,7 +435,7 @@ pub(super) fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -
     }
 }
 
-pub(super) fn rest_commit(commit: RestCommitDto) -> Commit {
+fn rest_commit(commit: RestCommitDto) -> Commit {
     let headline = commit
         .commit
         .message
@@ -493,7 +493,7 @@ pub(super) fn rest_commit(commit: RestCommitDto) -> Commit {
     }
 }
 
-pub(super) fn rest_file(file: RestFileDto) -> ChangedFile {
+fn rest_file(file: RestFileDto) -> ChangedFile {
     ChangedFile {
         path: file.filename,
         additions: file.additions,
@@ -541,4 +541,256 @@ fn value_title(value: Option<&Value>) -> Option<String> {
                 .get("owner")
                 .and_then(|owner| value_title(Some(owner)))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::VecDeque, sync::Mutex};
+
+    use anyhow::Context;
+    use serde_json::{json, Value};
+
+    use super::*;
+    use crate::github::transport::{
+        GithubHttpFuture, GithubHttpMethod, GithubHttpRequest, GithubHttpResponse,
+    };
+
+    #[derive(Debug)]
+    struct FakeGithubHttpTransport {
+        requests: Mutex<Vec<GithubHttpRequest>>,
+        responses: Mutex<VecDeque<GithubHttpResponse>>,
+    }
+
+    impl FakeGithubHttpTransport {
+        fn from_responses(responses: Vec<GithubHttpResponse>) -> Self {
+            Self {
+                requests: Mutex::new(Vec::new()),
+                responses: Mutex::new(responses.into()),
+            }
+        }
+
+        fn requests(&self) -> Vec<GithubHttpRequest> {
+            self.requests.lock().expect("requests lock").clone()
+        }
+    }
+
+    impl GithubHttpTransport for FakeGithubHttpTransport {
+        fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
+            Box::pin(async move {
+                self.requests.lock().expect("requests lock").push(request);
+                self.responses
+                    .lock()
+                    .expect("responses lock")
+                    .pop_front()
+                    .context("fake response queue is empty")
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn pages_until_short_page_without_auth() {
+        let first_page = (1..=100).map(rest_comment_json).collect::<Vec<_>>();
+        let second_page = (101..=102).map(rest_comment_json).collect::<Vec<_>>();
+        let transport = FakeGithubHttpTransport::from_responses(vec![
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&first_page).unwrap(),
+            },
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&second_page).unwrap(),
+            },
+        ]);
+
+        let comments = fetch_public_rest_pages_with::<RestCommentDto>(
+            &transport,
+            "/repos/openclaw/openclaw/issues/88499/comments",
+        )
+        .await
+        .expect("paginated public REST comments");
+
+        assert_eq!(comments.len(), 102);
+        assert_eq!(comments[0].id, 1);
+        assert_eq!(comments[101].id, 102);
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0].method, GithubHttpMethod::Get);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/issues/88499/comments?per_page=100&page=1"
+        );
+        assert_eq!(
+            requests[1].url,
+            "https://api.github.com/repos/openclaw/openclaw/issues/88499/comments?per_page=100&page=2"
+        );
+        assert_eq!(requests[0].token, None);
+        assert_eq!(requests[1].token, None);
+    }
+
+    #[test]
+    fn page_path_uses_ampersand_when_query_already_exists() {
+        assert_eq!(
+            public_rest_page_path("/repos/owner/repo/issues/1/comments?since=2026-01-01", 3),
+            "/repos/owner/repo/issues/1/comments?since=2026-01-01&per_page=100&page=3"
+        );
+    }
+
+    fn rest_comment_json(id: u64) -> Value {
+        json!({
+            "id": id,
+            "user": {"login": "alice"},
+            "body": format!("comment {id}"),
+            "created_at": "2026-05-31T00:00:00Z",
+            "updated_at": "2026-05-31T00:00:00Z"
+        })
+    }
+
+    #[test]
+    fn issue_fallback_renders_core_monitoring_surfaces() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "88499").unwrap();
+        let issue = RestIssueDto {
+            number: 88499,
+            title: "Public issue".into(),
+            html_url: "https://github.com/openclaw/openclaw/issues/88499".into(),
+            state: "open".into(),
+            user: Some(RestUserDto {
+                login: Some("alice".into()),
+            }),
+            created_at: "2026-05-30T00:00:00Z".into(),
+            updated_at: "2026-05-31T00:00:00Z".into(),
+            labels: vec![RestLabelDto { name: "bug".into() }],
+            assignees: vec![RestUserDto {
+                login: Some("bob".into()),
+            }],
+            reactions: RestReactionsDto {
+                thumbs_up: 2,
+                eyes: 1,
+                ..RestReactionsDto::default()
+            },
+            body: Some("Issue body".into()),
+            closed_at: None,
+            state_reason: Some("REOPENED".into()),
+            locked: true,
+            active_lock_reason: Some("TOO_HEATED".into()),
+            milestone: Some(json!({"title": "v1"})),
+        };
+        let activity = vec![rest_comment_activity((
+            0,
+            RestCommentDto {
+                id: 1,
+                user: Some(RestUserDto {
+                    login: Some("carol".into()),
+                }),
+                body: Some("Public comment".into()),
+                created_at: "2026-05-31T00:00:00Z".into(),
+                updated_at: "2026-05-31T00:00:00Z".into(),
+                html_url: Some(
+                    "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1".into(),
+                ),
+                author_association: Some("MEMBER".into()),
+                reactions: RestReactionsDto::default(),
+            },
+        ))];
+
+        let resource = rest_issue_resource(issue, &id, activity);
+
+        assert_eq!(resource.kind(), ResourceKind::Issue);
+        assert_eq!(resource.state, "OPEN");
+        assert_eq!(resource.author, "alice");
+        assert_eq!(resource.labels, ["bug"]);
+        assert_eq!(resource.assignees, ["bob"]);
+        assert_eq!(resource.reactions.total(), 3);
+        assert_eq!(resource.activity[0].body, "Public comment");
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Milestone" && item.value == "v1"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Locked" && item.value == "yes"));
+        assert!(resource
+            .metadata
+            .iter()
+            .any(|item| item.label == "Lock reason" && item.value == "TOO_HEATED"));
+    }
+
+    #[test]
+    fn pr_fallback_renders_core_monitoring_surfaces() {
+        let pull = RestPullDto {
+            title: "Public PR".into(),
+            html_url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "open".into(),
+            user: Some(RestUserDto {
+                login: Some("alice".into()),
+            }),
+            created_at: "2026-05-30T00:00:00Z".into(),
+            updated_at: "2026-05-31T00:00:00Z".into(),
+            base: Some(RestRefDto {
+                reference: "main".into(),
+            }),
+            head: Some(RestRefDto {
+                reference: "feature".into(),
+            }),
+            requested_reviewers: vec![RestUserDto {
+                login: Some("reviewer".into()),
+            }],
+            mergeable: Some(true),
+            additions: Some(10),
+            deletions: Some(2),
+            changed_files: Some(1),
+            draft: false,
+            merged_at: None,
+            merge_commit_sha: Some("abc123".into()),
+        };
+        let commits = vec![rest_commit(RestCommitDto {
+            sha: "abcdef123456".into(),
+            commit: RestCommitInnerDto {
+                message: "feat: public fallback\n\nbody".into(),
+                author: Some(RestCommitPersonDto {
+                    name: Some("Fallback Author".into()),
+                    date: Some("2026-05-30T00:00:00Z".into()),
+                }),
+                committer: None,
+            },
+            author: None,
+        })];
+        let files = vec![rest_file(RestFileDto {
+            filename: "src/lib.rs".into(),
+            additions: 10,
+            deletions: 2,
+            status: "modified".into(),
+            patch: Some("@@ -1 +1 @@\n-old\n+new".into()),
+        })];
+
+        let pr = PullRequest {
+            base_ref: pull.base.as_ref().unwrap().reference.clone(),
+            head_ref: pull.head.as_ref().unwrap().reference.clone(),
+            requested_reviewers: pull
+                .requested_reviewers
+                .iter()
+                .map(|user| user.login.clone().unwrap())
+                .collect(),
+            review_decision: None,
+            merge_state: Some("MERGEABLE".into()),
+            additions: pull.additions.unwrap(),
+            deletions: pull.deletions.unwrap(),
+            commits,
+            checks: Vec::new(),
+            files,
+            metadata: rest_pr_metadata(&pull),
+        };
+
+        assert_eq!(pr.base_ref, "main");
+        assert_eq!(pr.head_ref, "feature");
+        assert_eq!(pr.requested_reviewers, ["reviewer"]);
+        assert_eq!(pr.commits[0].message, "feat: public fallback");
+        assert_eq!(pr.commits[0].body, "body");
+        assert_eq!(pr.files[0].path, "src/lib.rs");
+        assert_eq!(pr.files[0].change_type, "MODIFIED");
+        assert!(pr
+            .metadata
+            .iter()
+            .any(|item| item.label == "Merge commit" && item.value == "abc123"));
+    }
 }

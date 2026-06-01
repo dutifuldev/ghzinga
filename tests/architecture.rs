@@ -125,10 +125,22 @@ fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
 fn public_rest_fallback_stays_in_dedicated_rest_adapter() {
     let source =
         fs::read_to_string("src/github/public_rest.rs").expect("read public REST adapter source");
+    let api_source = fs::read_to_string("src/github/api.rs").expect("read GitHub API source");
 
     assert!(source.contains("fetch_public_rest_pr"));
     assert!(source.contains("fetch_public_rest_issue"));
     assert!(source.contains("run_rest_get_with"));
+    for public_rest_detail in [
+        "RestCommentDto",
+        "RestPullDto",
+        "fetch_public_rest_pages_with",
+        "public_rest_page_path",
+    ] {
+        assert!(
+            !api_source.contains(public_rest_detail),
+            "GraphQL API orchestration should not know public REST detail `{public_rest_detail}`"
+        );
+    }
     assert!(
         !source.contains("run_graphql_query"),
         "public REST fallback should not grow GraphQL enrichment logic"

@@ -93,6 +93,8 @@ reach back into TUI layers.
   `gh api`; the only allowed `gh` use in the GitHub adapter is `gh auth token`
 - unauthenticated public REST fallback code lives behind the GitHub adapter
   boundary, not in the runner or renderer
+- public REST fallback details and tests stay in `src/github/public_rest.rs`;
+  `src/github/api.rs` only calls the fallback entrypoints
 - `TerminalGuard` must be safe during partial setup: raw mode, alternate screen,
   and mouse capture are tracked independently so a setup error unwinds through
   the same restoration path as a normal exit
