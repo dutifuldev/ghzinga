@@ -5,32 +5,32 @@
   +1057  -22                                                                                                            
                                                                                                                         
    Overview  Activity  Commits [Checks] Files  Links                                                                    
-  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                      
-                                                                                                                        
-  [OK PASS] suite/Dependency Guard [+ more]                                                                             
-                                                                                                                        
-  [OK PASS] suite/GitHub Advanced Security [+ more]                                                                     
-                                                                                                                        
-  [OK PASS] suite/Labeler [+ more]                                                                                      
-                                                                                                                        
-  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                           
-                                                                                                                        
-  [OK PASS] suite/Real behavior proof [+ more]                                                                          
-                                                                                                                        
-  [OK PASS] suite/Socket Security [+ more]                                                                              
-                                                                                                                        
-  [OK PASS] suite/Workflow Sanity [+ more]                                                                              
-                                                                                                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                        
-                                                                                                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                        
-                                                                                                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                        
-                                                                                                                        
-  [OK PASS] CI/preflight [+ more]                                                                                       
-                                                                                                                        
-  [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                      
-                                                                                                                        
-  [OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                           
-                                                                                                                        
+  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                   │  
+                                                                                                                     █  
+  [OK PASS] suite/Dependency Guard [+ more]                                                                          █  
+                                                                                                                     █  
+  [OK PASS] suite/GitHub Advanced Security [+ more]                                                                  │  
+                                                                                                                     │  
+  [OK PASS] suite/Labeler [+ more]                                                                                   │  
+                                                                                                                     │  
+  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                        │  
+                                                                                                                     │  
+  [OK PASS] suite/Real behavior proof [+ more]                                                                       │  
+                                                                                                                     │  
+  [OK PASS] suite/Socket Security [+ more]                                                                           │  
+                                                                                                                     │  
+  [OK PASS] suite/Workflow Sanity [+ more]                                                                           │  
+                                                                                                                     │  
+  [OK PASS] Auto response/auto-response [+ more]                                                                     │  
+                                                                                                                     │  
+  [OK PASS] Auto response/auto-response [+ more]                                                                     │  
+                                                                                                                     │  
+  [OK PASS] Auto response/auto-response [+ more]                                                                     │  
+                                                                                                                     │  
+  [OK PASS] CI/preflight [+ more]                                                                                    │  
+                                                                                                                     │  
+  [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                   │  
+                                                                                                                     │  
+  [OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                        │  
+                                                                                                                     │  
   [refresh] [open] [settings] [help] [quit] scroll 10/205 4% ...                                                        
