@@ -1,36 +1,36 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122      
-  +1100  -22                                                                                                            
-  info returned to openclaw/openclaw#81834                                                                              
-  [Overview] Activity  Commits  Checks  Files  Links                                                                    
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Help                                                                                                                  
-                                                                                                                        
-  Mouse                                                                                                                 
-  - Click tabs to switch sections.                                                                                      
-  - Click [+ more] / [- less] or [expand all] / [collapse all] to expand or collapse long text, checks, and files.      
-  - Click visible GitHub issue or PR references to navigate.                                                            
-  - Click settings rows to apply theme and symbol preferences.                                                          
-  - Use the mouse wheel to scroll the current view.                                                                     
-                                                                                                                        
-  Keyboard                                                                                                              
-  - q: quit                                                                                                             
-  - ?: toggle this help                                                                                                 
-  - s: open or close settings                                                                                           
-  - t / y / p in settings: cycle theme / symbol style / spacing                                                         
-  - r: refresh now                                                                                                      
-  - y: copy first visible URL, or current resource URL                                                                  
-  - o: open first visible URL, or current resource                                                                      
-  - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
-  - 1-6: jump to the visible tab in that position                                                                       
-  - v: reverse chronological feed order                                                                                 
-  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
-  - e: expand or collapse the main body                                                                                 
-  - Backspace: return after following a link                                                                            
-                                                                                                                        
-  Refresh                                                                                                               
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/3 0% ...                                                    
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago
+  feat(senseaudio): add SenseAudio TTS provider
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122
+  +1100  -22
+  info offline fixture mode: refresh skipped
+  [Overview] Activity  Commits  Checks  Files  Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Help
+
+  Mouse
+  - Click tabs to switch sections.
+  - Click [+ more] / [- less] or [expand all] / [collapse all] to expand or collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Click settings rows to apply theme and symbol preferences.
+  - Use the mouse wheel to scroll the current view.
+
+  Keyboard
+  - q: quit
+  - ?: toggle this help
+  - s: open or close settings
+  - t / y / p in settings: cycle theme / symbol style / spacing
+  - r: refresh now
+  - y: copy first visible URL, or current resource URL
+  - o: open first visible URL, or current resource
+  - Tab / Shift-Tab / Left / Right: switch tabs
+  - 1-6: jump to the visible tab in that position
+  - v: reverse chronological feed order
+  - Up / Down / PageUp / PageDown / Home / End: scroll
+  - e: expand or collapse the main body
+  - Backspace: return after following a link
+
+  Refresh
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/3 0% ...
