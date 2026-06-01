@@ -4,8 +4,8 @@ use serde_json::Value;
 
 use crate::{
     domain::{
-        ActivityEntry, ActivityKind, ChangedFile, CheckStatus, Commit, MetadataItem, PullRequest,
-        ReactionCounts, Resource, ResourceId, ResourceKind,
+        ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, MetadataItem,
+        PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
     },
     github::transport::{
         run_rest_get_with, GithubHttpTransport, ReqwestGithubHttpTransport, GITHUB_JSON_ACCEPT,
@@ -48,7 +48,29 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
+    let head_sha = pull
+        .head
+        .as_ref()
+        .and_then(|reference| reference.sha.clone())
+        .or_else(|| commits.first().map(|commit| commit.oid.clone()));
+    let checks = match head_sha.as_deref() {
+        Some(sha) => fetch_public_rest_checks(id, sha, &mut warnings).await,
+        None => {
+            warnings.push("public check status unavailable: pull request head SHA missing".into());
+            Vec::new()
+        }
+    };
     let pr_metadata = rest_pr_metadata(&pull);
+    let base_ref = pull
+        .base
+        .as_ref()
+        .map(|reference| reference.reference.clone())
+        .unwrap_or_default();
+    let head_ref = pull
+        .head
+        .as_ref()
+        .map(|reference| reference.reference.clone())
+        .unwrap_or_default();
 
     let mut resource = rest_issue_resource(issue, id, comments);
     resource.id.kind_hint = Some(ResourceKind::PullRequest);
@@ -59,14 +81,8 @@ pub(super) async fn fetch_public_rest_pr(
     resource.created_at = pull.created_at;
     resource.updated_at = pull.updated_at;
     resource.pull_request = Some(PullRequest {
-        base_ref: pull
-            .base
-            .map(|reference| reference.reference)
-            .unwrap_or_default(),
-        head_ref: pull
-            .head
-            .map(|reference| reference.reference)
-            .unwrap_or_default(),
+        base_ref,
+        head_ref,
         requested_reviewers: pull
             .requested_reviewers
             .into_iter()
@@ -84,13 +100,13 @@ pub(super) async fn fetch_public_rest_pr(
         additions: pull.additions.unwrap_or_default(),
         deletions: pull.deletions.unwrap_or_default(),
         commits,
-        checks: Vec::new(),
+        checks,
         files,
         metadata: pr_metadata,
     });
     resource.warnings.extend(warnings);
     resource.warnings.push(
-        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, participants, relationship links, and check suites".into(),
+        "public REST fallback omits GraphQL-only enrichment such as reviews, review threads, rich timeline events, projects, participants, relationship links, and check-suite workflow grouping".into(),
     );
     Ok(resource)
 }
@@ -193,6 +209,73 @@ async fn fetch_public_rest_files(id: &ResourceId) -> anyhow::Result<Vec<ChangedF
     Ok(files.into_iter().map(rest_file).collect())
 }
 
+async fn fetch_public_rest_checks(
+    id: &ResourceId,
+    sha: &str,
+    warnings: &mut Vec<String>,
+) -> Vec<CheckRun> {
+    let mut checks = Vec::new();
+    match fetch_public_rest_check_runs(id, sha).await {
+        Ok(check_runs) => checks.extend(check_runs),
+        Err(error) => warnings.push(format!("public check runs unavailable: {error}")),
+    }
+    match fetch_public_rest_status_contexts(id, sha).await {
+        Ok(statuses) => checks.extend(statuses),
+        Err(error) => warnings.push(format!("public status contexts unavailable: {error}")),
+    }
+    deduped_public_checks(checks)
+}
+
+async fn fetch_public_rest_check_runs(id: &ResourceId, sha: &str) -> anyhow::Result<Vec<CheckRun>> {
+    fetch_public_rest_check_runs_with(&ReqwestGithubHttpTransport, id, sha).await
+}
+
+async fn fetch_public_rest_check_runs_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<CheckRun>> {
+    let mut page = 1;
+    let mut checks = Vec::new();
+    loop {
+        let path = format!(
+            "/repos/{}/{}/commits/{}/check-runs?per_page={REST_PAGE_SIZE}&page={page}",
+            id.owner, id.repo, sha
+        );
+        let page_dto: RestCheckRunsPageDto = run_public_rest_json_with(transport, &path).await?;
+        let is_last_page = page_dto.check_runs.len() < REST_PAGE_SIZE;
+        checks.extend(page_dto.check_runs.into_iter().map(rest_check_run));
+        if is_last_page {
+            return Ok(checks);
+        }
+        page += 1;
+    }
+}
+
+async fn fetch_public_rest_status_contexts(
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<CheckRun>> {
+    fetch_public_rest_status_contexts_with(&ReqwestGithubHttpTransport, id, sha).await
+}
+
+async fn fetch_public_rest_status_contexts_with(
+    transport: &impl GithubHttpTransport,
+    id: &ResourceId,
+    sha: &str,
+) -> anyhow::Result<Vec<CheckRun>> {
+    let status: RestCombinedStatusDto = run_public_rest_json_with(
+        transport,
+        &format!("/repos/{}/{}/commits/{}/status", id.owner, id.repo, sha),
+    )
+    .await?;
+    Ok(status
+        .statuses
+        .into_iter()
+        .map(rest_status_context)
+        .collect())
+}
+
 fn rest_pull_path(id: &ResourceId) -> String {
     format!("/repos/{}/{}/pulls/{}", id.owner, id.repo, id.number)
 }
@@ -282,6 +365,7 @@ struct RestPullDto {
 struct RestRefDto {
     #[serde(rename = "ref")]
     reference: String,
+    sha: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -326,6 +410,44 @@ struct RestFileDto {
     patch: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct RestCheckRunsPageDto {
+    check_runs: Vec<RestCheckRunDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCheckRunDto {
+    name: String,
+    status: Option<String>,
+    conclusion: Option<String>,
+    html_url: Option<String>,
+    details_url: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
+    output: Option<RestCheckRunOutputDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCheckRunOutputDto {
+    title: Option<String>,
+    summary: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestCombinedStatusDto {
+    statuses: Vec<RestStatusDto>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RestStatusDto {
+    context: String,
+    state: Option<String>,
+    target_url: Option<String>,
+    description: Option<String>,
+    created_at: Option<String>,
+    updated_at: Option<String>,
+}
+
 fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
     ReactionCounts {
         thumbs_up: reactions.thumbs_up,
@@ -337,6 +459,51 @@ fn rest_reaction_counts(reactions: RestReactionsDto) -> ReactionCounts {
         rocket: reactions.rocket,
         eyes: reactions.eyes,
     }
+}
+
+fn rest_check_run(check: RestCheckRunDto) -> CheckRun {
+    let raw_status = check.status.filter(|value| !value.is_empty());
+    let raw_conclusion = check.conclusion.filter(|value| !value.is_empty());
+    let summary = check.output.and_then(|output| {
+        output
+            .summary
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| output.title.filter(|value| !value.trim().is_empty()))
+    });
+    CheckRun {
+        name: check.name,
+        status: CheckStatus::from_github(raw_status.as_deref(), raw_conclusion.as_deref()),
+        summary,
+        details_url: check.details_url.or(check.html_url),
+        started_at: check.started_at,
+        completed_at: check.completed_at,
+        raw_status,
+        raw_conclusion,
+    }
+}
+
+fn rest_status_context(status: RestStatusDto) -> CheckRun {
+    let raw_status = status.state.filter(|value| !value.is_empty());
+    CheckRun {
+        name: status.context,
+        status: CheckStatus::from_github(raw_status.as_deref(), None),
+        summary: status.description.filter(|value| !value.trim().is_empty()),
+        details_url: status.target_url,
+        started_at: status.created_at,
+        completed_at: status.updated_at,
+        raw_status,
+        raw_conclusion: None,
+    }
+}
+
+fn deduped_public_checks(checks: Vec<CheckRun>) -> Vec<CheckRun> {
+    let mut by_name = std::collections::HashMap::new();
+    for check in checks {
+        by_name.insert(check.name.clone(), check);
+    }
+    let mut checks = by_name.into_values().collect::<Vec<_>>();
+    checks.sort_by(|left, right| left.name.cmp(&right.name));
+    checks
 }
 
 fn rest_issue_resource(
@@ -635,6 +802,94 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn public_rest_check_runs_page_without_auth_and_preserve_urls() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!({
+                "check_runs": [
+                    {
+                        "name": "ci / test",
+                        "status": "completed",
+                        "conclusion": "failure",
+                        "html_url": "https://github.com/openclaw/openclaw/runs/1",
+                        "details_url": "https://ci.example.test/build/1",
+                        "started_at": "2026-05-31T00:00:00Z",
+                        "completed_at": "2026-05-31T00:01:00Z",
+                        "output": {
+                            "title": "tests failed",
+                            "summary": "one test failed"
+                        }
+                    }
+                ]
+            }))
+            .unwrap(),
+        }]);
+
+        let checks = fetch_public_rest_check_runs_with(&transport, &id, "abc123")
+            .await
+            .expect("public check runs");
+
+        assert_eq!(checks.len(), 1);
+        assert_eq!(checks[0].name, "ci / test");
+        assert_eq!(checks[0].status, CheckStatus::Failure);
+        assert_eq!(checks[0].summary.as_deref(), Some("one test failed"));
+        assert_eq!(
+            checks[0].details_url.as_deref(),
+            Some("https://ci.example.test/build/1")
+        );
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].method, GithubHttpMethod::Get);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/commits/abc123/check-runs?per_page=100&page=1"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_status_contexts_without_auth() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![GithubHttpResponse {
+            status: reqwest::StatusCode::OK,
+            body: serde_json::to_vec(&json!({
+                "statuses": [
+                    {
+                        "context": "legacy/build",
+                        "state": "success",
+                        "target_url": "https://ci.example.test/status/1",
+                        "description": "build passed",
+                        "created_at": "2026-05-31T00:00:00Z",
+                        "updated_at": "2026-05-31T00:02:00Z"
+                    }
+                ]
+            }))
+            .unwrap(),
+        }]);
+
+        let checks = fetch_public_rest_status_contexts_with(&transport, &id, "abc123")
+            .await
+            .expect("public status contexts");
+
+        assert_eq!(checks.len(), 1);
+        assert_eq!(checks[0].name, "legacy/build");
+        assert_eq!(checks[0].status, CheckStatus::Success);
+        assert_eq!(checks[0].summary.as_deref(), Some("build passed"));
+        assert_eq!(
+            checks[0].details_url.as_deref(),
+            Some("https://ci.example.test/status/1")
+        );
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0].url,
+            "https://api.github.com/repos/openclaw/openclaw/commits/abc123/status"
+        );
+        assert_eq!(requests[0].token, None);
+    }
+
     fn rest_comment_json(id: u64) -> Value {
         json!({
             "id": id,
@@ -728,9 +983,11 @@ mod tests {
             updated_at: "2026-05-31T00:00:00Z".into(),
             base: Some(RestRefDto {
                 reference: "main".into(),
+                sha: None,
             }),
             head: Some(RestRefDto {
                 reference: "feature".into(),
+                sha: Some("abcdef123456".into()),
             }),
             requested_reviewers: vec![RestUserDto {
                 login: Some("reviewer".into()),

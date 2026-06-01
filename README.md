@@ -10,7 +10,8 @@ existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
 fallback, not the data transport. When credentials are unavailable or clearly
 rejected by GitHub, public repositories fall back to an unauthenticated REST view
 with warnings for richer GraphQL-only metadata; public REST comments, PR commits,
-and changed files are paginated until GitHub returns a short page. Private
+changed files, check runs, and status contexts are loaded without auth where
+GitHub exposes them publicly. Private
 repositories still need a token or existing `gh` login. The primary PR or issue
 view is fetched first;
 optional enrichment failures are shown as warnings instead of preventing the
@@ -161,7 +162,9 @@ For pull requests:
   available
 - paginated CI/check status grouped by state, including suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
-  status/conclusion, timestamps, and details URLs on expanded check rows
+  status/conclusion, timestamps, and details URLs on expanded check rows; public
+  unauthenticated fallback also shows public check runs and status contexts for
+  the PR head commit, while marking GraphQL-only suite grouping as unavailable
 - changed files, with gh-dash-style file summary rows and separately expandable
   in-TUI patch context when a file row is expanded; patch additions render green,
   deletions render red, and hunk headers use an accent color by default

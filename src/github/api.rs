@@ -3524,7 +3524,7 @@ fn check_suite_from_dto(suite: CheckSuiteDto) -> CheckRun {
 
     CheckRun {
         name,
-        status: classify_check(raw_status.as_deref(), raw_conclusion.as_deref()),
+        status: CheckStatus::from_github(raw_status.as_deref(), raw_conclusion.as_deref()),
         summary,
         details_url,
         started_at: None,
@@ -4543,7 +4543,7 @@ fn commit_from_dto(commit: CommitDto) -> Commit {
 }
 
 fn check_from_dto(check: CheckDto) -> CheckRun {
-    let status = classify_check(
+    let status = CheckStatus::from_github(
         check.status.as_deref().or(check.state.as_deref()),
         check.conclusion.as_deref(),
     );
@@ -4571,25 +4571,6 @@ fn check_from_dto(check: CheckDto) -> CheckRun {
         completed_at: check.completed_at.filter(|value| !value.is_empty()),
         raw_status,
         raw_conclusion,
-    }
-}
-
-fn classify_check(status: Option<&str>, conclusion: Option<&str>) -> CheckStatus {
-    match (status, conclusion) {
-        (Some("COMPLETED"), Some("SUCCESS")) | (Some("SUCCESS"), _) => CheckStatus::Success,
-        (Some("COMPLETED"), Some("FAILURE" | "TIMED_OUT" | "STARTUP_FAILURE")) => {
-            CheckStatus::Failure
-        }
-        (Some("COMPLETED"), Some("ACTION_REQUIRED")) => CheckStatus::Pending,
-        (Some("COMPLETED"), Some("SKIPPED" | "CANCELLED" | "STALE")) => CheckStatus::Skipped,
-        (Some("COMPLETED"), Some("NEUTRAL")) => CheckStatus::Neutral,
-        (Some("COMPLETED"), _) => CheckStatus::Unknown,
-        (Some("ERROR" | "FAILURE"), _) => CheckStatus::Failure,
-        (Some("EXPECTED"), _) => CheckStatus::Pending,
-        (Some("QUEUED" | "IN_PROGRESS" | "PENDING" | "WAITING" | "REQUESTED"), _) => {
-            CheckStatus::Pending
-        }
-        _ => CheckStatus::Unknown,
     }
 }
 
@@ -6106,11 +6087,11 @@ mod tests {
     #[test]
     fn classifies_cancelled_checks_as_skipped_not_failure() {
         assert_eq!(
-            classify_check(Some("COMPLETED"), Some("CANCELLED")),
+            CheckStatus::from_github(Some("COMPLETED"), Some("CANCELLED")),
             CheckStatus::Skipped
         );
         assert_eq!(
-            classify_check(Some("COMPLETED"), Some("ACTION_REQUIRED")),
+            CheckStatus::from_github(Some("COMPLETED"), Some("ACTION_REQUIRED")),
             CheckStatus::Pending
         );
     }

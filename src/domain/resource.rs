@@ -500,6 +500,25 @@ pub enum CheckStatus {
 }
 
 impl CheckStatus {
+    pub fn from_github(status: Option<&str>, conclusion: Option<&str>) -> Self {
+        let status = status.map(|value| value.to_ascii_uppercase());
+        let conclusion = conclusion.map(|value| value.to_ascii_uppercase());
+        match (status.as_deref(), conclusion.as_deref()) {
+            (Some("COMPLETED"), Some("SUCCESS")) | (Some("SUCCESS"), _) => Self::Success,
+            (Some("COMPLETED"), Some("FAILURE" | "TIMED_OUT" | "STARTUP_FAILURE")) => Self::Failure,
+            (Some("COMPLETED"), Some("ACTION_REQUIRED")) => Self::Pending,
+            (Some("COMPLETED"), Some("SKIPPED" | "CANCELLED" | "STALE")) => Self::Skipped,
+            (Some("COMPLETED"), Some("NEUTRAL")) => Self::Neutral,
+            (Some("COMPLETED"), _) => Self::Unknown,
+            (Some("ERROR" | "FAILURE"), _) => Self::Failure,
+            (Some("EXPECTED"), _) => Self::Pending,
+            (Some("QUEUED" | "IN_PROGRESS" | "PENDING" | "WAITING" | "REQUESTED"), _) => {
+                Self::Pending
+            }
+            _ => Self::Unknown,
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Success => "PASS",
@@ -710,5 +729,25 @@ mod tests {
         resource.activity[0].reactions.eyes = 1;
 
         assert_ne!(before, resource.fingerprint());
+    }
+
+    #[test]
+    fn maps_github_check_states_and_conclusions() {
+        assert_eq!(
+            CheckStatus::from_github(Some("completed"), Some("success")),
+            CheckStatus::Success
+        );
+        assert_eq!(
+            CheckStatus::from_github(Some("COMPLETED"), Some("CANCELLED")),
+            CheckStatus::Skipped
+        );
+        assert_eq!(
+            CheckStatus::from_github(Some("COMPLETED"), Some("ACTION_REQUIRED")),
+            CheckStatus::Pending
+        );
+        assert_eq!(
+            CheckStatus::from_github(Some("failure"), None),
+            CheckStatus::Failure
+        );
     }
 }
