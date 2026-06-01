@@ -1,36 +1,36 @@
-openclaw/openclaw#81834 [PR OPEN] updated 1d ago
-feat(senseaudio): add SenseAudio TTS provider
+openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                        
+feat(senseaudio): add SenseAudio TTS provider                                                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100
--22
-info saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml
-[Overview] Activity  Commits  Checks  Files  Links
-Settings
+OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100 
+-22                                                                                                                     
+info saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml          
+[Overview] Activity  Commits  Checks  Files  Links                                                                      
+Settings                                                                                                                
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Config: /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml
-
-Theme
-[x] default  Tokyo-inspired default dark colors
-[ ] solarized-dark  Solarized dark colors
-
-Symbols
-[x] ascii  Plain terminal-safe labels
-[ ] emoji  Richer semantic markers
-
-Spacing
-[ ] comfortable  Gmail-style density with gh-dash-like spacing
-[x] compact  Dense rows for smaller terminals
-
-[close settings]
-
-Keyboard: t theme | y symbols | p spacing | s or Esc close
-Changes are applied live and saved immediately.
-
-
-
-
-
-
-
-
-[refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% ...
+Config: /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml                         
+                                                                                                                        
+Theme                                                                                                                   
+[x] default  Tokyo-inspired default dark colors                                                                         
+[ ] solarized-dark  Solarized dark colors                                                                               
+                                                                                                                        
+Symbols                                                                                                                 
+[x] ascii  Plain terminal-safe labels                                                                                   
+[ ] emoji  Richer semantic markers                                                                                      
+                                                                                                                        
+Spacing                                                                                                                 
+[ ] comfortable  Gmail-style density with gh-dash-like spacing                                                          
+[x] compact  Dense rows for smaller terminals                                                                           
+                                                                                                                        
+[close settings]                                                                                                        
+                                                                                                                        
+Keyboard: t theme | y symbols | p spacing | s or Esc close                                                              
+Changes are applied live and saved immediately.                                                                         
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+[refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100%                                                        

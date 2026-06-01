@@ -342,21 +342,22 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "11_activity_pagedown": [
                 "Comment by @KLilyZ",
-                "Updated the provider docs",
+                "Codex review: needs changes before merge.",
             ],
             "20_commits_top": [
                 "feat(senseaudio): add SenseAudio TTS provider",
             ],
             "30_checks_top": [
                 "Summary: PASS",
-                "Passing (1)",
-                "All checks",
+                "Passing (",
+                "suite/CI",
             ],
             "40_files_top": [
                 "extensions/senseaudio/index.ts",
+                "docs/providers/senseaudio.md",
             ],
             "41_files_pagedown": [
-                "docs/providers/senseaudio.md",
+                "extensions/senseaudio/speech-provider.ts",
             ],
             "50_links_top": [
                 "openclaw/openclaw#66943",

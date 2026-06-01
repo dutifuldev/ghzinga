@@ -33,4 +33,4 @@
   - Backspace: return after following a link                                                                            
                                                                                                                         
   Refresh                                                                                                               
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/3 0% ...                                                    
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/3 0%                                                        

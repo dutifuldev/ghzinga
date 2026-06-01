@@ -9,10 +9,10 @@
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
   Comment by @clawsweeper 2026-05-31T02:28:16Z                                  
-  meta: association CONTRIBUTOR                                                 
+  meta: association CONTRIBUTOR, edited                                         
   [details]                                                                     
   Codex review: keeping this open for maintainer follow-up; there is still a    
-  little grit to resolve.                                                       
+  little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._     
                                                                                 
   Summary                                                                       
   Keep this open: current main still has a plausible Responses replay failure   
@@ -20,5 +20,5 @@
   be unstored while replaying server-owned reasoning item IDs. Direct OpenAI    
   routes have a newer store-aware wrapper, but the reported custom proxy route  
   [+ more]                                                                      
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/16 0%  
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/53 0% [expand all]  

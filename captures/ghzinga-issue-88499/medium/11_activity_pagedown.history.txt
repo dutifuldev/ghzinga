@@ -7,30 +7,30 @@
    Overview [Activity] Links                                                                                            
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                          
-  meta: association CONTRIBUTOR                                                                                         
-  [details]                                                                                                             
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                    
-                                                                                                                        
-  Summary                                                                                                               
-  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
-  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
-  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
-  direct-OpenAI-only path.                                                                                              
-                                                                                                                        
-  Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                             
-  added label provider: openai-responses                                                                                
-                                                                                                                        
-  Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                
-  meta: association CONTRIBUTOR                                                                                         
-  [details]                                                                                                             
-  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when              
-  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the     
-  next request succeed, which points at replay state rather than authentication or model availability.                  
-                                                                                                                        
-  Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                             
-  closed this with fix validation                                                                                       
-                                                                                                                        
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/0 100% ...                                     
+  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                │  
+  direct-OpenAI-only path.                                                                                           │  
+  [+ more]                                                                                                           │  
+                                                                                                                     │  
+  Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                             │  
+  meta: association CONTRIBUTOR                                                                                      █  
+  [details]                                                                                                          █  
+  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                       █  
+                                                                                                                     █  
+  Environment:                                                                                                       █  
+  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                        █  
+  - OS: macOS arm64                                                                                                  █  
+  - Channel: Slack, channel-scoped session                                                                           │  
+  - Provider/API path: openai / openai-responses                                                                     │  
+  - Model: gpt-5.5                                                                                                   │  
+  [+ more]                                                                                                           │  
+                                                                                                                     │  
+  Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                       │  
+  meta: association NONE                                                                                             │  
+  [details]                                                                                                          │  
+  The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by     │  
+  design. Server-side response chaining only works when the response was persisted, which is exactly what store=false│  
+  turns off. So previous_response_id should not be on the request at all when store is false.                        │  
+                                                                                                                     │  
+  There are two separate defects here and the fix needs both.                                                        │  
+                                                                                                                     │  
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/40 25% [expand all]                                        

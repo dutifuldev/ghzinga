@@ -33,4 +33,4 @@
                                                                                                                         
   comment Comment by @github-actions 1mo ago                                                                            
   Dependency Changes Detected                                                                                           
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/37 0% ...                                      
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/37 0% [expand all]                                          

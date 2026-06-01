@@ -33,4 +33,4 @@
   patch: not loaded                                                                                                  █  
   [- less]                                                                                                           █  
                                                                                                                      █  
-  [refresh] [copy] [open] [settings] [help] [quit] [collapse all] scroll 5/5 100% ...                                   
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 5/5 100% [collapse all]                                       
