@@ -43,10 +43,14 @@ run_case pr_overview "$pr_target" overview \
   "[Overview]" "Activity  Commits  Checks  Files  Links" "[refresh]" "[expand all]"
 run_case pr_activity "$pr_target" activity \
   "[Activity]" "Comment by" "[details]"
+run_case pr_commits "$pr_target" commits \
+  "[Commits]" "[+ more]"
 run_case pr_checks "$pr_target" checks \
   "[Checks]" "Summary:" "[+ more]"
 run_case pr_files "$pr_target" files \
   "[Files]" "files" "[+ more]"
+run_case pr_links "$pr_target" links \
+  "[Links]" "openclaw/openclaw#"
 run_case issue_overview "$issue_target" overview \
   "[Overview]" "Activity  Links" "Bug Description" "[expand all]"
 
