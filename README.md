@@ -315,16 +315,14 @@ recoverable error or warning UI instead of waiting indefinitely.
 Run the normal local checks:
 
 ```sh
-cargo fmt --check
-cargo test
-cargo clippy --all-targets --all-features -- -D warnings
-npx -y @simpledoc/simpledoc check
-scripts/verify-no-png-captures.sh
+scripts/ci-local.sh
 ```
 
-GitHub Actions runs these same checks for pull requests and pushes to `main`.
-It also runs the saved PR and issue capture validators so checked-in UX evidence
-cannot silently drift behind the app rendering code. The tmux mouse-smoke
+That script runs formatting, tests, clippy, install verification, SimpleDoc,
+PNG rejection, and the saved PR and issue capture validators. GitHub Actions
+delegates to the same script for pull requests, pushes to `main`, and manual
+dispatches when Actions is enabled for the repository, so checked-in UX
+evidence cannot silently drift behind the app rendering code. The tmux mouse-smoke
 validators verify that real terminal mouse clicks can expand and collapse
 visible content rows, switch PR and issue tabs, expand all rows, collapse them
 again, press keyboard `a` to expand and collapse the current tab, activate
