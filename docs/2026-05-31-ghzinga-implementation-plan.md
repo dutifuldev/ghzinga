@@ -211,6 +211,11 @@ Advantages:
   authentication for public resources through GitHub's
   `/repos/{owner}/{repo}/commits/{ref}/check-suites` REST endpoint; GraphQL is
   still needed for richer workflow-run names when REST does not expose them.
+- public REST fallback should also load deployments for the PR head SHA through
+  `/repos/{owner}/{repo}/deployments?sha={sha}` and
+  `/repos/{owner}/{repo}/deployments/{id}/statuses`. This is intentionally
+  scoped to the head commit so the no-login path shows the current deployment
+  state without crawling every commit in a large PR.
 - keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
 - easy to mock in tests by abstracting HTTP transport
 
