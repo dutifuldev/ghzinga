@@ -1,7 +1,7 @@
   openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
   info opened https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1                                      
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
@@ -32,5 +32,5 @@
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
   - e: expand or collapse the main body                                                                                 
   - Backspace: return after following a link                                                                            
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/4 0%                                                        
+  opened https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1                                           
+  [refresh] [copy] [open] [settings] [help] [quit]                                                                      

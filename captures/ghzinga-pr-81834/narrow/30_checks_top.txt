@@ -1,24 +1,24 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                
+  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                              
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
+  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22    
                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                            
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
-  Summary: PASS (80 pass, 0 pending, 0 fail)                                    
-  113 total: 80 pass, 0 pending, 0 fail, 33 skipped, 0 neutral, 0 unknown       
+  Summary: PASS (2 pass, 0 pending, 0 fail)                                     
+  2 total: 2 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown           
                                                                                 
-  Passing (80)                                                                  
-  [OK PASS] suite/Auto response [+ more]                                        
-                                                                                
+  Passing (2)                                                                   
   [OK PASS] suite/CI [+ more]                                                   
                                                                                 
-  [OK PASS] suite/CodeQL [+ more]                                               
+  [OK PASS] All checks [+ more]                                                 
                                                                                 
-  [OK PASS] suite/CodeQL Critical Quality [+ more]                              
                                                                                 
-  r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
+                                                                                
+                                                                                
+                                                                                
+  scroll 0/0 100% | tab Checks | order oldest | r refresh | y copy | o open |   
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

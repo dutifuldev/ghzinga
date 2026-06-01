@@ -1,7 +1,7 @@
   openclaw/openclaw#81834 [PR OPEN] updated 1d ago                                                                      
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
                                                                                                                         
    Overview  Activity  Commits  Checks [Files] Links                                                                    
@@ -18,6 +18,7 @@
                                                                                                                         
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                                                          
                                                                                                                         
+  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [+ more]                                                
                                                                                                                         
                                                                                                                         
                                                                                                                         
@@ -31,6 +32,5 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% [expand all]                                         
+  scroll 0/0 100% | tab Files | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab     
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         

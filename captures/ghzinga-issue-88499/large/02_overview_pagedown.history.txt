@@ -31,8 +31,8 @@
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-onl█                                        
   path.                                                                                                                █                                        
                                                                                                                        █                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
-                                                                                                                       █                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       │                                        
   - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                          │                                        
   added label provider: openai-responses                                                                               │                                        
                                                                                                                        │                                        
@@ -46,5 +46,5 @@
   request succeed, which points at replay state rather than authentication or model availability.                      │                                        
                                                                                                                        │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
-                                                                                                                       │                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/24 41% [expand all]                                                                                
+  scroll 10/25 40% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page  
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 

@@ -32,5 +32,5 @@
   Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                             
   closed this with fix validation                                                                                       
                                                                                                                         
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% [expand all]                                         
+  opened https://github.com/openclaw/openclaw/issues/88499#issuecomment-1                                               
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         

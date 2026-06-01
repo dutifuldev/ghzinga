@@ -20,5 +20,5 @@
   Adding a fresh macOS/Slack data point. I can reproduce this with a custom  │  
   openai-responses provider when previous_response_id is sent after an       │  
   unstored first response. Removing the previous response reference makes the│  
-  r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
+  scroll 10/16 62% | tab Activity | order oldest | r refresh | y copy | o open  
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

@@ -32,5 +32,5 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% [expand all]                                         
+  opened openclaw/openclaw#66943                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
