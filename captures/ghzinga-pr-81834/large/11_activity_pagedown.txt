@@ -1,10 +1,20 @@
   openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (97 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
                                                                                                                                                                 
                                                                                                                                                                 
    Overview [Activity] Commits  Checks  Files  Links                                                                                                            
+  Comment by @github-actions 2026-05-14T14:05:57Z                                                                                                               
+  meta: association CONTRIBUTOR                                                                                                                                 
+  [details]                                                                                                                                                     
+  <!-- openclaw:dependency-change-awareness -->                                                                                                                 
+                                                                                                                                                                
+  Dependency Changes Detected                                                                                                                                   
+                                                                                                                                                                
+  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                           
+                                                                                                                                                                
+  Changed files:                                                                                                                                                
   - extensions/senseaudio/package.json                                                                                                                          
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
@@ -37,14 +47,4 @@
   Comment by @clawsweeper 2026-05-30T03:28:55Z                                                                                                                  
   meta: association CONTRIBUTOR, edited                                                                                                                         
   [details]                                                                                                                                                     
-  Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                                                                   
-                                                                                                                                                                
-  Summary                                                                                                                                                       
-  The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,                                              
-  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.                                                   
-                                                                                                                                                                
-  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                                                         
-                                                                                                                                                                
-  [+ more]                                                                                                                                                      
-                                                                                                                                                                
-  [refresh] [open] [settings] [help] [quit] scroll 10/37 27% ...                                                                                                
+  [refresh] [open] [settings] [help] [quit] scroll 0/37 0% ...                                                                                                  

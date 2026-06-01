@@ -1,7 +1,7 @@
   openclaw/openclaw#81834 [PR OPEN] updated 2026-05-30T12:28:02Z                                                                                                
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (97 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22                                
                                                                                                                                                                 
                                                                                                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                                                                                                            
@@ -47,4 +47,4 @@
                                                                                                                                                                 
   [OK PASS] Real behavior proof [+ more]                                                                                                                        
                                                                                                                                                                 
-  [refresh] [open] [settings] [help] [quit] scroll 10/250 4% ...                                                                                                
+  [refresh] [open] [settings] [help] [quit] scroll 10/191 5% ...                                                                                                

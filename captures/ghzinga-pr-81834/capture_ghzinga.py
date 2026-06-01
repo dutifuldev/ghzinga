@@ -429,8 +429,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "30_checks_top": [
                 "Summary: PASS",
-                "142 total:",
-                "Passing (97)",
+                "Passing (80)",
                 "suite/CI",
             ],
             "40_files_top": [
