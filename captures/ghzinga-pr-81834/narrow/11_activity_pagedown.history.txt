@@ -1,24 +1,24 @@
                                                                                 
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d          
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d          
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22    
-                                                                                
+  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
+  info loaded openclaw/openclaw#81834                                           
    Overview [Activity] Commits  Checks  Files  Links                            
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
-  failures, and opus transcoding. The remaining files are intentionally scope│  
-  to the bundled extension.                                                  │  
+  plugin, including TTS and voice-list HTTP helpers, voice-note opus         │  
+  transcoding, registration metadata, docs, inventory updates, and tests.    │  
                                                                              │  
-  Review by @osolmaz 2w ago                                                  │  
-  Codex review: needs changes before merge. Please keep the SenseAudio       │  
-  provider surface narrow, verify the voice listing error path, and make sure│  
-  the new speech provider file is covered by targeted extension tests. After │  
-  the follow-up, all bot checks have enough detail for maintainers to inspect█  
-  status without opening the browser.                                        █  
-                                                                             █  
-  Comment by @KLilyZ 2w ago                                                  │  
-  Follow-up note: voice list failures now surface the provider error,        │  
-                                                                                
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
+  Reproducibility: not applicable. for the requested feature because current █  
+  main simply lacks SenseAudio TTS. The remaining docs bug is                █  
+  [+ more]                                                                   │  
+                                                                             │  
+  Comment by @KLilyZ 1w ago                                                  │  
+  meta: association NONE                                                     │  
+  [details]                                                                  │  
+  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
+  cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
+  loaded openclaw/openclaw#81834                                                
+  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]     

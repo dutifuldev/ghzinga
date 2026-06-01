@@ -1,36 +1,36 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                  
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122      
-  +1100  -22                                                                                                            
-                                                                                                                        
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079    
+  +1057  -22                                                                                                            
+  info loaded openclaw/openclaw#81834                                                                                   
    Overview [Activity] Commits  Checks  Files  Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  extensions/senseaudio/tts.ts:99                                                                                    │  
-  Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice   │  
-  listing, tests, and docs. Needs maintainer review before merge.                                                    │  
+  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                   │  
                                                                                                                      │  
-  Timeline by @osolmaz 1mo ago                                                                                       │  
-  added label extensions: senseaudio                                                                                 │  
+  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The   │  
+  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provide│  
+  <id>.                                                                                                              │  
+  [+ more]                                                                                                           │  
+                                                                                                                     █  
+  Comment by @KLilyZ 1w ago                                                                                          █  
+  meta: association NONE                                                                                             █  
+  [details]                                                                                                          █  
+  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no            █  
+  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No    │  
+  rush, just flagging it in case it slipped past the queue.                                                          │  
                                                                                                                      │  
-  Comment by @KLilyZ 3w ago                                                                                          │  
-  Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The      │  
-  remaining files are intentionally scoped to the bundled extension.                                                 │  
+  Comment by @RomneyDa 3d ago                                                                                        │  
+  meta: association MEMBER                                                                                           │  
+  [details]                                                                                                          │  
+  <!-- dependency-guard-rebase-needed-backfill -->                                                                   │  
+  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.│  
                                                                                                                      │  
-  Review by @osolmaz 2w ago                                                                                          │  
-  Codex review: needs changes before merge. Please keep the SenseAudio provider surface narrow, verify the voice     │  
-  listing error path, and make sure the new speech provider file is covered by targeted extension tests. After the   █  
-  follow-up, all bot checks have enough detail for maintainers to inspect status without opening the browser.        █  
-                                                                                                                     █  
-  Comment by @KLilyZ 2w ago                                                                                          █  
-  Follow-up note: voice list failures now surface the provider error, synthesis failures include the SenseAudio statu█  
-  code, and opus conversion is covered with a fixture-backed test.                                                   █  
-                                                                                                                     █  
-  Timeline by @github-actions 2w ago                                                                                 █  
-  marked all required checks as passing                                                                              █  
-                                                                                                                     █  
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+  Comment by @clawsweeper 2d ago                                                                                     │  
+  meta: association CONTRIBUTOR, edited                                                                              │  
+  [details]                                                                                                          │  
+  loaded openclaw/openclaw#81834                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]                                             
                                                                                                                         
