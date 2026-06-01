@@ -23,6 +23,7 @@
   - s: open or close settings                                                                                                                                   
   - t / y / p in settings: cycle theme / symbol style / spacing                                                                                                 
   - r: refresh now                                                                                                                                              
+  - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
   - y: copy first visible URL, or current resource URL                                                                                                          
   - o: open first visible URL, or current resource                                                                                                              
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
@@ -36,7 +37,6 @@
   Refresh                                                                                                                                                       
   - Live mode refreshes automatically on the configured interval.                                                                                               
   - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

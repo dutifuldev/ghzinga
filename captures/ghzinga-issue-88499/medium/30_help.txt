@@ -23,6 +23,7 @@
   - s: open or close settings                                                                                           
   - t / y / p in settings: cycle theme / symbol style / spacing                                                         
   - r: refresh now                                                                                                      
+  - f: load full GitHub pages when a partial-depth warning is shown                                                     
   - y: copy first visible URL, or current resource URL                                                                  
   - o: open first visible URL, or current resource                                                                      
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
@@ -31,6 +32,5 @@
   - a: expand or collapse all rows in the current tab                                                                   
   - Up / Down / PageUp / PageDown / Home / End: scroll                                                                  
   - e: expand or collapse the main body                                                                                 
-  - Backspace: return after following a link                                                                            
-  scroll 0/5 0% | tab Links | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab       
+  scroll 0/6 0% | tab Links | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab       
   [refresh] [copy] [open] [settings] [help] [quit]                                                                      
