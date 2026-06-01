@@ -71,7 +71,9 @@ count.
 - Scrollbar state represents the real rendered content length and viewport
   height. The current scroll offset is mapped to Ratatui's full scrollbar
   position range, so the thumb reaches the bottom when the last scrollable
-  position is reached, including the comfortable bottom padding row.
+  position is reached, including the comfortable bottom padding row. At the top
+  and bottom endpoints, the renderer repaints one contiguous endpoint thumb so
+  rounding cannot leave a visually stranded thumb above or below the edge.
 - Repeated-row builders should prefer semantic gap markers over hard-coded
   blank rows. A hard blank row is still valid for a deliberate internal break,
   such as separating an expanded detail block from the next heading, but row
