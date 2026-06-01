@@ -259,7 +259,8 @@ Data loaded for PR:
   relationships, converted discussions, close, and reopen events; timeline
   pages are fetched until GitHub reports no next page
 - reviews and review states
-- mergeability and review decision where exposed
+- mergeability, review decision, locked state/reason, merge queue state,
+  rebaseability, and total comments where exposed
 - project metadata through optional paginated enrichment when the token has the
   GitHub `read:project` scope; missing project scope does not block the main
   PR view
