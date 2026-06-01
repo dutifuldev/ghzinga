@@ -89,7 +89,7 @@ fn once_can_render_pr_checks_tab() {
     .assert()
     .success()
     .stdout(contains("[Checks]"))
-    .stdout(contains("Passing (2)"))
+    .stdout(contains("Passing (5)"))
     .stdout(contains("suite/CI"))
     .stdout(contains("[+ more]"));
 }
