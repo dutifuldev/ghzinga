@@ -216,6 +216,9 @@ Advantages:
   `/repos/{owner}/{repo}/deployments/{id}/statuses`. This is intentionally
   scoped to the head commit so the no-login path shows the current deployment
   state without crawling every commit in a large PR.
+- If the public deployment list is available but a deployment's status list is
+  unavailable, keep the deployment visible with `UNKNOWN` state and add a
+  warning instead of dropping every public deployment row.
 - keeps data fetching in typed HTTP/GraphQL adapters instead of shell commands
 - easy to mock in tests by abstracting HTTP transport
 

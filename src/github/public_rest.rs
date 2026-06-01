@@ -81,7 +81,10 @@ pub(super) async fn fetch_public_rest_pr(
     };
     if let Some(sha) = head_sha.as_deref() {
         match fetch_public_rest_head_deployments(id, sha).await {
-            Ok(deployments) => apply_public_rest_head_deployments(&mut commits, sha, deployments),
+            Ok(head_deployments) => {
+                warnings.extend(head_deployments.warnings);
+                apply_public_rest_head_deployments(&mut commits, sha, head_deployments.deployments);
+            }
             Err(error) => warnings.push(format!("public head deployments unavailable: {error}")),
         }
     }
@@ -398,10 +401,16 @@ async fn fetch_public_rest_status_contexts_with(
         .collect())
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+struct PublicRestHeadDeployments {
+    deployments: Vec<Deployment>,
+    warnings: Vec<String>,
+}
+
 async fn fetch_public_rest_head_deployments(
     id: &ResourceId,
     sha: &str,
-) -> anyhow::Result<Vec<Deployment>> {
+) -> anyhow::Result<PublicRestHeadDeployments> {
     fetch_public_rest_head_deployments_with(&ReqwestGithubHttpTransport, id, sha).await
 }
 
@@ -409,23 +418,35 @@ async fn fetch_public_rest_head_deployments_with(
     transport: &impl GithubHttpTransport,
     id: &ResourceId,
     sha: &str,
-) -> anyhow::Result<Vec<Deployment>> {
+) -> anyhow::Result<PublicRestHeadDeployments> {
     let deployments = fetch_public_rest_pages_with::<RestDeploymentDto>(
         transport,
         &format!("/repos/{}/{}/deployments?sha={}", id.owner, id.repo, sha),
     )
     .await?;
     let mut mapped = Vec::with_capacity(deployments.len());
+    let mut warnings = Vec::new();
     for deployment in deployments {
-        let statuses = fetch_public_rest_deployment_statuses_with(transport, id, deployment.id)
-            .await
-            .with_context(|| format!("deployment {} statuses unavailable", deployment.id))?;
+        let deployment_id = deployment.id;
+        let statuses =
+            match fetch_public_rest_deployment_statuses_with(transport, id, deployment_id).await {
+                Ok(statuses) => statuses,
+                Err(error) => {
+                    warnings.push(format!(
+                        "public deployment {deployment_id} status unavailable: {error}"
+                    ));
+                    Vec::new()
+                }
+            };
         mapped.push(rest_deployment(
             deployment,
             latest_rest_deployment_status(statuses),
         ));
     }
-    Ok(mapped)
+    Ok(PublicRestHeadDeployments {
+        deployments: mapped,
+        warnings,
+    })
 }
 
 async fn fetch_public_rest_deployment_statuses_with(
@@ -1692,10 +1713,12 @@ mod tests {
             },
         ]);
 
-        let deployments = fetch_public_rest_head_deployments_with(&transport, &id, "abc123")
+        let head_deployments = fetch_public_rest_head_deployments_with(&transport, &id, "abc123")
             .await
             .expect("public head deployments");
+        let deployments = head_deployments.deployments;
 
+        assert!(head_deployments.warnings.is_empty());
         assert_eq!(deployments.len(), 1);
         assert_eq!(deployments[0].environment, "preview");
         assert_eq!(deployments[0].state, "SUCCESS");
@@ -1728,6 +1751,54 @@ mod tests {
         );
         assert_eq!(requests[0].token, None);
         assert_eq!(requests[1].token, None);
+    }
+
+    #[tokio::test]
+    async fn public_rest_head_deployments_keep_deployment_when_statuses_fail() {
+        let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
+        let transport = FakeGithubHttpTransport::from_responses(vec![
+            GithubHttpResponse {
+                status: reqwest::StatusCode::OK,
+                body: serde_json::to_vec(&json!([
+                    {
+                        "id": 7,
+                        "environment": "preview",
+                        "task": "deploy",
+                        "description": "Deploy request",
+                        "created_at": "2026-05-31T00:00:00Z",
+                        "updated_at": "2026-05-31T00:01:00Z"
+                    }
+                ]))
+                .unwrap(),
+            },
+            GithubHttpResponse {
+                status: reqwest::StatusCode::FORBIDDEN,
+                body: br#"{"message":"statuses hidden"}"#.to_vec(),
+            },
+        ]);
+
+        let head_deployments = fetch_public_rest_head_deployments_with(&transport, &id, "abc123")
+            .await
+            .expect("deployment list should remain usable");
+
+        assert_eq!(head_deployments.deployments.len(), 1);
+        assert_eq!(head_deployments.deployments[0].environment, "preview");
+        assert_eq!(head_deployments.deployments[0].state, "UNKNOWN");
+        assert_eq!(
+            head_deployments.deployments[0].description.as_deref(),
+            Some("Deploy request")
+        );
+        assert_eq!(
+            head_deployments.deployments[0].created_at.as_deref(),
+            Some("2026-05-31T00:00:00Z")
+        );
+        assert_eq!(
+            head_deployments.deployments[0].updated_at,
+            "2026-05-31T00:01:00Z"
+        );
+        assert_eq!(head_deployments.warnings.len(), 1);
+        assert!(head_deployments.warnings[0].contains("public deployment 7 status unavailable"));
+        assert!(head_deployments.warnings[0].contains("statuses hidden"));
     }
 
     #[tokio::test]
