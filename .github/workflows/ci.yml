@@ -49,6 +49,7 @@ jobs:
 
       - name: Validate captured UX evidence
         run: |
+          python3 captures/ghzinga-pr-81834/capture_ghzinga.py --self-test
           python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
           python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
             --root captures/ghzinga-issue-88499 \

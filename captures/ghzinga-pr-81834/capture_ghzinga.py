@@ -372,6 +372,73 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def collect_manifest_entries(
+    entries: list[dict],
+    manifest_path: Path,
+    key: str,
+    item_name: str,
+    errors: list[str],
+) -> dict:
+    collected = {}
+    for entry in entries:
+        value = entry.get(key)
+        if not value:
+            errors.append(f"{manifest_path} contains a {item_name} without {key}")
+            continue
+        if value in collected:
+            errors.append(f"{manifest_path} contains duplicate {item_name} {value}")
+            continue
+        collected[value] = entry
+    return collected
+
+
+def self_test():
+    errors = []
+    captures = collect_manifest_entries(
+        [
+            {"name": "first", "txt": "first.txt"},
+            {"name": "first", "txt": "duplicate.txt"},
+            {"txt": "unnamed.txt"},
+        ],
+        Path("manifest.json"),
+        "name",
+        "capture frame",
+        errors,
+    )
+    if captures != {"first": {"name": "first", "txt": "first.txt"}}:
+        raise SystemExit(f"self-test capture collection produced unexpected frames: {captures!r}")
+    expected_capture_errors = {
+        "manifest.json contains duplicate capture frame first",
+        "manifest.json contains a capture frame without name",
+    }
+    if set(errors) != expected_capture_errors:
+        raise SystemExit(
+            f"self-test capture collection produced unexpected errors: {errors!r}"
+        )
+
+    errors = []
+    sizes = collect_manifest_entries(
+        [
+            {"label": "narrow", "columns": 80, "rows": 24},
+            {"label": "narrow", "columns": 80, "rows": 24},
+            {"columns": 120, "rows": 36},
+        ],
+        Path("manifest.json"),
+        "label",
+        "size entry",
+        errors,
+    )
+    if sizes != {"narrow": {"label": "narrow", "columns": 80, "rows": 24}}:
+        raise SystemExit(f"self-test size collection produced unexpected sizes: {sizes!r}")
+    expected_size_errors = {
+        "manifest.json contains duplicate size entry narrow",
+        "manifest.json contains a size entry without label",
+    }
+    if set(errors) != expected_size_errors:
+        raise SystemExit(f"self-test size collection produced unexpected errors: {errors!r}")
+    print("OK: capture validator self-test passed.")
+
+
 def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = False):
     errors = []
     expected_git_commit = git_commit()
@@ -391,6 +458,23 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             expected_git_commit,
             allow_stale_revision,
         )
+        sizes = collect_manifest_entries(
+            manifest.get("sizes", []),
+            root_manifest,
+            "label",
+            "size entry",
+            errors,
+        )
+        for label, cols, rows in SIZES:
+            size = sizes.get(label)
+            if not size:
+                errors.append(f"{root_manifest} missing size entry {label}")
+                continue
+            if size.get("columns") != cols or size.get("rows") != rows:
+                errors.append(
+                    f"{root_manifest} size {label} is "
+                    f"{size.get('columns')}x{size.get('rows')}, expected {cols}x{rows}"
+                )
 
     frames = expected_frames(mode)
     markers = expected_markers(mode) + [
@@ -422,7 +506,13 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(
                 f"{manifest_path} actual_tmux_size is {manifest.get('actual_tmux_size')!r}, expected {expected_size!r}"
             )
-        captures = {capture.get("name"): capture for capture in manifest.get("captures", [])}
+        captures = collect_manifest_entries(
+            manifest.get("captures", []),
+            manifest_path,
+            "name",
+            "capture frame",
+            errors,
+        )
         missing_frames = [frame for frame in frames if frame not in captures]
         if missing_frames:
             errors.append(f"{manifest_path} missing frames: {', '.join(missing_frames)}")
@@ -491,7 +581,12 @@ def main():
         action="store_true",
         help="allow manifests captured from a different git revision",
     )
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+
+    if args.self_test:
+        self_test()
+        return
 
     ROOT = args.root.resolve()
     TARGET = args.target
