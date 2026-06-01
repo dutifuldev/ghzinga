@@ -1,4 +1,5 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                                                                                                            
+                                                                                                                                                                
+  openclaw/openclaw#88499 [Issue CLOSED] updated 1d                                                                                                             
   openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                                                         
@@ -8,43 +9,42 @@
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
-  * @xneone opened 1d ago                                                                                                                                       
+  * @xneone opened 2d ago                                                                                                                                       
   Bug Description                                                                                                                                               
                                                                                                                                                                 
-  When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false (or                                         
-  omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same session,                                        
-  the gateway includes previous_response_id referencing the previous response. Since that response was never persisted                                          
-  server-side, the API returns a 404:                                                                                                                           
+  When using a provider configured with api: openai-responses, the gateway sends store=false in responses API requests.                                         
+  On subsequent turns within the same session, the gateway includes previous_response_id referencing the previous                                               
+  response. Since that response was never persisted server-side, the API returns a 404.                                                                         
                                                                                                                                                                 
-                                                                                                                                                                
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store                                         
+  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when store is set to false. Try again with store                                           
   set to true, or remove this item from your input.                                                                                                             
                                                                                                                                                                 
+  Expected Behavior                                                                                                                                             
                                                                                                                                                                 
+  The provider should either avoid previous_response_id when store=false or persist the response when continuing a                                              
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
-  comment Comment by @clawsweeper 1d ago                                                                                                                        
-  meta: association CONTRIBUTOR, edited                                                                                                                         
-  [details]                                                                                                                                                     
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,                                          
-  2026, 10:28 PM ET / 02:28 UTC._                                                                                                                               
+  comment Comment by @clawsweeper 2d ago                                                                                                                        
+  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay failure                                         
+  for custom openai-responses providers because generic Responses payloads can be unstored while replaying server-owned                                         
+  reasoning item IDs.                                                                                                                                           
                                                                                                                                                                 
-  Summary                                                                                                                                                       
-  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers                                             
-  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
-  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
-  path.                                                                                                                                                         
-  [+ more]                                                                                                                                                      
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
+  - Timeline by @osolmaz 2d ago                                                                                                                                 
+  added label provider: openai-responses                                                                                                                        
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
   comment Comment by @tianxiaochannel-oss88 1d ago                                                                                                              
-  meta: association CONTRIBUTOR                                                                                                                                 
-  [details]                                                                                                                                                     
-  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                  
+  Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when                                                
+  store=false is used through the openai-responses provider. Removing the previous response reference makes the next                                            
+  request succeed.                                                                                                                                              
                                                                                                                                                                 
-  Environment:                                                                                                                                                  
-  scroll 0/76 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page    
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
+  scroll 0/19 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch | v order | a all | arrows/page    
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                                                                 
+                                                                                                                                                                

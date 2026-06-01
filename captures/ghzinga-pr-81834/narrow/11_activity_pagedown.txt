@@ -1,24 +1,24 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 2d                                  
+                                                                                
+  openclaw/openclaw#81834 [PR OPEN] updated 1d                                  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
+  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22    
                                                                                 
    Overview [Activity] Commits  Checks  Files  Links                            
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
-  plugin, including TTS and voice-list HTTP helpers, voice-note opus         │  
-  transcoding, registration metadata, docs, inventory updates, and tests.    │  
+  failures, and opus transcoding. The remaining files are intentionally scope│  
+  to the bundled extension.                                                  │  
                                                                              │  
-  Reproducibility: not applicable. for the requested feature because current █  
-  main simply lacks SenseAudio TTS. The remaining docs bug is                █  
-  [+ more]                                                                   │  
-                                                                             │  
-  Comment by @KLilyZ 1w ago                                                  │  
-  meta: association NONE                                                     │  
-  [details]                                                                  │  
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
-  cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
-  has been waiting since the 15th. Happy to address any feedback. No rush,   │  
-  scroll 20/68 29% | tab Activity | order oldest | r refresh | f full | y copy  
-  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]     
+  Review by @osolmaz 2w ago                                                  │  
+  Codex review: needs changes before merge. Please keep the SenseAudio       │  
+  provider surface narrow, verify the voice listing error path, and make sure│  
+  the new speech provider file is covered by targeted extension tests. After │  
+  the follow-up, all bot checks have enough detail for maintainers to inspect█  
+  status without opening the browser.                                        █  
+                                                                             █  
+  Comment by @KLilyZ 2w ago                                                  │  
+  Follow-up note: voice list failures now surface the provider error,        │  
+  scroll 20/26 76% | tab Activity | order oldest | r refresh | y copy | o open  
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

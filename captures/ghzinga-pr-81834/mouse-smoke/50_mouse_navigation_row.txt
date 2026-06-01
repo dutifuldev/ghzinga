@@ -1,3 +1,4 @@
+                                                                                                                        
   openclaw/openclaw#66943 [Issue CLOSED] updated 1mo                                                                    
   feat: add SenseAudio audio transcription provider                                                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -30,7 +31,6 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-                                                                                                                        
   opened openclaw/openclaw#66943                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+                                                                                                                        

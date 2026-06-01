@@ -1,18 +1,25 @@
+                                                                                                                        
   openclaw/openclaw#81834 [PR OPEN] updated 1d                                                                          
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
                                                                                                                         
    Overview  Activity  Commits [Checks] Files  Links                                                                    
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  Summary: PASS (2 pass, 0 pending, 0 fail)                                                                             
-  2 total: 2 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                   
+  Summary: PASS (5 pass, 0 pending, 0 fail)                                                                             
+  5 total: 5 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                   
                                                                                                                         
-  Passing (2)                                                                                                           
+  Passing (5)                                                                                                           
   [OK PASS] suite/CI [+ more]                                                                                           
+                                                                                                                        
+  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                      
+                                                                                                                        
+  [OK PASS] suite/Dependency Guard [+ more]                                                                             
+                                                                                                                        
+  [OK PASS] suite/Workflow Sanity [+ more]                                                                              
                                                                                                                         
   [OK PASS] All checks [+ more]                                                                                         
                                                                                                                         
@@ -24,13 +31,6 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
   scroll 0/0 100% | tab Checks | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab    
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+                                                                                                                        

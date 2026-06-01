@@ -1,4 +1,5 @@
-[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;122;162;247mopenclaw/openclaw#88499[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;247;118;142m[Issue CLOSED][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 11h[38;2;192;202;245m                            
+[38;2;192;202;245m[48;2;26;27;38m                                                                                
+  [1;4m[38;2;122;162;247mopenclaw/openclaw#88499[0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;247;118;142m[Issue CLOSED][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mupdated 1d[38;2;192;202;245m                             
   openai-responses provider: 404 on previous_response_id when store=false       
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
   [1m[38;2;26;27;38m[48;2;247;118;142mXX CLOSED[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214mby @xneone[38;2;192;202;245m                                                         
@@ -7,18 +8,17 @@
   [38;2;169;177;214m Overview [1m[38;2;26;27;38m[48;2;122;162;247m[Activity][0m[38;2;169;177;214m[48;2;26;27;38m Links [38;2;192;202;245m                                                   
                                                                                 
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
-  be unstored while replaying server-owned reasoning item IDs. Direct OpenAI [38;2;86;95;137m│[38;2;192;202;245m  
-  routes have a newer store-aware wrapper, but the reported custom proxy rout[38;2;86;95;137m│[38;2;192;202;245m  
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                   [38;2;122;162;247m█[38;2;192;202;245m  
-                                                                             [38;2;122;162;247m█[38;2;192;202;245m  
-  Comment by @tianxiaochannel-oss88 1d ago                                   [38;2;86;95;137m│[38;2;192;202;245m  
-  meta: association CONTRIBUTOR                                              [38;2;86;95;137m│[38;2;192;202;245m  
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                  [38;2;86;95;137m│[38;2;192;202;245m  
-  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches [38;2;86;95;137m│[38;2;192;202;245m  
-  this issue class.                                                          [38;2;86;95;137m│[38;2;192;202;245m  
+  added label provider: openai-responses                                     [38;2;86;95;137m│[38;2;192;202;245m  
                                                                              [38;2;86;95;137m│[38;2;192;202;245m  
-  Environment:                                                               [38;2;86;95;137m│[38;2;192;202;245m  
-  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                [38;2;86;95;137m│[38;2;192;202;245m  
-  - OS: macOS arm64                                                          [38;2;86;95;137m│[38;2;192;202;245m  
-  [38;2;169;177;214mscroll 10/53 18% | tab Activity | order oldest | r refresh | y copy | o open[38;2;192;202;245m  
+  Comment by @tianxiaochannel-oss88 1d ago                                   [38;2;86;95;137m│[38;2;192;202;245m  
+  Adding a fresh macOS/Slack data point: the same previous_response_id 404   [38;2;86;95;137m│[38;2;192;202;245m  
+  appears after the second message when store=false is used through the      [38;2;86;95;137m│[38;2;192;202;245m  
+  openai-responses provider. Removing the previous response reference makes  [38;2;86;95;137m│[38;2;192;202;245m  
+  the next request succeed.                                                  [38;2;86;95;137m│[38;2;192;202;245m  
+                                                                             [38;2;122;162;247m█[38;2;192;202;245m  
+  Comment by @osolmaz 1d ago                                                 [38;2;122;162;247m█[38;2;192;202;245m  
+  The fix should preserve normal stored-response continuation while disabling[38;2;122;162;247m█[38;2;192;202;245m  
+  replay through missing server-side response IDs for store=false sessions.  [38;2;122;162;247m█[38;2;192;202;245m  
+                                                                             [38;2;122;162;247m█[38;2;192;202;245m  
+  [38;2;169;177;214mscroll 8/8 100% | tab Activity | order oldest | r refresh | y copy | o open[38;2;192;202;245m   
   [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[expand all][0m[38;2;192;202;245m[48;2;26;27;38m                 

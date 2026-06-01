@@ -1,7 +1,8 @@
+                                                                                                                        
   openclaw/openclaw#81834 [PR OPEN] updated 1d                                                                          
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122      
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122      
   +1100  -22                                                                                                            
                                                                                                                         
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
@@ -30,7 +31,6 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
   comment Comment by @github-actions 1mo ago                                                                            
-  [details]                                                                                                             
-  Dependency Changes Detected                                                                                           
-  scroll 0/43 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab   
+  scroll 0/57 0% | tab Overview | order oldest | r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab   
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+                                                                                                                        
