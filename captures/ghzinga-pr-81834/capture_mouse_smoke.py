@@ -222,6 +222,30 @@ def capture_mouse_smoke():
         require_screen_contains("[Files]")
         write_frame(ROOT, "10_mouse_files_tab", frames)
 
+        file_row = find_marker_position(
+            SESSION,
+            "[+ more]",
+            line_contains="docs/plugins/reference.md",
+        )
+        mouse_coordinates["file_row_more"] = list(file_row)
+        send_mouse_click(SESSION, *file_row)
+        wait_for_text(SESSION, "path: docs/plugins/reference.md")
+        wait_for_text(SESSION, "change: MODIFIED, additions: 1, deletions: 1")
+        write_frame(ROOT, "11_mouse_file_row_more", frames)
+
+        file_row_less = find_marker_position(
+            SESSION,
+            "[- less]",
+            line_contains="docs/plugins/reference.md",
+        )
+        mouse_coordinates["file_row_less"] = list(file_row_less)
+        send_mouse_click(SESSION, *file_row_less)
+        wait_for_text(SESSION, "[+ more]")
+        text = capture_plain(SESSION)
+        if "path: docs/plugins/reference.md" in text:
+            raise RuntimeError(f"file row less left file detail expanded:\n{text}")
+        write_frame(ROOT, "12_mouse_file_row_less", frames)
+
         expand_all = find_marker_position(SESSION, "[expand all]")
         mouse_coordinates["expand_all"] = list(expand_all)
         send_mouse_click(SESSION, *expand_all)
@@ -240,7 +264,29 @@ def capture_mouse_smoke():
             raise RuntimeError(f"collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "30_mouse_collapse_all", frames)
 
-        links_tab = find_marker_position(SESSION, "Links", line_contains="[Files]")
+        checks_tab = find_marker_position(SESSION, "Checks", line_contains="[Files]")
+        mouse_coordinates["checks_tab"] = list(checks_tab)
+        send_mouse_click(SESSION, *checks_tab)
+        wait_for_text(SESSION, "Summary: PASS")
+        wait_for_text(SESSION, "[OK PASS] All checks [+ more]")
+        write_frame(ROOT, "35_mouse_checks_tab", frames)
+
+        check_row = find_marker_position(SESSION, "[+ more]", line_contains="All checks")
+        mouse_coordinates["check_row_more"] = list(check_row)
+        send_mouse_click(SESSION, *check_row)
+        wait_for_text(SESSION, "summary: 38 skipped, 2 neutral, 86 successful")
+        write_frame(ROOT, "36_mouse_check_row_more", frames)
+
+        check_row_less = find_marker_position(SESSION, "[- less]", line_contains="All checks")
+        mouse_coordinates["check_row_less"] = list(check_row_less)
+        send_mouse_click(SESSION, *check_row_less)
+        wait_for_text(SESSION, "[OK PASS] All checks [+ more]")
+        text = capture_plain(SESSION)
+        if "summary: 38 skipped, 2 neutral, 86 successful" in text:
+            raise RuntimeError(f"check row less left check detail expanded:\n{text}")
+        write_frame(ROOT, "37_mouse_check_row_less", frames)
+
+        links_tab = find_marker_position(SESSION, "Links", line_contains="[Checks]")
         mouse_coordinates["links_tab"] = list(links_tab)
         send_mouse_click(SESSION, *links_tab)
         wait_for_text(SESSION, NAVIGATION_TARGET)
@@ -424,7 +470,16 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     if manifest.get("quit_exited") is not True:
         errors.append("manifest does not record successful quit exit")
     coordinates = manifest.get("mouse_coordinates", {})
-    for target in ("copy", "open", "settings_compact", "quit"):
+    for target in (
+        "file_row_more",
+        "file_row_less",
+        "check_row_more",
+        "check_row_less",
+        "copy",
+        "open",
+        "settings_compact",
+        "quit",
+    ):
         if target not in coordinates:
             errors.append(f"manifest missing {target} mouse coordinate")
     saved_config = manifest.get("saved_config", "")
@@ -449,12 +504,36 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         ],
         "06_mouse_overview_less": ["[Overview]", "* commit fb948c9", "[+ more]"],
         "10_mouse_files_tab": ["[Files]", "docs/plugins/plugin-inventory.md", "[expand all]"],
+        "11_mouse_file_row_more": [
+            "[Files]",
+            "docs/plugins/reference.md [- less]",
+            "path: docs/plugins/reference.md",
+            "change: MODIFIED, additions: 1, deletions: 1",
+        ],
+        "12_mouse_file_row_less": [
+            "[Files]",
+            "docs/plugins/reference.md [+ more]",
+        ],
         "20_mouse_expand_all": [
             "[Files]",
             "[collapse all]",
             "path: docs/plugins/reference.md",
         ],
         "30_mouse_collapse_all": ["[Files]", "[expand all]"],
+        "35_mouse_checks_tab": [
+            "[Checks]",
+            "Summary: PASS",
+            "[OK PASS] All checks [+ more]",
+        ],
+        "36_mouse_check_row_more": [
+            "[Checks]",
+            "[OK PASS] All checks [- less]",
+            "summary: 38 skipped, 2 neutral, 86 successful",
+        ],
+        "37_mouse_check_row_less": [
+            "[Checks]",
+            "[OK PASS] All checks [+ more]",
+        ],
         "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
         "50_mouse_navigation_row": [
             "[Overview]",
@@ -494,6 +573,13 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
                 errors.append(f"{txt_path} missing marker {marker!r}")
         if name == "30_mouse_collapse_all" and "path: docs/plugins/plugin-inventory.md" in text:
             errors.append(f"{txt_path} still shows expanded file detail after collapse")
+        if name == "12_mouse_file_row_less" and "path: docs/plugins/reference.md" in text:
+            errors.append(f"{txt_path} still shows expanded file detail after row collapse")
+        if (
+            name == "37_mouse_check_row_less"
+            and "summary: 38 skipped, 2 neutral, 86 successful" in text
+        ):
+            errors.append(f"{txt_path} still shows expanded check detail after row collapse")
         if name == "06_mouse_overview_less" and "committed: 1mo ago" in text:
             errors.append(f"{txt_path} still shows expanded commit detail after collapse")
 
