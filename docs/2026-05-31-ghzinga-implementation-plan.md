@@ -675,9 +675,11 @@ Rendering tests:
   - issue overview
   - loading state
   - error state
-- Chrome assertion: default rendered buffers contain no heavy box-drawing,
-  Nerd Font chrome, or non-ASCII separator glyphs from our components. Emoji
-  markers are allowed only when `--symbols emoji` is explicitly selected.
+- Chrome assertion: default rendered buffers contain no heavy box-drawing or
+  Nerd Font chrome. Continuous terminal separator glyphs are allowed for the
+  Herdr-style rules, but default semantic symbols and buttons must stay ASCII
+  text. Emoji markers are allowed only when `--symbols emoji` is explicitly
+  selected, and emoji controls must keep text labels.
 
 Interaction tests:
 
