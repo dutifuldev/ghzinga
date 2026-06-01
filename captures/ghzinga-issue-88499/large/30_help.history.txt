@@ -5,6 +5,9 @@
                                                                                                                                                                 
                                                                                                                                                                 
    Overview  Activity [Links]                                                                                                                                   
+                                                                                                                                                                
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
   Help                                                                                                                                                          
                                                                                                                                                                 
   Mouse                                                                                                                                                         
@@ -32,9 +35,6 @@
   Refresh                                                                                                                                                       
   - Live mode refreshes automatically on the configured interval.                                                                                               
   - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

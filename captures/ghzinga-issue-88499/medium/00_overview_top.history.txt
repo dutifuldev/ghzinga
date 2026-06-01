@@ -5,6 +5,9 @@
                                                                                                                         
                                                                                                                         
   [Overview] Activity  Links                                                                                            
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                        
   * @xneone opened 2026-05-31T02:21:19Z                                                                                 
   Bug Description                                                                                                       
                                                                                                                         
@@ -30,7 +33,4 @@
   Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers     
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI     
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
-  direct-OpenAI-only path.                                                                                              
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/27 0% ...                                                   
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/31 0% ...                                                   

@@ -5,11 +5,14 @@
   OK checks PASS (1 pass, 0 pending, 0 fail)  5 files  diff 1122  +1100  -22    
                                                                                 
   [Overview] Activity  Commits  Checks  Files  Links                            
-  - Contract plugin tests passed.                                            │  
                                                                              │  
+  Validation                                                                 │  
+  - Targeted extension tests passed.                                         █  
+  - Contract plugin tests passed.                                            █  
+                                                                             █  
   Scope                                                                      █  
-  Telephony, streaming, voice cloning, and text-generated voices are         █  
-  intentionally out of scope.                                                █  
+  Telephony, streaming, voice cloning, and text-generated voices are         │  
+  intentionally out of scope.                                                │  
   [- less]                                                                   │  
   ───────────────────────────────────────────────────────────────────────────│  
                                                                              │  
@@ -17,8 +20,5 @@
   feat(senseaudio): add SenseAudio TTS provider                              │  
   ───────────────────────────────────────────────────────────────────────────│  
                                                                              │  
-  comment Comment by @github-actions 1mo ago                                 │  
-  Dependency Changes Detected                                                │  
-  This PR changes dependency-related files. Maintainers should confirm these │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/48 20%             
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/52 19%             
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

@@ -5,6 +5,9 @@
                                                                                                                                                                 
                                                                                                                                                                 
    Overview  Activity  Commits [Checks] Files  Links                                                                                                            
+                                                                                                                                                                
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
   Summary: PASS (1 pass, 0 pending, 0 fail)                                                                                                                     
   1 total: 1 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                                                           
                                                                                                                                                                 
@@ -13,9 +16,6 @@
                                                                                                                                                                 
                                                                                                                                                                 
   [expand all]                                                                                                                                                  
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

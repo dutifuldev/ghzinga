@@ -5,6 +5,9 @@
                                                                                 
                                                                                 
    Overview  Activity [Links]                                                   
+                                                                                
+  ────────────────────────────────────────────────────────────────────────────  
+                                                                                
   Help                                                                          
                                                                                 
   Mouse                                                                         
@@ -17,8 +20,5 @@
                                                                                 
   Keyboard                                                                      
   - q: quit                                                                     
-  - ?: toggle this help                                                         
-  - s: open or close settings                                                   
-  - t / y / p in settings: cycle theme / symbol style / spacing                 
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/13 0%               
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/17 0%               
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

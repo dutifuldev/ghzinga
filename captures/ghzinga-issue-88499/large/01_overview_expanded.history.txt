@@ -5,6 +5,9 @@
                                                                                                                                                                 
                                                                                                                                                                 
   [Overview] Activity  Links                                                                                                                                    
+                                                                                                                                                                
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
+                                                                                                                                                                
   * @xneone opened 2026-05-31T02:21:19Z                                                                                                                         
   Bug Description                                                                                                                                               
                                                                                                                                                                 
@@ -44,7 +47,4 @@
                                                                                                                                                                 
   comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                                                
   meta: association CONTRIBUTOR                                                                                                                                 
-  [details]                                                                                                                                                     
-  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when                                                      
-  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next                                        
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/18 0% ...                                                                                           
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/22 0% ...                                                                                           

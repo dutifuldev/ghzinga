@@ -5,6 +5,9 @@
                                                                                                                                                                 
                                                                                                                                                                 
    Overview  Activity  Commits  Checks [Files] Links                                                                                                            
+                                                                                                                                                                
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                                                                                
   +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                                                                                                
                                                                                                                                                                 
   +1    -1    MODIFIED docs/plugins/reference.md [+ more]                                                                                                       
@@ -16,9 +19,6 @@
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                                                                                                  
                                                                                                                                                                 
   [expand all]                                                                                                                                                  
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
