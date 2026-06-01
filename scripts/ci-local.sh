@@ -9,6 +9,8 @@ cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 
 scripts/verify-install.sh
+sh -n scripts/live-smoke.sh
+GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh
 npx -y @simpledoc/simpledoc check
 scripts/verify-no-png-captures.sh
 

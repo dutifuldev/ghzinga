@@ -429,6 +429,12 @@ Run opt-in live GitHub smoke checks:
 scripts/live-smoke.sh
 ```
 
+Run the no-network live-smoke harness self-test:
+
+```sh
+GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh
+```
+
 This calls GitHub with the normal direct HTTP path and validates high-signal PR
 Overview, Activity, Commits, Checks, Files, and Links tabs plus live issue
 Overview, Activity, and Links tabs. It also reruns all public PR tabs and public
@@ -438,6 +444,7 @@ without a usable token or `gh` executable. If GitHub's shared unauthenticated
 quota for the current IP is exhausted, those public fallback cases are skipped
 by default after the first rate-limit response; set
 `GZG_LIVE_REQUIRE_PUBLIC_FALLBACK=1` to make that condition fatal. The script is
-intentionally not part of CI because it depends
-on network availability and current GitHub API quota. Override the public
-targets with `GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
+intentionally not part of CI because it depends on network availability and
+current GitHub API quota, but CI does run the syntax check and no-network
+self-test for the harness. Override the public targets with
+`GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
