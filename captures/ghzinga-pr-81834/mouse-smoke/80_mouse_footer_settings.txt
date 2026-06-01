@@ -15,22 +15,22 @@
   Config: /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml                       
   [close settings]                                                                                                      
                                                                                                                         
-  Theme                                                                                                                 
-  [x] default  Tokyo-inspired default dark colors                                                                       
-  [ ] solarized-dark  Solarized dark colors                                                                             
-                                                                                                                        
-  Symbols                                                                                                               
-  [x] ascii  Plain terminal-safe labels                                                                                 
-  [ ] emoji  Richer semantic markers                                                                                    
+  Width                                                                                                                 
+  [x] fixed  Cap reading tabs to the configured width                                                                   
+  [ ] full  Use the full content width                                                                                  
+  Fixed width: 118 columns                                                                                              
+  [ ] 88  Fixed-width preset                                                                                            
+  [ ] 100  Fixed-width preset                                                                                           
+  [x] 118  Fixed-width preset                                                                                           
+  [ ] 132  Fixed-width preset                                                                                           
+  [ ] 148  Fixed-width preset                                                                                           
                                                                                                                         
   Spacing                                                                                                               
   [x] comfortable  Gmail-style density with gh-dash-like spacing                                                        
   [ ] compact  Dense rows for smaller terminals                                                                         
                                                                                                                         
-  Keyboard: t theme | y symbols | p spacing | s or Esc close                                                            
-  Changes are applied live and saved immediately.                                                                       
-                                                                                                                        
-                                                                                                                        
+  Symbols                                                                                                               
+  [x] ascii  Plain terminal-safe labels                                                                                 
   opened https://github.com/openclaw/openclaw/pull/81834                                                                
   [refresh] [copy] [open] [settings] [help] [quit]                                                                      
                                                                                                                         

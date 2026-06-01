@@ -413,9 +413,9 @@ def capture_mouse_smoke():
         mouse_coordinates["settings"] = list(settings_button)
         send_mouse_click(SESSION, *settings_button)
         wait_for_text(SESSION, "Settings")
-        wait_for_text(SESSION, "Theme")
-        wait_for_text(SESSION, "Symbols")
+        wait_for_text(SESSION, "Width")
         wait_for_text(SESSION, "Spacing")
+        wait_for_text(SESSION, "Symbols")
         write_frame(ROOT, "80_mouse_footer_settings", frames)
 
         compact_setting = find_marker_position(SESSION, "[ ] compact")
@@ -700,7 +700,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
         "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
-        "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
+        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Symbols", "[settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
         "90_mouse_footer_load_full": [
             "[Overview]",
