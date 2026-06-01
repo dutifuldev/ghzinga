@@ -5,7 +5,7 @@ feat(senseaudio): add SenseAudio TTS provider
 OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending, 0 fail)  files 14 +1057 -22  warn Warnings: 1                                 
                                                                                                                                                                 
   Activity (7 entries)                                                                                                                                          
-  ------------------------------------------------------------------------------------------------------------------------------------------------------------  
+  ----------------------------------------------------------------------------------------------------------------------                                        
                                                                                                                                                                 
   [expand all]                                                                                                                                                  
                                                                                                                                                                 
@@ -27,24 +27,24 @@ OK OPEN  by @KLilyZ  comments 7  reactions 4  OK checks PASS (97 pass, 0 pending
   [details]                                                                                                                                                     
   Codex review: needs changes before merge.                                                                                                                     
                                                                                                                                                                 
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP helpers, voice-note opus transcoding,    
-  registration metadata, docs, inventory updates, and tests.                                                                                                    
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP                                          
+  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                                                              
                                                                                                                                                                 
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The remaining docs bug is source-reproducible    
-  from the PR docs line 95 and the current CLI contract requiring --provider <id>.                                                                              
-                                                                                                                                                                
+  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The                                              
+  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider                                          
+  <id>.                                                                                                                                                         
   [+ more]                                                                                                                                                      
                                                                                                                                                                 
   Comment by @KLilyZ 2026-05-19T07:37:32Z                                                                                                                       
   meta: association NONE                                                                                                                                        
   [details]                                                                                                                                                     
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no contributor-facing blockers left) and the PR has      
-  been waiting since the 15th. Happy to address any feedback. No rush, just flagging it in case it slipped past the queue.                                      
+  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                                                       
+  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,                                         
+  just flagging it in case it slipped past the queue.                                                                                                           
                                                                                                                                                                 
   Comment by @RomneyDa 2026-05-29T06:29:06Z                                                                                                                     
   meta: association MEMBER                                                                                                                                      
   [details]                                                                                                                                                     
   <!-- dependency-guard-rebase-needed-backfill -->                                                                                                              
   Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.                                           
-                                                                                                                                                                
-[refresh] [open] [settings] [help] [quit] scroll 0/38 0% ...                                                                                                    
+[refresh] [open] [settings] [help] [quit] scroll 0/39 0% ...                                                                                                    

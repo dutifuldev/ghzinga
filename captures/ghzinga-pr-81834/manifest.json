@@ -3,7 +3,7 @@
   "title": "feat(senseaudio): add SenseAudio TTS provider",
   "mode": "pr",
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "680d92f3c632ed23152799c4f72cd544cb1b2c31",
+  "git_commit": "c8eb31d00492ffaa4b874cc07fb677dc7cc4fe1f",
   "sizes": [
     {
       "label": "narrow",
