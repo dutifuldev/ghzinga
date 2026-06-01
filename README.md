@@ -289,6 +289,9 @@ GitHub fetches. The previous resource stays readable while the status band and
 footer show a terminal-safe loading marker such as `Loading |: ...`; duplicate
 fetch starts are ignored until the current one finishes, so rapid clicks or
 auto-refresh ticks do not build a request queue.
+All direct GitHub HTTP requests reuse the same client and carry a 30-second
+per-request timeout, so a bad network path reports through the existing
+recoverable error or warning UI instead of waiting indefinitely.
 
 ## Verification
 

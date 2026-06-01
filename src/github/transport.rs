@@ -14,6 +14,7 @@ use super::auth::github_token;
 pub(crate) const GITHUB_GRAPHQL_URL: &str = "https://api.github.com/graphql";
 const GITHUB_REST_URL: &str = "https://api.github.com";
 pub(crate) const GITHUB_JSON_ACCEPT: &str = "application/vnd.github+json";
+pub(crate) const GITHUB_HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 const GRAPHQL_PREFLIGHT_TTL: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +30,7 @@ pub(crate) struct GithubHttpRequest {
     pub(crate) accept: String,
     pub(crate) token: Option<String>,
     pub(crate) body: Option<Value>,
+    pub(crate) timeout: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,16 +49,30 @@ pub(crate) trait GithubHttpTransport {
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ReqwestGithubHttpTransport;
 
+static REQWEST_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+
+fn reqwest_client() -> anyhow::Result<&'static reqwest::Client> {
+    REQWEST_CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .user_agent("ghzinga")
+                .build()
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map_err(|error| anyhow::anyhow!("failed to build GitHub HTTP client: {error}"))
+}
+
 impl GithubHttpTransport for ReqwestGithubHttpTransport {
     fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
         Box::pin(async move {
-            let client = reqwest::Client::new();
+            let client = reqwest_client()?;
             let builder = match request.method {
                 GithubHttpMethod::Get => client.get(&request.url),
                 GithubHttpMethod::Post => client.post(&request.url),
             }
-            .header(reqwest::header::USER_AGENT, "ghzinga")
-            .header(reqwest::header::ACCEPT, request.accept);
+            .header(reqwest::header::ACCEPT, request.accept)
+            .timeout(request.timeout);
             let builder = if let Some(token) = request.token {
                 builder.bearer_auth(token)
             } else {
@@ -114,6 +130,7 @@ pub(crate) async fn run_graphql_query_with(
                 "query": query,
                 "variables": variables,
             })),
+            timeout: GITHUB_HTTP_TIMEOUT,
         })
         .await?;
     let status = response.status;
@@ -267,6 +284,7 @@ async fn fetch_graphql_rate_limit(
             accept: GITHUB_JSON_ACCEPT.to_string(),
             token: token.map(str::to_string),
             body: None,
+            timeout: GITHUB_HTTP_TIMEOUT,
         })
         .await
         .context("failed to fetch GitHub rate limits")?;
@@ -317,6 +335,7 @@ pub(crate) async fn run_rest_get_with(
             accept: accept.to_string(),
             token: token.map(str::to_string),
             body: None,
+            timeout: GITHUB_HTTP_TIMEOUT,
         })
         .await
         .with_context(|| format!("failed to send GitHub REST request to {path}"))?;
@@ -402,6 +421,7 @@ mod tests {
         assert_eq!(request.url, GITHUB_GRAPHQL_URL);
         assert_eq!(request.accept, GITHUB_JSON_ACCEPT);
         assert_eq!(request.token.as_deref(), Some("token-1"));
+        assert_eq!(request.timeout, GITHUB_HTTP_TIMEOUT);
         assert_eq!(
             request.body,
             Some(json!({
@@ -435,7 +455,9 @@ mod tests {
         assert_eq!(requests.len(), 2);
         assert_eq!(requests[0].method, GithubHttpMethod::Get);
         assert_eq!(requests[0].url, format!("{GITHUB_REST_URL}/rate_limit"));
+        assert_eq!(requests[0].timeout, GITHUB_HTTP_TIMEOUT);
         assert_eq!(requests[1].method, GithubHttpMethod::Post);
+        assert_eq!(requests[1].timeout, GITHUB_HTTP_TIMEOUT);
         reset_graphql_rate_limit_state_for_test();
     }
 
@@ -459,6 +481,7 @@ mod tests {
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].method, GithubHttpMethod::Get);
         assert_eq!(requests[0].url, format!("{GITHUB_REST_URL}/rate_limit"));
+        assert_eq!(requests[0].timeout, GITHUB_HTTP_TIMEOUT);
         reset_graphql_rate_limit_state_for_test();
     }
 
@@ -555,6 +578,7 @@ mod tests {
         assert_eq!(request.accept, "application/vnd.github.v3.diff");
         assert_eq!(request.token.as_deref(), Some("token-1"));
         assert_eq!(request.body, None);
+        assert_eq!(request.timeout, GITHUB_HTTP_TIMEOUT);
     }
 
     #[tokio::test]
@@ -577,6 +601,7 @@ mod tests {
         let requests = transport.requests();
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].token, None);
+        assert_eq!(requests[0].timeout, GITHUB_HTTP_TIMEOUT);
     }
 
     #[tokio::test]
