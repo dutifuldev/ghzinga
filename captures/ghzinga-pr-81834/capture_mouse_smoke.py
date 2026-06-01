@@ -70,6 +70,11 @@ def send_mouse_click(session: str, column: int, row: int):
     time.sleep(0.5)
 
 
+def send_key(session: str, key: str):
+    tmux("send-keys", "-t", session, key)
+    time.sleep(0.5)
+
+
 def wait_for_session_exit(session: str, timeout: float = 5.0):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -247,6 +252,18 @@ def capture_mouse_smoke():
         if "path: docs/plugins/reference.md" in text:
             raise RuntimeError(f"file row less left file detail expanded:\n{text}")
         write_frame(ROOT, "12_mouse_file_row_less", frames)
+
+        send_key(SESSION, "a")
+        wait_for_text(SESSION, "path: docs/plugins/plugin-inventory.md")
+        wait_for_text(SESSION, "[collapse all]")
+        write_frame(ROOT, "13_keyboard_expand_all", frames)
+
+        send_key(SESSION, "a")
+        wait_for_text(SESSION, "[expand all]")
+        text = capture_plain(SESSION)
+        if "path: docs/plugins/plugin-inventory.md" in text:
+            raise RuntimeError(f"keyboard collapse all left first file expanded:\n{text}")
+        write_frame(ROOT, "14_keyboard_collapse_all", frames)
 
         expand_all = find_marker_position(SESSION, "[expand all]")
         mouse_coordinates["expand_all"] = list(expand_all)
@@ -543,6 +560,12 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "[Files]",
             "docs/plugins/reference.md [+ more]",
         ],
+        "13_keyboard_expand_all": [
+            "[Files]",
+            "[collapse all]",
+            "path: docs/plugins/plugin-inventory.md",
+        ],
+        "14_keyboard_collapse_all": ["[Files]", "[expand all]"],
         "20_mouse_expand_all": [
             "[Files]",
             "[collapse all]",
@@ -618,6 +641,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             errors.append(f"{txt_path} still shows expanded file detail after collapse")
         if name == "12_mouse_file_row_less" and "path: docs/plugins/reference.md" in text:
             errors.append(f"{txt_path} still shows expanded file detail after row collapse")
+        if name == "14_keyboard_collapse_all" and "path: docs/plugins/plugin-inventory.md" in text:
+            errors.append(f"{txt_path} still shows expanded file detail after keyboard collapse")
         if (
             name == "37_mouse_check_row_less"
             and "summary: 38 skipped, 2 neutral, 86 successful" in text
