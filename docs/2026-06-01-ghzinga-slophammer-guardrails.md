@@ -95,6 +95,9 @@ reach back into TUI layers.
   boundary, not in the runner or renderer
 - public REST fallback details and tests stay in `src/github/public_rest.rs`;
   `src/github/api.rs` only calls the fallback entrypoints
+- raw GraphQL/REST request-shape and HTTP error tests stay in
+  `src/github/transport.rs`; `src/github/api.rs` owns resource orchestration and
+  normalization tests
 - `TerminalGuard` must be safe during partial setup: raw mode, alternate screen,
   and mouse capture are tracked independently so a setup error unwinds through
   the same restoration path as a normal exit

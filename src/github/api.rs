@@ -12,11 +12,6 @@ use crate::domain::{
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
-#[cfg(test)]
-use crate::github::transport::{
-    run_graphql_query_with, run_rest_get_with, GithubHttpFuture, GithubHttpMethod,
-    GithubHttpRequest, GithubHttpResponse, GithubHttpTransport, GITHUB_JSON_ACCEPT,
-};
 use crate::github::{
     public_rest::{fetch_public_rest_issue, fetch_public_rest_pr},
     queries::{
@@ -4651,45 +4646,7 @@ fn parse_diff_header_path(line: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::VecDeque, sync::Mutex};
-
     use super::*;
-
-    #[derive(Debug)]
-    struct FakeGithubHttpTransport {
-        requests: Mutex<Vec<GithubHttpRequest>>,
-        responses: Mutex<VecDeque<GithubHttpResponse>>,
-    }
-
-    impl FakeGithubHttpTransport {
-        fn new(response: GithubHttpResponse) -> Self {
-            Self::from_responses(vec![response])
-        }
-
-        fn from_responses(responses: Vec<GithubHttpResponse>) -> Self {
-            Self {
-                requests: Mutex::new(Vec::new()),
-                responses: Mutex::new(responses.into()),
-            }
-        }
-
-        fn requests(&self) -> Vec<GithubHttpRequest> {
-            self.requests.lock().expect("requests lock").clone()
-        }
-    }
-
-    impl GithubHttpTransport for FakeGithubHttpTransport {
-        fn execute<'a>(&'a self, request: GithubHttpRequest) -> GithubHttpFuture<'a> {
-            Box::pin(async move {
-                self.requests.lock().expect("requests lock").push(request);
-                self.responses
-                    .lock()
-                    .expect("responses lock")
-                    .pop_front()
-                    .context("fake response queue is empty")
-            })
-        }
-    }
 
     #[test]
     fn pr_command_preview_uses_direct_graphql_shape() {
@@ -4705,141 +4662,6 @@ mod tests {
                 "selector=pullRequest",
             ]
         );
-    }
-
-    #[tokio::test]
-    async fn graphql_transport_receives_post_shape_and_returns_body() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::OK,
-            body: br#"{"data":{"ok":true}}"#.to_vec(),
-        });
-
-        let output = run_graphql_query_with(
-            &transport,
-            Some("token-1"),
-            "query Example { viewer { login } }",
-            json!({"owner": "openclaw", "name": "openclaw"}),
-        )
-        .await
-        .expect("GraphQL response");
-
-        assert_eq!(output, br#"{"data":{"ok":true}}"#);
-        let requests = transport.requests();
-        assert_eq!(requests.len(), 1);
-        let request = &requests[0];
-        assert_eq!(request.method, GithubHttpMethod::Post);
-        assert_eq!(request.url, GITHUB_GRAPHQL_URL);
-        assert_eq!(request.accept, GITHUB_JSON_ACCEPT);
-        assert_eq!(request.token.as_deref(), Some("token-1"));
-        assert_eq!(
-            request.body,
-            Some(json!({
-                "query": "query Example { viewer { login } }",
-                "variables": {"owner": "openclaw", "name": "openclaw"},
-            }))
-        );
-    }
-
-    #[tokio::test]
-    async fn graphql_transport_errors_on_graphql_errors_payload() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::OK,
-            body: br#"{"errors":[{"message":"bad query"}]}"#.to_vec(),
-        });
-
-        let error = run_graphql_query_with(&transport, Some("token-1"), "query", json!({}))
-            .await
-            .expect_err("GraphQL errors should fail");
-
-        assert!(error
-            .to_string()
-            .contains("GitHub GraphQL request returned errors"));
-        assert!(error.to_string().contains("GraphQL error: bad query"));
-    }
-
-    #[tokio::test]
-    async fn graphql_transport_summarizes_scope_errors() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::OK,
-            body: br#"{"errors":[{"locations":[{"line":120,"column":44}],"message":"Your token has not been granted the required scopes to execute this query. The 'id' field requires one of the following scopes: ['read:project'], but your token has only been granted the: ['repo'] scopes. Please modify your token's scopes at: https://github.com/settings/tokens.","type":"INSUFFICIENT_SCOPES"},{"message":"same scope issue","type":"INSUFFICIENT_SCOPES"}]}"#.to_vec(),
-        });
-
-        let error = run_graphql_query_with(&transport, Some("token-1"), "query", json!({}))
-            .await
-            .expect_err("GraphQL scope errors should fail");
-        let message = error.to_string();
-
-        assert!(message.contains("INSUFFICIENT_SCOPES: token lacks read:project"));
-        assert!(message.contains("https://github.com/settings/tokens"));
-        assert!(!message.contains("\"locations\""));
-    }
-
-    #[tokio::test]
-    async fn rest_transport_receives_get_shape_and_returns_body() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::OK,
-            body: b"diff --git a/file b/file".to_vec(),
-        });
-
-        let output = run_rest_get_with(
-            &transport,
-            Some("token-1"),
-            "/repos/openclaw/openclaw/pulls/81834",
-            "application/vnd.github.v3.diff",
-        )
-        .await
-        .expect("REST response");
-
-        assert_eq!(output, b"diff --git a/file b/file");
-        let requests = transport.requests();
-        assert_eq!(requests.len(), 1);
-        let request = &requests[0];
-        assert_eq!(request.method, GithubHttpMethod::Get);
-        assert_eq!(
-            request.url,
-            "https://api.github.com/repos/openclaw/openclaw/pulls/81834"
-        );
-        assert_eq!(request.accept, "application/vnd.github.v3.diff");
-        assert_eq!(request.token.as_deref(), Some("token-1"));
-        assert_eq!(request.body, None);
-    }
-
-    #[tokio::test]
-    async fn rest_transport_can_omit_authorization_for_public_requests() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::OK,
-            body: br#"{"ok":true}"#.to_vec(),
-        });
-
-        let output = run_rest_get_with(
-            &transport,
-            None,
-            "/repos/openclaw/openclaw/issues/88499",
-            GITHUB_JSON_ACCEPT,
-        )
-        .await
-        .expect("REST response");
-
-        assert_eq!(output, br#"{"ok":true}"#);
-        let requests = transport.requests();
-        assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].token, None);
-    }
-
-    #[tokio::test]
-    async fn rest_transport_includes_status_and_body_on_http_failure() {
-        let transport = FakeGithubHttpTransport::new(GithubHttpResponse {
-            status: reqwest::StatusCode::NOT_FOUND,
-            body: br#"{"message":"Not Found"}"#.to_vec(),
-        });
-
-        let error = run_rest_get_with(&transport, Some("token-1"), "/missing", GITHUB_JSON_ACCEPT)
-            .await
-            .expect_err("HTTP failure should fail");
-
-        let message = error.to_string();
-        assert!(message.contains("GitHub REST request to /missing failed with HTTP 404"));
-        assert!(message.contains("Not Found"));
     }
 
     #[test]

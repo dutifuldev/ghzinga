@@ -148,6 +148,31 @@ fn public_rest_fallback_stays_in_dedicated_rest_adapter() {
 }
 
 #[test]
+fn github_http_transport_tests_stay_with_transport_adapter() {
+    let api_source = fs::read_to_string("src/github/api.rs").expect("read GitHub API source");
+    let transport_source =
+        fs::read_to_string("src/github/transport.rs").expect("read GitHub transport source");
+
+    for transport_detail in [
+        "graphql_transport_receives_post_shape_and_returns_body",
+        "graphql_transport_errors_on_graphql_errors_payload",
+        "graphql_transport_summarizes_scope_errors",
+        "rest_transport_receives_get_shape_and_returns_body",
+        "rest_transport_can_omit_authorization_for_public_requests",
+        "rest_transport_includes_status_and_body_on_http_failure",
+    ] {
+        assert!(
+            transport_source.contains(transport_detail),
+            "transport adapter should own test `{transport_detail}`"
+        );
+        assert!(
+            !api_source.contains(transport_detail),
+            "GitHub API orchestration should not own transport test `{transport_detail}`"
+        );
+    }
+}
+
+#[test]
 fn gh_cli_shell_out_is_only_for_auth_token_fallback() {
     let matches = rust_files(Path::new("src"))
         .into_iter()
