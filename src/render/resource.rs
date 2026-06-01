@@ -731,8 +731,9 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let content_area = content_area_for_spacing(area, state.spacing, active_content_tab(state));
     let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
+    let rows =
+        apply_content_frame_spacing(rows, content_area.width as usize, state.spacing, palette);
     let rows = wrap_content_rows(rows, content_area.width, state.spacing);
-    let rows_len = rows.len();
     let max_scroll = rows.len().saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
     let visible_rows = rows
@@ -759,23 +760,18 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     Paragraph::new(visible)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(content_area, frame.buffer_mut());
-    render_scrollbar(frame, content_area, state, rows_len, palette);
+    render_scrollbar(frame, content_area, state, palette);
     state.advance_scrollbar_visibility();
 }
 
-fn render_scrollbar(
-    frame: &mut Frame<'_>,
-    area: Rect,
-    state: &AppState,
-    content_len: usize,
-    palette: &Palette,
-) {
+fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
     if !state.scrollbar_visible() || area.width < 8 || area.height < 3 {
         return;
     }
 
-    let mut scrollbar_state = ScrollbarState::new(content_len)
-        .position(state.scroll as usize)
+    let scroll_range_len = usize::from(state.scroll_limit).saturating_add(1);
+    let mut scrollbar_state = ScrollbarState::new(scroll_range_len)
+        .position(state.scroll.min(state.scroll_limit) as usize)
         .viewport_content_length(area.height as usize);
     Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .thumb_symbol("█")
@@ -846,6 +842,33 @@ fn apply_spacing(rows: Vec<ContentRow>, spacing: SpacingMode) -> Vec<ContentRow>
         }
     }
     spaced
+}
+
+fn apply_content_frame_spacing(
+    rows: Vec<ContentRow>,
+    width: usize,
+    spacing: SpacingMode,
+    palette: &Palette,
+) -> Vec<ContentRow> {
+    if spacing == SpacingMode::Compact || rows.is_empty() {
+        return rows;
+    }
+
+    let mut framed = Vec::with_capacity(rows.len() + 4);
+    framed.push(ContentRow::plain(""));
+    framed.push(separator_row(width, palette));
+    if rows.first().is_some_and(|row| !is_blank_row(row)) {
+        framed.push(ContentRow::plain(""));
+    }
+    framed.extend(rows);
+    if framed.last().is_some_and(|row| !is_blank_row(row)) {
+        framed.push(ContentRow::plain(""));
+    }
+    framed
+}
+
+fn is_blank_row(row: &ContentRow) -> bool {
+    line_text(&row.line).trim().is_empty()
 }
 
 fn is_section_rule(row: &ContentRow) -> bool {
@@ -2590,6 +2613,13 @@ mod tests {
         format!("{:?}", terminal.backend().buffer())
     }
 
+    fn draw_cell_symbol(state: &mut AppState, width: u16, height: u16, x: u16, y: u16) -> String {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render_app(frame, state)).unwrap();
+        terminal.backend().buffer()[(x, y)].symbol().to_string()
+    }
+
     fn rendered_target_rect(state: &AppState, target: impl Fn(&HitTarget) -> bool) -> Option<Rect> {
         state
             .hit_areas
@@ -3237,6 +3267,32 @@ mod tests {
     }
 
     #[test]
+    fn content_scrollbar_reaches_bottom_at_scroll_limit() {
+        let mut resource = pr_resource();
+        let activity = resource.activity[0].clone();
+        for _ in 0..20 {
+            resource.activity.push(activity.clone());
+        }
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Activity);
+        draw(&mut state, 120, 20);
+        state.scroll_to_bottom();
+
+        let rects = ViewRects::compute(Rect::new(0, 0, 120, 20));
+        let content_area =
+            content_area_for_spacing(rects.content, state.spacing, active_content_tab(&state));
+        let symbol = draw_cell_symbol(
+            &mut state,
+            120,
+            20,
+            content_area.x + content_area.width - 1,
+            content_area.y + content_area.height - 1,
+        );
+
+        assert_eq!(symbol, "█");
+    }
+
+    #[test]
     fn scroll_summary_reports_current_limit_and_percent() {
         let mut state = AppState::new(pr_resource());
         state.scroll = 100;
@@ -3554,6 +3610,37 @@ mod tests {
         assert_eq!(comfortable.len(), 4);
         assert_eq!(line_text(&comfortable[2].line), "");
         assert_eq!(line_text(&comfortable[3].line), "Comment");
+    }
+
+    #[test]
+    fn comfortable_content_frame_adds_nav_separator_and_vertical_padding() {
+        let palette = Palette::default_dark();
+        let rows = apply_content_frame_spacing(
+            vec![ContentRow::plain("First item")],
+            12,
+            SpacingMode::Comfortable,
+            &palette,
+        );
+
+        assert_eq!(line_text(&rows[0].line), "");
+        assert_eq!(line_text(&rows[1].line), "────────────");
+        assert_eq!(line_text(&rows[2].line), "");
+        assert_eq!(line_text(&rows[3].line), "First item");
+        assert_eq!(line_text(&rows[4].line), "");
+    }
+
+    #[test]
+    fn compact_content_frame_does_not_add_nav_separator_or_padding() {
+        let palette = Palette::default_dark();
+        let rows = apply_content_frame_spacing(
+            vec![ContentRow::plain("First item")],
+            12,
+            SpacingMode::Compact,
+            &palette,
+        );
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(line_text(&rows[0].line), "First item");
     }
 
     #[test]
