@@ -67,8 +67,6 @@ def git_revision_exists(revision: str) -> bool:
 def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -> str | None:
     if not captured_commit or captured_commit == "unknown":
         return "manifest is missing a usable git_commit"
-    if captured_commit == current_commit:
-        return None
     if current_commit == "unknown":
         return "current git revision could not be resolved"
     if not git_revision_exists(captured_commit):
@@ -79,6 +77,23 @@ def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -
     paths = app_freshness_paths()
     if not paths:
         return "no app/rendering freshness paths are available"
+
+    worktree_status = subprocess.run(
+        ["git", "status", "--porcelain", "--", *paths],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if worktree_status.returncode != 0:
+        detail = worktree_status.stderr.strip() or worktree_status.stdout.strip()
+        return f"could not inspect app/rendering worktree status: {detail}"
+    if worktree_status.stdout.strip():
+        changed = ", ".join(line.strip() for line in worktree_status.stdout.splitlines()[:3])
+        return f"app/rendering paths have uncommitted changes: {changed}"
+
+    if captured_commit == current_commit:
+        return None
 
     committed_diff = subprocess.run(
         ["git", "diff", "--quiet", f"{captured_commit}..{current_commit}", "--", *paths],
@@ -95,20 +110,6 @@ def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -
     if committed_diff.returncode != 0:
         detail = committed_diff.stderr.strip() or committed_diff.stdout.strip()
         return f"could not compare app/rendering paths: {detail}"
-
-    worktree_status = subprocess.run(
-        ["git", "status", "--porcelain", "--", *paths],
-        cwd=REPO,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if worktree_status.returncode != 0:
-        detail = worktree_status.stderr.strip() or worktree_status.stdout.strip()
-        return f"could not inspect app/rendering worktree status: {detail}"
-    if worktree_status.stdout.strip():
-        changed = ", ".join(line.strip() for line in worktree_status.stdout.splitlines()[:3])
-        return f"app/rendering paths have uncommitted changes: {changed}"
 
     return None
 
@@ -289,7 +290,7 @@ def capture_size(label: str, cols: int, rows: int):
             ("01_overview_expanded", None, ["e"]),
             ("02_overview_pagedown", None, ["e", "PageDown"]),
             ("10_activity_top", "activity", []),
-            ("11_activity_pagedown", "activity", ["PageDown"]),
+            ("11_activity_pagedown", "activity", ["PageDown", "PageDown"]),
             ("20_commits_top", "commits", []),
             ("30_checks_top", "checks", []),
             ("31_checks_pagedown", "checks", ["PageDown"]),
