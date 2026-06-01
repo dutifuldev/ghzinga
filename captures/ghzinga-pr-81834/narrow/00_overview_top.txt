@@ -20,5 +20,5 @@
                                                                                 
   [+ more]                                                                      
   ────────────────────────────────────────────────────────────────────────────  
-  [refresh] [open] [settings] [help] [quit] scroll 0/155 0%                     
+  [refresh] [open] [settings] [help] [quit] scroll 0/156 0%                     
   r refresh | o open | s settings | q quit | ? help | tab/shift-tab switch | v  

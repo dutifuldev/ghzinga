@@ -1,9 +1,12 @@
 {
   "target": "openclaw/openclaw#81834",
   "fixture": "captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json",
+  "extra_fixtures": [
+    "fixtures/issue-66943.json"
+  ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "9010bd540a814981430a2673cf29e0dd0912a387",
-  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --refresh-seconds 0",
+  "git_commit": "4ce40710c977c1be64a81f1d6f40bb03873bec98",
+  "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "mouse_coordinates": {
     "files_tab": [
@@ -63,6 +66,12 @@
       "txt": "50_mouse_navigation_row.txt",
       "ansi": "50_mouse_navigation_row.ansi",
       "png": "50_mouse_navigation_row.png"
+    },
+    {
+      "name": "60_keyboard_back_after_navigation",
+      "txt": "60_keyboard_back_after_navigation.txt",
+      "ansi": "60_keyboard_back_after_navigation.ansi",
+      "png": "60_keyboard_back_after_navigation.png"
     }
   ]
 }
