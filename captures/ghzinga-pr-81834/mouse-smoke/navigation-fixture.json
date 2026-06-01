@@ -69,7 +69,25 @@
       "id": "review-1",
       "kind": "review",
       "author": "osolmaz",
-      "body": "Codex review: needs changes before merge. Please keep the SenseAudio provider surface narrow, verify the voice listing error path, and make sure the new speech provider file is covered by targeted extension tests.",
+      "body": "Codex review: needs changes before merge. Please keep the SenseAudio provider surface narrow, verify the voice listing error path, and make sure the new speech provider file is covered by targeted extension tests. After the follow-up, all bot checks have enough detail for maintainers to inspect status without opening the browser.",
+      "updated_at": "2w ago",
+      "path": null,
+      "line": null
+    },
+    {
+      "id": "comment-4",
+      "kind": "comment",
+      "author": "KLilyZ",
+      "body": "Follow-up note: voice list failures now surface the provider error, synthesis failures include the SenseAudio status code, and opus conversion is covered with a fixture-backed test.",
+      "updated_at": "2w ago",
+      "path": null,
+      "line": null
+    },
+    {
+      "id": "timeline-2",
+      "kind": "timeline",
+      "author": "github-actions",
+      "body": "marked all required checks as passing",
       "updated_at": "2w ago",
       "path": null,
       "line": null
@@ -104,6 +122,21 @@
         "name": "suite/CI",
         "status": "success",
         "summary": "38 skipped, 2 neutral, 86 successful"
+      },
+      {
+        "name": "suite/CodeQL Critical Quality",
+        "status": "success",
+        "summary": "static analysis passed"
+      },
+      {
+        "name": "suite/Dependency Guard",
+        "status": "success",
+        "summary": "dependency review passed"
+      },
+      {
+        "name": "suite/Workflow Sanity",
+        "status": "success",
+        "summary": "workflow sanity checks passed"
       },
       {
         "name": "All checks",

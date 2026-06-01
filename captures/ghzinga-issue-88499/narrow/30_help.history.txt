@@ -1,4 +1,5 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                            
+                                                                                
+  openclaw/openclaw#88499 [Issue CLOSED] updated 1d                             
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                         
@@ -19,6 +20,5 @@
   - Use the mouse wheel to scroll the current view.                             
                                                                                 
   Keyboard                                                                      
-  - q: quit                                                                     
-  scroll 0/19 0% | tab Links | order oldest | r refresh | y copy | o open | s   
+  scroll 0/20 0% | tab Links | order oldest | r refresh | y copy | o open | s   
   [refresh] [copy] [open] [settings] [help] [quit]                              

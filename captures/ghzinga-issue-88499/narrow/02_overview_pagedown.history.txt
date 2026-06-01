@@ -1,4 +1,5 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                            
+                                                                                
+  openclaw/openclaw#88499 [Issue CLOSED] updated 1d                             
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                         
@@ -7,18 +8,17 @@
   [Overview] Activity  Links                                                    
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
-                                                                                
-  * @xneone opened 1d ago                                                       
-  Bug Description                                                               
-                                                                                
-  When using a provider configured with api: openai-responses (e.g. a GPT-5.5   
-  proxy), the gateway sends store=false (or omits store, which defaults to      
-  false) in responses API requests. However, on subsequent turns within the     
-  same session, the gateway includes previous_response_id referencing the       
-  previous response. Since that response was never persisted server-side, the   
-  API returns a 404:                                                            
-                                                                                
-                                                                                
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when     
-  scroll 0/165 0% | tab Overview | order oldest | r refresh | y copy | o open   
+  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when    │  
+  store is set to false. Try again with store set to true, or remove this ite│  
+  from your input.                                                           █  
+                                                                             █  
+  Expected Behavior                                                          │  
+                                                                             │  
+  The provider should either avoid previous_response_id when store=false or  │  
+  persist the response when continuing a conversation.                       │  
+                                                                             │  
+  Related regressions were discussed in #84904 and #87310.                   │  
+  [- less]                                                                   │  
+                                                                             │  
+  scroll 10/53 18% | tab Overview | order oldest | r refresh | y copy | o open  
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

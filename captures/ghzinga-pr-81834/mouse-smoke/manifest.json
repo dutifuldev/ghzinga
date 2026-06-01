@@ -5,14 +5,14 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "45f1a21283fe92c1f2752ce258a1879e06e7baaa",
+  "git_commit": "70ec68f9f7d16b78dcdf41435c064b6cc7a81976",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
     "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
-    "open_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
-    "copy_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
+    "open_url": "https://github.com/openclaw/openclaw/pull/81834",
+    "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
   },
   "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"ascii\"\nspacing = \"compact\"\n",
   "quit_exited": true,
@@ -23,83 +23,83 @@
     ],
     "overview_less": [
       47,
-      27
+      28
     ],
     "files_tab": [
       42,
-      7
+      8
     ],
     "file_row_more": [
       51,
-      13
+      14
     ],
     "file_row_less": [
       51,
-      13
+      14
     ],
     "expand_all": [
       53,
-      36
+      35
     ],
     "collapse_all": [
       53,
-      36
+      35
     ],
     "checks_tab": [
       34,
-      7
+      8
     ],
     "check_row_more": [
       23,
-      15
+      16
     ],
     "check_row_less": [
       23,
-      15
+      16
     ],
     "links_tab": [
       49,
-      7
+      8
     ],
     "linked_issue": [
       4,
-      11
+      12
     ],
     "activity_tab_for_detail": [
       15,
-      7
+      8
     ],
     "activity_details": [
       4,
-      12
+      13
     ],
     "overview_tab_after_detail": [
       5,
-      7
+      8
     ],
     "refresh": [
       4,
-      36
+      35
     ],
     "copy": [
       14,
-      36
+      35
     ],
     "open": [
       21,
-      36
+      35
     ],
     "help": [
       39,
-      36
+      35
     ],
     "settings": [
       28,
-      36
+      35
     ],
     "settings_compact": [
       4,
-      26
+      28
     ],
     "quit": [
       44,

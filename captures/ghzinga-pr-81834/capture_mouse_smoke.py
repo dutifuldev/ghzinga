@@ -386,15 +386,15 @@ def capture_mouse_smoke():
         copy_button = find_marker_position(SESSION, "[copy]")
         mouse_coordinates["copy"] = list(copy_button)
         send_mouse_click(SESSION, *copy_button)
-        wait_for_text(SESSION, f"copied {DETAIL_URL}")
-        require_file_contains(copy_log_path(), DETAIL_URL)
+        wait_for_text(SESSION, f"copied {CURRENT_RESOURCE_URL}")
+        require_file_contains(copy_log_path(), CURRENT_RESOURCE_URL)
         write_frame(ROOT, "66_mouse_footer_copy", frames)
 
         open_button = find_marker_position(SESSION, "[open]")
         mouse_coordinates["open"] = list(open_button)
         send_mouse_click(SESSION, *open_button)
-        wait_for_text(SESSION, f"opened {DETAIL_URL}")
-        require_file_contains(open_log_path(), DETAIL_URL)
+        wait_for_text(SESSION, f"opened {CURRENT_RESOURCE_URL}")
+        require_file_contains(open_log_path(), CURRENT_RESOURCE_URL)
         write_frame(ROOT, "67_mouse_footer_open", frames)
 
         help_button = find_marker_position(SESSION, "[help]")
@@ -438,8 +438,8 @@ def capture_mouse_smoke():
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
                 "detail_url": DETAIL_URL,
-                "open_url": DETAIL_URL,
-                "copy_url": DETAIL_URL,
+                "open_url": CURRENT_RESOURCE_URL,
+                "copy_url": CURRENT_RESOURCE_URL,
             },
             "saved_config": saved_config,
             "quit_exited": True,
@@ -571,8 +571,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
     expected_adapter_outputs = {
         "detail_url": DETAIL_URL,
-        "open_url": DETAIL_URL,
-        "copy_url": DETAIL_URL,
+        "open_url": CURRENT_RESOURCE_URL,
+        "copy_url": CURRENT_RESOURCE_URL,
     }
     if manifest.get("adapter_outputs") != expected_adapter_outputs:
         errors.append(
@@ -686,8 +686,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             "offline fixture mode: refresh skipped",
         ],
-        "66_mouse_footer_copy": ["[Overview]", f"copied {DETAIL_URL}", "[copy]"],
-        "67_mouse_footer_open": ["[Overview]", f"opened {DETAIL_URL}", "[open]"],
+        "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
+        "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
