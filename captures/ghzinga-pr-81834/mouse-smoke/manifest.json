@@ -34,44 +34,37 @@
     {
       "name": "00_initial_overview",
       "txt": "00_initial_overview.txt",
-      "ansi": "00_initial_overview.ansi",
-      "png": "00_initial_overview.png"
+      "ansi": "00_initial_overview.ansi"
     },
     {
       "name": "10_mouse_files_tab",
       "txt": "10_mouse_files_tab.txt",
-      "ansi": "10_mouse_files_tab.ansi",
-      "png": "10_mouse_files_tab.png"
+      "ansi": "10_mouse_files_tab.ansi"
     },
     {
       "name": "20_mouse_expand_all",
       "txt": "20_mouse_expand_all.txt",
-      "ansi": "20_mouse_expand_all.ansi",
-      "png": "20_mouse_expand_all.png"
+      "ansi": "20_mouse_expand_all.ansi"
     },
     {
       "name": "30_mouse_collapse_all",
       "txt": "30_mouse_collapse_all.txt",
-      "ansi": "30_mouse_collapse_all.ansi",
-      "png": "30_mouse_collapse_all.png"
+      "ansi": "30_mouse_collapse_all.ansi"
     },
     {
       "name": "40_mouse_links_tab",
       "txt": "40_mouse_links_tab.txt",
-      "ansi": "40_mouse_links_tab.ansi",
-      "png": "40_mouse_links_tab.png"
+      "ansi": "40_mouse_links_tab.ansi"
     },
     {
       "name": "50_mouse_navigation_row",
       "txt": "50_mouse_navigation_row.txt",
-      "ansi": "50_mouse_navigation_row.ansi",
-      "png": "50_mouse_navigation_row.png"
+      "ansi": "50_mouse_navigation_row.ansi"
     },
     {
       "name": "60_keyboard_back_after_navigation",
       "txt": "60_keyboard_back_after_navigation.txt",
-      "ansi": "60_keyboard_back_after_navigation.ansi",
-      "png": "60_keyboard_back_after_navigation.png"
+      "ansi": "60_keyboard_back_after_navigation.ansi"
     }
   ]
 }

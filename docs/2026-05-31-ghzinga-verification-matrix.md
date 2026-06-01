@@ -68,7 +68,7 @@ Issue captures:
 captures/ghzinga-issue-88499/
 ```
 
-Each size directory contains `.txt`, `.ansi`, and `.png` frames. Manifests record
+Each size directory contains `.txt` and `.ansi` frames. Manifests record
 the source revision, target, command, tab, keys, and actual tmux dimensions for
 each frame. The current marker and content check verifies:
 

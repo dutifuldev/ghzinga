@@ -59,7 +59,7 @@ show previous footer/status wrapping behavior.
 ## Expected Result
 
 The capture directories should become reproducible evidence for the current UI:
-an auditor can inspect frame text/PNG output, see exactly how each frame was
+an auditor can inspect frame text/ANSI output, see exactly how each frame was
 created, and rerun the marker/content validation without manually reading every
 file.
 By default, validation should fail when app/rendering code changed after the

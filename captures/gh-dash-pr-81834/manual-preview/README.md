@@ -12,7 +12,6 @@ Captured with the installed `gh dash` extension in tmux, using the local capture
 
 Each directory contains:
 
-- `*.png`: image render of the terminal frame
 - `*.ansi`: ANSI tmux capture for the same frame
 - `*.txt`: plain-text tmux capture for the same frame
 - `size.txt`: actual tmux window size
@@ -33,7 +32,7 @@ The session was driven through tmux with the installed `gh dash` binary:
 
 ## Key frames
 
-- Body: `*/01_overview_down.png` onward
-- Comments/activity: `*/30_activity_top.png` onward for narrow, `*/20_activity_top.png` onward for medium/large
-- CI status/checks: `narrow/70_checks_top.png`, `medium/50_checks_top.png`, `large/50_checks_top.png`
-- Changed files: `narrow/90_files_top.png`, `medium/60_files_top.png`, `large/60_files_top.png`
+- Body: `*/01_overview_down.txt` onward
+- Comments/activity: `*/30_activity_top.txt` onward for narrow, `*/20_activity_top.txt` onward for medium/large
+- CI status/checks: `narrow/70_checks_top.txt`, `medium/50_checks_top.txt`, `large/50_checks_top.txt`
+- Changed files: `narrow/90_files_top.txt`, `medium/60_files_top.txt`, `large/60_files_top.txt`

@@ -292,7 +292,9 @@ validator verifies that real terminal mouse clicks can switch to Files, expand
 all rows, collapse them again, switch to Links, activate a linked issue row,
 replace the current TUI view with that issue, and navigate back.
 
-The repository includes tmux capture artifacts for PR and issue views:
+The repository includes tmux capture artifacts for PR and issue views. Captures
+are stored as terminal text and ANSI transcripts; PNG screenshots are not
+tracked.
 
 - `captures/ghzinga-pr-81834/`
 - `captures/ghzinga-issue-88499/`

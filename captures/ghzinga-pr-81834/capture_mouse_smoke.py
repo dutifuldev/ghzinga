@@ -10,7 +10,6 @@ from capture_ghzinga import (
     capture_ansi,
     capture_plain,
     git_commit,
-    render_ansi_png,
     tmux,
     tmux_size,
 )
@@ -64,16 +63,13 @@ def write_frame(out_dir: Path, name: str, frames: list[dict]):
     ansi = capture_ansi(SESSION)
     txt = out_dir / f"{name}.txt"
     ansi_path = out_dir / f"{name}.ansi"
-    png = out_dir / f"{name}.png"
     txt.write_text(plain + "\n")
     ansi_path.write_text(ansi + "\n")
-    render_ansi_png(ansi, png)
     frames.append(
         {
             "name": name,
             "txt": txt.name,
             "ansi": ansi_path.name,
-            "png": png.name,
         }
     )
 
@@ -239,7 +235,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         if not frame:
             errors.append(f"manifest missing frame {name}")
             continue
-        for key in ("txt", "ansi", "png"):
+        for key in ("txt", "ansi"):
             path = ROOT / frame.get(key, "")
             if not path.exists():
                 errors.append(f"missing {path}")
