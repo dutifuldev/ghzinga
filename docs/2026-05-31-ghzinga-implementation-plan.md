@@ -318,8 +318,9 @@ Desktop/medium-large:
 +----------------------------------------------------------------------------+
 | openclaw/openclaw #81834 [PR OPEN]  updated 1m ago  refreshed 12:40:10     |
 | feat(senseaudio): add SenseAudio TTS provider                              |
+| OK OPEN  by @author  feature/branch -> main  OK checks PASS  files 2       |
+| +86  -0                                                                   |
 | [Overview] [Activity] [Commits] [Checks] [Files] [Links]                    |
-| OK open  by author  comments 7  reactions 3  OK checks passed  threads 2 |
 +----------------------------------------------------------------------------+
 | Scrollable selected tab                                                     |
 | bold section headings, colored status words, clickable links                |
@@ -334,8 +335,9 @@ Narrow:
 ```text
 openclaw/openclaw #81834 [PR OPEN]
 feat(senseaudio): add SenseAudio TTS provider
+OK OPEN | by @author | feature/branch -> main
+OK checks PASS | files 2 | +86 | -0
 [Overview] [Activity] [Checks] [Files]
-OK open | checks passed | comments 7 | reactions 3 | files 5
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
@@ -344,7 +346,18 @@ Scrollable selected tab
 
 Visual style:
 
-- The status section is a horizontal band below the tabs, not a left sidebar.
+- The status section is a horizontal band below the title and above the tab
+  selector, not a left sidebar. The tab selector is the final chrome row before
+  scrollable content begins.
+- The fixed status band should show high-signal resource state and change
+  context only: highlighted PR/issue state, author, PR branch direction,
+  aggregate checks, changed-file count, and additions/deletions.
+- Do not spend the fixed status band on comment/review/reaction counts, review
+  thread counts, or warning counts. Those belong in the scrollable content or
+  dedicated tabs.
+- Loading, refresh, and error details render on their own status-detail line
+  below the normal status chips. That row is normally blank so loading text does
+  not push branch/check/file status sideways.
 - Buttons and expandable controls use bold styling and text labels, for example
   `[+ more]`, `[- less]`, `[refresh]`, `[open]`.
 - The footer keeps a gh-dash-style scroll position cue for the active tab,
@@ -354,8 +367,8 @@ Visual style:
 - Default symbols are plain ASCII so no special terminal font, Nerd Font, or
   emoji support is required. `--symbols emoji` may opt into richer markers, but
   every marker must retain a nearby text label.
-- Status badges use both symbols and words: `OK PASS`, `!! FAIL`, `.. PENDING`,
-  `OPEN`, `CLOSED`, `MERGED`.
+- Status badges use both symbols and words with background highlight:
+  `OK OPEN`, `XX CLOSED`, `MG MERGED`, `OK PASS`, `!! FAIL`, `.. PENDING`.
 - No Nerd Font icons.
 - Use color and bold to emphasize hierarchy:
   - accent color for active tabs, buttons, and links

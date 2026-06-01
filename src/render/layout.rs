@@ -15,7 +15,7 @@ impl ViewRects {
     pub fn compute(area: Rect) -> Self {
         let mut header_height = chrome_height(area.width, &[(56, 4), (u16::MAX, 3)]);
         let mut tabs_height = chrome_height(area.width, &[(38, 3), (78, 2), (u16::MAX, 1)]);
-        let mut status_height = chrome_height(area.width, &[(52, 4), (90, 3), (u16::MAX, 2)]);
+        let mut status_height = chrome_height(area.width, &[(52, 4), (u16::MAX, 3)]);
         let mut footer_height = chrome_height(area.width, &[(52, 3), (92, 2), (u16::MAX, 1)]);
         let minimum_content_height = u16::from(area.height >= 8);
         let max_chrome = area.height.saturating_sub(minimum_content_height);
@@ -33,28 +33,29 @@ impl ViewRects {
             }
         }
 
-        let body_y = area.y.saturating_add(header_height + tabs_height);
+        let body_y = area.y.saturating_add(header_height + status_height);
         let body_height = area
             .height
-            .saturating_sub(header_height + tabs_height + footer_height);
+            .saturating_sub(header_height + status_height + footer_height);
         let wide = area.width >= 100 && body_height >= 8;
-        let status = Rect::new(area.x, body_y, area.width, status_height);
+        let status = Rect::new(
+            area.x,
+            area.y.saturating_add(header_height),
+            area.width,
+            status_height,
+        );
+        let tabs = Rect::new(area.x, body_y, area.width, tabs_height);
         let content = Rect::new(
             area.x,
-            body_y.saturating_add(status_height),
+            body_y.saturating_add(tabs_height),
             area.width,
-            body_height.saturating_sub(status_height),
+            body_height.saturating_sub(tabs_height),
         );
 
         Self {
             area,
             header: Rect::new(area.x, area.y, area.width, header_height),
-            tabs: Rect::new(
-                area.x,
-                area.y.saturating_add(header_height),
-                area.width,
-                tabs_height,
-            ),
+            tabs,
             status,
             content,
             footer: Rect::new(
@@ -81,23 +82,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn narrow_layout_stacks_status_above_content() {
+    fn narrow_layout_places_tabs_after_status_before_content() {
         let rects = ViewRects::compute(Rect::new(0, 0, 80, 24));
 
         assert!(!rects.wide);
         assert_eq!(rects.status.width, 80);
-        assert_eq!(rects.content.y, rects.status.y + rects.status.height);
+        assert_eq!(rects.status.y, rects.header.y + rects.header.height);
+        assert_eq!(rects.tabs.y, rects.status.y + rects.status.height);
+        assert_eq!(rects.content.y, rects.tabs.y + rects.tabs.height);
     }
 
     #[test]
-    fn wide_layout_keeps_status_horizontal_above_content() {
+    fn wide_layout_keeps_tabs_as_last_top_chrome_before_content() {
         let rects = ViewRects::compute(Rect::new(0, 0, 120, 36));
 
         assert!(rects.wide);
         assert_eq!(rects.status.x, 0);
         assert_eq!(rects.status.width, 120);
+        assert_eq!(rects.tabs.y, rects.status.y + rects.status.height);
         assert_eq!(rects.content.x, 0);
-        assert_eq!(rects.content.y, rects.status.y + rects.status.height);
+        assert_eq!(rects.content.y, rects.tabs.y + rects.tabs.height);
     }
 
     #[test]
