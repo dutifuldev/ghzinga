@@ -123,7 +123,8 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
     render_header(
         frame,
         chrome_area_for_spacing(rects.header, state.spacing),
-        &state.resource,
+        state,
+        state.spacing,
         &palette,
     );
     render_status(
@@ -151,6 +152,18 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
 fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
     let mut rects = ViewRects::compute(area);
     if spacing == SpacingMode::Comfortable && area.width >= 48 && rects.content.height > 2 {
+        if rects.content.height > 3 {
+            rects.header.height = rects.header.height.saturating_add(1);
+            rects.status.y = rects.status.y.saturating_add(1);
+            rects.tabs.y = rects.tabs.y.saturating_add(1);
+            rects.content.y = rects.content.y.saturating_add(1);
+            rects.content.height = rects.content.height.saturating_sub(1);
+        }
+        if rects.content.height > 3 {
+            rects.footer.height = rects.footer.height.saturating_add(1);
+            rects.footer.y = rects.footer.y.saturating_sub(1);
+            rects.content.height = rects.content.height.saturating_sub(1);
+        }
         rects.tabs.height = rects.tabs.height.saturating_add(2);
         rects.content.y = rects.content.y.saturating_add(2);
         rects.content.height = rects.content.height.saturating_sub(2);
@@ -158,27 +171,40 @@ fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
     rects
 }
 
-fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette: &Palette) {
+fn render_header(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    spacing: SpacingMode,
+    palette: &Palette,
+) {
     if area.width == 0 || area.height == 0 {
         return;
     }
+    let resource = &state.resource;
     let kind = resource.kind();
     let mut header = Vec::new();
     let width = area.width as usize;
     let content_rows = area.height.saturating_sub(1) as usize;
     let updated = format!("updated {}", compact_relative_time(&resource.updated_at));
-    let state = format!("[{} {}]", kind, resource.state);
-    if content_rows > 0 {
-        let include_updated_in_meta = content_rows < 3 && width >= 56;
+    let state_label = format!("[{} {}]", kind, resource.state);
+    let top_padding = header_top_padding_rows(area, spacing);
+    let usable_rows = content_rows.saturating_sub(top_padding);
+    let updated_in_meta =
+        (usable_rows > 0 && usable_rows < 3 && width >= 56).then_some(updated.as_str());
+    for _ in 0..top_padding {
+        header.push(Line::from(""));
+    }
+    if usable_rows > 0 {
         header.push(header_meta_line(
             resource,
-            &state,
-            include_updated_in_meta.then_some(updated.as_str()),
+            &state_label,
+            updated_in_meta,
             width,
             palette,
         ));
     }
-    if content_rows >= 3 {
+    if usable_rows >= 3 {
         header.push(Line::from(Span::styled(
             truncate_display(&updated, width),
             dim_style(palette),
@@ -199,9 +225,64 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, resource: &Resource, palette
         header.push(Line::from(""));
     }
     header.push(separator_line(area.width, palette));
+    register_header_identity_hit_area(
+        state,
+        area,
+        width,
+        &state_label,
+        updated_in_meta,
+        top_padding,
+    );
     Paragraph::new(header)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn header_top_padding_rows(area: Rect, spacing: SpacingMode) -> usize {
+    usize::from(spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 4)
+}
+
+fn register_header_identity_hit_area(
+    state: &mut AppState,
+    area: Rect,
+    width: usize,
+    state_label: &str,
+    updated: Option<&str>,
+    top_padding: usize,
+) {
+    if area.width == 0 || area.height <= 1 {
+        return;
+    }
+    let label = state.resource.id.canonical_name();
+    let label_width = header_identity_width(&label, state_label, updated, width);
+    if label_width == 0 {
+        return;
+    }
+    state.hit_areas.push(HitArea::new(
+        Rect::new(
+            area.x,
+            area.y.saturating_add(top_padding as u16),
+            label_width.min(area.width),
+            1,
+        ),
+        HitTarget::OpenUrl(state.resource.id.web_url()),
+    ));
+}
+
+fn header_identity_width(
+    label: &str,
+    state_label: &str,
+    updated: Option<&str>,
+    width: usize,
+) -> u16 {
+    let state_width = UnicodeWidthStr::width(state_label);
+    let updated_width = updated.map(UnicodeWidthStr::width).unwrap_or_default();
+    let separators = 1 + usize::from(updated.is_some());
+    let reserved = state_width
+        .saturating_add(updated_width)
+        .saturating_add(separators);
+    let id_width = width.saturating_sub(reserved).max(1);
+    UnicodeWidthStr::width(truncate_display(label, id_width).as_str()) as u16
 }
 
 fn header_meta_line(
@@ -211,19 +292,19 @@ fn header_meta_line(
     width: usize,
     palette: &Palette,
 ) -> Line<'static> {
-    let state_width = UnicodeWidthStr::width(state_label);
-    let updated_width = updated.map(UnicodeWidthStr::width).unwrap_or_default();
-    let separators = 1 + usize::from(updated.is_some());
-    let reserved = state_width
-        .saturating_add(updated_width)
-        .saturating_add(separators);
-    let id_width = width.saturating_sub(reserved).max(1);
+    let id_width = usize::from(header_identity_width(
+        &resource.id.canonical_name(),
+        state_label,
+        updated,
+        width,
+    ))
+    .max(1);
     let mut spans = vec![
         Span::styled(
             truncate_display(&resource.id.canonical_name(), id_width),
             Style::default()
                 .fg(palette.accent)
-                .add_modifier(Modifier::BOLD),
+                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
         ),
         Span::raw(" "),
         Span::styled(
@@ -2240,7 +2321,9 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     }
     let scroll = scroll_summary(state);
     let control_lines = footer_control_lines(controls, area.width);
-    let control_lines = footer_visible_control_lines(control_lines, area.height as usize);
+    let bottom_padding = footer_bottom_padding_rows(area, state.spacing);
+    let control_capacity = (area.height as usize).saturating_sub(bottom_padding);
+    let control_lines = footer_visible_control_lines(control_lines, control_capacity);
 
     let full_hint = if state.resource.has_partial_depth_warning() {
         " | f full"
@@ -2270,7 +2353,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     } else {
         Style::default().fg(palette.subtext0)
     };
-    let control_height = control_lines.len().min(area.height as usize);
+    let control_height = control_lines.len().min(control_capacity);
     let remaining = area.height.saturating_sub(control_height as u16) as usize;
     let mut message_lines = Vec::<Line<'static>>::new();
     if remaining > 0 {
@@ -2285,6 +2368,10 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
     render_footer_controls(frame, area, state, control_lines);
+}
+
+fn footer_bottom_padding_rows(area: Rect, spacing: SpacingMode) -> usize {
+    usize::from(spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 3)
 }
 
 fn footer_control(label: &str, target: HitTarget, palette: &Palette) -> FooterItem {
@@ -2376,10 +2463,14 @@ fn render_footer_controls(
     state: &mut AppState,
     control_lines: Vec<FooterLine>,
 ) {
-    let line_count = control_lines.len().min(area.height as usize);
+    let bottom_padding = footer_bottom_padding_rows(area, state.spacing);
+    let line_count = control_lines
+        .len()
+        .min((area.height as usize).saturating_sub(bottom_padding));
     let start_y = area
         .y
-        .saturating_add(area.height.saturating_sub(line_count as u16));
+        .saturating_add(area.height.saturating_sub(bottom_padding as u16))
+        .saturating_sub(line_count as u16);
     for (line_index, line) in control_lines.into_iter().take(line_count).enumerate() {
         let y = start_y.saturating_add(line_index as u16);
         let mut x = area.x;
@@ -3485,7 +3576,7 @@ mod tests {
         );
 
         assert_eq!(expand_rect.y, quit_rect.y);
-        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
+        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(2));
         assert!(expand_rect.x > quit_rect.x);
     }
 
@@ -3971,7 +4062,7 @@ mod tests {
         let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
 
         assert_eq!(rects.tabs.height, base.tabs.height + 2);
-        assert_eq!(rects.content.y, base.content.y + 2);
+        assert_eq!(rects.content.y, base.content.y + 3);
 
         let separator = draw_cell_symbol(
             &mut state,
@@ -3981,6 +4072,20 @@ mod tests {
             tabs.y + tabs.height.saturating_sub(1),
         );
         assert_eq!(separator, "─");
+    }
+
+    #[test]
+    fn comfortable_footer_keeps_padding_below_buttons() {
+        let mut state = AppState::new(pr_resource());
+        let rects = rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing);
+        let footer = chrome_area_for_spacing(rects.footer, state.spacing);
+
+        let bottom_row = draw_row_text(&mut state, 120, 36, 35);
+        let refresh_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::Refresh).unwrap();
+
+        assert_eq!(bottom_row.trim(), "");
+        assert_eq!(refresh_rect.y, footer.y + footer.height.saturating_sub(2));
     }
 
     #[test]
@@ -4202,6 +4307,74 @@ mod tests {
         assert!(content.contains("[PR OPEN]"));
         assert!(content.contains("updated"));
         assert!(content.contains("Very long pull request"));
+    }
+
+    #[test]
+    fn comfortable_header_adds_top_padding_without_losing_title() {
+        let mut resource = pr_resource();
+        resource.title = "Readable title after padded identity".into();
+        let mut state = AppState::new(resource);
+        state.spacing = SpacingMode::Comfortable;
+
+        let top_row = draw_row_text(&mut state, 120, 36, 0);
+        let identity_row = draw_row_text(&mut state, 120, 36, 1);
+        let content = draw(&mut state, 120, 36);
+
+        assert_eq!(top_row.trim(), "");
+        assert!(identity_row.contains("openclaw/openclaw#81834"));
+        assert!(content.contains("Readable title after padded identity"));
+    }
+
+    #[test]
+    fn header_identity_is_clickable_github_link() {
+        let mut state = AppState::new(pr_resource());
+        draw(&mut state, 120, 36);
+
+        let rect = rendered_target_rect(&state, |target| {
+            matches!(
+                target,
+                HitTarget::OpenUrl(url)
+                    if url == "https://github.com/openclaw/openclaw/pull/81834"
+            )
+        })
+        .expect("header identity link");
+
+        assert_eq!(rect.y, 1);
+        assert_eq!(rect.x, COMFORTABLE_GUTTER);
+
+        let intent = click_rendered_target(&mut state, |target| {
+            matches!(
+                target,
+                HitTarget::OpenUrl(url)
+                    if url == "https://github.com/openclaw/openclaw/pull/81834"
+            )
+        });
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenUrl("https://github.com/openclaw/openclaw/pull/81834".into())
+        );
+    }
+
+    #[test]
+    fn compact_header_identity_stays_on_first_row() {
+        let mut state = AppState::new(pr_resource());
+        state.spacing = SpacingMode::Compact;
+
+        let identity_row = draw_row_text(&mut state, 120, 36, 0);
+        draw(&mut state, 120, 36);
+        let rect = rendered_target_rect(&state, |target| {
+            matches!(
+                target,
+                HitTarget::OpenUrl(url)
+                    if url == "https://github.com/openclaw/openclaw/pull/81834"
+            )
+        })
+        .expect("compact header identity link");
+
+        assert!(identity_row.contains("openclaw/openclaw#81834"));
+        assert_eq!(rect.y, 0);
+        assert_eq!(rect.x, 0);
     }
 
     #[test]

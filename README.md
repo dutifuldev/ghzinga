@@ -96,8 +96,9 @@ gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-r
 accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
 `emoji`. `--spacing` accepts `comfortable` and `compact`, similar to Gmail's
 density setting. Comfortable is the default and adds gh-dash-like breathing room
-between repeated rows, a small content gutter, and hanging indents for wrapped
-long lines; compact keeps more rows visible in small terminals. `--api-depth`
+between repeated rows, a small content gutter, top/bottom chrome padding, and
+hanging indents for wrapped long lines; compact keeps more rows visible in small
+terminals. `--api-depth`
 accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
 conservative; full follows all supported paginated GraphQL enrichment paths.
 CLI theme, symbol, and spacing flags override saved config for that run only.
@@ -239,6 +240,8 @@ richer emoji labels.
 Mouse:
 
 - click tabs to switch views
+- click the underlined `owner/repo#123` identity in the header to open the
+  current PR or issue on GitHub
 - click bold `[+ more]` and `[- less]` controls to expand or collapse content
 - click footer `[expand all]` and `[collapse all]` controls at the end of the
   bottom command bar to expand or collapse the current tab
