@@ -1,9 +1,10 @@
   openclaw/openclaw#88499 [Issue OPEN] updated 2026-05-31T04:56:57Z                                                     
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  [Overview] Activity  Links                                                                                            
-  OK OPEN  by @xneone  comments 4  reactions 1  warn Warnings: 1                                                        
+  OK OPEN  by @xneone                                                                                                   
                                                                                                                         
+                                                                                                                        
+  [Overview] Activity  Links                                                                                            
   * @xneone opened 2026-05-31T02:21:19Z                                                                                 
   Bug Description                                                                                                       
                                                                                                                         
@@ -32,5 +33,4 @@
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that                   
   direct-OpenAI-only path.                                                                                              
   [+ more]                                                                                                              
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  [refresh] [open] [settings] [help] [quit] scroll 0/65 0% ...                                                          
+  [refresh] [open] [settings] [help] [quit] scroll 0/66 0% ...                                                          
