@@ -60,23 +60,20 @@ struct FetchOutcome {
 
 #[derive(Clone)]
 enum FetchSource {
-    Github,
+    Github(GithubApiGateway),
     OfflineFixtures(OfflineFixtureSource),
 }
 
 impl FetchSource {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<crate::domain::Resource> {
         match self {
-            Self::Github => {
-                let gateway = GithubApiGateway;
-                gateway.fetch_resource(id).await
-            }
+            Self::Github(gateway) => gateway.fetch_resource(id).await,
             Self::OfflineFixtures(fixtures) => fixtures.fetch_resource(id),
         }
     }
 
     fn is_live_github(&self) -> bool {
-        matches!(self, Self::Github)
+        matches!(self, Self::Github(_))
     }
 
     fn is_offline_fixture(&self) -> bool {
@@ -125,6 +122,9 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let loaded_config = config::load();
     let resource_id = cli.parse_resource_id()?;
+    let api_depth = cli
+        .api_depth
+        .unwrap_or_else(crate::github::api::ApiDepth::from_env);
     let (resource, fetch_source) = if let Some(path) = &cli.offline_fixture {
         let resource = load_fixture(path)?;
         let fixture_source = OfflineFixtureSource::from_primary_and_paths(
@@ -133,10 +133,10 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
         )?;
         (resource, FetchSource::OfflineFixtures(fixture_source))
     } else {
-        let gateway = GithubApiGateway;
+        let gateway = GithubApiGateway::new(api_depth);
         (
             gateway.fetch_resource(&resource_id).await?,
-            FetchSource::Github,
+            FetchSource::Github(gateway),
         )
     };
 
@@ -700,7 +700,7 @@ mod tests {
     use crate::{
         app::AppState,
         domain::{ReactionCounts, Resource, ResourceId, ResourceKind},
-        github::api::GithubGateway,
+        github::api::{GithubApiGateway, GithubGateway},
     };
 
     use super::{
@@ -1010,7 +1010,7 @@ mod tests {
         let started = start_background_fetch(
             &mut state,
             FetchAction::Refresh { id },
-            FetchSource::Github,
+            FetchSource::Github(GithubApiGateway::new(crate::github::api::ApiDepth::Partial)),
             &fetch_tx,
         );
 

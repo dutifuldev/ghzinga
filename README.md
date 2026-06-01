@@ -81,6 +81,7 @@ Useful options:
 ```sh
 gzg openclaw/openclaw#81834 --tab checks
 gzg openclaw/openclaw#81834 --refresh-seconds 30
+gzg openclaw/openclaw#81834 --api-depth full
 gzg openclaw/openclaw#81834 --no-mouse
 gzg openclaw/openclaw#81834 --theme solarized-dark
 gzg openclaw/openclaw#81834 --symbols emoji
@@ -96,8 +97,10 @@ accepts `default` and `solarized-dark`. `--symbols` accepts `ascii` and
 `emoji`. `--spacing` accepts `comfortable` and `compact`, similar to Gmail's
 density setting. Comfortable is the default and adds gh-dash-like breathing room
 between repeated rows, a small content gutter, and hanging indents for wrapped
-long lines; compact keeps more rows visible in small terminals. CLI theme,
-symbol, and spacing flags override saved config for that run only.
+long lines; compact keeps more rows visible in small terminals. `--api-depth`
+accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
+conservative; full follows all supported paginated GraphQL enrichment paths.
+CLI theme, symbol, and spacing flags override saved config for that run only.
 `--offline-resource-fixture` can be repeated when an offline fixture run needs
 click-through navigation to linked issues or PRs without calling GitHub.
 
@@ -140,7 +143,8 @@ For pull requests:
   comments, and timeline events are interleaved by timestamp instead of split
   into separate summary blocks first
 - labels, assignees, and requested reviewers from the base GitHub response;
-  set `GZG_API_DEPTH=full` to spend extra GraphQL calls on exhaustive pagination
+  use `--api-depth full` or `GZG_API_DEPTH=full` to spend extra GraphQL calls on
+  exhaustive pagination
 - GitHub metadata such as draft/cross-repository state, mergeability,
   changed-file count, milestones, projects, ref OIDs, and merge commits where
   available
@@ -154,14 +158,15 @@ For pull requests:
   discussions, revision markers, and deployment events; timeline events, review
   threads, review-thread comments, commit comment threads, and nested commit
   comments are paginated, while base comments and reviews use the first page by
-  default unless `GZG_API_DEPTH=full` is set
+  default unless `--api-depth full` or `GZG_API_DEPTH=full` is set
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, commit-comment path/position, and review-thread resolved/outdated
   state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
 - commits from the base GitHub response, with expandable commit bodies and
-  authored/committed dates; `GZG_API_DEPTH=full` enables extra GraphQL calls for
-  exhaustive commit pagination, coauthor pagination, and deployment metadata
+  authored/committed dates; `--api-depth full` or `GZG_API_DEPTH=full` enables
+  extra GraphQL calls for exhaustive commit pagination, coauthor pagination, and
+  deployment metadata
 - paginated CI/check status grouped by state, including suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
   status/conclusion, timestamps, and details URLs on expanded check rows; public
@@ -176,8 +181,8 @@ For pull requests:
 For issues:
 
 - body, labels, reactions, assignees, author, and state from the base GitHub
-  response; `GZG_API_DEPTH=full` enables extra GraphQL calls for exhaustive
-  label, assignee, and comment pagination
+  response; `--api-depth full` or `GZG_API_DEPTH=full` enables extra GraphQL
+  calls for exhaustive label, assignee, and comment pagination
 - GitHub metadata such as pinned state, state reason, closed time, milestones,
   and projects where available
 - comments and timeline events such as labels, references, assignments, title
@@ -280,7 +285,8 @@ requests when its local decision cache is stale. If GraphQL is exhausted, it
 skips GraphQL until GitHub's reset time and uses the public REST fallback for
 public repositories instead of repeatedly spending failed GraphQL attempts.
 Normal mode avoids duplicate first-page GraphQL enrichment; set
-`GZG_API_DEPTH=full` only when exhaustive pagination matters more than quota.
+`--api-depth full` or `GZG_API_DEPTH=full` only when exhaustive pagination
+matters more than quota.
 When normal mode sees that a first-page collection has more than 100 items
 behind it, the TUI shows a warning naming the partial sections and the full-depth
 escape hatch.

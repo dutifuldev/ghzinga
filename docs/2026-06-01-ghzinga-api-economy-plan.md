@@ -32,8 +32,9 @@ points without changing the visible result for normal PRs.
 3. Treat the base GraphQL response as authoritative for first-page data.
 4. Do not refetch first-page GraphQL surfaces that are already present in the
    base response.
-5. Keep `GZG_API_DEPTH=full` as an explicit escape hatch for exhaustive
-   pagination when the user is willing to spend more GraphQL quota.
+5. Keep `--api-depth full` and `GZG_API_DEPTH=full` as explicit escape hatches
+   for exhaustive pagination when the user is willing to spend more GraphQL
+   quota.
 6. Keep targeted default enrichments only where they add data the base query does not
    have:
    - PR review threads
