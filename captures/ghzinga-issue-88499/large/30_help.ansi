@@ -20,7 +20,7 @@
   - s: open or close settings                                                                                                                                   
   - t / y / p in settings: cycle theme / symbol style / spacing                                                                                                 
   - r: refresh now                                                                                                                                              
-  - y: copy current resource URL                                                                                                                                
+  - y: copy first visible URL, or current resource URL                                                                                                          
   - o: open current resource in browser                                                                                                                         
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
   - v: reverse chronological feed order                                                                                                                         

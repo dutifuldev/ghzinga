@@ -962,7 +962,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- s: open or close settings",
             "- t / y / p in settings: cycle theme / symbol style / spacing",
             "- r: refresh now",
-            "- y: copy current resource URL",
+            "- y: copy first visible URL, or current resource URL",
             "- o: open current resource in browser",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
             "- v: reverse chronological feed order",
@@ -2131,7 +2131,7 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
     let symbols = state.symbols.symbols();
     let controls = [
         (symbols.footer_refresh, HitTarget::Refresh),
-        (symbols.footer_copy, HitTarget::CopyCurrent),
+        (symbols.footer_copy, HitTarget::CopyVisibleUrl),
         (symbols.footer_open, HitTarget::OpenCurrent),
         (symbols.footer_settings, HitTarget::Settings),
         (symbols.footer_help, HitTarget::Help),
@@ -3077,7 +3077,7 @@ mod tests {
                 HitTarget::Navigate(_)
                     | HitTarget::Tab(_)
                     | HitTarget::Refresh
-                    | HitTarget::CopyCurrent
+                    | HitTarget::CopyVisibleUrl
                     | HitTarget::OpenCurrent
                     | HitTarget::Settings
                     | HitTarget::Help
@@ -3188,7 +3188,7 @@ mod tests {
         assert!(state
             .hit_areas
             .iter()
-            .any(|area| area.target == HitTarget::CopyCurrent));
+            .any(|area| area.target == HitTarget::CopyVisibleUrl));
         assert!(state
             .hit_areas
             .iter()
@@ -3308,7 +3308,7 @@ mod tests {
                 matches!(
                     area.target,
                     HitTarget::Refresh
-                        | HitTarget::CopyCurrent
+                        | HitTarget::CopyVisibleUrl
                         | HitTarget::OpenCurrent
                         | HitTarget::Help
                         | HitTarget::Quit
@@ -3341,7 +3341,7 @@ mod tests {
                 matches!(
                     area.target,
                     HitTarget::Refresh
-                        | HitTarget::CopyCurrent
+                        | HitTarget::CopyVisibleUrl
                         | HitTarget::OpenCurrent
                         | HitTarget::Help
                         | HitTarget::Quit
@@ -3364,7 +3364,7 @@ mod tests {
         assert!(state
             .hit_areas
             .iter()
-            .any(|area| area.target == HitTarget::CopyCurrent));
+            .any(|area| area.target == HitTarget::CopyVisibleUrl));
         assert!(state
             .hit_areas
             .iter()
@@ -4090,8 +4090,9 @@ mod tests {
 
         let mut copy_state = AppState::new(pr_resource());
         draw(&mut copy_state, 120, 36);
-        let copy =
-            click_rendered_target(&mut copy_state, |target| *target == HitTarget::CopyCurrent);
+        let copy = click_rendered_target(&mut copy_state, |target| {
+            *target == HitTarget::CopyVisibleUrl
+        });
         assert_eq!(
             copy,
             AppIntent::CopyUrl("https://github.com/openclaw/openclaw/pull/81834".into())

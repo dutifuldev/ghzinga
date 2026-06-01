@@ -52,7 +52,7 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             AppIntent::OpenResource(state.resource.id.clone())
         }
         KeyCode::Char('y') if !state.show_settings && is_plain_shortcut(key) => {
-            AppIntent::CopyUrl(current_resource_url(state))
+            AppIntent::CopyUrl(visible_or_current_url(state))
         }
         KeyCode::Char('?') if is_plain_shortcut(key) => {
             state.toggle_help();
@@ -192,7 +192,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         }
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
-        HitTarget::CopyCurrent => AppIntent::CopyUrl(current_resource_url(state)),
+        HitTarget::CopyVisibleUrl => AppIntent::CopyUrl(visible_or_current_url(state)),
         HitTarget::OpenCurrent => AppIntent::OpenResource(state.resource.id.clone()),
         HitTarget::Refresh => {
             state.refresh_requested = true;
@@ -235,6 +235,18 @@ fn current_resource_url(state: &AppState) -> String {
     } else {
         state.resource.url.clone()
     }
+}
+
+fn visible_or_current_url(state: &AppState) -> String {
+    state
+        .hit_areas
+        .iter()
+        .find_map(|area| match &area.target {
+            HitTarget::OpenUrl(url) => Some(url.clone()),
+            HitTarget::Navigate(id) => Some(id.web_url()),
+            _ => None,
+        })
+        .unwrap_or_else(|| current_resource_url(state))
 }
 
 #[cfg(test)]
@@ -518,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_y_requests_copy_current_resource_url() {
+    fn keyboard_y_falls_back_to_current_resource_url() {
         let mut state = AppState::new(resource());
 
         let intent = apply_event(
@@ -529,6 +541,53 @@ mod tests {
         assert_eq!(
             intent,
             AppIntent::CopyUrl("https://github.com/owner/repo/issues/1".into())
+        );
+    }
+
+    #[test]
+    fn keyboard_y_copies_first_visible_open_url() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::ToggleBlock(BlockId::Body),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 10, 1),
+            HitTarget::OpenUrl("https://github.com/owner/repo/actions/runs/1".into()),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::CopyUrl("https://github.com/owner/repo/actions/runs/1".into())
+        );
+    }
+
+    #[test]
+    fn keyboard_y_copies_first_visible_navigation_target() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::Navigate(ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 2,
+                kind_hint: Some(ResourceKind::PullRequest),
+            }),
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::CopyUrl("https://github.com/owner/repo/pull/2".into())
         );
     }
 
@@ -670,11 +729,16 @@ mod tests {
     }
 
     #[test]
-    fn mouse_click_on_copy_target_requests_copy_current_resource_url() {
+    fn mouse_click_on_copy_target_requests_visible_or_current_url() {
         let mut state = AppState::new(resource());
-        state
-            .hit_areas
-            .push(HitArea::new(Rect::new(0, 0, 6, 1), HitTarget::CopyCurrent));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 10, 1),
+            HitTarget::OpenUrl("https://github.com/owner/repo/issues/1#issuecomment-1".into()),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 6, 1),
+            HitTarget::CopyVisibleUrl,
+        ));
 
         let intent = apply_event(
             &mut state,
@@ -688,7 +752,7 @@ mod tests {
 
         assert_eq!(
             intent,
-            AppIntent::CopyUrl("https://github.com/owner/repo/issues/1".into())
+            AppIntent::CopyUrl("https://github.com/owner/repo/issues/1#issuecomment-1".into())
         );
     }
 
