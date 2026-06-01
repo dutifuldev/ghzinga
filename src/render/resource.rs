@@ -1977,11 +1977,10 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
     }
     for token in linked_resource_tokens(resource) {
         if let Some((display, target)) = parse_link_token(token, resource) {
-            let key = match &target {
-                HitTarget::Navigate(id) => id.canonical_name(),
-                HitTarget::OpenUrl(url) => url.clone(),
-                _ => display.clone(),
+            let HitTarget::Navigate(id) = &target else {
+                continue;
             };
+            let key = id.canonical_name();
             if seen.insert(key) {
                 rows.push(
                     ContentRow::target_styled(
@@ -2006,17 +2005,21 @@ fn linked_resource_tokens(resource: &Resource) -> Vec<&str> {
     let mut tokens = resource
         .body
         .split_whitespace()
-        .filter(|token| token.contains("github.com") || token.starts_with('#'))
+        .filter(|token| is_link_candidate_token(token))
         .collect::<Vec<_>>();
     for entry in &resource.activity {
         tokens.extend(
             entry
                 .body
                 .split_whitespace()
-                .filter(|token| token.contains("github.com") || token.starts_with('#')),
+                .filter(|token| is_link_candidate_token(token)),
         );
     }
     tokens
+}
+
+fn is_link_candidate_token(token: &str) -> bool {
+    token.contains("github.com") || token.starts_with('#') || token.contains("](#")
 }
 
 fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarget)> {
@@ -3020,6 +3023,37 @@ mod tests {
             HitTarget::Navigate(id)
                 if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
         )));
+    }
+
+    #[test]
+    fn links_tab_omits_non_resource_markdown_urls() {
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut resource = pr_resource();
+        resource.body = "Docs [file](https://github.com/openclaw/openclaw/blob/main/README.md) and [issue](#66943).".into();
+        resource.related_resources.clear();
+        let mut state = AppState::new(resource);
+        state.set_tab(Tab::Links);
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        assert!(content.contains("openclaw/openclaw#66943"));
+        assert!(!content.contains("blob/main/README.md"));
+        assert!(state.hit_areas.iter().all(|area| {
+            matches!(
+                area.target,
+                HitTarget::Navigate(_)
+                    | HitTarget::Tab(_)
+                    | HitTarget::Refresh
+                    | HitTarget::OpenCurrent
+                    | HitTarget::Settings
+                    | HitTarget::Help
+                    | HitTarget::Quit
+            )
+        }));
     }
 
     #[test]
