@@ -128,6 +128,7 @@ def capture_mouse_smoke():
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
+        wait_for_text(SESSION, "[refresh]")
         write_frame(ROOT, "00_initial_overview", frames)
 
         overview_more = find_marker_position(SESSION, "[+ more]", line_contains="commit fb948c9")
@@ -195,6 +196,15 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Keyboard")
         wait_for_text(SESSION, "Mouse")
         write_frame(ROOT, "70_mouse_footer_help", frames)
+
+        settings_button = find_marker_position(SESSION, "[settings]")
+        mouse_coordinates["settings"] = list(settings_button)
+        send_mouse_click(SESSION, *settings_button)
+        wait_for_text(SESSION, "Settings")
+        wait_for_text(SESSION, "Theme")
+        wait_for_text(SESSION, "Symbols")
+        wait_for_text(SESSION, "Spacing")
+        write_frame(ROOT, "80_mouse_footer_settings", frames)
 
         manifest = {
             "target": TARGET,
@@ -322,6 +332,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             f"returned to {TARGET}",
         ],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
+        "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():

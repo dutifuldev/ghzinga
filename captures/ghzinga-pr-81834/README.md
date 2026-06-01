@@ -34,17 +34,20 @@ It captures:
 9. Help overlay with `?`.
 
 The code test suite separately verifies mouse click routing for tabs, expansion
-controls, refresh, quit, help, and issue/PR navigation targets. The
+controls, refresh, quit, help, settings, and issue/PR navigation targets. The
 `mouse-smoke/` capture set additionally drives the real TUI inside tmux with
 xterm SGR mouse click events:
 
-1. Click the `Files` tab.
-2. Click `[expand all]`.
-3. Click `[collapse all]`.
-4. Click the `Links` tab.
-5. Click a linked issue row and verify the TUI replaces the current PR with the
+1. Click an Overview `[+ more]` control, then click `[- less]`.
+2. Click the `Files` tab.
+3. Click footer `[expand all]`.
+4. Click footer `[collapse all]`.
+5. Click the `Links` tab.
+6. Click a linked issue row and verify the TUI replaces the current PR with the
    linked issue.
-6. Press Backspace and verify the TUI returns to the original PR.
+7. Press Backspace and verify the TUI returns to the original PR.
+8. Click footer `[help]`.
+9. Click footer `[settings]`.
 
 Regenerate mouse smoke captures:
 

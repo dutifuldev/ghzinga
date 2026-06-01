@@ -191,8 +191,10 @@ terminal frames for:
 - tab-level expand all
 - tab-level collapse all
 - Links-tab navigation target clicks
+- footer help and settings overlay clicks
 
 The broader mouse routing matrix is still covered through render-to-click
 integration tests that render the actual Ratatui UI, click the registered hit
 rectangles, and verify body expansion, file expansion, issue/PR link navigation
-intent, refresh, copy, help, quit, exact URL opening, and footer controls.
+intent, refresh, copy, help, settings, quit, exact URL opening, and footer
+controls.
