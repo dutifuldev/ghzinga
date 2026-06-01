@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "d896142940901e607fc60c0c42436bbbcdd25b25",
+  "git_commit": "afa368257e9d848715fded60b3d881855f50ee14",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -18,7 +18,7 @@
   "mouse_coordinates": {
     "overview_more": [
       47,
-      27
+      28
     ],
     "overview_less": [
       47,
@@ -28,6 +28,14 @@
       42,
       7
     ],
+    "file_row_more": [
+      51,
+      13
+    ],
+    "file_row_less": [
+      51,
+      13
+    ],
     "expand_all": [
       69,
       36
@@ -35,6 +43,18 @@
     "collapse_all": [
       69,
       36
+    ],
+    "checks_tab": [
+      34,
+      7
+    ],
+    "check_row_more": [
+      25,
+      15
+    ],
+    "check_row_less": [
+      25,
+      15
     ],
     "links_tab": [
       49,
@@ -95,6 +115,16 @@
       "ansi": "10_mouse_files_tab.ansi"
     },
     {
+      "name": "11_mouse_file_row_more",
+      "txt": "11_mouse_file_row_more.txt",
+      "ansi": "11_mouse_file_row_more.ansi"
+    },
+    {
+      "name": "12_mouse_file_row_less",
+      "txt": "12_mouse_file_row_less.txt",
+      "ansi": "12_mouse_file_row_less.ansi"
+    },
+    {
       "name": "20_mouse_expand_all",
       "txt": "20_mouse_expand_all.txt",
       "ansi": "20_mouse_expand_all.ansi"
@@ -103,6 +133,21 @@
       "name": "30_mouse_collapse_all",
       "txt": "30_mouse_collapse_all.txt",
       "ansi": "30_mouse_collapse_all.ansi"
+    },
+    {
+      "name": "35_mouse_checks_tab",
+      "txt": "35_mouse_checks_tab.txt",
+      "ansi": "35_mouse_checks_tab.ansi"
+    },
+    {
+      "name": "36_mouse_check_row_more",
+      "txt": "36_mouse_check_row_more.txt",
+      "ansi": "36_mouse_check_row_more.ansi"
+    },
+    {
+      "name": "37_mouse_check_row_less",
+      "txt": "37_mouse_check_row_less.txt",
+      "ansi": "37_mouse_check_row_less.ansi"
     },
     {
       "name": "40_mouse_links_tab",
