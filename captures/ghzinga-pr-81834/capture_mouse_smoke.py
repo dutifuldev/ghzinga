@@ -190,6 +190,12 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, f"returned to {TARGET}")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
+        refresh_button = find_marker_position(SESSION, "[refresh]")
+        mouse_coordinates["refresh"] = list(refresh_button)
+        send_mouse_click(SESSION, *refresh_button)
+        wait_for_text(SESSION, "offline fixture mode: refresh skipped")
+        write_frame(ROOT, "65_mouse_footer_refresh", frames)
+
         help_button = find_marker_position(SESSION, "[help]")
         mouse_coordinates["help"] = list(help_button)
         send_mouse_click(SESSION, *help_button)
@@ -330,6 +336,11 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "[Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             f"returned to {TARGET}",
+        ],
+        "65_mouse_footer_refresh": [
+            "[Overview]",
+            "Problem: senseaudio bundled plugin only has ASR; no TTS.",
+            "offline fixture mode: refresh skipped",
         ],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],

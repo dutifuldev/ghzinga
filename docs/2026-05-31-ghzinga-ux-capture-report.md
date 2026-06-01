@@ -191,6 +191,7 @@ terminal frames for:
 - tab-level expand all
 - tab-level collapse all
 - Links-tab navigation target clicks
+- footer refresh clicks through the fixture-mode status path
 - footer help and settings overlay clicks
 
 The broader mouse routing matrix is still covered through render-to-click

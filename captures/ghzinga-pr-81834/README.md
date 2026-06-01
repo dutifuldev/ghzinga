@@ -46,8 +46,9 @@ xterm SGR mouse click events:
 6. Click a linked issue row and verify the TUI replaces the current PR with the
    linked issue.
 7. Press Backspace and verify the TUI returns to the original PR.
-8. Click footer `[help]`.
-9. Click footer `[settings]`.
+8. Click footer `[refresh]` and verify the fixture-mode refresh status appears.
+9. Click footer `[help]`.
+10. Click footer `[settings]`.
 
 Regenerate mouse smoke captures:
 
