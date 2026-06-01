@@ -25,10 +25,17 @@ count.
 - `comfortable` remains the default config and CLI mode.
 - `compact` keeps the old dense row output except for explicit blanks already
   required by a view.
-- Comfortable content gets a small horizontal gutter when the terminal is wide
-  enough. The gutter follows the gh-dash preview pattern of not starting every
-  readable line at column zero, while compact preserves full-width output for
-  smaller terminals and maximum density.
+- Comfortable content gets a two-column horizontal gutter when the terminal is
+  wide enough. This follows the gh-dash preview pattern of giving preview text
+  left/right padding instead of starting every readable line at column zero.
+  Compact preserves full-width output for smaller terminals and maximum density.
+- Comfortable read-heavy tabs cap the content column on very wide terminals.
+  `gh dash` usually renders previews in a bounded split pane, so prose and
+  comment threads do not stretch across the entire terminal. `ghzinga` is a
+  full-screen single-resource viewer, so comfortable mode should recreate that
+  bounded reading column for Overview, Activity, Commits, Checks, Links, Help,
+  and Settings. The Files tab is the exception: changed-file summaries and patch
+  diffs keep the full available width so code remains readable.
 - Wrapped continuation lines in comfortable mode get a two-column hanging
   indent when there is enough width. This makes long comments and PR bodies
   scan more like the gh-dash preview pane: the first line anchors the item, and
@@ -63,7 +70,8 @@ The settings view should explain the tradeoff directly:
 
 ## Verification
 
-- Unit tests should compare comfortable and compact output for repeated rows.
+- Unit tests should compare comfortable and compact output for repeated rows,
+  content gutters, and the wide-terminal readable-column cap.
 - Render-to-click tests should keep passing because inserted blank rows must not
   shift hit areas away from the rows actually rendered.
 - UX captures should be refreshed after source changes so the saved images show

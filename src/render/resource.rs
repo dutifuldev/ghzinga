@@ -53,6 +53,11 @@ struct ActivityCounts {
     timeline: usize,
 }
 
+const COMFORTABLE_GUTTER: u16 = 2;
+const COMFORTABLE_MAX_READABLE_WIDTH: u16 = 118;
+const COMFORTABLE_MIN_CAP_WIDTH: u16 =
+    COMFORTABLE_MAX_READABLE_WIDTH + (COMFORTABLE_GUTTER * 2) + 12;
+
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
         Self {
@@ -678,7 +683,7 @@ fn refresh_changes_summary(state: &AppState) -> Option<String> {
 }
 
 fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
-    let content_area = content_area_for_spacing(area, state.spacing);
+    let content_area = content_area_for_spacing(area, state.spacing, active_content_tab(state));
     let rows = content_rows(state, content_area.width as usize, palette);
     let rows = apply_spacing(rows, state.spacing);
     let rows = wrap_content_rows(rows, content_area.width, state.spacing);
@@ -710,16 +715,30 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
         .render(content_area, frame.buffer_mut());
 }
 
-fn content_area_for_spacing(area: Rect, spacing: SpacingMode) -> Rect {
+fn active_content_tab(state: &AppState) -> Tab {
+    if state.show_help || state.show_settings {
+        Tab::Overview
+    } else {
+        state.active_tab
+    }
+}
+
+fn content_area_for_spacing(area: Rect, spacing: SpacingMode, tab: Tab) -> Rect {
     if spacing == SpacingMode::Compact || area.width < 48 {
         return area;
     }
 
-    let gutter = 2;
+    let width_after_gutter = area.width.saturating_sub(COMFORTABLE_GUTTER * 2);
+    let width = if tab == Tab::Files || area.width < COMFORTABLE_MIN_CAP_WIDTH {
+        width_after_gutter
+    } else {
+        width_after_gutter.min(COMFORTABLE_MAX_READABLE_WIDTH)
+    };
+
     Rect::new(
-        area.x.saturating_add(gutter),
+        area.x.saturating_add(COMFORTABLE_GUTTER),
         area.y,
-        area.width.saturating_sub(gutter * 2),
+        width,
         area.height,
     )
 }
@@ -3122,8 +3141,8 @@ mod tests {
     fn comfortable_spacing_adds_content_gutter_when_width_allows() {
         let area = Rect::new(0, 4, 120, 20);
 
-        let comfortable = content_area_for_spacing(area, SpacingMode::Comfortable);
-        let compact = content_area_for_spacing(area, SpacingMode::Compact);
+        let comfortable = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Overview);
+        let compact = content_area_for_spacing(area, SpacingMode::Compact, Tab::Overview);
 
         assert_eq!(comfortable.x, 2);
         assert_eq!(comfortable.width, 116);
@@ -3131,11 +3150,34 @@ mod tests {
     }
 
     #[test]
+    fn comfortable_spacing_caps_reading_tabs_on_wide_terminals() {
+        let area = Rect::new(0, 4, 160, 20);
+
+        let overview = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Overview);
+        let activity = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Activity);
+
+        assert_eq!(overview.x, 2);
+        assert_eq!(overview.width, 118);
+        assert_eq!(activity.x, 2);
+        assert_eq!(activity.width, 118);
+    }
+
+    #[test]
+    fn comfortable_spacing_keeps_files_full_width_for_diffs() {
+        let area = Rect::new(0, 4, 160, 20);
+
+        let files = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Files);
+
+        assert_eq!(files.x, 2);
+        assert_eq!(files.width, 156);
+    }
+
+    #[test]
     fn comfortable_spacing_keeps_extremely_narrow_content_full_width() {
         let area = Rect::new(0, 4, 40, 20);
 
         assert_eq!(
-            content_area_for_spacing(area, SpacingMode::Comfortable),
+            content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Overview),
             area
         );
     }
