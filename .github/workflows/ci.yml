@@ -30,33 +30,5 @@ jobs:
         with:
           node-version: 22
 
-      - name: Check formatting
-        run: cargo fmt --check
-
-      - name: Run tests
-        run: cargo test
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Validate install commands
-        run: scripts/verify-install.sh
-
-      - name: Check SimpleDoc
-        run: npx -y @simpledoc/simpledoc check
-
-      - name: Reject PNG capture artifacts
-        run: scripts/verify-no-png-captures.sh
-
-      - name: Validate captured UX evidence
-        run: |
-          python3 captures/ghzinga-pr-81834/capture_ghzinga.py --self-test
-          python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
-          python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
-            --root captures/ghzinga-issue-88499 \
-            --mode issue \
-            --validate-only
-          python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --self-test
-          python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
-          python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --self-test
-          python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
+      - name: Run local CI gate
+        run: scripts/ci-local.sh
