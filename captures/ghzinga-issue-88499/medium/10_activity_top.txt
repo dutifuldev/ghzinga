@@ -32,5 +32,5 @@
   Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                             
   closed this with fix validation                                                                                       
                                                                                                                         
-  [expand all]                                                                                                          
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/1 0% ...                                                    
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/0 100% ...                                     

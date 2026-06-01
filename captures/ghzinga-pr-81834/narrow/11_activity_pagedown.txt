@@ -14,11 +14,11 @@
                                                                              │  
   Timeline by @osolmaz 1mo ago                                               │  
   added label extensions: senseaudio                                         │  
-                                                                             █  
+                                                                             │  
   Comment by @KLilyZ 3w ago                                                  █  
   Updated the provider docs and added coverage for voice listing, synthesis  █  
   failures, and opus transcoding. The remaining files are intentionally scope█  
   to the bundled extension.                                                  █  
-                                                                             │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/12 83%             
+                                                                             █  
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

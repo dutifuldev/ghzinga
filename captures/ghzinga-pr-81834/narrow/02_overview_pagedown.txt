@@ -20,5 +20,5 @@
   * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                        │  
   feat(senseaudio): add SenseAudio TTS provider                              │  
                                                                              │  
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/57 17%             
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

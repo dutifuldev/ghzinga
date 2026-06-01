@@ -28,9 +28,9 @@
   Assignees: none                                                                                                       
   Reactions: +1:2                                                                                                       
                                                                                                                         
-  [expand all]                                                                                                          
                                                                                                                         
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/0 100% ...                                                  
+                                                                                                                        
+  [refresh] [copy] [open] [settings] [help] [quit] [expand all] scroll 0/0 100% ...                                     
