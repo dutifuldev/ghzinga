@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "e6578ba02e85e1fd3525e91ae387f304ba33596c",
+  "git_commit": "b6fcd47026d8cd8664358e421c514ab2898c5415",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -40,6 +40,10 @@
     ],
     "help": [
       39,
+      36
+    ],
+    "settings": [
+      28,
       36
     ]
   },
@@ -93,6 +97,11 @@
       "name": "70_mouse_footer_help",
       "txt": "70_mouse_footer_help.txt",
       "ansi": "70_mouse_footer_help.ansi"
+    },
+    {
+      "name": "80_mouse_footer_settings",
+      "txt": "80_mouse_footer_settings.txt",
+      "ansi": "80_mouse_footer_settings.ansi"
     }
   ]
 }
