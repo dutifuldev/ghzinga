@@ -254,15 +254,16 @@ richer emoji labels.
 Mouse:
 
 - click tabs to switch views
-- click the underlined `owner/repo#123` identity in the header to open the
-  current PR or issue on GitHub
+- click the underlined header identity to open the current PR or issue on
+  GitHub; wide terminals show the full `https://github.com/...` URL so terminal
+  URL detection points at GitHub, while narrow terminals use a non-autolink
+  fallback label
 - click bold `[+ more]` and `[- less]` controls to expand or collapse content
 - click footer `[expand all]` and `[collapse all]` controls at the end of the
   bottom command bar to expand or collapse the current tab
 - click file rows in the Files tab to expand or collapse per-file details, then
   click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
-- click the header `owner/repo#number` identity to open the current GitHub
-  issue or PR
+- click the header identity to open the current GitHub issue or PR
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment
   permalinks, to open them in the browser; footer `[copy]` and `[open]`

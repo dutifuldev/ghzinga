@@ -252,7 +252,7 @@ fn register_header_identity_hit_area(
     if area.width == 0 || area.height <= 1 {
         return;
     }
-    let label = state.resource.id.canonical_name();
+    let label = header_identity_label(&state.resource, state_label, updated, width);
     let label_width = header_identity_width(&label, state_label, updated, width);
     if label_width == 0 {
         return;
@@ -264,16 +264,8 @@ fn register_header_identity_hit_area(
             label_width.min(area.width),
             1,
         ),
-        HitTarget::OpenHeaderUrl(resource_link_url(&state.resource)),
+        HitTarget::OpenHeaderUrl(state.resource.web_url()),
     ));
-}
-
-fn resource_link_url(resource: &Resource) -> String {
-    if resource.url.trim().is_empty() {
-        resource.id.web_url()
-    } else {
-        resource.url.clone()
-    }
 }
 
 fn header_identity_width(
@@ -292,6 +284,41 @@ fn header_identity_width(
     UnicodeWidthStr::width(truncate_display(label, id_width).as_str()) as u16
 }
 
+fn header_identity_available_width(
+    state_label: &str,
+    updated: Option<&str>,
+    width: usize,
+) -> usize {
+    let state_width = UnicodeWidthStr::width(state_label);
+    let updated_width = updated.map(UnicodeWidthStr::width).unwrap_or_default();
+    let separators = 1 + usize::from(updated.is_some());
+    width
+        .saturating_sub(
+            state_width
+                .saturating_add(updated_width)
+                .saturating_add(separators),
+        )
+        .max(1)
+}
+
+fn header_identity_label(
+    resource: &Resource,
+    state_label: &str,
+    updated: Option<&str>,
+    width: usize,
+) -> String {
+    let url = resource.web_url();
+    let available = header_identity_available_width(state_label, updated, width);
+    if UnicodeWidthStr::width(url.as_str()) <= available {
+        url
+    } else {
+        format!(
+            "{} / {} #{}",
+            resource.id.owner, resource.id.repo, resource.id.number
+        )
+    }
+}
+
 fn header_meta_line(
     resource: &Resource,
     state_label: &str,
@@ -299,16 +326,11 @@ fn header_meta_line(
     width: usize,
     palette: &Palette,
 ) -> Line<'static> {
-    let id_width = usize::from(header_identity_width(
-        &resource.id.canonical_name(),
-        state_label,
-        updated,
-        width,
-    ))
-    .max(1);
+    let label = header_identity_label(resource, state_label, updated, width);
+    let id_width = usize::from(header_identity_width(&label, state_label, updated, width)).max(1);
     let mut spans = vec![
         Span::styled(
-            truncate_display(&resource.id.canonical_name(), id_width),
+            truncate_display(&label, id_width),
             Style::default()
                 .fg(palette.accent)
                 .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
@@ -3122,7 +3144,7 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("openclaw/openclaw#81834"));
+        assert!(content.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert!(content.contains("[Overview]"));
         assert!(content.contains("checks PASS"));
         assert!(content.contains("* @KLilyZ opened"));
@@ -4519,7 +4541,8 @@ mod tests {
 
         let content = draw(&mut state, 36, 24);
 
-        assert!(content.contains("openclaw/openclaw#81834"));
+        assert!(content.contains("openclaw / openclaw #81834"));
+        assert!(!content.contains("openclaw/openclaw#81834"));
         assert!(content.contains("[PR OPEN]"));
         assert!(content.contains("updated"));
         assert!(content.contains("Very long pull request"));
@@ -4537,14 +4560,16 @@ mod tests {
         let content = draw(&mut state, 120, 36);
 
         assert_eq!(top_row.trim(), "");
-        assert!(identity_row.contains("openclaw/openclaw#81834"));
+        assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert!(content.contains("Readable title after padded identity"));
     }
 
     #[test]
     fn header_identity_is_clickable_github_link() {
         let mut state = AppState::new(pr_resource());
-        draw(&mut state, 120, 36);
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("https://github.com/openclaw/openclaw/pull/81834"));
 
         let rect = rendered_target_rect(&state, |target| {
             matches!(
@@ -4588,9 +4613,30 @@ mod tests {
         })
         .expect("compact header identity link");
 
-        assert!(identity_row.contains("openclaw/openclaw#81834"));
+        assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert_eq!(rect.y, 0);
         assert_eq!(rect.x, 0);
+    }
+
+    #[test]
+    fn narrow_header_identity_avoids_terminal_autolink_shape() {
+        let mut resource = pr_resource();
+        resource.id.owner = "huggingface".into();
+        resource.id.repo = "huggingface.js".into();
+        resource.id.number = 2185;
+        resource.url = "http://huggingface/huggingface.js#2185".into();
+        let mut state = AppState::new(resource);
+        state.spacing = SpacingMode::Compact;
+
+        let content = draw(&mut state, 48, 24);
+
+        assert!(content.contains("huggingface / huggingface.js #2185"));
+        assert!(!content.contains("huggingface/huggingface.js#2185"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenHeaderUrl(url)
+                if url == "https://github.com/huggingface/huggingface.js/pull/2185"
+        )));
     }
 
     #[test]
