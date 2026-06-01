@@ -186,11 +186,100 @@ impl Symbols {
 mod tests {
     use super::*;
 
+    fn symbol_values(symbols: Symbols) -> [&'static str; 43] {
+        [
+            symbols.state_open,
+            symbols.state_merged,
+            symbols.state_closed,
+            symbols.state_unknown,
+            symbols.checks_pass,
+            symbols.checks_fail,
+            symbols.checks_pending,
+            symbols.checks_unknown,
+            symbols.check_success,
+            symbols.check_failure,
+            symbols.check_pending,
+            symbols.check_skipped,
+            symbols.check_neutral,
+            symbols.check_unknown,
+            symbols.author,
+            symbols.comments,
+            symbols.reactions,
+            symbols.assignees,
+            symbols.threads,
+            symbols.files,
+            symbols.warning,
+            symbols.refresh,
+            symbols.changed,
+            symbols.error,
+            symbols.info,
+            symbols.body,
+            symbols.activity_comment,
+            symbols.activity_review,
+            symbols.activity_review_comment,
+            symbols.activity_commit_comment,
+            symbols.activity_timeline,
+            symbols.more,
+            symbols.less,
+            symbols.expand_all,
+            symbols.collapse_all,
+            symbols.more_patch,
+            symbols.less_patch,
+            symbols.footer_refresh,
+            symbols.footer_copy,
+            symbols.footer_open,
+            symbols.footer_settings,
+            symbols.footer_help,
+            symbols.footer_quit,
+        ]
+    }
+
     #[test]
     fn parses_symbol_modes() {
         assert_eq!("ascii".parse::<SymbolMode>().unwrap(), SymbolMode::Ascii);
         assert_eq!("plain".parse::<SymbolMode>().unwrap(), SymbolMode::Ascii);
         assert_eq!("emoji".parse::<SymbolMode>().unwrap(), SymbolMode::Emoji);
         assert!("unknown".parse::<SymbolMode>().is_err());
+    }
+
+    #[test]
+    fn default_symbol_mode_is_ascii() {
+        assert_eq!(SymbolMode::default(), SymbolMode::Ascii);
+    }
+
+    #[test]
+    fn ascii_symbols_are_plain_terminal_text() {
+        for value in symbol_values(Symbols::ascii()) {
+            assert!(!value.is_empty(), "symbol labels should not be empty");
+            assert!(value.is_ascii(), "ASCII symbol label {value:?}");
+        }
+    }
+
+    #[test]
+    fn emoji_controls_keep_text_labels() {
+        let symbols = Symbols::emoji();
+        for value in [
+            symbols.more,
+            symbols.less,
+            symbols.expand_all,
+            symbols.collapse_all,
+            symbols.more_patch,
+            symbols.less_patch,
+            symbols.footer_refresh,
+            symbols.footer_copy,
+            symbols.footer_open,
+            symbols.footer_settings,
+            symbols.footer_help,
+            symbols.footer_quit,
+        ] {
+            assert!(
+                value.chars().any(|ch| ch.is_ascii_alphabetic()),
+                "emoji control {value:?} should retain a text label"
+            );
+            assert!(
+                value.starts_with('[') && value.ends_with(']'),
+                "emoji control {value:?} should remain visibly button-like"
+            );
+        }
     }
 }
