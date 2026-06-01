@@ -349,7 +349,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "11_activity_pagedown": [
                 "Comment by @KLilyZ",
-                "Codex review: needs changes before merge.",
+                "all bot checks have",
             ],
             "20_commits_top": [
                 "feat(senseaudio): add SenseAudio TTS provider",

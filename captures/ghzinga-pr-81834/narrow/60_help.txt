@@ -1,8 +1,8 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                              
+  openclaw/openclaw#81834 [PR OPEN] updated 2d                                  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22    
+  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview  Activity  Commits  Checks  Files [Links]                           
                                                                                 
@@ -20,5 +20,5 @@
                                                                                 
   Keyboard                                                                      
   - q: quit                                                                     
-  scroll 0/19 0% | tab Links | order oldest | r refresh | y copy | o open | s   
+  scroll 0/19 0% | tab Links | order oldest | r refresh | f full | y copy | o   
   [refresh] [copy] [open] [settings] [help] [quit]                              

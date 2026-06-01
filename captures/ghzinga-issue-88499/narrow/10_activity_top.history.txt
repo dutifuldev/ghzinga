@@ -1,4 +1,4 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z           
+  openclaw/openclaw#88499 [Issue CLOSED] updated 11h                            
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                         
@@ -8,11 +8,11 @@
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
-  Comment by @clawsweeper 2026-05-31T02:28:16Z                                  
-  meta: association CONTRIBUTOR                                                 
+  Comment by @clawsweeper 1d ago                                                
+  meta: association CONTRIBUTOR, edited                                         
   [details]                                                                     
   Codex review: keeping this open for maintainer follow-up; there is still a    
-  little grit to resolve.                                                       
+  little grit to resolve. _Reviewed May 30, 2026, 10:28 PM ET / 02:28 UTC._     
                                                                                 
   Summary                                                                       
   Keep this open: current main still has a plausible Responses replay failure   
@@ -20,5 +20,5 @@
   be unstored while replaying server-owned reasoning item IDs. Direct OpenAI    
   routes have a newer store-aware wrapper, but the reported custom proxy route  
   [+ more]                                                                      
-  scroll 0/16 0% | tab Activity | order oldest | r refresh | y copy | o open |  
+  scroll 0/53 0% | tab Activity | order oldest | r refresh | y copy | o open |  
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

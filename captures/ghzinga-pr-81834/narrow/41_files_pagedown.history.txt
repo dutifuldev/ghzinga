@@ -1,24 +1,24 @@
-  openclaw/openclaw#81834 [PR OPEN] updated 1d ago                              
+  openclaw/openclaw#81834 [PR OPEN] updated 2d                                  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (2 pass, 0 pending, 0 fail)  6 files  diff 1122  +1100  -22    
+  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files  diff 1079  +1057  -22  
                                                                                 
    Overview  Activity  Commits  Checks [Files] Links                            
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
-                                                                                
-  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [+ more]                
-                                                                                
-  +1    -1    MODIFIED docs/plugins/reference.md [+ more]                       
-                                                                                
-  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [+ more]            
-                                                                                
-  +74   -14   MODIFIED docs/providers/senseaudio.md [+ more]                    
-                                                                                
-  +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                  
-                                                                                
-  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [+ more]        
-                                                                                
-  scroll 0/0 100% | tab Files | order oldest | r refresh | y copy | o open | s  
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
+                                                                             │  
+  +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [+ more]   │  
+                                                                             │  
+  +1    -1    MODIFIED extensions/senseaudio/package.json [+ more]           │  
+                                                                             │  
+  +49   -0    ADDED    extensions/senseaudio/senseaudio.live.test.ts [+ more]█  
+                                                                             █  
+  +261  -0    ADDED    extensions/senseaudio/speech-provider.test.ts [+ more]█  
+                                                                             █  
+  +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [+ more]     █  
+                                                                             │  
+  +1    -0    MODIFIED extensions/senseaudio/test-api.ts [+ more]            │  
+                                                                             │  
+  scroll 10/16 62% | tab Files | order oldest | r refresh | f full | y copy |   
+  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]     
