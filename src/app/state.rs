@@ -230,11 +230,28 @@ impl AppState {
         self.expanded_blocks.contains(id)
     }
 
-    pub fn replace_resource(&mut self, resource: Resource) {
+    pub fn replace_resource_reset_view(&mut self, resource: Resource) {
         self.resource = resource;
         self.active_tab = Tab::Overview;
         self.scroll = 0;
         self.scroll_limit = u16::MAX;
+        self.clear_resource_view_state();
+    }
+
+    pub fn replace_resource_preserve_tab(&mut self, resource: Resource) {
+        let active_tab = self.active_tab;
+        self.resource = resource;
+        self.active_tab = if self.tabs().contains(&active_tab) {
+            active_tab
+        } else {
+            Tab::Overview
+        };
+        self.scroll = 0;
+        self.scroll_limit = u16::MAX;
+        self.clear_resource_view_state();
+    }
+
+    fn clear_resource_view_state(&mut self) {
         self.expanded_blocks.clear();
         self.hit_areas.clear();
         self.last_refreshed_at = None;
@@ -838,6 +855,48 @@ mod tests {
 
         assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
         assert_eq!(state.last_refresh_had_changes, Some(true));
+    }
+
+    #[test]
+    fn replace_resource_reset_view_clears_navigation_state() {
+        let mut state = AppState::new(pr_resource());
+        state.set_tab(Tab::Files);
+        state.scroll = 8;
+        state.toggle_block(BlockId::Body);
+        state.last_refreshed_at = Some("12:34:56 UTC".into());
+        state.last_refresh_had_changes = Some(true);
+        state.last_refresh_changed_sections = vec!["summary".into()];
+        state.begin_loading(
+            state.resource.id.clone(),
+            "opening owner/repo#2 from GitHub",
+        );
+
+        state.replace_resource_reset_view(issue_resource());
+
+        assert_eq!(state.active_tab, Tab::Overview);
+        assert_eq!(state.scroll, 0);
+        assert!(state.expanded_blocks.is_empty());
+        assert!(state.last_refreshed_at.is_none());
+        assert!(state.last_refresh_had_changes.is_none());
+        assert!(state.last_refresh_changed_sections.is_empty());
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn replace_resource_preserve_tab_keeps_valid_tab_and_falls_back_for_invalid_tab() {
+        let mut state = AppState::new(pr_resource());
+        state.set_tab(Tab::Activity);
+
+        state.replace_resource_preserve_tab(issue_resource());
+
+        assert_eq!(state.active_tab, Tab::Activity);
+
+        state = AppState::new(pr_resource());
+        state.set_tab(Tab::Files);
+
+        state.replace_resource_preserve_tab(issue_resource());
+
+        assert_eq!(state.active_tab, Tab::Overview);
     }
 
     #[test]
