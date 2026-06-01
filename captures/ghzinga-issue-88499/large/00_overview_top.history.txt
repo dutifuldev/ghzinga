@@ -1,6 +1,3 @@
-  openclaw/openclaw#88499 [Issue CLOSED] updated 2026-06-01T03:20:12Z                                                                                           
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @xneone                                                                                                                                         
                                                                                                                                                                 
                                                                                                                                                                 
@@ -47,4 +44,7 @@
                                                                                                                                                                 
   - Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                                                                   
   closed this with fix validation                                                                                                                               
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/13 0% ...                                                                                           
+                                                                                                                                                                
+  Details                                                                                                                                                       
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/11 0% ...                                                                                           
+                                                                                

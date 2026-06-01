@@ -21,4 +21,4 @@
   Dependency Changes Detected                                                │  
   This PR changes dependency-related files. Maintainers should confirm these │  
   [refresh] [copy] [open] [settings] [help] [quit] scroll 10/48 20%             
-  r refresh | y copy | o open | s settings | q quit | ? help | tab/shift-tab    
+  r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   

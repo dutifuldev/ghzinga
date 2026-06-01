@@ -90,6 +90,12 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
                 AppIntent::None
             }
         }
+        KeyCode::Char(ch @ '1'..='6') if !state.show_settings && is_plain_shortcut(key) => {
+            if let Some(tab) = numbered_tab(ch, state.tabs()) {
+                state.set_tab(tab);
+            }
+            AppIntent::None
+        }
         KeyCode::Tab | KeyCode::Char('\t') | KeyCode::Right => {
             state.next_tab();
             AppIntent::None
@@ -149,6 +155,11 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
 fn is_plain_shortcut(key: KeyEvent) -> bool {
     !key.modifiers
         .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+}
+
+fn numbered_tab(ch: char, tabs: &[crate::app::Tab]) -> Option<crate::app::Tab> {
+    let index = ch.to_digit(10)?.checked_sub(1)? as usize;
+    tabs.get(index).copied()
 }
 
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
@@ -254,7 +265,7 @@ mod tests {
 
     use super::*;
     use crate::app::Tab;
-    use crate::domain::{ReactionCounts, Resource, ResourceId, ResourceKind};
+    use crate::domain::{PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind};
     use crate::input::HitArea;
     use ratatui::layout::Rect;
 
@@ -282,6 +293,26 @@ mod tests {
             warnings: vec![],
             pull_request: None,
         }
+    }
+
+    fn pr_resource() -> Resource {
+        let mut resource = resource();
+        resource.id.kind_hint = Some(ResourceKind::PullRequest);
+        resource.url = "https://github.com/owner/repo/pull/1".into();
+        resource.pull_request = Some(PullRequest {
+            base_ref: "main".into(),
+            head_ref: "topic".into(),
+            requested_reviewers: vec![],
+            review_decision: None,
+            merge_state: None,
+            additions: 0,
+            deletions: 0,
+            commits: vec![],
+            checks: vec![],
+            files: vec![],
+            metadata: vec![],
+        });
+        resource
     }
 
     #[test]
@@ -318,6 +349,80 @@ mod tests {
         );
 
         assert_eq!(state.active_tab, Tab::Activity);
+    }
+
+    #[test]
+    fn number_keys_jump_to_visible_pr_tabs() {
+        for (shortcut, expected) in [
+            ('1', Tab::Overview),
+            ('2', Tab::Activity),
+            ('3', Tab::Commits),
+            ('4', Tab::Checks),
+            ('5', Tab::Files),
+            ('6', Tab::Links),
+        ] {
+            let mut state = AppState::new(pr_resource());
+            state.scroll = 5;
+
+            let intent = apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(
+                    KeyCode::Char(shortcut),
+                    KeyModifiers::empty(),
+                )),
+            );
+
+            assert_eq!(intent, AppIntent::None, "{shortcut}");
+            assert_eq!(state.active_tab, expected, "{shortcut}");
+            assert_eq!(state.scroll, 0, "{shortcut}");
+        }
+    }
+
+    #[test]
+    fn number_keys_jump_to_visible_issue_tabs() {
+        let mut state = AppState::new(resource());
+        state.scroll = 5;
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('3'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(state.active_tab, Tab::Links);
+        assert_eq!(state.scroll, 0);
+    }
+
+    #[test]
+    fn unsupported_number_key_keeps_current_tab() {
+        let mut state = AppState::new(resource());
+        state.set_tab(Tab::Activity);
+        state.scroll = 5;
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('6'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.scroll, 5);
+    }
+
+    #[test]
+    fn number_keys_are_inert_when_modified_or_settings_are_open() {
+        let mut state = AppState::new(pr_resource());
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(state.active_tab, Tab::Overview);
+
+        state.show_settings = true;
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('4'), KeyModifiers::empty())),
+        );
+        assert_eq!(state.active_tab, Tab::Overview);
     }
 
     #[test]
