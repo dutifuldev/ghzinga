@@ -9,16 +9,16 @@
   ────────────────────────────────────────────────────────────────────────────  
   be unstored while replaying server-owned reasoning item IDs. Direct OpenAI │  
   routes have a newer store-aware wrapper, but the reported custom proxy rout│  
-  [+ more]                                                                   █  
-                                                                             █  
-  Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                     │  
-  meta: association CONTRIBUTOR                                              │  
-  [details]                                                                  │  
-  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches │  
-  this issue class.                                                          │  
+  [+ more]                                                                   │  
                                                                              │  
-  Environment:                                                               │  
-  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                │  
-  - OS: macOS arm64                                                          │  
+  Timeline by @osolmaz 2026-05-31T03:00:00Z                                  │  
+  added label provider: openai-responses                                     █  
+                                                                             █  
+  Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                     █  
+  meta: association CONTRIBUTOR                                              █  
+  [details]                                                                  █  
+  Adding a fresh macOS/Slack data point. I can reproduce this with a custom  │  
+  openai-responses provider when previous_response_id is sent after an       │  
+  unstored first response. Removing the previous response reference makes the│  
   r refresh | y copy | o open | s settings | q quit | ? help | 1-6/tab switch   
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 

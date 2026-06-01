@@ -7,44 +7,44 @@
   [Overview] Activity  Links                                                                                                                                    
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                                                                
-  * @xneone opened 2026-05-31T02:21:19Z                                                                                                                         
-  Bug Description                                                                                                                                               
-                                                                                                                                                                
-  When using a provider configured with api: openai-responses (e.g. a GPT-5.5 proxy), the gateway sends store=false (or                                         
-  omits store, which defaults to false) in responses API requests. However, on subsequent turns within the same session,                                        
-  the gateway includes previous_response_id referencing the previous response. Since that response was never persisted                                          
-  server-side, the API returns a 404:                                                                                                                           
-                                                                                                                                                                
-                                                                                                                                                                
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store                                         
-  set to true, or remove this item from your input.                                                                                                             
-                                                                                                                                                                
-                                                                                                                                                                
-  Once this happens, every subsequent request in the session fails with the same 404, because the stale                                                         
-  previous_response_id is never cleared. The session is permanently broken until the user runs /new.                                                            
-                                                                                                                                                                
-  Steps to Reproduce                                                                                                                                            
-                                                                                                                                                                
-  1. Configure a provider with api: openai-responses pointing to an OpenAI-compatible endpoint (e.g. GPT-5.5 via a                                              
-  proxy):                                                                                                                                                       
-  json                                                                                                                                                          
-  "wlkgpt": {                                                                                                                                                   
-  "baseUrl": "https://api.example.com/v1",                                                                                                                      
-  "api": "openai-responses",                                                                                                                                    
-  "models": [{"id": "gpt-5.5"}]                                                                                                                                 
-  }                                                                                                                                                             
-                                                                                                                                                                
-  2. Set this as the default model for the main agent                                                                                                           
-  3. Start a conversation via Feishu/webchat — first few messages work fine                                                                                     
-  4. After some time (or after session compaction/reload), send another message                                                                                 
-  5. Observe: FailoverError: HTTP 404: Item with id "rs_xxx" not found                                                                                          
-                                                                                                                                                                
-  Environment                                                                                                                                                   
-                                                                                                                                                                
-  - OpenClaw CLI/Gateway: 2026.5.27                                                                                                                             
-  - OS: Windows 11                                                                                                                                              
-  - Provider: third-party OpenAI-compatible proxy serving GPT-5.5                                                                                               
-  - API type: openai-responses                                                                                                                                  
-  - Fallback chain: configured but does NOT trigger (session-level model selection bypasses global fallbacks, separate                                          
-  [refresh] [copy] [open] [settings] [help] [quit] scroll 0/123 0% [expand all]                                                                                 
+                                                                                                                       │                                        
+  Expected Behavior                                                                                                    │                                        
+  The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes  │                                        
+  replay safe.                                                                                                         │                                        
+                                                                                                                       │                                        
+  Actual Behavior                                                                                                      │                                        
+  The next request fails after the first turn and the conversation cannot continue.                                    │                                        
+                                                                                                                       │                                        
+  Related issues: #84904 and #87310.                                                                                   │                                        
+  [- less]                                                                                                             │                                        
+                                                                                                                       █                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
+                                                                                                                       █                                        
+  comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                 █                                        
+  meta: association CONTRIBUTOR                                                                                        █                                        
+  [details]                                                                                                            █                                        
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                   █                                        
+                                                                                                                       █                                        
+  Summary                                                                                                              █                                        
+  Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers    █                                        
+  because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI    █                                        
+  routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-onl█                                        
+  path.                                                                                                                █                                        
+                                                                                                                       █                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
+                                                                                                                       █                                        
+  - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                          │                                        
+  added label provider: openai-responses                                                                               │                                        
+                                                                                                                       │                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       │                                        
+  comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                       │                                        
+  meta: association CONTRIBUTOR                                                                                        │                                        
+  [details]                                                                                                            │                                        
+  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when             │                                        
+  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the nex│                                        
+  request succeed, which points at replay state rather than authentication or model availability.                      │                                        
+                                                                                                                       │                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       │                                        
+  [refresh] [copy] [open] [settings] [help] [quit] scroll 10/24 41% [expand all]                                                                                

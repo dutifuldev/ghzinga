@@ -9,42 +9,42 @@
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
                                                                                                                                                                 
   Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                                                                  
-  meta: association CONTRIBUTOR, edited                                                                                                                         
+  meta: association CONTRIBUTOR                                                                                                                                 
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve. _Reviewed May 30,                                          
-  2026, 10:28 PM ET / 02:28 UTC._                                                                                                                               
+  Codex review: keeping this open for maintainer follow-up; there is still a little grit to resolve.                                                            
                                                                                                                                                                 
   Summary                                                                                                                                                       
   Keep this open: current main still has a plausible Responses replay failure for custom openai-responses providers                                             
   because generic Responses payloads can be unstored while replaying server-owned reasoning item IDs. Direct OpenAI                                             
   routes have a newer store-aware wrapper, but the reported custom proxy route is not covered by that direct-OpenAI-only                                        
   path.                                                                                                                                                         
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
                                                                                                                                                                 
-  Comment by @tianxiaochannel-oss88 2026-05-31T03:07:27Z                                                                                                        
+  Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                                                                     
+  added label provider: openai-responses                                                                                                                        
+                                                                                                                                                                
+  Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                                                                        
   meta: association CONTRIBUTOR                                                                                                                                 
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  Adding a fresh macOS/Slack data point from OpenClaw 2026.5.28 that matches this issue class.                                                                  
+  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when                                                      
+  previous_response_id is sent after an unstored first response. Removing the previous response reference makes the next                                        
+  request succeed, which points at replay state rather than authentication or model availability.                                                               
                                                                                                                                                                 
-  Environment:                                                                                                                                                  
-  - OpenClaw CLI/Gateway: 2026.5.28 (e932160)                                                                                                                   
-  - OS: macOS arm64                                                                                                                                             
-  - Channel: Slack, channel-scoped session                                                                                                                      
-  - Provider/API path: openai / openai-responses                                                                                                                
-  - Model: gpt-5.5                                                                                                                                              
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
+  Timeline by @osolmaz 2026-06-01T03:20:12Z                                                                                                                     
+  closed this with fix validation                                                                                                                               
                                                                                                                                                                 
-  Comment by @temurkhan13 2026-05-31T04:45:58Z                                                                                                                  
-  meta: association NONE                                                                                                                                        
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                     
-  The 404 is the gateway sending previous_response_id while store=false, and those two are mutually exclusive by design.                                        
-  Server-side response chaining only works when the response was persisted, which is exactly what store=false turns off.                                        
-  So previous_response_id should not be on the request at all when store is false.                                                                              
                                                                                                                                                                 
-  There are two separate defects here and the fix needs both.                                                                                                   
                                                                                                                                                                 
-  The root one is that the request builder is not store-aware. The responses API gives you two modes: chain server-side                                         
-  with previous_response_id (requires store=true), or resend the conversation context inline on each turn (works with                                           
-  [1m[38;2;26;27;38m[48;2;122;162;247m[+ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
                                                                                                                                                                 
-  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/26 0%[38;2;192;202;245m [1m[38;2;26;27;38m[48;2;122;162;247m[expand all][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                  
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+  [1m[38;2;26;27;38m[48;2;122;162;247m[refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[copy][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[open][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[quit][0m[38;2;192;202;245m[48;2;26;27;38m [38;2;86;95;137mscroll 0/0 100%[38;2;192;202;245m [1m[38;2;26;27;38m[48;2;122;162;247m[expand all][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                 
