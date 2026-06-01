@@ -81,23 +81,12 @@ pub(super) async fn fetch_public_rest_pr(
             Vec::new()
         }
     };
-    let pr_metadata = rest_pr_metadata(&pull);
-    let base_ref = pull
-        .base
-        .as_ref()
-        .map(|reference| reference.reference.clone())
-        .unwrap_or_default();
-    let head_ref = pull
-        .head
-        .as_ref()
-        .map(|reference| reference.reference.clone())
-        .unwrap_or_default();
-
     let mut activity = comments;
     activity.extend(reviews);
     activity.extend(review_comments);
     activity.extend(timeline);
     sort_activity(&mut activity);
+    let pull_request = rest_pull_request(&pull, commits, checks, files);
 
     let mut resource = rest_issue_resource(issue, id, activity);
     resource.id.kind_hint = Some(ResourceKind::PullRequest);
@@ -107,30 +96,7 @@ pub(super) async fn fetch_public_rest_pr(
     resource.author = display_rest_author(pull.user);
     resource.created_at = pull.created_at;
     resource.updated_at = pull.updated_at;
-    resource.pull_request = Some(PullRequest {
-        base_ref,
-        head_ref,
-        requested_reviewers: pull
-            .requested_reviewers
-            .into_iter()
-            .map(|user| display_rest_author(Some(user)))
-            .filter(|name| name != "unknown")
-            .collect(),
-        review_decision: None,
-        merge_state: pull.mergeable.map(|mergeable| {
-            if mergeable {
-                "MERGEABLE".to_string()
-            } else {
-                "CONFLICTING".to_string()
-            }
-        }),
-        additions: pull.additions.unwrap_or_default(),
-        deletions: pull.deletions.unwrap_or_default(),
-        commits,
-        checks,
-        files,
-        metadata: pr_metadata,
-    });
+    resource.pull_request = Some(pull_request);
     resource.warnings.extend(warnings);
     resource.warnings.push(
         "public REST fallback omits GraphQL-only enrichment such as review-thread resolution state, projects, participants, relationship links, and check-suite workflow grouping".into(),
@@ -444,7 +410,7 @@ struct RestIssueDto {
     milestone: Option<Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct RestPullDto {
     title: String,
     html_url: String,
@@ -466,7 +432,7 @@ struct RestPullDto {
     merge_commit_sha: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RestRefDto {
     #[serde(rename = "ref")]
@@ -709,6 +675,49 @@ fn rest_issue_resource(
         metadata,
         warnings: Vec::new(),
         pull_request: None,
+    }
+}
+
+fn rest_pull_request(
+    pull: &RestPullDto,
+    commits: Vec<Commit>,
+    checks: Vec<CheckRun>,
+    files: Vec<ChangedFile>,
+) -> PullRequest {
+    let base_ref = pull
+        .base
+        .as_ref()
+        .map(|reference| reference.reference.clone())
+        .unwrap_or_default();
+    let head_ref = pull
+        .head
+        .as_ref()
+        .map(|reference| reference.reference.clone())
+        .unwrap_or_default();
+    PullRequest {
+        base_ref,
+        head_ref,
+        requested_reviewers: pull
+            .requested_reviewers
+            .iter()
+            .cloned()
+            .map(|user| display_rest_author(Some(user)))
+            .filter(|name| name != "unknown")
+            .collect(),
+        review_decision: None,
+        merge_state: pull.mergeable.map(|mergeable| {
+            if mergeable {
+                "MERGEABLE".to_string()
+            } else {
+                "CONFLICTING".to_string()
+            }
+        }),
+        additions: pull.additions.unwrap_or_default(),
+        deletions: pull.deletions.unwrap_or_default(),
+        commits,
+        checks,
+        files,
+        metadata: rest_pr_metadata(pull),
     }
 }
 
@@ -1618,23 +1627,7 @@ mod tests {
             patch: Some("@@ -1 +1 @@\n-old\n+new".into()),
         })];
 
-        let pr = PullRequest {
-            base_ref: pull.base.as_ref().unwrap().reference.clone(),
-            head_ref: pull.head.as_ref().unwrap().reference.clone(),
-            requested_reviewers: pull
-                .requested_reviewers
-                .iter()
-                .map(|user| user.login.clone().unwrap())
-                .collect(),
-            review_decision: None,
-            merge_state: Some("MERGEABLE".into()),
-            additions: pull.additions.unwrap(),
-            deletions: pull.deletions.unwrap(),
-            commits,
-            checks: Vec::new(),
-            files,
-            metadata: rest_pr_metadata(&pull),
-        };
+        let pr = rest_pull_request(&pull, commits, Vec::new(), files);
 
         assert_eq!(pr.base_ref, "main");
         assert_eq!(pr.head_ref, "feature");
@@ -1647,5 +1640,45 @@ mod tests {
             .metadata
             .iter()
             .any(|item| item.label == "Merge commit" && item.value == "abc123"));
+    }
+
+    #[test]
+    fn pr_fallback_normalizer_tolerates_missing_optional_fields() {
+        let pull = RestPullDto {
+            title: "Minimal public PR".into(),
+            html_url: "https://github.com/openclaw/openclaw/pull/81834".into(),
+            state: "open".into(),
+            user: None,
+            created_at: "2026-05-30T00:00:00Z".into(),
+            updated_at: "2026-05-31T00:00:00Z".into(),
+            base: None,
+            head: None,
+            requested_reviewers: vec![RestUserDto { login: None }],
+            mergeable: None,
+            additions: None,
+            deletions: None,
+            changed_files: None,
+            draft: false,
+            merged_at: None,
+            merge_commit_sha: None,
+        };
+
+        let pr = rest_pull_request(&pull, Vec::new(), Vec::new(), Vec::new());
+
+        assert_eq!(pr.base_ref, "");
+        assert_eq!(pr.head_ref, "");
+        assert!(pr.requested_reviewers.is_empty());
+        assert_eq!(pr.review_decision, None);
+        assert_eq!(pr.merge_state, None);
+        assert_eq!(pr.additions, 0);
+        assert_eq!(pr.deletions, 0);
+        assert!(pr.commits.is_empty());
+        assert!(pr.checks.is_empty());
+        assert!(pr.files.is_empty());
+        assert!(pr
+            .metadata
+            .iter()
+            .any(|item| item.label == "Draft" && item.value == "no"));
+        assert!(!pr.metadata.iter().any(|item| item.label == "Changed files"));
     }
 }
