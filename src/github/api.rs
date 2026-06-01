@@ -117,19 +117,21 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     };
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
-    enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
-    enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
+    if full_graphql_enrichment_enabled() {
+        enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
+        enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
+        enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
+        enrich_review_requests(&mut resource, id).await;
+        match fetch_comment_activity(id, ResourceKind::PullRequest).await {
+            Ok(comments) => replace_comment_activity(&mut resource, comments),
+            Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
+        }
+        match fetch_review_activity(id).await {
+            Ok(reviews) => replace_review_activity(&mut resource, reviews),
+            Err(error) => push_enrichment_warning(&mut resource, "reviews unavailable", &error),
+        }
+    }
     enrich_participants(&mut resource, id, ResourceKind::PullRequest).await;
-    enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
-    enrich_review_requests(&mut resource, id).await;
-    match fetch_comment_activity(id, ResourceKind::PullRequest).await {
-        Ok(comments) => replace_comment_activity(&mut resource, comments),
-        Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
-    }
-    match fetch_review_activity(id).await {
-        Ok(reviews) => replace_review_activity(&mut resource, reviews),
-        Err(error) => push_enrichment_warning(&mut resource, "reviews unavailable", &error),
-    }
     match fetch_review_thread_activity(id).await {
         Ok(review_comments) => resource.activity.extend(review_comments),
         Err(error) => push_enrichment_warning(&mut resource, "review threads unavailable", &error),
@@ -141,25 +143,27 @@ async fn fetch_pr(id: &ResourceId) -> anyhow::Result<Resource> {
     sort_activity(&mut resource.activity);
     let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
-        match fetch_changed_files(id).await {
-            Ok(files) => pr.files = files,
-            Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
+        if full_graphql_enrichment_enabled() {
+            match fetch_changed_files(id).await {
+                Ok(files) => pr.files = files,
+                Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
+            }
+            match fetch_commits(id).await {
+                Ok(commits) => replace_pr_commits(pr, commits),
+                Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
+            }
+            match fetch_commit_deployments(id).await {
+                Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
+                Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
+            }
+            match fetch_status_rollup_checks(id).await {
+                Ok(checks) => pr.checks = checks,
+                Err(error) => warnings.push(format!("full status rollup unavailable: {error}")),
+            }
         }
         match fetch_file_patches(id).await {
             Ok(patches) => apply_file_patches(&mut pr.files, patches),
             Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
-        }
-        match fetch_commits(id).await {
-            Ok(commits) => replace_pr_commits(pr, commits),
-            Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
-        }
-        match fetch_commit_deployments(id).await {
-            Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
-            Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
-        }
-        match fetch_status_rollup_checks(id).await {
-            Ok(checks) => pr.checks = checks,
-            Err(error) => warnings.push(format!("full status rollup unavailable: {error}")),
         }
         match fetch_check_suites(id).await {
             Ok(suites) => apply_check_suites(&mut pr.checks, suites),
@@ -180,22 +184,30 @@ async fn fetch_issue(id: &ResourceId) -> anyhow::Result<Resource> {
     };
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
-    enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
-    enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
+    if full_graphql_enrichment_enabled() {
+        enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
+        enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
+        enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
+        match fetch_comment_activity(id, ResourceKind::Issue).await {
+            Ok(comments) => replace_comment_activity(&mut resource, comments),
+            Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
+        }
+    }
     enrich_participants(&mut resource, id, ResourceKind::Issue).await;
-    enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
     enrich_issue_relationships(&mut resource, id).await;
     enrich_issue_linked_branches(&mut resource, id).await;
-    match fetch_comment_activity(id, ResourceKind::Issue).await {
-        Ok(comments) => replace_comment_activity(&mut resource, comments),
-        Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
-    }
     match fetch_timeline_activity(id, ResourceKind::Issue).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
     }
     sort_activity(&mut resource.activity);
     Ok(resource)
+}
+
+fn full_graphql_enrichment_enabled() -> bool {
+    std::env::var("GZG_API_DEPTH")
+        .map(|value| value.eq_ignore_ascii_case("full"))
+        .unwrap_or(false)
 }
 
 fn push_enrichment_warning(resource: &mut Resource, label: &str, error: &anyhow::Error) {

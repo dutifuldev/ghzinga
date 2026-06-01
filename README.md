@@ -139,7 +139,8 @@ For pull requests:
   opening body, commits, reviews, review comments, commit comments, regular
   comments, and timeline events are interleaved by timestamp instead of split
   into separate summary blocks first
-- paginated labels, assignees, and requested reviewers
+- labels, assignees, and requested reviewers from the base GitHub response;
+  set `GZG_API_DEPTH=full` to spend extra GraphQL calls on exhaustive pagination
 - GitHub metadata such as draft/cross-repository state, mergeability,
   changed-file count, milestones, projects, ref OIDs, and merge commits where
   available
@@ -150,17 +151,17 @@ For pull requests:
   changes, merges, title changes, milestones, projects, project-v2 statuses,
   issue types, issue fields, sub-issues, parent issues, blocking relationships,
   user blocks, converted project notes, converted draft items, converted
-  discussions, revision markers, and deployment events; comments, timeline
-  events, reviews, review threads, review-thread comments, commit comment
-  threads, and nested commit comments are paginated so long histories are not
-  capped at the first page
+  discussions, revision markers, and deployment events; timeline events, review
+  threads, review-thread comments, commit comment threads, and nested commit
+  comments are paginated, while base comments and reviews use the first page by
+  default unless `GZG_API_DEPTH=full` is set
 - comment/review author association, edit/minimized flags, reactions,
   permalinks, commit-comment path/position, and review-thread resolved/outdated
   state when GitHub exposes it
 - unresolved and outdated review-thread counts in the PR status summary
-- paginated commits, with expandable commit bodies, authored/committed dates,
-  paginated coauthor lists, and paginated deployment/environment lists where
-  available
+- commits from the base GitHub response, with expandable commit bodies and
+  authored/committed dates; `GZG_API_DEPTH=full` enables extra GraphQL calls for
+  exhaustive commit pagination, coauthor pagination, and deployment metadata
 - paginated CI/check status grouped by state, including suite-level workflow
   status, GitHub Actions check runs, and legacy status contexts, with
   status/conclusion, timestamps, and details URLs on expanded check rows; public
@@ -174,7 +175,9 @@ For pull requests:
 
 For issues:
 
-- body, paginated labels, reactions, paginated assignees, author, and state
+- body, labels, reactions, assignees, author, and state from the base GitHub
+  response; `GZG_API_DEPTH=full` enables extra GraphQL calls for exhaustive
+  label, assignee, and comment pagination
 - GitHub metadata such as pinned state, state reason, closed time, milestones,
   and projects where available
 - comments and timeline events such as labels, references, assignments, title
@@ -241,9 +244,16 @@ fallbacks when a terminal or multiplexer encodes Tab unusually.
 
 ## Refresh
 
-Live GitHub mode refreshes automatically every 60 seconds by default. Change the
+Live GitHub mode refreshes automatically every 300 seconds by default. Change the
 interval with `--refresh-seconds`; use `0` to disable automatic refresh. Manual
 refresh is always available with `r` or the `[refresh]` footer control.
+
+`ghzinga` checks the GraphQL rate-limit bucket before authenticated GraphQL
+requests when its local decision cache is stale. If GraphQL is exhausted, it
+skips GraphQL until GitHub's reset time and uses the public REST fallback for
+public repositories instead of repeatedly spending failed GraphQL attempts.
+Normal mode avoids duplicate first-page GraphQL enrichment; set
+`GZG_API_DEPTH=full` only when exhaustive pagination matters more than quota.
 
 The horizontal status band shows the last refresh time and whether the fetched
 resource changed. Change detection includes comment/review bodies and

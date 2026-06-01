@@ -32,7 +32,9 @@ points without changing the visible result for normal PRs.
 3. Treat the base GraphQL response as authoritative for first-page data.
 4. Do not refetch first-page GraphQL surfaces that are already present in the
    base response.
-5. Keep targeted enrichments only where they add data the base query does not
+5. Keep `GZG_API_DEPTH=full` as an explicit escape hatch for exhaustive
+   pagination when the user is willing to spend more GraphQL quota.
+6. Keep targeted default enrichments only where they add data the base query does not
    have:
    - PR review threads
    - chronological timeline events
@@ -40,7 +42,7 @@ points without changing the visible result for normal PRs.
    - PR diff patches through REST
    - issue-only relationship and linked-branch metadata
    - participants metadata
-6. Make background refresh conservative by default. Manual refresh remains
+7. Make background refresh conservative by default. Manual refresh remains
    immediate, but auto-refresh should default to five minutes instead of one
    minute.
 

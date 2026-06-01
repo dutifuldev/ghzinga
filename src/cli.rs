@@ -30,7 +30,7 @@ pub struct Cli {
     pub no_mouse: bool,
 
     /// Refresh interval in seconds.
-    #[arg(long, default_value_t = 60)]
+    #[arg(long, default_value_t = 300)]
     pub refresh_seconds: u64,
 
     /// Render one frame and exit. Useful for tests and terminal capture.
@@ -78,6 +78,13 @@ mod tests {
             cli.parse_resource_id().unwrap().canonical_name(),
             "openclaw/openclaw#81834"
         );
+    }
+
+    #[test]
+    fn default_refresh_interval_is_conservative() {
+        let cli = Cli::parse_from(["ghzinga", "openclaw/openclaw#81834"]);
+
+        assert_eq!(cli.refresh_seconds, 300);
     }
 
     #[test]
