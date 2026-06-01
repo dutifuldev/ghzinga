@@ -824,6 +824,27 @@ fn render_scrollbar(
         .begin_symbol(None)
         .end_symbol(None)
         .render(area, frame.buffer_mut(), &mut scrollbar_state);
+    snap_scrollbar_endpoint(frame, area, state, palette);
+}
+
+fn snap_scrollbar_endpoint(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
+    if state.scroll_limit == 0 {
+        return;
+    }
+    let current = state.scroll.min(state.scroll_limit);
+    let Some(x) = area.x.checked_add(area.width.saturating_sub(1)) else {
+        return;
+    };
+    let y = if current == 0 {
+        area.y
+    } else if current == state.scroll_limit {
+        area.y.saturating_add(area.height.saturating_sub(1))
+    } else {
+        return;
+    };
+    frame.buffer_mut()[(x, y)]
+        .set_symbol("█")
+        .set_style(Style::default().fg(palette.accent).bg(palette.panel_bg));
 }
 
 fn scrollbar_content_length(state: &AppState, viewport_height: u16, row_count: usize) -> usize {
@@ -1281,6 +1302,9 @@ fn push_conversation_rows(
             }
         }
         if index + 1 < entries.len() {
+            if let Some(last) = rows.last_mut() {
+                last.comfortable_gap_after = true;
+            }
             rows.push(separator_row(width, palette));
         }
     }
@@ -2860,7 +2884,7 @@ mod tests {
 
     #[test]
     fn renders_review_and_merge_state_in_overview() {
-        let backend = TestBackend::new(120, 36);
+        let backend = TestBackend::new(120, 40);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
         let pr = resource.pull_request.as_mut().unwrap();
@@ -3387,6 +3411,34 @@ mod tests {
     }
 
     #[test]
+    fn content_scrollbar_snaps_to_bottom_across_common_sizes() {
+        for (width, height) in [(80, 24), (120, 36), (160, 50)] {
+            let mut resource = pr_resource();
+            let activity = resource.activity[0].clone();
+            for _ in 0..40 {
+                resource.activity.push(activity.clone());
+            }
+            let mut state = AppState::new(resource);
+            state.set_tab(Tab::Activity);
+            draw(&mut state, width, height);
+            state.scroll_to_bottom();
+
+            let rects = rects_for_spacing(Rect::new(0, 0, width, height), state.spacing);
+            let content_area =
+                content_area_for_spacing(rects.content, state.spacing, active_content_tab(&state));
+            let symbol = draw_cell_symbol(
+                &mut state,
+                width,
+                height,
+                content_area.x + content_area.width - 1,
+                content_area.y + content_area.height - 1,
+            );
+
+            assert_eq!(symbol, "█", "size {width}x{height}");
+        }
+    }
+
+    #[test]
     fn scrollbar_content_length_tracks_rows_not_only_scroll_limit() {
         let mut state = AppState::new(pr_resource());
         state.scroll_limit = 80;
@@ -3736,6 +3788,31 @@ mod tests {
         assert_eq!(comfortable.len(), 4);
         assert_eq!(line_text(&comfortable[2].line), "");
         assert_eq!(line_text(&comfortable[3].line), "Comment");
+    }
+
+    #[test]
+    fn comfortable_overview_timeline_pads_items_above_and_below_separators() {
+        let mut resource = pr_resource();
+        let activity = resource.activity[0].clone();
+        resource.activity.push(ActivityEntry {
+            id: "c2".into(),
+            updated_at: "2mo".into(),
+            ..activity
+        });
+        let mut state = AppState::new(resource);
+
+        let rows = apply_spacing(
+            overview_rows(&mut state, 80, &Palette::default_dark()),
+            SpacingMode::Comfortable,
+        );
+        let separator_index = rows
+            .iter()
+            .position(is_section_rule)
+            .expect("timeline separator");
+
+        assert!(separator_index > 0);
+        assert_eq!(line_text(&rows[separator_index - 1].line), "");
+        assert_eq!(line_text(&rows[separator_index + 1].line), "");
     }
 
     #[test]
@@ -4602,7 +4679,7 @@ mod tests {
         resource.activity[0].thread_outdated = Some(true);
         let mut state = AppState::new(resource);
 
-        let content = draw(&mut state, 120, 36);
+        let content = draw(&mut state, 120, 40);
 
         assert!(content.contains("Threads: 1 unresolved / 1 thread, 1 outdated"));
     }

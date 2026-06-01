@@ -416,6 +416,8 @@ Responsive behavior:
   is fixed chrome, not part of the scrollable content.
 - In comfortable spacing, the scrollable content starts and ends with padding
   so the first and last items have breathing room against the nav and footer.
+- Timeline dividers in comfortable spacing have item padding above and below,
+  so one item never sits directly against the separator for the next item.
 - When the header wraps, keep resource identity, state, updated time, and title
   visible whenever the reserved header rows allow it. Do not spend every row on
   the title and silently drop updated/status context.
