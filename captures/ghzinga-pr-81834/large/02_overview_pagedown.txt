@@ -5,20 +5,20 @@
                                                                                                                                                                 
                                                                                                                                                                 
   [Overview] Activity  Commits  Checks  Files  Links                                                                                                            
-  Validation                                                                                                           │                                        
-  - Targeted extension tests passed.                                                                                   │                                        
+                                                                                                                                                                
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   - Contract plugin tests passed.                                                                                      │                                        
                                                                                                                        │                                        
   Scope                                                                                                                │                                        
   Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                       │                                        
   [- less]                                                                                                             │                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
-                                                                                                                       █                                        
-  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                  █                                        
-  feat(senseaudio): add SenseAudio TTS provider                                                                        █                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
-                                                                                                                       █                                        
-  comment Comment by @github-actions 1mo ago                                                                           █                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       │                                        
+  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                  │                                        
+  feat(senseaudio): add SenseAudio TTS provider                                                                        │                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
+                                                                                                                       │                                        
+  comment Comment by @github-actions 1mo ago                                                                           │                                        
   Dependency Changes Detected                                                                                          █                                        
   This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                  █                                        
                                                                                                                        █                                        
@@ -36,11 +36,11 @@
   added label extensions: senseaudio                                                                                   █                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
                                                                                                                        █                                        
-  comment Comment by @KLilyZ 3w ago                                                                                    █                                        
-  Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The        █                                        
-  remaining files are intentionally scoped to the bundled extension.                                                   █                                        
-                                                                                                                       █                                        
-  Details                                                                                                              █                                        
+  comment Comment by @KLilyZ 3w ago                                                                                    │                                        
+  Updated the provider docs and added coverage for voice listing, synthesis failures, and opus transcoding. The        │                                        
+  remaining files are intentionally scoped to the bundled extension.                                                   │                                        
+                                                                                                                       │                                        
+  Details                                                                                                              │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
                                                                                                                        │                                        
   Labels: docs, size: L, extensions: senseaudio, proof: supplied, proof: sufficient, P3                                │                                        

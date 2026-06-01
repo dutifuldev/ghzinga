@@ -5,19 +5,19 @@
                                                                                                                                                                 
                                                                                                                                                                 
   [Overview] Activity  Links                                                                                                                                    
-  HTTP 404: Item with id "rs_xxxxx" not found. Items are not persisted when store is set to false. Try again with store│                                        
-  set to true, or remove this item from your input.                                                                    │                                        
+                                                                                                                                                                
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                        │                                        
   Expected Behavior                                                                                                    │                                        
   The provider should not replay previous_response_id when store=false, or it should select a storage mode that makes  │                                        
   replay safe.                                                                                                         │                                        
                                                                                                                        │                                        
-  Actual Behavior                                                                                                      █                                        
-  The next request fails after the first turn and the conversation cannot continue.                                    █                                        
-                                                                                                                       █                                        
-  Related issues: #84904 and #87310.                                                                                   █                                        
-  [- less]                                                                                                             █                                        
-  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
+  Actual Behavior                                                                                                      │                                        
+  The next request fails after the first turn and the conversation cannot continue.                                    │                                        
+                                                                                                                       │                                        
+  Related issues: #84904 and #87310.                                                                                   │                                        
+  [- less]                                                                                                             │                                        
+  ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        
                                                                                                                        █                                        
   comment Comment by @clawsweeper 2026-05-31T02:28:16Z                                                                 █                                        
   meta: association CONTRIBUTOR                                                                                        █                                        
@@ -34,11 +34,11 @@
   - Timeline by @osolmaz 2026-05-31T03:00:00Z                                                                          █                                        
   added label provider: openai-responses                                                                               █                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
-                                                                                                                       █                                        
-  comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                       █                                        
-  meta: association CONTRIBUTOR                                                                                        █                                        
-  [details]                                                                                                            █                                        
-  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when             █                                        
+                                                                                                                       │                                        
+  comment Comment by @tianxiaochannel-oss88 2026-05-31T04:10:00Z                                                       │                                        
+  meta: association CONTRIBUTOR                                                                                        │                                        
+  [details]                                                                                                            │                                        
+  Adding a fresh macOS/Slack data point. I can reproduce this with a custom openai-responses provider when             │                                        
   previous_response_id is sent after an unstored first response. Removing the previous response reference makes the nex│                                        
   request succeed, which points at replay state rather than authentication or model availability.                      │                                        
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                        

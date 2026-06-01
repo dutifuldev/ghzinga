@@ -401,6 +401,11 @@ Responsive behavior:
   follow the wrapped visual position.
 - In comfortable spacing, apply equal left/right padding to header, tabs,
   status, content, and footer so the whole preview reads as one aligned column.
+- In comfortable spacing, the tab selector owns a blank row below the nav
+  buttons plus a continuous separator line before content begins. The separator
+  is fixed chrome, not part of the scrollable content.
+- In comfortable spacing, the scrollable content starts and ends with padding
+  so the first and last items have breathing room against the nav and footer.
 - When the header wraps, keep resource identity, state, updated time, and title
   visible whenever the reserved header rows allow it. Do not spend every row on
   the title and silently drop updated/status context.
@@ -408,7 +413,8 @@ Responsive behavior:
   further.
 - Use display-width-aware wrapping for long words, emoji, and wide characters.
 - Preserve at least one content row whenever the terminal is tall enough to show
-  app chrome plus content.
+  app chrome plus content. If the terminal is cramped, content height takes
+  priority over comfortable-only nav padding.
 
 ## Tabs
 

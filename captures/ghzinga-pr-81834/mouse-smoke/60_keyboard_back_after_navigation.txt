@@ -5,8 +5,8 @@
   +1100  -22                                                                                                            
   info returned to openclaw/openclaw#81834                                                                              
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
-                                                                                                                     █  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
+                                                                                                                        
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                      █  
   * @KLilyZ opened 1mo ago                                                                                           █  
   Summary                                                                                                            █  
@@ -15,9 +15,9 @@
   - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system     █  
   voices via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                           █  
                                                                                                                      █  
-  Validation                                                                                                         █  
-  - Targeted extension tests passed.                                                                                 █  
-  - Contract plugin tests passed.                                                                                    █  
+  Validation                                                                                                         │  
+  - Targeted extension tests passed.                                                                                 │  
+  - Contract plugin tests passed.                                                                                    │  
                                                                                                                      │  
   Scope                                                                                                              │  
   Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     │  
