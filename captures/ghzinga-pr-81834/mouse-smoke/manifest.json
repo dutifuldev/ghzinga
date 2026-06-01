@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "/home/bob/repos/ghzinga/target/debug/gzg",
-  "git_commit": "7143dd805e7899f0f6129e11259c33016e3ed6ae",
+  "git_commit": "1000ecd364cec373ada28465e1e8b9cddd6c808f",
   "config_path": "/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture /home/bob/repos/ghzinga/fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -19,7 +19,7 @@
   "mouse_coordinates": {
     "overview_more": [
       47,
-      27
+      28
     ],
     "overview_less": [
       47,
@@ -103,6 +103,10 @@
     ],
     "quit": [
       44,
+      36
+    ],
+    "load_full": [
+      51,
       36
     ]
   },
@@ -231,6 +235,13 @@
       "name": "81_mouse_settings_compact",
       "txt": "81_mouse_settings_compact.txt",
       "ansi": "81_mouse_settings_compact.ansi"
+    },
+    {
+      "name": "90_mouse_footer_load_full",
+      "txt": "90_mouse_footer_load_full.txt",
+      "ansi": "90_mouse_footer_load_full.ansi"
     }
-  ]
+  ],
+  "load_full_fixture": "captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json",
+  "load_full_command": "cd /home/bob/repos/ghzinga && TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml /home/bob/repos/ghzinga/target/debug/gzg openclaw/openclaw#81834 --offline-fixture /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --refresh-seconds 0"
 }

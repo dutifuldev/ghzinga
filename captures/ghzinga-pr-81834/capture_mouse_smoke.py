@@ -24,6 +24,11 @@ NAVIGATION_FIXTURE = ROOT / "navigation-fixture.json"
 NAVIGATION_TARGET_FIXTURE = REPO / "fixtures" / "issue-66943.json"
 NAVIGATION_TARGET = "openclaw/openclaw#66943"
 NAVIGATION_TARGET_TITLE = "feat: add SenseAudio audio transcription provider"
+LOAD_FULL_FIXTURE = ROOT / "load-full-fixture.json"
+LOAD_FULL_WARNING = (
+    "normal API depth shows the first 100 only for comments; "
+    "set --api-depth full or GZG_API_DEPTH=full for exhaustive pagination"
+)
 SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
@@ -121,6 +126,14 @@ def write_navigation_fixture():
     NAVIGATION_FIXTURE.write_text(json.dumps(resource, indent=2) + "\n")
 
 
+def write_load_full_fixture():
+    resource = json.loads(FIXTURE.read_text())
+    warnings = resource.setdefault("warnings", [])
+    if LOAD_FULL_WARNING not in warnings:
+        warnings.append(LOAD_FULL_WARNING)
+    LOAD_FULL_FIXTURE.write_text(json.dumps(resource, indent=2) + "\n")
+
+
 def write_helper_scripts():
     opener = ROOT / "capture-open-url.sh"
     copier = ROOT / "capture-copy-url.sh"
@@ -189,6 +202,7 @@ def capture_mouse_smoke():
     remove_helper_scripts()
     write_helper_scripts()
     write_navigation_fixture()
+    write_load_full_fixture()
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
         f"cd {REPO} && TERM=xterm-256color {capture_config_env()} "
@@ -412,6 +426,27 @@ def capture_mouse_smoke():
             "mouse_coordinates": mouse_coordinates,
             "frames": frames,
         }
+
+        load_full_command = (
+            f"cd {REPO} && TERM=xterm-256color {capture_config_env()} "
+            f"{BIN} {TARGET} "
+            f"--offline-fixture {LOAD_FULL_FIXTURE} "
+            f"--refresh-seconds 0"
+        )
+        tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, load_full_command)
+        tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
+        wait_for_text(SESSION, "[load full]")
+        load_full_button = find_marker_position(SESSION, "[load full]")
+        mouse_coordinates["load_full"] = list(load_full_button)
+        send_mouse_click(SESSION, *load_full_button)
+        wait_for_text(SESSION, "offline fixture mode: full-depth load skipped")
+        write_frame(ROOT, "90_mouse_footer_load_full", frames)
+        manifest["load_full_fixture"] = str(LOAD_FULL_FIXTURE.relative_to(REPO))
+        manifest["load_full_command"] = load_full_command
+        manifest["mouse_coordinates"] = mouse_coordinates
+        manifest["frames"] = frames
+        tmux("kill-session", "-t", SESSION, check=False)
+
         (ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     finally:
         tmux("kill-session", "-t", SESSION, check=False)
@@ -480,6 +515,16 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             errors.append(f"manifest fixture {fixture_path} does not include {NAVIGATION_TARGET}")
         if not any(item.get("url") == DETAIL_URL for item in fixture.get("activity", [])):
             errors.append(f"manifest fixture {fixture_path} does not include {DETAIL_URL}")
+    load_full_fixture_path = REPO / manifest.get("load_full_fixture", "")
+    if not load_full_fixture_path.exists():
+        errors.append(f"manifest load_full_fixture {load_full_fixture_path} is missing")
+    else:
+        load_full_fixture = read_json(load_full_fixture_path)
+        if LOAD_FULL_WARNING not in load_full_fixture.get("warnings", []):
+            errors.append(
+                f"manifest load_full_fixture {load_full_fixture_path} does not include "
+                "the partial-depth warning"
+            )
     if not allow_stale_revision:
         reason = app_tree_freshness_error(manifest.get("git_commit"), git_commit())
         if reason:
@@ -497,6 +542,8 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         )
     if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("command", ""):
         errors.append("manifest command does not isolate config with GZG_CONFIG_PATH")
+    if f"GZG_CONFIG_PATH={expected_config_path}" not in manifest.get("load_full_command", ""):
+        errors.append("manifest load_full_command does not isolate config with GZG_CONFIG_PATH")
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
@@ -524,6 +571,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "copy",
         "open",
         "settings_compact",
+        "load_full",
         "quit",
     ):
         if target not in coordinates:
@@ -621,6 +669,11 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
         "80_mouse_footer_settings": ["Settings", "Theme", "Symbols", "Spacing", "[settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
+        "90_mouse_footer_load_full": [
+            "[Overview]",
+            "[load full]",
+            "offline fixture mode: full-depth load skipped",
+        ],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():
