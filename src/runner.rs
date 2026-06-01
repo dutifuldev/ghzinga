@@ -1,5 +1,8 @@
 use std::{
+    collections::HashMap,
+    path::PathBuf,
     process::Stdio,
+    sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -54,15 +57,86 @@ struct FetchOutcome {
     refreshed_at: String,
 }
 
+#[derive(Clone)]
+enum FetchSource {
+    Github,
+    OfflineFixtures(OfflineFixtureSource),
+}
+
+impl FetchSource {
+    async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<crate::domain::Resource> {
+        match self {
+            Self::Github => {
+                let gateway = GithubApiGateway;
+                gateway.fetch_resource(id).await
+            }
+            Self::OfflineFixtures(fixtures) => fixtures.fetch_resource(id),
+        }
+    }
+
+    fn is_live_github(&self) -> bool {
+        matches!(self, Self::Github)
+    }
+
+    fn is_offline_fixture(&self) -> bool {
+        matches!(self, Self::OfflineFixtures(_))
+    }
+}
+
+#[derive(Clone)]
+struct OfflineFixtureSource {
+    resources: Arc<HashMap<String, crate::domain::Resource>>,
+}
+
+impl OfflineFixtureSource {
+    fn new(resources: impl IntoIterator<Item = crate::domain::Resource>) -> Self {
+        Self {
+            resources: Arc::new(
+                resources
+                    .into_iter()
+                    .map(|resource| (resource.id.canonical_name(), resource))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn from_primary_and_paths(
+        primary: crate::domain::Resource,
+        extra_paths: &[PathBuf],
+    ) -> anyhow::Result<Self> {
+        let mut resources = vec![primary];
+        for path in extra_paths {
+            resources.push(load_fixture(path)?);
+        }
+        Ok(Self::new(resources))
+    }
+
+    fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<crate::domain::Resource> {
+        let key = id.canonical_name();
+        self.resources
+            .get(&key)
+            .cloned()
+            .with_context(|| format!("offline fixture mode: no fixture loaded for {key}"))
+    }
+}
+
 pub async fn run_from_cli() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let loaded_config = config::load();
     let resource_id = cli.parse_resource_id()?;
-    let resource = if let Some(path) = &cli.offline_fixture {
-        load_fixture(path)?
+    let (resource, fetch_source) = if let Some(path) = &cli.offline_fixture {
+        let resource = load_fixture(path)?;
+        let fixture_source = OfflineFixtureSource::from_primary_and_paths(
+            resource.clone(),
+            &cli.offline_resource_fixture,
+        )?;
+        (resource, FetchSource::OfflineFixtures(fixture_source))
     } else {
         let gateway = GithubApiGateway;
-        gateway.fetch_resource(&resource_id).await?
+        (
+            gateway.fetch_resource(&resource_id).await?,
+            FetchSource::Github,
+        )
     };
 
     let mut state = AppState::new(resource);
@@ -93,7 +167,7 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     run_tui(
         &mut state,
         !cli.no_mouse,
-        cli.offline_fixture.is_none(),
+        fetch_source,
         Duration::from_secs(cli.refresh_seconds),
     )
     .await
@@ -111,7 +185,7 @@ fn print_once(state: &mut AppState) -> anyhow::Result<()> {
 async fn run_tui(
     state: &mut AppState,
     mouse_enabled: bool,
-    live_refresh: bool,
+    fetch_source: FetchSource,
     refresh_interval: Duration,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
@@ -126,15 +200,24 @@ async fn run_tui(
         }
         maybe_auto_refresh(
             state,
-            live_refresh,
+            fetch_source.is_live_github(),
             refresh_interval,
             &mut last_refresh,
             Instant::now(),
+            fetch_source.clone(),
             &fetch_tx,
         );
         for app_event in read_pending_app_events()? {
             let intent = apply_event(state, app_event);
-            if handle_intent(state, intent, live_refresh, &mut last_refresh, &fetch_tx).await {
+            if handle_intent(
+                state,
+                intent,
+                fetch_source.clone(),
+                &mut last_refresh,
+                &fetch_tx,
+            )
+            .await
+            {
                 return Ok(());
             }
         }
@@ -165,16 +248,21 @@ fn event_to_app_event(event: Event) -> Option<AppEvent> {
 async fn handle_intent(
     state: &mut AppState,
     intent: AppIntent,
-    live_refresh: bool,
+    fetch_source: FetchSource,
     last_refresh: &mut Instant,
     fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
     match intent {
         AppIntent::Quit => true,
         AppIntent::Refresh => {
-            if live_refresh {
+            if fetch_source.is_live_github() {
                 let id = state.resource.id.clone();
-                if start_background_fetch(state, FetchAction::Refresh { id }, fetch_tx) {
+                if start_background_fetch(
+                    state,
+                    FetchAction::Refresh { id },
+                    fetch_source,
+                    fetch_tx,
+                ) {
                     *last_refresh = Instant::now();
                 }
             } else {
@@ -183,16 +271,14 @@ async fn handle_intent(
             false
         }
         AppIntent::Navigate(id) => {
-            if live_refresh {
-                let from = state.resource.id.clone();
-                if start_background_fetch(state, FetchAction::Navigate { from, to: id }, fetch_tx) {
-                    *last_refresh = Instant::now();
-                }
-            } else {
-                state.last_error = Some(format!(
-                    "offline fixture mode: cannot navigate to {}",
-                    id.canonical_name()
-                ));
+            let from = state.resource.id.clone();
+            if start_background_fetch(
+                state,
+                FetchAction::Navigate { from, to: id },
+                fetch_source,
+                fetch_tx,
+            ) {
+                *last_refresh = Instant::now();
             }
             false
         }
@@ -205,12 +291,17 @@ async fn handle_intent(
             false
         }
         AppIntent::Back => {
-            if live_refresh {
+            if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
                 let Some(id) = state.history.last().cloned() else {
                     state.status_message = Some("no previous resource".into());
                     return false;
                 };
-                if start_background_fetch(state, FetchAction::Back { to: id }, fetch_tx) {
+                if start_background_fetch(
+                    state,
+                    FetchAction::Back { to: id },
+                    fetch_source,
+                    fetch_tx,
+                ) {
                     let _ = state.pop_history();
                     *last_refresh = Instant::now();
                 }
@@ -253,6 +344,7 @@ fn maybe_auto_refresh(
     refresh_interval: Duration,
     last_refresh: &mut Instant,
     now: Instant,
+    fetch_source: FetchSource,
     fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
     maybe_auto_refresh_with_start(
@@ -261,7 +353,7 @@ fn maybe_auto_refresh(
         refresh_interval,
         last_refresh,
         now,
-        |state, action| start_background_fetch(state, action, fetch_tx),
+        |state, action| start_background_fetch(state, action, fetch_source.clone(), fetch_tx),
     )
 }
 
@@ -354,6 +446,7 @@ async fn open_resource(state: &mut AppState, id: &ResourceId) {
 fn start_background_fetch(
     state: &mut AppState,
     action: FetchAction,
+    fetch_source: FetchSource,
     fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
     if let Some(message) = state.loading_message() {
@@ -366,8 +459,7 @@ fn start_background_fetch(
     state.begin_loading(target.clone(), message);
     let tx = fetch_tx.clone();
     tokio::spawn(async move {
-        let gateway = GithubApiGateway;
-        let result = gateway.fetch_resource(&target).await;
+        let result = fetch_source.fetch_resource(&target).await;
         let _ = tx.send(FetchOutcome {
             action,
             result,
@@ -480,6 +572,7 @@ mod tests {
     use super::{
         apply_fetch_outcome, auto_refresh_due, maybe_auto_refresh_with_start, navigate_back,
         navigate_to_resource, start_background_fetch, url_open_command, FetchAction, FetchOutcome,
+        FetchSource, OfflineFixtureSource,
     };
 
     struct FakeGateway {
@@ -728,7 +821,12 @@ mod tests {
         );
         let id = state.resource.id.clone();
 
-        let started = start_background_fetch(&mut state, FetchAction::Refresh { id }, &fetch_tx);
+        let started = start_background_fetch(
+            &mut state,
+            FetchAction::Refresh { id },
+            FetchSource::Github,
+            &fetch_tx,
+        );
 
         assert!(!started);
         assert_eq!(
@@ -736,6 +834,45 @@ mod tests {
             Some("still loading: opening owner/repo#2 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn offline_fixture_source_fetches_by_canonical_name_without_kind_hint() {
+        let fixture = issue_resource(2, "Linked issue");
+        let source = OfflineFixtureSource::new([fixture.clone()]);
+        let id_without_kind = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: None,
+        };
+
+        let loaded = source
+            .fetch_resource(&id_without_kind)
+            .expect("fixture resource");
+
+        assert_eq!(loaded.id, fixture.id);
+        assert_eq!(loaded.title, "Linked issue");
+    }
+
+    #[test]
+    fn offline_fixture_source_reports_missing_navigation_target() {
+        let source = OfflineFixtureSource::new([issue_resource(1, "Initial issue")]);
+        let missing = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+
+        let error = source
+            .fetch_resource(&missing)
+            .expect_err("missing fixture should fail");
+
+        assert_eq!(
+            error.to_string(),
+            "offline fixture mode: no fixture loaded for owner/repo#2"
+        );
     }
 
     #[test]
