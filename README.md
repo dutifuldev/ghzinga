@@ -173,8 +173,9 @@ For pull requests:
   unauthenticated fallback also shows public check runs and status contexts for
   the PR head commit, while marking GraphQL-only suite grouping as unavailable
 - changed files, with gh-dash-style file summary rows and separately expandable
-  in-TUI patch context when a file row is expanded; patch additions render green,
-  deletions render red, and hunk headers use an accent color by default
+  in-TUI patch context when a file row is expanded; patch additions use a green
+  background tint, deletions use a red background tint, and hunk headers use an
+  accent color by default
 - detected issue/PR links, including bare `#123` references, Markdown links, and
   paginated GitHub relationship links
 
@@ -409,3 +410,14 @@ Validate saved issue mouse smoke captures:
 ```sh
 python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
 ```
+
+Run opt-in live GitHub smoke checks:
+
+```sh
+scripts/live-smoke.sh
+```
+
+This calls GitHub with the normal direct HTTP path and validates high-signal PR
+and issue tabs. It is intentionally not part of CI because it depends on network
+availability and current GitHub API quota. Override the public targets with
+`GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
