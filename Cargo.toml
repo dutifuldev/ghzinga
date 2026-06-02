@@ -2,6 +2,16 @@
 name = "ghzinga"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.88"
+description = "Terminal UI for monitoring GitHub pull requests and issues."
+license = "MIT"
+repository = "https://github.com/dutifuldev/ghzinga"
+homepage = "https://github.com/dutifuldev/ghzinga"
+documentation = "https://docs.rs/ghzinga"
+readme = "README.md"
+keywords = ["github", "terminal", "tui", "pull-request", "issues"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = ["/AGENTS.md", "/captures/**"]
 autobins = false
 
 [[bin]]

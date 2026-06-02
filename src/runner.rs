@@ -439,7 +439,7 @@ fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
 
     #[cfg(target_os = "macos")]
     {
-        return ("open".into(), vec![url.into()]);
+        ("open".into(), vec![url.into()])
     }
 
     #[cfg(target_os = "windows")]
@@ -478,7 +478,7 @@ fn current_clipboard_command() -> Option<(String, Vec<String>)> {
 fn current_clipboard_platform() -> ClipboardPlatform {
     #[cfg(target_os = "macos")]
     {
-        return ClipboardPlatform::Macos;
+        ClipboardPlatform::Macos
     }
 
     #[cfg(target_os = "windows")]
@@ -495,8 +495,8 @@ fn current_clipboard_platform() -> ClipboardPlatform {
 fn clipboard_command(
     platform: ClipboardPlatform,
     explicit_command: Option<&str>,
-    wayland_display: Option<&str>,
-    x11_display: Option<&str>,
+    _wayland_display: Option<&str>,
+    _x11_display: Option<&str>,
 ) -> Option<(String, Vec<String>)> {
     if let Some(command) = explicit_command
         .map(str::trim)
@@ -517,12 +517,12 @@ fn clipboard_command(
         ClipboardPlatform::Windows => Some(("clip".into(), vec![])),
         #[cfg(any(not(any(target_os = "macos", target_os = "windows")), test))]
         ClipboardPlatform::Unix => {
-            if wayland_display
+            if _wayland_display
                 .map(str::trim)
                 .is_some_and(|value| !value.is_empty())
             {
                 Some(("wl-copy".into(), vec![]))
-            } else if x11_display
+            } else if _x11_display
                 .map(str::trim)
                 .is_some_and(|value| !value.is_empty())
             {

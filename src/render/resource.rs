@@ -2224,7 +2224,7 @@ fn push_check_group(
                 rows.push(linkable_check_url_row(url));
             }
             if !summary.is_empty() {
-                rows.push(ContentRow::plain(format!("summary: {}", summary)));
+                rows.push(ContentRow::plain(format!("summary: {summary}")));
             }
             rows.push(ContentRow::target_styled(
                 expand_label(true, context.symbols),
