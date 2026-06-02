@@ -9,13 +9,11 @@ the mouse wheel, drag the scrollbar, and use keyboard shortcuts.
 
 ## Demo
 
-Watch the recorded terminal session:
+Watch a recorded terminal session:
 
-```sh
-asciinema play ghzinga.cast
-```
+[![asciinema demo](https://asciinema.org/a/c5AlMqnjibCyiI3H.svg)](https://asciinema.org/a/c5AlMqnjibCyiI3H)
 
-The recording is stored in [`ghzinga.cast`](ghzinga.cast).
+The source recording is stored in [`ghzinga.cast`](ghzinga.cast).
 
 ## Install
 
