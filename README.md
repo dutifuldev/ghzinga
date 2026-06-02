@@ -1,29 +1,23 @@
 # ghzinga
 
-`ghzinga` is a standalone Rust terminal UI for monitoring one GitHub pull request
-or issue.
+`ghzinga` is a standalone terminal UI for watching one GitHub pull request or
+issue.
 
-It uses Ratatui and Crossterm for the TUI, and direct GitHub API calls for PR,
-issue, and enrichment data. There is no separate login flow: if `GH_TOKEN` or
-`GITHUB_TOKEN` is set, `ghzinga` uses it; otherwise it can reuse the token from an
-existing `gh` login through `gh auth token`. The GitHub CLI is only a credential
-fallback, not the data transport. When credentials are unavailable, clearly
-rejected by GitHub, or rate-limited, public repositories fall back to an
-unauthenticated REST view with warnings for richer GraphQL-only metadata; public
-REST comments, PR commits, PR reviews, PR review comments, changed files,
-timeline events, check runs, and status contexts are loaded without auth where
-GitHub exposes them publicly. Private
-repositories still need a token or existing `gh` login. The primary PR or issue
-view is fetched first;
-optional enrichment failures are shown as warnings instead of preventing the
-resource from rendering.
-Architecture guardrails are documented in
-`docs/2026-06-01-ghzinga-slophammer-guardrails.md` and enforced by
-`tests/architecture.rs`.
+It shows the conversation, metadata, linked resources, checks, commits, and
+changed files in one keyboard- and mouse-friendly terminal view. It uses direct
+GitHub API calls for data. Set `GH_TOKEN` or `GITHUB_TOKEN` for private
+repositories and higher rate limits; for public repositories it can fall back to
+unauthenticated GitHub data when credentials are unavailable.
 
 ## Install
 
-Install from this checkout:
+Install from crates.io:
+
+```sh
+cargo install ghzinga
+```
+
+Install from a local checkout:
 
 ```sh
 cargo install --path .
@@ -35,7 +29,10 @@ That installs both commands:
 - `ghzinga`, the long command name
 
 Both commands run the same TUI entrypoint. Cargo installs them as two executable
-commands. For a real filesystem link, use the repo installer instead:
+commands.
+
+For a real filesystem link from `ghzinga` to `gzg`, use the repo installer
+instead:
 
 ```sh
 scripts/install.sh
@@ -45,13 +42,13 @@ That installs `gzg` and creates `ghzinga -> gzg` in the install bin directory.
 Use `scripts/install.sh --root /path/to/root` to choose a different install
 root.
 
-Build without installing:
+Build from source without installing:
 
 ```sh
 cargo build --release
 ```
 
-Run the debug build during development:
+Run from a local checkout:
 
 ```sh
 cargo run --bin gzg -- openclaw/openclaw#81834
@@ -90,22 +87,20 @@ gzg openclaw/openclaw#81834 --width-mode full
 gzg openclaw/openclaw#81834 --fixed-width 132
 gzg openclaw/openclaw#81834 --scrollbar always
 gzg openclaw/openclaw#81834 --once
-gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json
-gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json --offline-resource-fixture fixtures/issue-66943.json
 ```
 
 `--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
 `links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
-accepts Herdr-style built-ins: `default`, `catppuccin`, `catppuccin-latte`,
+accepts built-in themes: `default`, `catppuccin`, `catppuccin-latte`,
 `terminal`, `tokyo-night`, `tokyo-night-day`, `dracula`, `nord`, `gruvbox`,
 `gruvbox-light`, `one-dark`, `one-light`, `solarized`, `solarized-light`,
 `kanagawa`, `kanagawa-lotus`, `rose-pine`, `rose-pine-dawn`, and `vesper`.
 `solarized-dark` remains an alias for `solarized`. `--symbols` accepts `ascii`
-and `emoji`. `--spacing` accepts `comfortable` and `compact`, similar to
-Gmail's density setting. Comfortable is the default and adds gh-dash-like
-breathing room between repeated rows, a small content gutter, top/bottom chrome
-padding, and hanging indents for wrapped long lines; compact keeps more rows
-visible in small terminals. `--width-mode` accepts `fixed` and `full`;
+and `emoji`. `--spacing` accepts `comfortable` and `compact`. Comfortable is
+the default and adds extra room between repeated rows, a small content gutter,
+top/bottom chrome padding, and hanging indents for wrapped long lines; compact
+keeps more rows visible in small terminals. `--width-mode` accepts `fixed` and
+`full`;
 `--fixed-width` sets the fixed readable width in columns. Files stay full width
 so diffs have room. `--scrollbar` accepts `always`, `on-scroll`, and `hidden`.
 `--api-depth`
@@ -113,8 +108,6 @@ accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
 conservative; full follows all supported paginated GraphQL enrichment paths.
 CLI theme, symbol, spacing, width, and scrollbar flags override saved config for
 that run only.
-`--offline-resource-fixture` can be repeated when an offline fixture run needs
-click-through navigation to linked issues or PRs without calling GitHub.
 
 ## Configuration
 
@@ -126,7 +119,7 @@ Ghzinga reads a small TOML config file:
 
 When `XDG_CONFIG_HOME` is set, the path is
 `$XDG_CONFIG_HOME/ghzinga/config.toml`. `GZG_CONFIG_PATH` can point at a
-specific file for tests, scripts, or dotfile setups.
+specific file for custom setups.
 
 Default config:
 
@@ -190,11 +183,11 @@ For pull requests:
   expanded check rows; public unauthenticated fallback also shows public check
   runs and status contexts for the PR head commit, while marking GraphQL-only
   suite grouping as unavailable
-- changed files, with gh-dash-style file summary rows and separately expandable
-  in-TUI patch context when a file row is expanded; patch additions use a green
-  background tint, deletions use a red background tint, hunk headers use an
-  accent color by default, and patch code hides raw unified-diff `+` / `-`
-  markers while preserving indentation
+- changed files, with summary rows and separately expandable in-TUI patch
+  context when a file row is expanded; patch additions use a green background
+  tint, deletions use a red background tint, hunk headers use an accent color by
+  default, and patch code hides raw unified-diff `+` / `-` markers while
+  preserving indentation
 - detected issue/PR links, including bare `#123` references, Markdown links, and
   paginated GitHub relationship links
 
@@ -354,134 +347,7 @@ text. During refresh or navigation, the previous resource stays readable while
 the status band and footer show a terminal-safe loading marker such as
 `Loading |: ...`; duplicate fetch starts are ignored until the current one
 finishes, so rapid clicks or auto-refresh ticks do not build a request queue.
-`--once` and offline fixture mode still load before rendering because they
-produce deterministic static output.
+`--once` loads before rendering so it can produce deterministic static output.
 All direct GitHub HTTP requests reuse the same client and carry a 30-second
 per-request timeout, so a bad network path reports through the existing
 recoverable error or warning UI instead of waiting indefinitely.
-
-## Verification
-
-Run the normal local checks:
-
-```sh
-scripts/ci-local.sh
-```
-
-That script runs formatting, tests, clippy, install verification, SimpleDoc,
-PNG rejection, and the saved PR and issue capture validators. GitHub Actions
-delegates to the same script for pull requests, pushes to `main`, and manual
-dispatches when Actions is enabled for the repository, so checked-in UX
-evidence cannot silently drift behind the app rendering code. The tmux mouse-smoke
-validators verify that real terminal mouse clicks can expand and collapse
-visible content rows, switch PR and issue tabs, expand all rows, collapse them
-again, press keyboard `a` to expand and collapse the current tab, activate
-linked issue rows, replace the current TUI view with that issue, navigate back,
-click footer `[🔄 refresh]` until the fixture-mode refresh status is visible, click
-activity `[details]` permalinks, click footer `[📋 copy]` and `[🌐 open]` through
-capture-local adapter commands for visible permalinks, click footer
-`[⬇ full]` in an isolated partial-depth fixture session, open the help and
-settings overlays through the footer, click a settings row until the
-capture-local config save is visible, and click `[⏻ quit]` until the tmux session
-exits. CI also rejects tracked or generated
-PNG files under `captures/`; UX evidence is kept as terminal text and ANSI
-transcripts only.
-
-The repository includes tmux capture artifacts for PR and issue views. Captures
-are stored as terminal text and ANSI transcripts; PNG screenshots are not
-tracked or allowed under `captures/`. Capture scripts pin `GZG_CONFIG_PATH` to
-a missing capture-local config file so saved user preferences do not change the
-checked-in UX evidence.
-
-- `captures/ghzinga-pr-81834/`
-- `captures/ghzinga-issue-88499/`
-
-Reference docs:
-
-- `docs/2026-05-31-ghzinga-implementation-plan.md`
-- `docs/2026-05-31-gh-cli-reference-notes.md`
-
-Regenerate PR captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
-  --offline-fixture fixtures/pr-81834.json \
-  --offline-resource-fixture fixtures/issue-66943.json
-```
-
-Validate saved PR captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
-```
-
-Regenerate issue captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
-  --root captures/ghzinga-issue-88499 \
-  --target https://github.com/openclaw/openclaw/issues/88499 \
-  --title 'openai-responses provider: 404 on previous_response_id when store=false (default)' \
-  --load-needle openai-responses \
-  --mode issue \
-  --offline-fixture fixtures/issue-88499.json
-```
-
-Validate saved issue captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_ghzinga.py \
-  --root captures/ghzinga-issue-88499 \
-  --mode issue \
-  --validate-only
-```
-
-Regenerate PR mouse smoke captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py
-```
-
-Validate saved PR mouse smoke captures:
-
-```sh
-python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
-```
-
-Regenerate issue mouse smoke captures:
-
-```sh
-python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py
-```
-
-Validate saved issue mouse smoke captures:
-
-```sh
-python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
-```
-
-Run opt-in live GitHub smoke checks:
-
-```sh
-scripts/live-smoke.sh
-```
-
-Run the no-network live-smoke harness self-test:
-
-```sh
-GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh
-```
-
-This calls GitHub with the normal direct HTTP path and validates high-signal PR
-Overview, Activity, Commits, Checks, Files, and Links tabs plus live issue
-Overview, Activity, and Links tabs. It also reruns all public PR tabs and public
-issue Overview, Activity, and Links with `GH_TOKEN` and `GITHUB_TOKEN` blank and
-`PATH` pointed at an empty directory, proving public fallback rendering works
-without a usable token or `gh` executable. If GitHub's shared unauthenticated
-quota for the current IP is exhausted, those public fallback cases are skipped
-by default after the first rate-limit response; set
-`GZG_LIVE_REQUIRE_PUBLIC_FALLBACK=1` to make that condition fatal. The script is
-intentionally not part of CI because it depends on network availability and
-current GitHub API quota, but CI does run the syntax check and no-network
-self-test for the harness. Override the public targets with
-`GZG_LIVE_PR_TARGET` and `GZG_LIVE_ISSUE_TARGET`.
