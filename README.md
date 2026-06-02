@@ -7,6 +7,16 @@ instead of a dashboard list. It uses Ratatui and Crossterm, so the interface is
 not just text output: you can click tabs, click links, expand rows, scroll with
 the mouse wheel, drag the scrollbar, and use keyboard shortcuts.
 
+## Demo
+
+Watch the recorded terminal session:
+
+```sh
+asciinema play ghzinga.cast
+```
+
+The recording is stored in [`ghzinga.cast`](ghzinga.cast).
+
 ## Install
 
 Install from crates.io:
