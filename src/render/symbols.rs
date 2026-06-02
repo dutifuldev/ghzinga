@@ -2,8 +2,8 @@ use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SymbolMode {
-    #[default]
     Ascii,
+    #[default]
     Emoji,
 }
 
@@ -83,6 +83,12 @@ pub struct Symbols {
     pub footer_settings: &'static str,
     pub footer_help: &'static str,
     pub footer_quit: &'static str,
+    pub tab_overview: &'static str,
+    pub tab_activity: &'static str,
+    pub tab_commits: &'static str,
+    pub tab_checks: &'static str,
+    pub tab_files: &'static str,
+    pub tab_links: &'static str,
 }
 
 impl Symbols {
@@ -132,6 +138,12 @@ impl Symbols {
             footer_settings: "[settings]",
             footer_help: "[help]",
             footer_quit: "[quit]",
+            tab_overview: "",
+            tab_activity: "",
+            tab_commits: "",
+            tab_checks: "",
+            tab_files: "",
+            tab_links: "",
         }
     }
 
@@ -181,6 +193,12 @@ impl Symbols {
             footer_settings: "[⚙ settings]",
             footer_help: "[❔ help]",
             footer_quit: "[⏻ quit]",
+            tab_overview: "🏠",
+            tab_activity: "💬",
+            tab_commits: "🧱",
+            tab_checks: "✅",
+            tab_files: "📄",
+            tab_links: "🔗",
         }
     }
 }
@@ -189,7 +207,7 @@ impl Symbols {
 mod tests {
     use super::*;
 
-    fn symbol_values(symbols: Symbols) -> [&'static str; 44] {
+    fn symbol_values(symbols: Symbols) -> [&'static str; 50] {
         [
             symbols.state_open,
             symbols.state_merged,
@@ -235,6 +253,12 @@ mod tests {
             symbols.footer_settings,
             symbols.footer_help,
             symbols.footer_quit,
+            symbols.tab_overview,
+            symbols.tab_activity,
+            symbols.tab_commits,
+            symbols.tab_checks,
+            symbols.tab_files,
+            symbols.tab_links,
         ]
     }
 
@@ -247,14 +271,13 @@ mod tests {
     }
 
     #[test]
-    fn default_symbol_mode_is_ascii() {
-        assert_eq!(SymbolMode::default(), SymbolMode::Ascii);
+    fn default_symbol_mode_is_emoji() {
+        assert_eq!(SymbolMode::default(), SymbolMode::Emoji);
     }
 
     #[test]
     fn ascii_symbols_are_plain_terminal_text() {
         for value in symbol_values(Symbols::ascii()) {
-            assert!(!value.is_empty(), "symbol labels should not be empty");
             assert!(value.is_ascii(), "ASCII symbol label {value:?}");
         }
     }
@@ -284,6 +307,25 @@ mod tests {
             assert!(
                 value.starts_with('[') && value.ends_with(']'),
                 "emoji control {value:?} should remain visibly button-like"
+            );
+        }
+    }
+
+    #[test]
+    fn emoji_tabs_have_symbols() {
+        let symbols = Symbols::emoji();
+        for value in [
+            symbols.tab_overview,
+            symbols.tab_activity,
+            symbols.tab_commits,
+            symbols.tab_checks,
+            symbols.tab_files,
+            symbols.tab_links,
+        ] {
+            assert!(!value.is_empty(), "emoji tab symbol should not be empty");
+            assert!(
+                !value.is_ascii(),
+                "emoji tab symbol {value:?} should be visually distinct"
             );
         }
     }

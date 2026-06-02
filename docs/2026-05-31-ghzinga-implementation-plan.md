@@ -29,10 +29,10 @@ read an existing credential with `gh auth token`.
 - Full Rust implementation.
 - Ratatui UI with Crossterm terminal setup and mouse capture.
 - Standalone binary, not a `gh dash` plugin.
-- No Nerd Font characters, emoji, or non-ASCII chrome are required by default.
-  The default UI uses ASCII markers and text labels; `--symbols emoji` may opt
-  into richer semantic markers, but controls must still include text labels so
-  meaning is not color- or symbol-only.
+- Emoji semantic markers are the default in status badges, controls, and the
+  top navigation selectors. `--symbols ascii` keeps a plain terminal-safe
+  fallback; controls must still include text labels so meaning is not color- or
+  symbol-only.
 - PR support: body, reactions, comments, review comments, commits, CI/check status, changed files, labels, author, branch/base metadata, mergeability/status.
 - Issue support: body, reactions, comments, labels, author, state, linked PR/issue navigation where available.
 - Mouse-first interaction:
@@ -379,9 +379,9 @@ Visual style:
   orientation is handled by the configurable right-edge scrollbar, while the
   footer message area is reserved for transient status, loading, save, and error
   messages.
-- Default symbols are plain ASCII so no special terminal font, Nerd Font, or
-  emoji support is required. `--symbols emoji` may opt into richer markers, but
-  every marker must retain a nearby text label.
+- Default symbols use emoji for richer scanning. `--symbols ascii` keeps a
+  terminal-safe fallback, and every control marker must retain a nearby text
+  label.
 - Status badges use both symbols and words with background highlight:
   `OK OPEN`, `XX CLOSED`, `MG MERGED`, `OK PASS`, `!! FAIL`, `.. PENDING`.
 - No Nerd Font icons.
@@ -691,11 +691,10 @@ Rendering tests:
   - issue overview
   - loading state
   - error state
-- Chrome assertion: default rendered buffers contain no heavy box-drawing or
-  Nerd Font chrome. Continuous terminal separator glyphs are allowed for the
-  Herdr-style rules, but default semantic symbols and buttons must stay ASCII
-  text. Emoji markers are allowed only when `--symbols emoji` is explicitly
-  selected, and emoji controls must keep text labels.
+- Chrome assertion: default rendered buffers may include emoji semantic
+  markers, including top navigation icons. Continuous terminal separator glyphs
+  are allowed for the Herdr-style rules. `--symbols ascii` must keep semantic
+  symbols and buttons as ASCII text, while emoji controls must keep text labels.
 
 Interaction tests:
 

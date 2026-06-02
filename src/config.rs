@@ -52,7 +52,7 @@ impl Default for UiConfig {
     fn default() -> Self {
         Self {
             theme: ThemeName::Default,
-            symbols: SymbolMode::Ascii,
+            symbols: SymbolMode::Emoji,
             spacing: SpacingMode::Comfortable,
             width_mode: ContentWidthMode::Fixed,
             fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,

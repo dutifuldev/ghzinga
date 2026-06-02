@@ -31,10 +31,13 @@ fn once_renders_pr_fixture_through_binary() {
     .assert()
     .success()
     .stdout(contains("https://github.com/openclaw/openclaw/pull/81834"))
-    .stdout(contains(
-        "[Overview] Activity  Commits  Checks  Files  Links",
-    ))
-    .stdout(contains("* @KLilyZ opened"))
+    .stdout(contains("[🏠 Overview]"))
+    .stdout(contains("💬 Activity"))
+    .stdout(contains("🧱 Commits"))
+    .stdout(contains("✅ Checks"))
+    .stdout(contains("📄 Files"))
+    .stdout(contains("🔗 Links"))
+    .stdout(contains("@KLilyZ opened"))
     .stdout(contains("checks PASS"));
 }
 
@@ -51,9 +54,12 @@ fn once_renders_pr_fixture_through_long_binary_name() {
     .assert()
     .success()
     .stdout(contains("https://github.com/openclaw/openclaw/pull/81834"))
-    .stdout(contains(
-        "[Overview] Activity  Commits  Checks  Files  Links",
-    ))
+    .stdout(contains("[🏠 Overview]"))
+    .stdout(contains("💬 Activity"))
+    .stdout(contains("🧱 Commits"))
+    .stdout(contains("✅ Checks"))
+    .stdout(contains("📄 Files"))
+    .stdout(contains("🔗 Links"))
     .stdout(contains("checks PASS"));
 }
 
@@ -72,7 +78,9 @@ fn once_renders_issue_fixture_through_binary() {
     .stdout(contains(
         "https://github.com/openclaw/openclaw/issues/66943",
     ))
-    .stdout(contains("[Overview] Activity  Links"))
+    .stdout(contains("[🏠 Overview]"))
+    .stdout(contains("💬 Activity"))
+    .stdout(contains("🔗 Links"))
     .stdout(contains("Related PR"));
 }
 
@@ -90,10 +98,10 @@ fn once_can_render_pr_checks_tab() {
     ])
     .assert()
     .success()
-    .stdout(contains("[Checks]"))
+    .stdout(contains("[✅ Checks]"))
     .stdout(contains("Passing (5)"))
     .stdout(contains("suite/CI"))
-    .stdout(contains("[+ more]"));
+    .stdout(contains("[➕ more]"));
 }
 
 #[test]
@@ -110,9 +118,9 @@ fn once_can_render_pr_files_tab() {
     ])
     .assert()
     .success()
-    .stdout(contains("[Files]"))
+    .stdout(contains("[📄 Files]"))
     .stdout(contains("extensions/senseaudio/index.ts"))
-    .stdout(contains("[+ more]"));
+    .stdout(contains("[➕ more]"));
 }
 
 #[test]
@@ -132,6 +140,27 @@ fn once_can_render_emoji_symbols_when_requested() {
     .assert()
     .success()
     .stdout(contains("[➕ more]"));
+}
+
+#[test]
+fn once_can_render_ascii_symbols_when_requested() {
+    let mut cmd = gzg_command();
+
+    cmd.args([
+        "openclaw/openclaw#81834",
+        "--offline-fixture",
+        "fixtures/pr-81834.json",
+        "--symbols",
+        "ascii",
+        "--tab",
+        "checks",
+        "--once",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("[Checks]"))
+    .stdout(contains("[+ more]"))
+    .stdout(contains("[➕ more]").not());
 }
 
 #[test]

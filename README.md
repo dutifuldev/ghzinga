@@ -84,7 +84,7 @@ gzg openclaw/openclaw#81834 --refresh-seconds 30
 gzg openclaw/openclaw#81834 --api-depth full
 gzg openclaw/openclaw#81834 --no-mouse
 gzg openclaw/openclaw#81834 --theme solarized-dark
-gzg openclaw/openclaw#81834 --symbols emoji
+gzg openclaw/openclaw#81834 --symbols ascii
 gzg openclaw/openclaw#81834 --spacing compact
 gzg openclaw/openclaw#81834 --width-mode full
 gzg openclaw/openclaw#81834 --fixed-width 132
@@ -133,7 +133,7 @@ Default config:
 ```toml
 [ui]
 theme = "default"
-symbols = "ascii"
+symbols = "emoji"
 spacing = "comfortable"
 width_mode = "fixed"
 fixed_width = 118
@@ -245,9 +245,9 @@ movement and fades, `always` keeps it visible whenever content can scroll, and
 `hidden` disables it. When the scrollbar is visible, click or drag its right-edge
 track to jump through the content.
 
-By default, ghzinga renders with plain ASCII symbols so it works in terminals
-without special fonts or emoji support. Use `--symbols emoji` to opt into the
-richer emoji labels.
+By default, ghzinga renders with emoji symbols in status badges, controls, and
+the top navigation selectors. Use `--symbols ascii` for plain terminal-safe text
+labels when a terminal or font cannot render emoji cleanly.
 
 ## Controls
 

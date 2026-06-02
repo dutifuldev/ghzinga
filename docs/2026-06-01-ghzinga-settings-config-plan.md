@@ -34,7 +34,7 @@ Default config:
 ```toml
 [ui]
 theme = "default"
-symbols = "ascii"
+symbols = "emoji"
 spacing = "comfortable"
 width_mode = "fixed"
 fixed_width = 118

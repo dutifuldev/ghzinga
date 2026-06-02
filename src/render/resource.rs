@@ -397,11 +397,12 @@ fn render_tabs(
         area.height
     };
     let tab_bottom = area.y.saturating_add(tab_rows);
+    let symbols = state.symbols.symbols();
     for tab in state.tabs() {
         let raw_label = if *tab == state.active_tab {
-            format!("[{}]", tab.label())
+            format!("[{}]", tab_label(*tab, &symbols))
         } else {
-            format!(" {} ", tab.label())
+            format!(" {} ", tab_label(*tab, &symbols))
         };
         let raw_width = UnicodeWidthStr::width(raw_label.as_str()) as u16;
         if x > area.x && x.saturating_add(raw_width) > area.x.saturating_add(area.width) {
@@ -444,6 +445,22 @@ fn render_tabs(
     Paragraph::new(lines)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn tab_label(tab: Tab, symbols: &Symbols) -> String {
+    let icon = match tab {
+        Tab::Overview => symbols.tab_overview,
+        Tab::Activity => symbols.tab_activity,
+        Tab::Commits => symbols.tab_commits,
+        Tab::Checks => symbols.tab_checks,
+        Tab::Files => symbols.tab_files,
+        Tab::Links => symbols.tab_links,
+    };
+    if icon.is_empty() {
+        tab.label().to_string()
+    } else {
+        format!("{icon} {}", tab.label())
+    }
 }
 
 fn comfortable_nav_frame_enabled(area: Rect, spacing: SpacingMode) -> bool {
