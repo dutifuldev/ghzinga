@@ -2,8 +2,11 @@
 
 `ghzinga` is a terminal UI for viewing one GitHub pull request or issue.
 
-It is similar in spirit to `gh dash`, but focused on a single PR or issue
-instead of a dashboard list. It uses Ratatui and Crossterm, so the interface is
+It is similar in spirit to [`gh dash`](https://github.com/dlvhdr/gh-dash), but
+focused on a single PR or issue instead of a dashboard list. It is inspired by
+[`Herdr`](https://herdr.dev/) and built with
+[`Ratatui`](https://ratatui.rs/) and
+[`Crossterm`](https://github.com/crossterm-rs/crossterm), so the interface is
 not just text output: you can click tabs, click links, expand rows, scroll with
 the mouse wheel, drag the scrollbar, and use keyboard shortcuts.
 
