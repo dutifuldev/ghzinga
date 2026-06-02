@@ -1,3 +1,10 @@
 /target
 __pycache__/
 *.pyc
+
+# Keep terminal captures as text/ANSI; raster screenshots bloat git history.
+captures/**/*.png
+captures/**/*.jpg
+captures/**/*.jpeg
+captures/**/*.gif
+captures/**/*.webp
