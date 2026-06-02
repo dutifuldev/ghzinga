@@ -457,31 +457,11 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
             checks_badge_style(resource, palette),
         );
         if let Some(pr) = &resource.pull_request {
-            let total_delta = pr.additions.saturating_add(pr.deletions);
             push_status_piece(
                 &mut pieces,
-                file_count_summary(symbols.files, pr.files.len()),
-                Style::default().fg(palette.subtext0),
-            );
-            push_status_piece(
-                &mut pieces,
-                format!("diff {total_delta}"),
+                changed_files_summary(symbols.files, pr.files.len(), pr.additions, pr.deletions),
                 Style::default()
                     .fg(palette.teal)
-                    .add_modifier(Modifier::BOLD),
-            );
-            push_status_piece(
-                &mut pieces,
-                format!("+{}", pr.additions),
-                Style::default()
-                    .fg(palette.green)
-                    .add_modifier(Modifier::BOLD),
-            );
-            push_status_piece(
-                &mut pieces,
-                format!("-{}", pr.deletions),
-                Style::default()
-                    .fg(palette.red)
                     .add_modifier(Modifier::BOLD),
             );
         }
@@ -515,6 +495,34 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
 
 fn push_status_piece(pieces: &mut Vec<StyledPiece>, text: String, style: Style) {
     pieces.push(StyledPiece { text, style });
+}
+
+fn changed_files_summary(
+    files_symbol: &str,
+    file_count: usize,
+    additions: u64,
+    deletions: u64,
+) -> String {
+    format!(
+        "{} changed +{} -{}",
+        file_count_summary(files_symbol, file_count),
+        compact_count(additions),
+        compact_count(deletions)
+    )
+}
+
+fn compact_count(value: u64) -> String {
+    if value < 1_000 {
+        return value.to_string();
+    }
+    let tenths = (value + 50) / 100;
+    let whole = tenths / 10;
+    let fraction = tenths % 10;
+    if fraction == 0 {
+        format!("{whole}k")
+    } else {
+        format!("{whole}.{fraction}k")
+    }
 }
 
 fn status_detail_line(state: &AppState, symbols: &Symbols) -> Option<String> {
@@ -3350,6 +3358,12 @@ mod tests {
         resource
             .activity
             .extend([review, review_comment, commit_comment, timeline]);
+        if let Some(pr) = &mut resource.pull_request {
+            let file = pr.files[0].clone();
+            pr.files = vec![file; 22];
+            pr.additions = 1250;
+            pr.deletions = 195;
+        }
         let mut state = AppState::new(resource);
 
         terminal
@@ -3360,10 +3374,8 @@ mod tests {
         assert!(content.contains("OK OPEN"));
         assert!(content.contains("feat/senseaudio-tts -> main"));
         assert!(content.contains("OK checks PASS"));
-        assert!(content.contains("1 file"));
-        assert!(content.contains("diff 1122"));
-        assert!(content.contains("+1100"));
-        assert!(content.contains("-22"));
+        assert!(content.contains("22 files changed +1.3k -195"));
+        assert!(!content.contains("diff 1445"));
         assert!(!content.contains("comments 2"));
         assert!(!content.contains("reviews 1"));
         assert!(!content.contains("timeline 1"));
@@ -3423,7 +3435,7 @@ mod tests {
 
         assert!(content.contains("feat/senseaudio-tts -> main"));
         assert!(content.contains("OK checks PASS"));
-        assert!(content.contains("+1100"));
+        assert!(content.contains("1 file changed +1.1k -22"));
         assert!(content.contains("Loading |: refreshing openclaw/openclaw#81834 from GitHub"));
 
         state.advance_loading_frame();
