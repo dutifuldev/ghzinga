@@ -236,6 +236,10 @@ footer controls wrap into extra rows on narrow terminals instead of silently
 overlapping. Long content uses display-width-aware wrapping and truncation, so
 emoji and wide characters do not corrupt the layout.
 
+The top identity header uses a stronger background highlight behind the GitHub
+link and PR/issue title so the current resource stays easy to spot while
+switching tabs or scanning status changes.
+
 When content is scrollable, ghzinga also shows a slim Ratatui scrollbar on the
 right edge while you scroll with the keyboard or mouse wheel. The thumb reaches
 the bottom at the final scroll position, including comfortable-mode bottom

@@ -364,6 +364,9 @@ Visual style:
 - The status section is a horizontal band below the title and above the tab
   selector, not a left sidebar. The tab selector is the final chrome row before
   scrollable content begins.
+- The top identity/title header uses a distinct highlighted background so the
+  GitHub link and PR/issue title pop out from the normal panel background
+  without becoming a bulky bordered card.
 - The fixed status band should show high-signal resource state and change
   context only: highlighted PR/issue state, author, PR branch direction,
   aggregate checks, changed-file count, and additions/deletions.
@@ -427,6 +430,8 @@ Responsive behavior:
 - When the header wraps, keep resource identity, state, updated time, and title
   visible whenever the reserved header rows allow it. Do not spend every row on
   the title and silently drop updated/status context.
+- The highlighted header background should cover the identity, title, and
+  comfortable padding rows while leaving the separator and lower chrome quiet.
 - Truncate only low-priority metadata when a fixed-height region cannot grow
   further.
 - Use display-width-aware wrapping for long words, emoji, and wide characters.

@@ -1,6 +1,6 @@
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
     Frame,
@@ -217,10 +217,11 @@ fn render_header(
     let state_label = format!("[{} {}]", kind, resource.state);
     let top_padding = header_top_padding_rows(area, spacing);
     let usable_rows = content_rows.saturating_sub(top_padding);
+    let header_style = header_block_style(palette);
     let updated_in_meta =
         (usable_rows > 0 && usable_rows < 3 && width >= 56).then_some(updated.as_str());
     for _ in 0..top_padding {
-        header.push(Line::from(""));
+        header.push(Line::from("").style(header_style));
     }
     if usable_rows > 0 {
         header.push(header_meta_line(
@@ -232,24 +233,26 @@ fn render_header(
         ));
     }
     if usable_rows >= 3 {
-        header.push(Line::from(Span::styled(
-            truncate_display(&updated, width),
-            dim_style(palette),
-        )));
+        header.push(
+            Line::from(Span::styled(
+                truncate_display(&updated, width),
+                dim_style(palette).bg(header_background(palette)),
+            ))
+            .style(header_style),
+        );
     }
     let title_rows = content_rows.saturating_sub(header.len());
     if title_rows > 0 {
         let mut title_lines = markdown::wrap_plain_text(&resource.title, width);
         title_lines.truncate(title_rows);
         for title in title_lines {
-            header.push(Line::from(Span::styled(
-                title,
-                Style::default().fg(palette.text),
-            )));
+            header.push(
+                Line::from(Span::styled(title, header_title_style(palette))).style(header_style),
+            );
         }
     }
     while header.len() + 1 < area.height as usize {
-        header.push(Line::from(""));
+        header.push(Line::from("").style(header_style));
     }
     header.push(separator_line(area.width, palette));
     register_header_identity_hit_area(
@@ -263,6 +266,20 @@ fn render_header(
     Paragraph::new(header)
         .style(Style::default().fg(palette.text).bg(palette.panel_bg))
         .render(area, frame.buffer_mut());
+}
+
+fn header_background(palette: &Palette) -> Color {
+    palette.surface0
+}
+
+fn header_block_style(palette: &Palette) -> Style {
+    Style::default()
+        .fg(palette.text)
+        .bg(header_background(palette))
+}
+
+fn header_title_style(palette: &Palette) -> Style {
+    header_block_style(palette).add_modifier(Modifier::BOLD)
 }
 
 fn header_top_padding_rows(area: Rect, spacing: SpacingMode) -> usize {
@@ -361,22 +378,25 @@ fn header_meta_line(
             truncate_display(&label, id_width),
             Style::default()
                 .fg(palette.accent)
+                .bg(header_background(palette))
                 .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
         ),
-        Span::raw(" "),
+        Span::styled(" ", header_block_style(palette)),
         Span::styled(
             state_label.to_string(),
-            resource_state_style(resource, palette).add_modifier(Modifier::BOLD),
+            resource_state_style(resource, palette)
+                .bg(header_background(palette))
+                .add_modifier(Modifier::BOLD),
         ),
     ];
     if let Some(updated) = updated {
-        spans.push(Span::raw(" "));
+        spans.push(Span::styled(" ", header_block_style(palette)));
         spans.push(Span::styled(
             truncate_display(updated, width),
-            dim_style(palette),
+            dim_style(palette).bg(header_background(palette)),
         ));
     }
-    Line::from(spans)
+    Line::from(spans).style(header_block_style(palette))
 }
 
 fn render_tabs(
@@ -3194,6 +3214,29 @@ mod tests {
         None
     }
 
+    fn draw_cell_bg_for_text(
+        state: &mut AppState,
+        width: u16,
+        height: u16,
+        needle: &str,
+        needle_offset: u16,
+    ) -> Option<Color> {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render_app(frame, state)).unwrap();
+        for y in 0..height {
+            let row = (0..width)
+                .map(|x| terminal.backend().buffer()[(x, y)].symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            if let Some(index) = row.find(needle) {
+                let x = row[..index].chars().count() as u16 + needle_offset;
+                return Some(terminal.backend().buffer()[(x, y)].bg);
+            }
+        }
+        None
+    }
+
     fn draw_column_symbols(
         state: &mut AppState,
         width: u16,
@@ -4703,6 +4746,30 @@ mod tests {
         assert_eq!(top_row.trim(), "");
         assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert!(content.contains("Readable title after padded identity"));
+    }
+
+    #[test]
+    fn header_identity_and_title_use_highlight_background() {
+        let mut resource = pr_resource();
+        resource.title = "Highlighted title block".into();
+        let mut state = AppState::new(resource);
+        state.spacing = SpacingMode::Compact;
+        let palette = state.theme.palette();
+
+        let identity_bg = draw_cell_bg_for_text(
+            &mut state,
+            120,
+            36,
+            "https://github.com/openclaw/openclaw/pull/81834",
+            0,
+        )
+        .expect("identity cell background");
+        let title_bg = draw_cell_bg_for_text(&mut state, 120, 36, "Highlighted title block", 0)
+            .expect("title cell background");
+
+        assert_eq!(identity_bg, palette.surface0);
+        assert_eq!(title_bg, palette.surface0);
+        assert_ne!(identity_bg, palette.panel_bg);
     }
 
     #[test]
