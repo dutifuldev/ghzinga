@@ -10,7 +10,7 @@ focused on a single PR or issue instead of a dashboard list. It is inspired by
 not just text output: you can click tabs, click links, expand rows, scroll with
 the mouse wheel, drag the scrollbar, and use keyboard shortcuts.
 
-<img width="1089" height="672" alt="ghzinga-demo" src="https://github.com/user-attachments/assets/d44c0f11-b15a-4ff0-aec3-8ddc58a83f5d" />
+<img alt="ghzinga demo" src="https://github.com/user-attachments/assets/d44c0f11-b15a-4ff0-aec3-8ddc58a83f5d" />
 
 
 ## Install
