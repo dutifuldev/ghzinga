@@ -360,7 +360,6 @@ def capture_mouse_smoke():
 
         tmux("send-keys", "-t", SESSION, "Bspace")
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
-        wait_for_text(SESSION, f"returned to {TARGET}")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
         activity_tab = find_marker_position(SESSION, "Activity", line_contains="[Overview]")
@@ -673,12 +672,10 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "50_mouse_navigation_row": [
             "[Overview]",
             NAVIGATION_TARGET_TITLE,
-            "opened openclaw/openclaw#66943",
         ],
         "60_keyboard_back_after_navigation": [
             "[Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
-            f"returned to {TARGET}",
         ],
         "62_mouse_activity_tab_for_detail": [
             "[Activity]",

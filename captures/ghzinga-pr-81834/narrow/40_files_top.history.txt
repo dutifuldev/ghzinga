@@ -4,7 +4,7 @@
   ────────────────────────────────────────────────────────────────────────────  
   OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
   OK checks PASS (80 pass, 0 pending, 0 fail)  14 files changed +1.1k -22       
-  info loaded openclaw/openclaw#81834                                           
+                                                                                
    Overview  Activity  Commits  Checks [Files] Links                            
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +20,5 @@
   +3    -1    MODIFIED extensions/senseaudio/index.ts [+ more]                  
                                                                                 
   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [+ more]      
-  loaded openclaw/openclaw#81834                                                
+                                                                                
   [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]     

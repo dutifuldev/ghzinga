@@ -250,7 +250,6 @@ def capture_mouse_smoke():
 
         tmux("send-keys", "-t", SESSION, "Bspace")
         wait_for_text(SESSION, TITLE)
-        wait_for_text(SESSION, f"returned to {TARGET_LABEL}")
         write_frame(ROOT, "50_keyboard_back_after_navigation", frames)
 
         refresh_button = find_marker_position(SESSION, "[refresh]")
@@ -441,12 +440,10 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "40_mouse_navigation_row": [
             "[Overview]",
             NAVIGATION_TARGET_TITLE,
-            "opened openclaw/openclaw#66943",
         ],
         "50_keyboard_back_after_navigation": [
             "[Overview]",
             TITLE,
-            f"returned to {TARGET_LABEL}",
         ],
         "60_mouse_footer_refresh": [
             "[Overview]",

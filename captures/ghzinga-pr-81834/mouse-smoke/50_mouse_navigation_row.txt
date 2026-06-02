@@ -3,7 +3,7 @@
   feat: add SenseAudio audio transcription provider                                                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   XX CLOSED  by @Fl0rencess720                                                                                          
-  info opened openclaw/openclaw#66943                                                                                   
+                                                                                                                        
                                                                                                                         
   [Overview] Activity  Links                                                                                            
                                                                                                                         
@@ -31,6 +31,6 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  opened openclaw/openclaw#66943                                                                                        
+                                                                                                                        
   [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
                                                                                                                         
