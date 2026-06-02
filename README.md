@@ -15,7 +15,10 @@ instead of a dashboard list.
 interactive: click tabs and links, expand rows, scroll with the mouse wheel,
 drag the scrollbar, or use keyboard shortcuts.
 
-<img alt="ghzinga demo" src="https://github.com/user-attachments/assets/d44c0f11-b15a-4ff0-aec3-8ddc58a83f5d" />
+
+
+https://github.com/user-attachments/assets/1078941e-f83f-4d6f-aceb-695a22015580
+
 
 
 ## Install
