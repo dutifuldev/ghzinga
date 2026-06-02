@@ -4,6 +4,7 @@ import json
 import shlex
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / "mouse-smoke"
@@ -37,6 +38,24 @@ ROWS = 36
 CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/issues/88499"
 DETAIL_URL = "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
 EXPANDED_BODY_MARKER = "Related regressions were discussed"
+WIDE_SYMBOLS = set("✅❌⏳⚠➕➖🔄📋🌐⚙❔⏻⬇🏠💬🧱📄🔗👤👍🎯🧵📝")
+
+
+def terminal_width(text: str) -> int:
+    width = 0
+    for char in text:
+        if unicodedata.combining(char) or char in ("\u200d", "\ufe0f"):
+            continue
+        codepoint = ord(char)
+        if (
+            char in WIDE_SYMBOLS
+            or 0x1F000 <= codepoint <= 0x1FAFF
+            or unicodedata.east_asian_width(char) in ("F", "W")
+        ):
+            width += 2
+        else:
+            width += 1
+    return width
 
 
 def wait_for_text(session: str, needle: str, timeout: float = 10.0):
@@ -65,7 +84,7 @@ def find_marker_position(
                 continue
             column = line.find(marker)
             if column >= 0:
-                return column + 2, row
+                return terminal_width(line[:column]) + 1, row
         time.sleep(0.25)
     detail = f" on a line containing {line_contains!r}" if line_contains else ""
     raise RuntimeError(f"could not find marker {marker!r}{detail}:\n{last}")

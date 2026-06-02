@@ -144,7 +144,7 @@ The app works without a config file. Invalid known values fall back to safe
 defaults and show a warning in the status band. Unknown fields are ignored so
 future config additions do not break older files.
 
-Open settings inside the TUI with `s` or the footer `[settings]` control. Theme,
+Open settings inside the TUI with `s` or the footer `[⚙ settings]` control. Theme,
 symbol, spacing, width mode, fixed width, and scrollbar changes apply live and
 are saved back to `config.toml`; write errors are shown in the status band
 without crashing the app.
@@ -216,10 +216,10 @@ For issues:
   paginated GitHub relationship links
 
 Long body text, comments, checks, and files are truncated by default where
-needed. Use the visible `[+ more]` and `[- less]` controls to expand or collapse
-content. The fixed bottom command bar shows `[expand all]` or
-`[collapse all]` after `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`,
-and `[quit]` when the current tab has expandable rows; that control opens or
+needed. Use the visible `[➕ more]` and `[➖ less]` controls to expand or collapse
+content. The fixed bottom command bar shows `[➕ all]` or `[➖ all]` after
+`[🔄 refresh]`, `[📋 copy]`, `[🌐 open]`, `[⚙ settings]`, `[❔ help]`, and
+`[⏻ quit]` when the current tab has expandable rows; that control opens or
 folds every expandable row in the active tab without requiring a scroll to the
 bottom of the content. The footer message area is reserved for transient
 loading, save, status, and error messages; shortcut help lives in the Help view
@@ -227,7 +227,7 @@ instead of an always-on footer cheat sheet. The rendered content window only reg
 targets for the visible rows, so long paginated GitHub histories remain
 scrollable without turning every off-screen row into an active terminal target.
 If the normal economical API depth sees that GitHub has more pages behind a
-first-page collection, the footer also shows `[load full]` before the
+first-page collection, the footer also shows `[⬇ full]` before the
 expand/collapse-all control; clicking it refetches the current resource with
 full supported pagination without restarting the TUI.
 
@@ -247,7 +247,8 @@ track to jump through the content.
 
 By default, ghzinga renders with emoji symbols in status badges, controls, and
 the top navigation selectors. Use `--symbols ascii` for plain terminal-safe text
-labels when a terminal or font cannot render emoji cleanly.
+labels such as `[+ more]`, `[refresh]`, and `[expand all]` when a terminal or
+font cannot render emoji cleanly.
 
 ## Controls
 
@@ -258,19 +259,19 @@ Mouse:
   GitHub; wide terminals show the full `https://github.com/...` URL so terminal
   URL detection points at GitHub, while narrow terminals use a non-autolink
   fallback label
-- click bold `[+ more]` and `[- less]` controls to expand or collapse content
-- click footer `[expand all]` and `[collapse all]` controls at the end of the
+- click bold `[➕ more]` and `[➖ less]` controls to expand or collapse content
+- click footer `[➕ all]` and `[➖ all]` controls at the end of the
   bottom command bar to expand or collapse the current tab
 - click file rows in the Files tab to expand or collapse per-file details, then
-  click `[+ more patch]` or `[- less patch]` to reveal or fold long diffs
+  click `[➕ more patch]` or `[➖ less patch]` to reveal or fold long diffs
 - click the header identity to open the current GitHub issue or PR
 - click GitHub issue/PR references to navigate
 - click exact GitHub URLs, such as check runs, deployment logs, and comment
-  permalinks, to open them in the browser; footer `[copy]` and `[open]`
+  permalinks, to open them in the browser; footer `[📋 copy]` and `[🌐 open]`
   prefer the first visible URL before falling back to the current PR/issue URL
-- click `[refresh]`, `[copy]`, `[open]`, `[settings]`, `[help]`, `[quit]`,
-  `[load full]` when shown, and the active-tab expand/collapse control in the
-  footer
+- click `[🔄 refresh]`, `[📋 copy]`, `[🌐 open]`, `[⚙ settings]`, `[❔ help]`,
+  `[⏻ quit]`, `[⬇ full]` when shown, and the active-tab expand/collapse control
+  in the footer
 - use the mouse wheel to scroll
 - click or drag the visible right-edge scrollbar to scroll
 
@@ -295,7 +296,8 @@ Keyboard:
   Activity, Commits, Checks, Files, Links; issues expose Overview, Activity,
   Links.
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
-- `Enter`: activate the first visible content action, such as a link or `[+ more]`
+- `Enter`: activate the first visible content action, such as a link or
+  `[➕ more]`
 - `e`: expand or collapse the main body
 - `a`: expand or collapse all expandable rows in the current tab
 - `Backspace`: go back after following a linked issue or PR
@@ -307,10 +309,10 @@ fallbacks when a terminal or multiplexer encodes Tab unusually.
 
 Live GitHub mode refreshes automatically every 300 seconds by default. Change the
 interval with `--refresh-seconds`; use `0` to disable automatic refresh. Manual
-refresh is always available with `r` or the `[refresh]` footer control.
-Clicking `[open]` or pressing `o` opens the first visible GitHub URL, such as a
+refresh is always available with `r` or the `[🔄 refresh]` footer control.
+Clicking `[🌐 open]` or pressing `o` opens the first visible GitHub URL, such as a
 comment permalink, check-run URL, or linked issue/PR. If no visible link is
-available, it opens the current PR or issue URL. Clicking `[copy]` or pressing
+available, it opens the current PR or issue URL. Clicking `[📋 copy]` or pressing
 `y` follows the same visible-link rule and copies the URL instead. Set
 `GZG_COPY_COMMAND` to a command that reads clipboard text from stdin when the
 default platform clipboard command is not available in tmux, SSH, or headless
@@ -325,7 +327,7 @@ Normal mode avoids duplicate first-page GraphQL enrichment; set
 matters more than quota.
 When normal mode sees that a first-page collection has more than 100 items
 behind it, the TUI shows a warning naming the partial sections and the full-depth
-escape hatch. The same condition enables the footer `[load full]` action and
+escape hatch. The same condition enables the footer `[⬇ full]` action and
 the `f` shortcut, which run a one-off full-depth refetch for the current
 resource while keeping normal startup, auto-refresh, and manual refresh
 economical.
@@ -371,12 +373,12 @@ validators verify that real terminal mouse clicks can expand and collapse
 visible content rows, switch PR and issue tabs, expand all rows, collapse them
 again, press keyboard `a` to expand and collapse the current tab, activate
 linked issue rows, replace the current TUI view with that issue, navigate back,
-click footer `[refresh]` until the fixture-mode refresh status is visible, click
-activity `[details]` permalinks, click footer `[copy]` and `[open]` through
+click footer `[🔄 refresh]` until the fixture-mode refresh status is visible, click
+activity `[details]` permalinks, click footer `[📋 copy]` and `[🌐 open]` through
 capture-local adapter commands for visible permalinks, click footer
-`[load full]` in an isolated partial-depth fixture session, open the help and
+`[⬇ full]` in an isolated partial-depth fixture session, open the help and
 settings overlays through the footer, click a settings row until the
-capture-local config save is visible, and click `[quit]` until the tmux session
+capture-local config save is visible, and click `[⏻ quit]` until the tmux session
 exits. CI also rejects tracked or generated
 PNG files under `captures/`; UX evidence is kept as terminal text and ANSI
 transcripts only.

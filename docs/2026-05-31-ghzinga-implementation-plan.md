@@ -339,9 +339,9 @@ Desktop/medium-large:
 +----------------------------------------------------------------------------+
 | Scrollable selected tab                                                     |
 | bold section headings, colored status words, clickable links                |
-| visible [+ more] / [- less] controls for expansion                          |
+| visible [➕ more] / [➖ less] controls for expansion                          |
 +----------------------------------------------------------------------------+
-| [refresh]  [open]  [help]  [quit]   tab next | arrows scroll               |
+| [🔄 refresh]  [🌐 open]  [❔ help]  [⏻ quit]   tab next | arrows scroll      |
 +----------------------------------------------------------------------------+
 ```
 
@@ -356,7 +356,7 @@ OK checks PASS | files 2 | +86 | -0
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
-[refresh] | [open] | [help] | [quit]
+[🔄 refresh] | [🌐 open] | [❔ help] | [⏻ quit]
 ```
 
 Visual style:
@@ -374,7 +374,7 @@ Visual style:
   below the normal status chips. That row is normally blank so loading text does
   not push branch/check/file status sideways.
 - Buttons and expandable controls use bold styling and text labels, for example
-  `[+ more]`, `[- less]`, `[refresh]`, `[open]`.
+  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[🌐 open]`.
 - The footer does not keep an always-on scroll/shortcut cheat sheet. Scroll
   orientation is handled by the configurable right-edge scrollbar, while the
   footer message area is reserved for transient status, loading, save, and error
@@ -476,13 +476,13 @@ Issue tabs:
   clear where one item ends and the next begins.
 - Expand/collapse controls stay per item. Long comments and the opening body
   are truncated by default; expanded state reuses existing `BlockId`s.
-- Tab-level `[expand all]` and `[collapse all]` controls belong in the fixed
+- Tab-level `[➕ all]` and `[➖ all]` controls belong in the fixed
   bottom command bar after refresh/copy/open/settings/help/quit, not in the
   scrollable feed/list. They operate on every expandable `BlockId` in the
   active tab, so users can expand or collapse the whole current view without
   scrolling to find the control.
 - If normal API depth reports more GitHub pages for first-page collections, the
-  fixed bottom command bar also shows `[load full]` before expand/collapse-all.
+  fixed bottom command bar also shows `[⬇ full]` before expand/collapse-all.
   Clicking it, or pressing `f`, refetches the current resource with full
   supported pagination while preserving the economical default for ordinary
   startup, refresh, and auto-refresh.
@@ -603,7 +603,8 @@ Keyboard:
 - `Up` / `Down`: scroll line
 - `PageUp` / `PageDown`: scroll page
 - `Home` / `End`: top/bottom
-- `Enter`: activate the first visible content action, such as a link or `[+ more]`
+- `Enter`: activate the first visible content action, such as a link or
+  `[➕ more]`
 - `a`: expand or collapse all expandable rows in the current tab
 - `Backspace`: navigate back after following a link
 - `o`: open the first visible GitHub URL, or the current resource URL if no
@@ -657,9 +658,9 @@ Long text behavior:
 - Body starts collapsed to a configurable rendered-line limit.
 - Each long comment starts collapsed.
 - Visible controls:
-  - `[+ more]` expands one block
-  - `[- less]` collapses it
-  - footer `[expand all]` / `[collapse all]` at the end of the bottom command
+  - `[➕ more]` expands one block
+  - `[➖ less]` collapses it
+  - footer `[➕ all]` / `[➖ all]` at the end of the bottom command
     bar for tab-level expansion when a tab has expandable body, comment,
     commit, check, file, or patch rows
 - Mouse activation uses shared hit targets for single-block and all-block
@@ -700,7 +701,7 @@ Interaction tests:
 
 - simulated mouse click on tab changes active tab
 - simulated mouse wheel changes scroll offset
-- simulated click on `[+ more]` expands body/comment
+- simulated click on `[➕ more]` expands body/comment
 - simulated click on PR link navigates to new resource id
 - keyboard `Tab`, arrows, `PageDown`, `Backspace`, `r`, `q`
 
@@ -741,7 +742,7 @@ End-to-end/manual verification:
   - checks
   - files
   - click tab behavior
-  - click `[+ more]`
+  - click `[➕ more]`
   - refresh status
 
 ## Implementation Phases
@@ -804,6 +805,6 @@ The first coherent build slice should produce:
 - `gzg --help`
 - `gzg openclaw/openclaw#81834 --offline-fixture fixtures/pr-81834.json`
 - static Ratatui display with keyboard tab switching and scroll
-- mouse click on tabs and `[+ more]`
+- mouse click on tabs and `[➕ more]`
 
 This slice proves the architecture without depending on live GitHub availability. Live `gh` integration follows immediately after.

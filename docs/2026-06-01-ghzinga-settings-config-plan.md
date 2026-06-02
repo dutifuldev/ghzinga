@@ -71,7 +71,7 @@ Rules:
 Open settings with:
 
 - keyboard: `s`
-- mouse: footer `[settings]`
+- mouse: footer `[⚙ settings]`
 
 Settings should render as a focused settings view over the normal content area,
 not as a separate top-level resource tab. That keeps the resource tabs stable and
