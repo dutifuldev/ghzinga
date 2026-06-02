@@ -50,8 +50,9 @@ the real resource as soon as the API call completes.
   startup loading.
 - Duplicate refresh/navigation starts should still be ignored while the initial
   fetch is active.
-- On success, replace the placeholder with the fetched resource and show
-  `loaded owner/repo#number`.
+- On success, replace the placeholder with the fetched resource and clear the
+  loading detail. Do not show an `info loaded owner/repo#number` completion
+  line; success should be obvious from the loaded resource and normal metadata.
 - On failure, keep the placeholder visible and show the recoverable error.
 - `--once` should continue to block until the real resource is fetched because
   it prints a static buffer for scripts and tests.

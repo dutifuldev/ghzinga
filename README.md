@@ -341,13 +341,15 @@ visible.
 Live startup, refresh, linked-resource navigation, and Backspace navigation run
 as background GitHub fetches in the TUI. On startup, `gzg owner/repo#number`
 enters the terminal UI immediately with a lightweight loading placeholder, then
-replaces it with the fetched resource when GitHub responds. During refresh or
-navigation, the previous resource stays readable while the status band and
-footer show a terminal-safe loading marker such as `Loading |: ...`; duplicate
-fetch starts are ignored until the current one finishes, so rapid clicks or
-auto-refresh ticks do not build a request queue. `--once` and offline fixture
-mode still load before rendering because they produce deterministic static
-output.
+replaces it with the fetched resource when GitHub responds. Successful loads are
+quiet: the status detail line does not show `info loaded owner/repo#number`, so
+the chrome settles back to resource metadata instead of keeping stale completion
+text. During refresh or navigation, the previous resource stays readable while
+the status band and footer show a terminal-safe loading marker such as
+`Loading |: ...`; duplicate fetch starts are ignored until the current one
+finishes, so rapid clicks or auto-refresh ticks do not build a request queue.
+`--once` and offline fixture mode still load before rendering because they
+produce deterministic static output.
 All direct GitHub HTTP requests reuse the same client and carry a 30-second
 per-request timeout, so a bad network path reports through the existing
 recoverable error or warning UI instead of waiting indefinitely.

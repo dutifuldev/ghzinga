@@ -166,31 +166,27 @@ pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     state.finish_loading();
     match (outcome.action, outcome.result) {
         (FetchAction::Initial { .. }, Ok(resource)) => {
-            let name = resource.id.canonical_name();
             state.replace_resource_preserve_tab(resource);
             state.last_error = None;
-            state.status_message = Some(format!("loaded {name}"));
+            state.status_message = None;
         }
         (FetchAction::Refresh { .. }, Ok(resource)) => {
             state.apply_refreshed_resource(resource, outcome.refreshed_at);
         }
         (FetchAction::LoadFull { .. }, Ok(resource)) => {
-            let name = resource.id.canonical_name();
             state.apply_refreshed_resource(resource, outcome.refreshed_at);
-            state.status_message = Some(format!("loaded full GitHub data for {name}"));
+            state.status_message = None;
         }
         (FetchAction::Navigate { from, .. }, Ok(resource)) => {
             state.history.push(from);
-            let name = resource.id.canonical_name();
             state.replace_resource_reset_view(resource);
             state.last_error = None;
-            state.status_message = Some(format!("opened {name}"));
+            state.status_message = None;
         }
         (FetchAction::Back { .. }, Ok(resource)) => {
-            let name = resource.id.canonical_name();
             state.replace_resource_reset_view(resource);
             state.last_error = None;
-            state.status_message = Some(format!("returned to {name}"));
+            state.status_message = None;
         }
         (FetchAction::Back { to }, Err(error)) => {
             state.history.push(to);
@@ -329,10 +325,7 @@ mod tests {
         assert_eq!(state.scroll, 4);
         assert_eq!(state.resource.body, "full body with later comments");
         assert!(!state.resource.has_partial_depth_warning());
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("loaded full GitHub data for owner/repo#1")
-        );
+        assert!(state.status_message.is_none());
     }
 
     #[test]
@@ -359,7 +352,7 @@ mod tests {
         assert_eq!(state.resource.title, "Loaded issue");
         assert_eq!(state.resource.state, "OPEN");
         assert_eq!(state.active_tab, Tab::Overview);
-        assert_eq!(state.status_message.as_deref(), Some("loaded owner/repo#1"));
+        assert!(state.status_message.is_none());
         assert!(state.loading.is_none());
     }
 

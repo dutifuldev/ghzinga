@@ -546,10 +546,9 @@ async fn navigate_to_resource<G: crate::github::api::GithubGateway>(
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
             state.push_current_to_history();
-            let name = resource.id.canonical_name();
             state.replace_resource_reset_view(resource);
             state.last_error = None;
-            state.status_message = Some(format!("opened {name}"));
+            state.status_message = None;
         }
         Err(error) => {
             state.last_error = Some(error.to_string());
@@ -565,10 +564,9 @@ async fn navigate_back<G: crate::github::api::GithubGateway>(state: &mut AppStat
     };
     match gateway.fetch_resource(&id).await {
         Ok(resource) => {
-            let name = resource.id.canonical_name();
             state.replace_resource_reset_view(resource);
             state.last_error = None;
-            state.status_message = Some(format!("returned to {name}"));
+            state.status_message = None;
         }
         Err(error) => {
             state.last_error = Some(error.to_string());
@@ -882,17 +880,14 @@ mod tests {
         assert_eq!(state.resource.id, target_id);
         assert_eq!(state.resource.title, "Linked issue");
         assert_eq!(state.history.as_slice(), std::slice::from_ref(&initial.id));
-        assert_eq!(state.status_message.as_deref(), Some("opened owner/repo#2"));
+        assert!(state.status_message.is_none());
 
         navigate_back(&mut state, &gateway).await;
 
         assert_eq!(state.resource.id, initial.id);
         assert_eq!(state.resource.title, "Initial issue");
         assert!(state.history.is_empty());
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("returned to owner/repo#1")
-        );
+        assert!(state.status_message.is_none());
         assert_eq!(
             gateway
                 .requested()

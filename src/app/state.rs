@@ -290,18 +290,7 @@ impl AppState {
         self.loading = None;
         self.mark_refreshed(refreshed_at, changed);
         self.last_refresh_changed_sections = changed_sections;
-        self.status_message = Some(if changed {
-            if self.last_refresh_changed_sections.is_empty() {
-                "refreshed from GitHub: changes detected".into()
-            } else {
-                format!(
-                    "refreshed from GitHub: changed {}",
-                    self.last_refresh_changed_sections.join(", ")
-                )
-            }
-        } else {
-            "refreshed from GitHub: no changes".into()
-        });
+        self.status_message = None;
         changed
     }
 
@@ -938,10 +927,7 @@ mod tests {
         assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
         assert_eq!(state.last_refresh_had_changes, Some(false));
         assert!(state.last_refresh_changed_sections.is_empty());
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("refreshed from GitHub: no changes")
-        );
+        assert!(state.status_message.is_none());
     }
 
     #[test]
@@ -982,10 +968,7 @@ mod tests {
             state.last_refresh_changed_sections,
             vec!["summary".to_string(), "activity".to_string()]
         );
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("refreshed from GitHub: changed summary, activity")
-        );
+        assert!(state.status_message.is_none());
     }
 
     #[test]
