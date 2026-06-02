@@ -2,8 +2,8 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)  6 files  diff 1122      
-  +1100  -22                                                                                                            
+  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)                          
+  6 files changed +1.1k -22                                                                                             
                                                                                                                         
   [Overview] Activity  Commits  Checks  Files  Links                                                                    
                                                                                                                         
