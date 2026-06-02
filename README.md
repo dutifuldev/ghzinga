@@ -1,14 +1,19 @@
 # ghzinga
 
-`ghzinga` is a terminal UI for viewing one GitHub pull request or issue.
+`ghzinga` is a small terminal UI for keeping one GitHub pull request or issue
+open on the side while you work.
 
-It is similar in spirit to [`gh dash`](https://github.com/dlvhdr/gh-dash), but
-focused on a single PR or issue instead of a dashboard list. It is inspired by
-[`Herdr`](https://herdr.dev/) and built with
+It is not trying to be a full GitHub client. It is for maintainers who want a
+faster-than-the-web-UI view of the current status, comments, checks, files, and
+links for one PR or issue, with automatic refresh. It is similar in spirit to
+[`gh dash`](https://github.com/dlvhdr/gh-dash), but focused on a single item
+instead of a dashboard list.
+
+`ghzinga` is inspired by [`Herdr`](https://herdr.dev/) and built with
 [`Ratatui`](https://ratatui.rs/) and
-[`Crossterm`](https://github.com/crossterm-rs/crossterm), so the interface is
-not just text output: you can click tabs, click links, expand rows, scroll with
-the mouse wheel, drag the scrollbar, and use keyboard shortcuts.
+[`Crossterm`](https://github.com/crossterm-rs/crossterm), so the terminal UI is
+interactive: click tabs and links, expand rows, scroll with the mouse wheel,
+drag the scrollbar, or use keyboard shortcuts.
 
 <img alt="ghzinga demo" src="https://github.com/user-attachments/assets/d44c0f11-b15a-4ff0-aec3-8ddc58a83f5d" />
 
@@ -119,3 +124,7 @@ manually.
 
 When a resource has more data than the normal GitHub API depth loads, ghzinga
 shows a full-depth action so you can fetch the rest without restarting the app.
+
+## License
+
+[MIT](LICENSE)
