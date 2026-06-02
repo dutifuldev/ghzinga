@@ -5,9 +5,10 @@ issue.
 
 It shows the conversation, metadata, linked resources, checks, commits, and
 changed files in one keyboard- and mouse-friendly terminal view. It uses direct
-GitHub API calls for data. Set `GH_TOKEN` or `GITHUB_TOKEN` for private
-repositories and higher rate limits; for public repositories it can fall back to
-unauthenticated GitHub data when credentials are unavailable.
+GitHub API calls for data and reuses your existing GitHub CLI login through
+`gh auth token`. You can also set `GH_TOKEN` or `GITHUB_TOKEN` to override that
+token. For public repositories, ghzinga can fall back to unauthenticated GitHub
+data when credentials are unavailable.
 
 ## Install
 
