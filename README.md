@@ -74,42 +74,6 @@ gzg openclaw/openclaw#81834
 gzg openclaw/openclaw 81834
 ```
 
-Useful options:
-
-```sh
-gzg openclaw/openclaw#81834 --tab checks
-gzg openclaw/openclaw#81834 --refresh-seconds 30
-gzg openclaw/openclaw#81834 --api-depth full
-gzg openclaw/openclaw#81834 --no-mouse
-gzg openclaw/openclaw#81834 --theme solarized-dark
-gzg openclaw/openclaw#81834 --symbols ascii
-gzg openclaw/openclaw#81834 --spacing compact
-gzg openclaw/openclaw#81834 --width-mode full
-gzg openclaw/openclaw#81834 --fixed-width 132
-gzg openclaw/openclaw#81834 --scrollbar always
-gzg openclaw/openclaw#81834 --once
-```
-
-`--tab` accepts `overview`, `activity`, `commits`, `checks`, `files`, and
-`links`. Issue views only show `overview`, `activity`, and `links`. `--theme`
-accepts built-in themes: `default`, `catppuccin`, `catppuccin-latte`,
-`terminal`, `tokyo-night`, `tokyo-night-day`, `dracula`, `nord`, `gruvbox`,
-`gruvbox-light`, `one-dark`, `one-light`, `solarized`, `solarized-light`,
-`kanagawa`, `kanagawa-lotus`, `rose-pine`, `rose-pine-dawn`, and `vesper`.
-`solarized-dark` remains an alias for `solarized`. `--symbols` accepts `ascii`
-and `emoji`. `--spacing` accepts `comfortable` and `compact`. Comfortable is
-the default and adds extra room between repeated rows, a small content gutter,
-top/bottom chrome padding, and hanging indents for wrapped long lines; compact
-keeps more rows visible in small terminals. `--width-mode` accepts `fixed` and
-`full`;
-`--fixed-width` sets the fixed readable width in columns. Files stay full width
-so diffs have room. `--scrollbar` accepts `always`, `on-scroll`, and `hidden`.
-`--api-depth`
-accepts `partial` and `full`. Partial is the default and keeps GraphQL usage
-conservative; full follows all supported paginated GraphQL enrichment paths.
-CLI theme, symbol, spacing, width, and scrollbar flags override saved config for
-that run only.
-
 ## Configuration
 
 Ghzinga reads a small TOML config file:
