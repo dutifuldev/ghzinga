@@ -38,8 +38,36 @@ enum TimelineItem<'a> {
 
 #[derive(Clone)]
 struct StyledPiece {
+    segments: Vec<StyledSegment>,
+}
+
+#[derive(Clone)]
+struct StyledSegment {
     text: String,
     style: Style,
+}
+
+impl StyledPiece {
+    fn plain_text(&self) -> String {
+        self.segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect()
+    }
+
+    fn display_width(&self) -> usize {
+        self.segments
+            .iter()
+            .map(|segment| UnicodeWidthStr::width(segment.text.as_str()))
+            .sum()
+    }
+
+    fn first_style(&self) -> Style {
+        self.segments
+            .first()
+            .map(|segment| segment.style)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone)]
@@ -427,12 +455,14 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     let symbols = state.symbols.symbols();
     let mut pieces = Vec::new();
     pieces.push(StyledPiece {
-        text: format!(
-            "{} {}",
-            resource_state_symbol(resource, &symbols),
-            resource.state
-        ),
-        style: resource_state_badge_style(resource, palette),
+        segments: vec![StyledSegment {
+            text: format!(
+                "{} {}",
+                resource_state_symbol(resource, &symbols),
+                resource.state
+            ),
+            style: resource_state_badge_style(resource, palette),
+        }],
     });
     push_status_piece(
         &mut pieces,
@@ -457,13 +487,13 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
             checks_badge_style(resource, palette),
         );
         if let Some(pr) = &resource.pull_request {
-            push_status_piece(
-                &mut pieces,
-                changed_files_summary(symbols.files, pr.files.len(), pr.additions, pr.deletions),
-                Style::default()
-                    .fg(palette.teal)
-                    .add_modifier(Modifier::BOLD),
-            );
+            pieces.push(changed_files_status_piece(
+                symbols.files,
+                pr.files.len(),
+                pr.additions,
+                pr.deletions,
+                palette,
+            ));
         }
     }
 
@@ -494,21 +524,45 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
 }
 
 fn push_status_piece(pieces: &mut Vec<StyledPiece>, text: String, style: Style) {
-    pieces.push(StyledPiece { text, style });
+    pieces.push(StyledPiece {
+        segments: vec![StyledSegment { text, style }],
+    });
 }
 
-fn changed_files_summary(
+fn changed_files_status_piece(
     files_symbol: &str,
     file_count: usize,
     additions: u64,
     deletions: u64,
-) -> String {
-    format!(
-        "{} changed +{} -{}",
-        file_count_summary(files_symbol, file_count),
-        compact_count(additions),
-        compact_count(deletions)
-    )
+    palette: &Palette,
+) -> StyledPiece {
+    let label_style = Style::default()
+        .fg(palette.teal)
+        .add_modifier(Modifier::BOLD);
+    StyledPiece {
+        segments: vec![
+            StyledSegment {
+                text: format!("{} changed ", file_count_summary(files_symbol, file_count)),
+                style: label_style,
+            },
+            StyledSegment {
+                text: format!("+{}", compact_count(additions)),
+                style: Style::default()
+                    .fg(palette.green)
+                    .add_modifier(Modifier::BOLD),
+            },
+            StyledSegment {
+                text: " ".into(),
+                style: label_style,
+            },
+            StyledSegment {
+                text: format!("-{}", compact_count(deletions)),
+                style: Style::default()
+                    .fg(palette.red)
+                    .add_modifier(Modifier::BOLD),
+            },
+        ],
+    }
 }
 
 fn compact_count(value: u64) -> String {
@@ -637,29 +691,35 @@ fn wrap_styled_pieces(pieces: &[StyledPiece], width: usize) -> Vec<Line<'static>
     let mut spans = Vec::new();
     let mut current_width = 0;
     for piece in pieces {
-        for (index, segment) in markdown::wrap_display_text(&piece.text, width)
-            .into_iter()
-            .enumerate()
-        {
-            if index > 0 && current_width > 0 {
-                lines.push(Line::from(spans));
-                spans = Vec::new();
-                current_width = 0;
-            }
-            let separator_width = usize::from(current_width > 0) * 2;
-            let segment_width = UnicodeWidthStr::width(segment.as_str());
-            if current_width > 0 && current_width + separator_width + segment_width > width {
-                lines.push(Line::from(spans));
-                spans = Vec::new();
-                current_width = 0;
-            }
+        let piece_width = piece.display_width();
+        if piece_width > width {
             if current_width > 0 {
-                spans.push(Span::raw("  "));
-                current_width += 2;
+                lines.push(Line::from(spans));
+                spans = Vec::new();
+                current_width = 0;
             }
-            let text = truncate_display(&segment, width);
-            current_width += UnicodeWidthStr::width(text.as_str());
-            spans.push(Span::styled(text, piece.style));
+            let style = piece.first_style();
+            for segment in markdown::wrap_display_text(&piece.plain_text(), width) {
+                lines.push(Line::from(Span::styled(
+                    truncate_display(&segment, width),
+                    style,
+                )));
+            }
+            continue;
+        }
+        let separator_width = usize::from(current_width > 0) * 2;
+        if current_width > 0 && current_width + separator_width + piece_width > width {
+            lines.push(Line::from(spans));
+            spans = Vec::new();
+            current_width = 0;
+        }
+        if current_width > 0 {
+            spans.push(Span::raw("  "));
+            current_width += 2;
+        }
+        for segment in &piece.segments {
+            current_width += UnicodeWidthStr::width(segment.text.as_str());
+            spans.push(Span::styled(segment.text.clone(), segment.style));
         }
     }
     if !spans.is_empty() {
@@ -2954,7 +3014,7 @@ mod tests {
     use crossterm::event::{
         KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
-    use ratatui::{backend::TestBackend, Terminal};
+    use ratatui::{backend::TestBackend, style::Color, Terminal};
 
     use super::*;
     use crate::app::{apply_event, AppEvent, AppIntent};
@@ -3092,6 +3152,29 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|frame| render_app(frame, state)).unwrap();
         terminal.backend().buffer()[(x, y)].symbol().to_string()
+    }
+
+    fn draw_cell_fg_for_text(
+        state: &mut AppState,
+        width: u16,
+        height: u16,
+        needle: &str,
+        needle_offset: u16,
+    ) -> Option<Color> {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render_app(frame, state)).unwrap();
+        for y in 0..height {
+            let row = (0..width)
+                .map(|x| terminal.backend().buffer()[(x, y)].symbol())
+                .collect::<Vec<_>>()
+                .join("");
+            if let Some(index) = row.find(needle) {
+                let x = row[..index].chars().count() as u16 + needle_offset;
+                return Some(terminal.backend().buffer()[(x, y)].fg);
+            }
+        }
+        None
     }
 
     fn draw_column_symbols(
@@ -3376,6 +3459,29 @@ mod tests {
         assert!(content.contains("OK checks PASS"));
         assert!(content.contains("22 files changed +1.3k -195"));
         assert!(!content.contains("diff 1445"));
+        let plus_offset = "22 files changed ".len() as u16;
+        let minus_offset = plus_offset + "+1.3k ".len() as u16;
+        let palette = Palette::default_dark();
+        assert_eq!(
+            draw_cell_fg_for_text(
+                &mut state,
+                140,
+                36,
+                "22 files changed +1.3k -195",
+                plus_offset,
+            ),
+            Some(palette.green)
+        );
+        assert_eq!(
+            draw_cell_fg_for_text(
+                &mut state,
+                140,
+                36,
+                "22 files changed +1.3k -195",
+                minus_offset,
+            ),
+            Some(palette.red)
+        );
         assert!(!content.contains("comments 2"));
         assert!(!content.contains("reviews 1"));
         assert!(!content.contains("timeline 1"));
@@ -3989,12 +4095,16 @@ mod tests {
         let lines = wrap_styled_pieces(
             &[
                 StyledPiece {
-                    text: "OK OPEN".into(),
-                    style: Style::default(),
+                    segments: vec![StyledSegment {
+                        text: "OK OPEN".into(),
+                        style: Style::default(),
+                    }],
                 },
                 StyledPiece {
-                    text: "assignees @extraordinarily-long-user-name @second-reviewer".into(),
-                    style: Style::default().add_modifier(Modifier::BOLD),
+                    segments: vec![StyledSegment {
+                        text: "assignees @extraordinarily-long-user-name @second-reviewer".into(),
+                        style: Style::default().add_modifier(Modifier::BOLD),
+                    }],
                 },
             ],
             14,
