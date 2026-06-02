@@ -37,7 +37,13 @@ The transferable standards are:
 
 ```text
 src/main.rs
-  -> orchestration edge: terminal loop, async loading, refresh, open-url command
+  -> binary entrypoint only
+
+src/runner.rs
+  -> runtime edge: CLI setup, terminal loop, input polling, open-url/copy commands
+
+src/fetch.rs
+  -> runtime data-loading edge: async resource fetch actions, fixtures, refresh outcomes
 
 src/app/
   -> state and event reducer; no concrete GitHub or terminal adapter calls
@@ -61,7 +67,9 @@ src/terminal/
 The current dependency direction is:
 
 ```text
-main -> app/domain/github/render/input/terminal/config
+main -> runner
+runner -> app/domain/fetch/github/render/terminal/config
+fetch -> app/domain/github
 app -> domain/input/render/config
 render -> app/domain/input
 github -> domain
@@ -71,9 +79,10 @@ domain -> no product layer
 ```
 
 This is deliberately not a purist clean-architecture diagram. A TUI renderer
-needs app view state and hit targets. The important Slophammer rule is that
-domain and policy stay away from concrete IO, while external adapters do not
-reach back into TUI layers.
+needs app view state and hit targets, and the runtime fetch edge needs to wire
+loaded GitHub resources back into app state. The important Slophammer rule is
+that domain and policy stay away from concrete IO, while external adapters do
+not reach back into TUI layers.
 
 ## Executable Guardrails
 
@@ -88,6 +97,10 @@ reach back into TUI layers.
 - `src/input` stays small and adapter-free
 - `src/app` does not call concrete GitHub, terminal, network, or process
   adapters
+- `src/fetch.rs` is the only non-runner runtime module allowed to combine
+  `AppState` mutation with GitHub resource loading; it may depend on app,
+  domain, and GitHub adapters, but not renderer, terminal, input, process, or
+  direct HTTP libraries
 - `src/terminal` stays out of domain, data, input, render, and app layers
 - GitHub data transport does not regress to `gh pr view`, `gh issue view`, or
   `gh api`; the only allowed `gh` use in the GitHub adapter is `gh auth token`

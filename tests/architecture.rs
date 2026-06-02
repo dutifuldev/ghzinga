@@ -80,6 +80,38 @@ fn app_reducer_does_not_call_concrete_io_adapters() {
 }
 
 #[test]
+fn fetch_runtime_boundary_stays_out_of_terminal_and_rendering_layers() {
+    let source = fs::read_to_string("src/fetch.rs").expect("read fetch runtime source");
+
+    for forbidden in [
+        "crate::input",
+        "crate::render",
+        "crate::terminal",
+        "crossterm",
+        "ratatui",
+        "reqwest",
+        "std::process",
+        "tokio::process",
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "fetch runtime boundary contains forbidden dependency text `{forbidden}`"
+        );
+    }
+
+    for expected in [
+        "app::AppState",
+        "domain::{Resource, ResourceId}",
+        "github::{",
+    ] {
+        assert!(
+            source.contains(expected),
+            "fetch runtime boundary should document intentional dependency on `{expected}`"
+        );
+    }
+}
+
+#[test]
 fn terminal_adapter_stays_out_of_domain_and_data_layers() {
     let forbidden = [
         "crate::app",

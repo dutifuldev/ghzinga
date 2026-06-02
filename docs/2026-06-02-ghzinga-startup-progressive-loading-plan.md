@@ -76,7 +76,8 @@ fetch queue and error handling.
 
 ## Implementation checklist
 
-- Add `Resource::loading_placeholder(ResourceId)`.
+- Add an app-layer `loading_resource_placeholder(ResourceId)` helper so the
+  domain model stays free of startup/rendering shell concerns.
 - Add an initial background fetch action for live TUI startup.
 - Enter `run_tui` before the first live GitHub fetch completes.
 - Preserve blocking startup for `--once` and offline fixtures.
