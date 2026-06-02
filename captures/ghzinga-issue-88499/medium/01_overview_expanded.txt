@@ -2,14 +2,14 @@
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                           
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  XX CLOSED  by @xneone                                                                                                 
+  ❌ CLOSED  👤 @xneone                                                                                                 
                                                                                                                         
                                                                                                                         
-  [Overview] Activity  Links                                                                                            
+  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * @xneone opened 2d ago                                                                                               
+  📝 @xneone opened 2d ago                                                                                              
   Bug Description                                                                                                       
                                                                                                                         
   When using a provider configured with api: openai-responses, the gateway sends store=false in responses API           
@@ -25,12 +25,12 @@
   conversation.                                                                                                         
                                                                                                                         
   Related regressions were discussed in #84904 and #87310.                                                              
-  [- less]                                                                                                              
+  [➖ less]                                                                                                             
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @clawsweeper 2d ago                                                                                
+  💬 Comment by @clawsweeper 2d ago                                                                                     
   Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay         
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]                                             
                                                                                                                         

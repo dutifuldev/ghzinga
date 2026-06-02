@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "6c9a5e7f6fa4ddba740e27ba14891b1a383945a7",
+  "git_commit": "c6e8a0117a3add264c02412dc29421529124781f",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg openclaw/openclaw#81834 --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -14,99 +14,99 @@
     "open_url": "https://github.com/openclaw/openclaw/pull/81834",
     "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
   },
-  "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"ascii\"\nspacing = \"compact\"\nwidth_mode = \"fixed\"\nfixed_width = 118\nscrollbar = \"on-scroll\"\n",
+  "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"fixed\"\nfixed_width = 118\nscrollbar = \"on-scroll\"\n",
   "quit_exited": true,
   "mouse_coordinates": {
     "overview_more": [
-      47,
+      46,
       28
     ],
     "overview_less": [
-      47,
+      46,
       28
     ],
     "files_tab": [
-      42,
+      56,
       8
     ],
     "file_row_more": [
-      51,
+      50,
       14
     ],
     "file_row_less": [
-      51,
+      50,
       14
     ],
     "expand_all": [
-      53,
+      70,
       35
     ],
     "collapse_all": [
-      53,
+      70,
       35
     ],
     "checks_tab": [
-      34,
+      45,
       8
     ],
     "check_row_more": [
-      23,
+      22,
       16
     ],
     "check_row_less": [
-      23,
+      22,
       16
     ],
     "links_tab": [
-      49,
+      66,
       8
     ],
     "linked_issue": [
-      4,
+      3,
       12
     ],
     "activity_tab_for_detail": [
-      15,
+      20,
       8
     ],
     "activity_details": [
-      4,
+      3,
       13
     ],
     "overview_tab_after_detail": [
-      5,
+      7,
       8
     ],
     "refresh": [
-      4,
+      3,
       35
     ],
     "copy": [
-      14,
+      16,
       35
     ],
     "open": [
-      21,
+      26,
       35
     ],
     "help": [
-      39,
+      50,
       35
     ],
     "settings": [
-      28,
+      36,
       35
     ],
     "settings_compact": [
-      4,
+      3,
       30
     ],
     "quit": [
-      44,
+      58,
       36
     ],
     "load_full": [
-      51,
+      68,
       36
     ]
   },

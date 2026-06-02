@@ -2,49 +2,49 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                                                          
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files changed +1.1k -22                                     
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
                                                                                                                                                                 
                                                                                                                                                                 
-   Overview  Activity  Commits [Checks] Files  Links                                                                                                            
+   🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links                                                                                          
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                        │                                        
-  [OK PASS] suite/CodeQL Critical Quality [+ more]                                                                     │                                        
+  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                                                                    │                                        
                                                                                                                        █                                        
-  [OK PASS] suite/Dependency Guard [+ more]                                                                            █                                        
+  [✅ PASS] suite/Dependency Guard [➕ more]                                                                           █                                        
                                                                                                                        █                                        
-  [OK PASS] suite/GitHub Advanced Security [+ more]                                                                    █                                        
+  [✅ PASS] suite/GitHub Advanced Security [➕ more]                                                                   █                                        
                                                                                                                        █                                        
-  [OK PASS] suite/Labeler [+ more]                                                                                     │                                        
+  [✅ PASS] suite/Labeler [➕ more]                                                                                    │                                        
                                                                                                                        │                                        
-  [OK PASS] suite/OpenGrep — PR Diff [+ more]                                                                          │                                        
+  [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                                                                         │                                        
                                                                                                                        │                                        
-  [OK PASS] suite/Real behavior proof [+ more]                                                                         │                                        
+  [✅ PASS] suite/Real behavior proof [➕ more]                                                                        │                                        
                                                                                                                        │                                        
-  [OK PASS] suite/Socket Security [+ more]                                                                             │                                        
+  [✅ PASS] suite/Socket Security [➕ more]                                                                            │                                        
                                                                                                                        │                                        
-  [OK PASS] suite/Workflow Sanity [+ more]                                                                             │                                        
+  [✅ PASS] suite/Workflow Sanity [➕ more]                                                                            │                                        
                                                                                                                        │                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                       │                                        
+  [✅ PASS] Auto response/auto-response [➕ more]                                                                      │                                        
                                                                                                                        │                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                       │                                        
+  [✅ PASS] Auto response/auto-response [➕ more]                                                                      │                                        
                                                                                                                        │                                        
-  [OK PASS] Auto response/auto-response [+ more]                                                                       │                                        
+  [✅ PASS] Auto response/auto-response [➕ more]                                                                      │                                        
                                                                                                                        │                                        
-  [OK PASS] CI/preflight [+ more]                                                                                      │                                        
+  [✅ PASS] CI/preflight [➕ more]                                                                                     │                                        
                                                                                                                        │                                        
-  [OK PASS] ClawSweeper Dispatch/dispatch [+ more]                                                                     │                                        
+  [✅ PASS] ClawSweeper Dispatch/dispatch [➕ more]                                                                    │                                        
                                                                                                                        │                                        
-  [OK PASS] CodeQL/Security High (core-auth-secrets) [+ more]                                                          │                                        
+  [✅ PASS] CodeQL/Security High (core-auth-secrets) [➕ more]                                                         │                                        
                                                                                                                        │                                        
-  [OK PASS] CodeQL Critical Quality/Select Critical Quality shards [+ more]                                            │                                        
+  [✅ PASS] CodeQL Critical Quality/Select Critical Quality shards [➕ more]                                           │                                        
                                                                                                                        │                                        
-  [OK PASS] Dependency Guard/dependency-guard-detect [+ more]                                                          │                                        
+  [✅ PASS] Dependency Guard/dependency-guard-detect [➕ more]                                                         │                                        
                                                                                                                        │                                        
-  [OK PASS] Labeler/label [+ more]                                                                                     │                                        
+  [✅ PASS] Labeler/label [➕ more]                                                                                    │                                        
                                                                                                                        │                                        
-  [OK PASS] OpenGrep — PR Diff/Scan changed paths (precise) [+ more]                                                   │                                        
+  [✅ PASS] OpenGrep — PR Diff/Scan changed paths (precise) [➕ more]                                                  │                                        
                                                                                                                        │                                        
                                                                                                                                                                 
-  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]                                                                                     
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                                                            
                                                                                                                                                                 

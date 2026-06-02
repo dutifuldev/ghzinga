@@ -2,10 +2,10 @@
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d   
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
-  XX CLOSED  by @xneone                                                         
+  ❌ CLOSED  👤 @xneone                                                         
                                                                                 
                                                                                 
-   Overview [Activity] Links                                                    
+   🏠 Overview [💬 Activity] 🔗 Links                                           
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
@@ -21,4 +21,4 @@
   Comment by @tianxiaochannel-oss88 1d ago                                      
   Adding a fresh macOS/Slack data point: the same previous_response_id 404      
                                                                                 
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]     

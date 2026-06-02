@@ -2,10 +2,10 @@
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d   
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
-  XX CLOSED  by @xneone                                                         
+  ❌ CLOSED  👤 @xneone                                                         
                                                                                 
                                                                                 
-  [Overview] Activity  Links                                                    
+  [🏠 Overview] 💬 Activity  🔗 Links                                           
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
   HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when    │  
@@ -18,7 +18,7 @@
   persist the response when continuing a conversation.                       │  
                                                                              │  
   Related regressions were discussed in #84904 and #87310.                   │  
-  [- less]                                                                   │  
+  [➖ less]                                                                  │  
                                                                              │  
                                                                                 
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                 
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]     

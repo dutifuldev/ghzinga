@@ -2,14 +2,14 @@
   https://github.com/openclaw/openclaw/issues/66943 [Issue CLOSED] updated 1mo                                          
   feat: add SenseAudio audio transcription provider                                                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  XX CLOSED  by @Fl0rencess720                                                                                          
+  ❌ CLOSED  👤 @Fl0rencess720                                                                                          
                                                                                                                         
                                                                                                                         
-  [Overview] Activity  Links                                                                                            
+  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * @Fl0rencess720 opened 2mo ago                                                                                       
+  📝 @Fl0rencess720 opened 2mo ago                                                                                      
   Summary                                                                                                               
   - Problem: OpenClaw has no built-in audio transcription provider.                                                     
   - Why it matters: SenseAudio provides an OpenAI-compatible ASR API.                                                   
@@ -19,7 +19,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @osolmaz 1mo ago                                                                                   
+  💬 Comment by @osolmaz 1mo ago                                                                                        
   Implementation was completed in #81834.                                                                               
                                                                                                                         
   Details                                                                                                               
@@ -32,5 +32,5 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]                                             
                                                                                                                         

@@ -2,14 +2,14 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)                          
-  6 files changed +1.1k -22                                                                                             
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
+  📄 6 files changed +1.1k -22                                                                                          
                                                                                                                         
-  [Overview] Activity  Commits  Checks  Files  Links                                                                    
+  [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * @KLilyZ opened 1mo ago                                                                                              
+  📝 @KLilyZ opened 1mo ago                                                                                             
   Summary                                                                                                               
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
   - Why it matters: completes the round trip in the same plugin.                                                        
@@ -25,12 +25,12 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [+ more]                                                                   
+  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [➕ more]                                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  comment Comment by @github-actions 1mo ago                                                                            
+  💬 Comment by @github-actions 1mo ago                                                                                 
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [expand all]                                                         
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]                                             
                                                                                                                         

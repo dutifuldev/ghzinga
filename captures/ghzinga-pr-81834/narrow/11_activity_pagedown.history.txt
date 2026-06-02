@@ -2,10 +2,10 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d          
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main                              
-  OK checks PASS (80 pass, 0 pending, 0 fail)  14 files changed +1.1k -22       
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
+  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
                                                                                 
-   Overview [Activity] Commits  Checks  Files  Links                            
+   🏠 Overview [💬 Activity] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links          
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
   plugin, including TTS and voice-list HTTP helpers, voice-note opus         │  
@@ -13,12 +13,12 @@
                                                                              │  
   Reproducibility: not applicable. for the requested feature because current █  
   main simply lacks SenseAudio TTS. The remaining docs bug is                █  
-  [+ more]                                                                   │  
+  [➕ more]                                                                  │  
                                                                              │  
   Comment by @KLilyZ 1w ago                                                  │  
   meta: association NONE                                                     │  
   [details]                                                                  │  
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
   cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
-                                                                                
-  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]     
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
+  [➕ all]                                                                      

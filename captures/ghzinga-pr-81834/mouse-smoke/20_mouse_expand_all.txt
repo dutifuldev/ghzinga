@@ -2,20 +2,20 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (5 pass, 0 pending, 0 fail)                          
-  6 files changed +1.1k -22                                                                                             
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
+  📄 6 files changed +1.1k -22                                                                                          
                                                                                                                         
-   Overview  Activity  Commits  Checks [Files] Links                                                                    
+   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                      │  
-  +3    -1    MODIFIED extensions/senseaudio/index.ts [- less]                                                       │  
+  +3    -1    MODIFIED extensions/senseaudio/index.ts [➖ less]                                                      │  
   path: extensions/senseaudio/index.ts                                                                               │  
   change: MODIFIED, additions: 3, deletions: 1                                                                       │  
   patch: not loaded                                                                                                  │  
-  [- less]                                                                                                           │  
+  [➖ less]                                                                                                          │  
                                                                                                                      │  
-  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [- less]                                             │  
+  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [➖ less]                                            │  
   path: extensions/senseaudio/speech-provider.ts                                                                     │  
   change: ADDED, additions: 1018, deletions: 2                                                                       │  
   patch                                                                                                              │  
@@ -28,9 +28,9 @@
     return response.arrayBuffer();                                                                                   █  
   }                                                                                                                  █  
   export async function listVoices() { return fetch('/v1/get_voice'); }                                              █  
-  [- less patch]                                                                                                     █  
-  [- less]                                                                                                           █  
+  [➖ less patch]                                                                                                    █  
+  [➖ less]                                                                                                          █  
                                                                                                                      █  
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [collapse all]                                                       
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➖ all]                                             
                                                                                                                         

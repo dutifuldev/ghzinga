@@ -2,10 +2,10 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  OK OPEN  by @KLilyZ  feat/senseaudio-tts -> main  OK checks PASS (80 pass, 0 pending, 0 fail)                         
-  14 files changed +1.1k -22                                                                                            
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)                         
+  📄 14 files changed +1.1k -22                                                                                         
                                                                                                                         
-   Overview [Activity] Commits  Checks  Files  Links                                                                    
+   🏠 Overview [💬 Activity] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                   │  
@@ -13,7 +13,7 @@
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The   │  
   remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provide│  
   <id>.                                                                                                              │  
-  [+ more]                                                                                                           │  
+  [➕ more]                                                                                                          │  
                                                                                                                      █  
   Comment by @KLilyZ 1w ago                                                                                          █  
   meta: association NONE                                                                                             █  
@@ -32,5 +32,5 @@
   meta: association CONTRIBUTOR, edited                                                                              │  
   [details]                                                                                                          │  
                                                                                                                         
-  [refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]                                             
+  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                    
                                                                                                                         
