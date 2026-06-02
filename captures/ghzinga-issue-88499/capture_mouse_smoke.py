@@ -191,20 +191,20 @@ def capture_mouse_smoke():
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
         wait_for_text(SESSION, TITLE)
-        wait_for_text(SESSION, "[refresh]")
+        wait_for_text(SESSION, "[🔄 refresh]")
         write_frame(ROOT, "00_initial_overview", frames)
 
-        overview_more = find_marker_position(SESSION, "[+ more]")
+        overview_more = find_marker_position(SESSION, "[➕ more]")
         mouse_coordinates["overview_more"] = list(overview_more)
         send_mouse_click(SESSION, *overview_more)
         wait_for_text(SESSION, EXPANDED_BODY_MARKER)
-        require_screen_contains("[- less]")
+        require_screen_contains("[➖ less]")
         write_frame(ROOT, "05_mouse_overview_more", frames)
 
-        overview_less = find_marker_position(SESSION, "[- less]")
+        overview_less = find_marker_position(SESSION, "[➖ less]")
         mouse_coordinates["overview_less"] = list(overview_less)
         send_mouse_click(SESSION, *overview_less)
-        wait_for_text(SESSION, "[+ more]")
+        wait_for_text(SESSION, "[➕ more]")
         text = capture_plain(SESSION)
         if EXPANDED_BODY_MARKER in text:
             raise RuntimeError(f"overview less left issue body expanded:\n{text}")
@@ -212,17 +212,17 @@ def capture_mouse_smoke():
 
         send_key(SESSION, "a")
         wait_for_text(SESSION, EXPANDED_BODY_MARKER)
-        require_screen_contains("[- less]")
+        require_screen_contains("[➖ less]")
         write_frame(ROOT, "07_keyboard_expand_all", frames)
 
         send_key(SESSION, "a")
-        wait_for_text(SESSION, "[+ more]")
+        wait_for_text(SESSION, "[➕ more]")
         text = capture_plain(SESSION)
         if EXPANDED_BODY_MARKER in text:
             raise RuntimeError(f"keyboard collapse all left issue body expanded:\n{text}")
         write_frame(ROOT, "08_keyboard_collapse_all", frames)
 
-        activity_tab = find_marker_position(SESSION, "Activity", line_contains="[Overview]")
+        activity_tab = find_marker_position(SESSION, "Activity", line_contains="Overview")
         mouse_coordinates["activity_tab"] = list(activity_tab)
         send_mouse_click(SESSION, *activity_tab)
         wait_for_text(SESSION, "Comment by @clawsweeper")
@@ -236,7 +236,7 @@ def capture_mouse_smoke():
         require_file_contains(open_log_path(), DETAIL_URL)
         write_frame(ROOT, "11_mouse_activity_details_open", frames)
 
-        links_tab = find_marker_position(SESSION, "Links", line_contains="[Activity]")
+        links_tab = find_marker_position(SESSION, "Links", line_contains="Activity")
         mouse_coordinates["links_tab"] = list(links_tab)
         send_mouse_click(SESSION, *links_tab)
         wait_for_text(SESSION, NAVIGATION_TARGET)
@@ -252,20 +252,20 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, TITLE)
         write_frame(ROOT, "50_keyboard_back_after_navigation", frames)
 
-        refresh_button = find_marker_position(SESSION, "[refresh]")
+        refresh_button = find_marker_position(SESSION, "[🔄 refresh]")
         mouse_coordinates["refresh"] = list(refresh_button)
         send_mouse_click(SESSION, *refresh_button)
         wait_for_text(SESSION, "offline fixture mode: refresh skipped")
         write_frame(ROOT, "60_mouse_footer_refresh", frames)
 
-        copy_button = find_marker_position(SESSION, "[copy]")
+        copy_button = find_marker_position(SESSION, "[📋 copy]")
         mouse_coordinates["copy"] = list(copy_button)
         send_mouse_click(SESSION, *copy_button)
         wait_for_text(SESSION, f"copied {DETAIL_URL}")
         require_file_contains(copy_log_path(), DETAIL_URL)
         write_frame(ROOT, "61_mouse_footer_copy", frames)
 
-        open_button = find_marker_position(SESSION, "[open]")
+        open_button = find_marker_position(SESSION, "[🌐 open]")
         mouse_coordinates["open"] = list(open_button)
         send_mouse_click(SESSION, *open_button)
         wait_for_text(SESSION, f"opened {DETAIL_URL}")
@@ -273,7 +273,7 @@ def capture_mouse_smoke():
         write_frame(ROOT, "62_mouse_footer_open", frames)
 
         actual_tmux_size = tmux_size(SESSION)
-        quit_button = find_marker_position(SESSION, "[quit]")
+        quit_button = find_marker_position(SESSION, "[⏻ quit]")
         mouse_coordinates["quit"] = list(quit_button)
         send_mouse_click(SESSION, *quit_button)
         wait_for_session_exit(SESSION)
@@ -417,41 +417,41 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
 
     expected = {
         "00_initial_overview": [
-            "[Overview]",
+            "[🏠 Overview]",
             TITLE,
             "Bug Description",
-            "[+ more]",
+            "[➕ more]",
         ],
         "05_mouse_overview_more": [
-            "[Overview]",
+            "[🏠 Overview]",
             EXPANDED_BODY_MARKER,
-            "[- less]",
+            "[➖ less]",
         ],
-        "06_mouse_overview_less": ["[Overview]", "Bug Description", "[+ more]"],
-        "07_keyboard_expand_all": ["[Overview]", EXPANDED_BODY_MARKER, "[- less]"],
-        "08_keyboard_collapse_all": ["[Overview]", "Bug Description", "[+ more]"],
-        "10_mouse_activity_tab": ["[Activity]", "Comment by @clawsweeper", "[details]"],
+        "06_mouse_overview_less": ["[🏠 Overview]", "Bug Description", "[➕ more]"],
+        "07_keyboard_expand_all": ["[🏠 Overview]", EXPANDED_BODY_MARKER, "[➖ less]"],
+        "08_keyboard_collapse_all": ["[🏠 Overview]", "Bug Description", "[➕ more]"],
+        "10_mouse_activity_tab": ["[💬 Activity]", "Comment by @clawsweeper", "[details]"],
         "11_mouse_activity_details_open": [
-            "[Activity]",
+            "[💬 Activity]",
             f"opened {DETAIL_URL}",
             "[details]",
         ],
-        "30_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
+        "30_mouse_links_tab": ["[🔗 Links]", NAVIGATION_TARGET],
         "40_mouse_navigation_row": [
-            "[Overview]",
+            "[🏠 Overview]",
             NAVIGATION_TARGET_TITLE,
         ],
         "50_keyboard_back_after_navigation": [
-            "[Overview]",
+            "[🏠 Overview]",
             TITLE,
         ],
         "60_mouse_footer_refresh": [
-            "[Overview]",
+            "[🏠 Overview]",
             TITLE,
             "offline fixture mode: refresh skipped",
         ],
-        "61_mouse_footer_copy": ["[Overview]", f"copied {DETAIL_URL}", "[copy]"],
-        "62_mouse_footer_open": ["[Overview]", f"opened {DETAIL_URL}", "[open]"],
+        "61_mouse_footer_copy": ["[🏠 Overview]", f"copied {DETAIL_URL}", "[📋 copy]"],
+        "62_mouse_footer_open": ["[🏠 Overview]", f"opened {DETAIL_URL}", "[🌐 open]"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():

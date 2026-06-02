@@ -212,7 +212,7 @@ def read_saved_config() -> str:
     contents = capture_config_path().read_text()
     for expected in (
         'theme = "default"',
-        'symbols = "ascii"',
+        'symbols = "emoji"',
         'spacing = "compact"',
         'width_mode = "fixed"',
         "fixed_width = 118",
@@ -243,20 +243,20 @@ def capture_mouse_smoke():
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
-        wait_for_text(SESSION, "[refresh]")
+        wait_for_text(SESSION, "[🔄 refresh]")
         write_frame(ROOT, "00_initial_overview", frames)
 
-        overview_more = find_marker_position(SESSION, "[+ more]", line_contains="commit fb948c9")
+        overview_more = find_marker_position(SESSION, "[➕ more]", line_contains="commit fb948c9")
         mouse_coordinates["overview_more"] = list(overview_more)
         send_mouse_click(SESSION, *overview_more)
         wait_for_text(SESSION, "committed: 1mo ago")
-        require_screen_contains("[- less]")
+        require_screen_contains("[➖ less]")
         write_frame(ROOT, "05_mouse_overview_more", frames)
 
-        overview_less = find_marker_position(SESSION, "[- less]", line_contains="commit fb948c9")
+        overview_less = find_marker_position(SESSION, "[➖ less]", line_contains="commit fb948c9")
         mouse_coordinates["overview_less"] = list(overview_less)
         send_mouse_click(SESSION, *overview_less)
-        wait_for_text(SESSION, "[+ more]")
+        wait_for_text(SESSION, "[➕ more]")
         text = capture_plain(SESSION)
         if "committed: 1mo ago" in text:
             raise RuntimeError(f"overview less left commit detail expanded:\n{text}")
@@ -266,12 +266,12 @@ def capture_mouse_smoke():
         mouse_coordinates["files_tab"] = list(files_tab)
         send_mouse_click(SESSION, *files_tab)
         wait_for_text(SESSION, "docs/plugins/plugin-inventory.md")
-        require_screen_contains("[Files]")
+        require_screen_contains("[📄 Files]")
         write_frame(ROOT, "10_mouse_files_tab", frames)
 
         file_row = find_marker_position(
             SESSION,
-            "[+ more]",
+            "[➕ more]",
             line_contains="docs/plugins/reference.md",
         )
         mouse_coordinates["file_row_more"] = list(file_row)
@@ -282,12 +282,12 @@ def capture_mouse_smoke():
 
         file_row_less = find_marker_position(
             SESSION,
-            "[- less]",
+            "[➖ less]",
             line_contains="docs/plugins/reference.md",
         )
         mouse_coordinates["file_row_less"] = list(file_row_less)
         send_mouse_click(SESSION, *file_row_less)
-        wait_for_text(SESSION, "[+ more]")
+        wait_for_text(SESSION, "[➕ more]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/reference.md" in text:
             raise RuntimeError(f"file row less left file detail expanded:\n{text}")
@@ -295,57 +295,57 @@ def capture_mouse_smoke():
 
         send_key(SESSION, "a")
         wait_for_text(SESSION, "path: docs/plugins/plugin-inventory.md")
-        wait_for_text(SESSION, "[collapse all]")
+        wait_for_text(SESSION, "[➖ all]")
         write_frame(ROOT, "13_keyboard_expand_all", frames)
 
         send_key(SESSION, "a")
-        wait_for_text(SESSION, "[expand all]")
+        wait_for_text(SESSION, "[➕ all]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"keyboard collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "14_keyboard_collapse_all", frames)
 
-        expand_all = find_marker_position(SESSION, "[expand all]")
+        expand_all = find_marker_position(SESSION, "[➕ all]")
         mouse_coordinates["expand_all"] = list(expand_all)
         send_mouse_click(SESSION, *expand_all)
         require_screen_contains("path: docs/plugins/plugin-inventory.md")
         tmux("send-keys", "-t", SESSION, "End")
         time.sleep(0.5)
-        wait_for_text(SESSION, "[collapse all]")
+        wait_for_text(SESSION, "[➖ all]")
         write_frame(ROOT, "20_mouse_expand_all", frames)
 
-        collapse_all = find_marker_position(SESSION, "[collapse all]")
+        collapse_all = find_marker_position(SESSION, "[➖ all]")
         mouse_coordinates["collapse_all"] = list(collapse_all)
         send_mouse_click(SESSION, *collapse_all)
-        wait_for_text(SESSION, "[expand all]")
+        wait_for_text(SESSION, "[➕ all]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "30_mouse_collapse_all", frames)
 
-        checks_tab = find_marker_position(SESSION, "Checks", line_contains="[Files]")
+        checks_tab = find_marker_position(SESSION, "Checks", line_contains="Files")
         mouse_coordinates["checks_tab"] = list(checks_tab)
         send_mouse_click(SESSION, *checks_tab)
         wait_for_text(SESSION, "Summary: PASS")
-        wait_for_text(SESSION, "[OK PASS] suite/CI [+ more]")
+        wait_for_text(SESSION, "[✅ PASS] suite/CI [➕ more]")
         write_frame(ROOT, "35_mouse_checks_tab", frames)
 
-        check_row = find_marker_position(SESSION, "[+ more]", line_contains="suite/CI")
+        check_row = find_marker_position(SESSION, "[➕ more]", line_contains="suite/CI")
         mouse_coordinates["check_row_more"] = list(check_row)
         send_mouse_click(SESSION, *check_row)
         wait_for_text(SESSION, "summary: 38 skipped, 2 neutral, 86 successful")
         write_frame(ROOT, "36_mouse_check_row_more", frames)
 
-        check_row_less = find_marker_position(SESSION, "[- less]", line_contains="suite/CI")
+        check_row_less = find_marker_position(SESSION, "[➖ less]", line_contains="suite/CI")
         mouse_coordinates["check_row_less"] = list(check_row_less)
         send_mouse_click(SESSION, *check_row_less)
-        wait_for_text(SESSION, "[OK PASS] suite/CI [+ more]")
+        wait_for_text(SESSION, "[✅ PASS] suite/CI [➕ more]")
         text = capture_plain(SESSION)
         if "summary: 38 skipped, 2 neutral, 86 successful" in text:
             raise RuntimeError(f"check row less left check detail expanded:\n{text}")
         write_frame(ROOT, "37_mouse_check_row_less", frames)
 
-        links_tab = find_marker_position(SESSION, "Links", line_contains="[Checks]")
+        links_tab = find_marker_position(SESSION, "Links", line_contains="Checks")
         mouse_coordinates["links_tab"] = list(links_tab)
         send_mouse_click(SESSION, *links_tab)
         wait_for_text(SESSION, NAVIGATION_TARGET)
@@ -362,7 +362,7 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
-        activity_tab = find_marker_position(SESSION, "Activity", line_contains="[Overview]")
+        activity_tab = find_marker_position(SESSION, "Activity", line_contains="Overview")
         mouse_coordinates["activity_tab_for_detail"] = list(activity_tab)
         send_mouse_click(SESSION, *activity_tab)
         wait_for_text(SESSION, "Comment by @github-actions")
@@ -376,40 +376,40 @@ def capture_mouse_smoke():
         require_file_contains(open_log_path(), DETAIL_URL)
         write_frame(ROOT, "63_mouse_activity_details_open", frames)
 
-        overview_tab = find_marker_position(SESSION, "Overview", line_contains="[Activity]")
+        overview_tab = find_marker_position(SESSION, "Overview", line_contains="Activity")
         mouse_coordinates["overview_tab_after_detail"] = list(overview_tab)
         send_mouse_click(SESSION, *overview_tab)
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
         write_frame(ROOT, "64_mouse_back_to_overview_after_detail", frames)
 
-        refresh_button = find_marker_position(SESSION, "[refresh]")
+        refresh_button = find_marker_position(SESSION, "[🔄 refresh]")
         mouse_coordinates["refresh"] = list(refresh_button)
         send_mouse_click(SESSION, *refresh_button)
         wait_for_text(SESSION, "offline fixture mode: refresh skipped")
         write_frame(ROOT, "65_mouse_footer_refresh", frames)
 
-        copy_button = find_marker_position(SESSION, "[copy]")
+        copy_button = find_marker_position(SESSION, "[📋 copy]")
         mouse_coordinates["copy"] = list(copy_button)
         send_mouse_click(SESSION, *copy_button)
         wait_for_text(SESSION, f"copied {CURRENT_RESOURCE_URL}")
         require_file_contains(copy_log_path(), CURRENT_RESOURCE_URL)
         write_frame(ROOT, "66_mouse_footer_copy", frames)
 
-        open_button = find_marker_position(SESSION, "[open]")
+        open_button = find_marker_position(SESSION, "[🌐 open]")
         mouse_coordinates["open"] = list(open_button)
         send_mouse_click(SESSION, *open_button)
         wait_for_text(SESSION, f"opened {CURRENT_RESOURCE_URL}")
         require_file_contains(open_log_path(), CURRENT_RESOURCE_URL)
         write_frame(ROOT, "67_mouse_footer_open", frames)
 
-        help_button = find_marker_position(SESSION, "[help]")
+        help_button = find_marker_position(SESSION, "[❔ help]")
         mouse_coordinates["help"] = list(help_button)
         send_mouse_click(SESSION, *help_button)
         wait_for_text(SESSION, "Keyboard")
         wait_for_text(SESSION, "Mouse")
         write_frame(ROOT, "70_mouse_footer_help", frames)
 
-        settings_button = find_marker_position(SESSION, "[settings]")
+        settings_button = find_marker_position(SESSION, "[⚙ settings]")
         mouse_coordinates["settings"] = list(settings_button)
         send_mouse_click(SESSION, *settings_button)
         wait_for_text(SESSION, "Settings")
@@ -427,7 +427,7 @@ def capture_mouse_smoke():
         write_frame(ROOT, "81_mouse_settings_compact", frames)
 
         actual_tmux_size = tmux_size(SESSION)
-        quit_button = find_marker_position(SESSION, "[quit]")
+        quit_button = find_marker_position(SESSION, "[⏻ quit]")
         mouse_coordinates["quit"] = list(quit_button)
         send_mouse_click(SESSION, *quit_button)
         wait_for_session_exit(SESSION)
@@ -460,10 +460,10 @@ def capture_mouse_smoke():
         )
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, load_full_command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
-        wait_for_text(SESSION, "[load full]")
+        wait_for_text(SESSION, "[⬇ full]")
         load_full_button = click_marker_until_text(
             SESSION,
-            "[load full]",
+            "[⬇ full]",
             "offline fixture mode: full-depth load skipped",
         )
         mouse_coordinates["load_full"] = list(load_full_button)
@@ -610,7 +610,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     saved_config = manifest.get("saved_config", "")
     for expected_config_line in (
         'theme = "default"',
-        'symbols = "ascii"',
+        'symbols = "emoji"',
         'spacing = "compact"',
         'width_mode = "fixed"',
         "fixed_width = 118",
@@ -621,89 +621,89 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
 
     expected = {
         "00_initial_overview": [
-            "[Overview]",
+            "[🏠 Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
         ],
         "05_mouse_overview_more": [
-            "[Overview]",
+            "[🏠 Overview]",
             "* commit fb948c9",
-            "[- less]",
+            "[➖ less]",
             "committed: 1mo ago",
         ],
-        "06_mouse_overview_less": ["[Overview]", "* commit fb948c9", "[+ more]"],
-        "10_mouse_files_tab": ["[Files]", "docs/plugins/plugin-inventory.md", "[expand all]"],
+        "06_mouse_overview_less": ["[🏠 Overview]", "* commit fb948c9", "[➕ more]"],
+        "10_mouse_files_tab": ["[📄 Files]", "docs/plugins/plugin-inventory.md", "[➕ all]"],
         "11_mouse_file_row_more": [
-            "[Files]",
-            "docs/plugins/reference.md [- less]",
+            "[📄 Files]",
+            "docs/plugins/reference.md [➖ less]",
             "path: docs/plugins/reference.md",
             "change: MODIFIED, additions: 1, deletions: 1",
         ],
         "12_mouse_file_row_less": [
-            "[Files]",
-            "docs/plugins/reference.md [+ more]",
+            "[📄 Files]",
+            "docs/plugins/reference.md [➕ more]",
         ],
         "13_keyboard_expand_all": [
-            "[Files]",
-            "[collapse all]",
+            "[📄 Files]",
+            "[➖ all]",
             "path: docs/plugins/plugin-inventory.md",
         ],
-        "14_keyboard_collapse_all": ["[Files]", "[expand all]"],
+        "14_keyboard_collapse_all": ["[📄 Files]", "[➕ all]"],
         "20_mouse_expand_all": [
-            "[Files]",
-            "[collapse all]",
+            "[📄 Files]",
+            "[➖ all]",
             "path: extensions/senseaudio/speech-provider.ts",
         ],
-        "30_mouse_collapse_all": ["[Files]", "[expand all]"],
+        "30_mouse_collapse_all": ["[📄 Files]", "[➕ all]"],
         "35_mouse_checks_tab": [
-            "[Checks]",
+            "[✅ Checks]",
             "Summary: PASS",
-            "[OK PASS] suite/CI [+ more]",
+            "[✅ PASS] suite/CI [➕ more]",
         ],
         "36_mouse_check_row_more": [
-            "[Checks]",
-            "[OK PASS] suite/CI [- less]",
+            "[✅ Checks]",
+            "[✅ PASS] suite/CI [➖ less]",
             "summary: 38 skipped, 2 neutral, 86 successful",
         ],
         "37_mouse_check_row_less": [
-            "[Checks]",
-            "[OK PASS] suite/CI [+ more]",
+            "[✅ Checks]",
+            "[✅ PASS] suite/CI [➕ more]",
         ],
-        "40_mouse_links_tab": ["[Links]", NAVIGATION_TARGET],
+        "40_mouse_links_tab": ["[🔗 Links]", NAVIGATION_TARGET],
         "50_mouse_navigation_row": [
-            "[Overview]",
+            "[🏠 Overview]",
             NAVIGATION_TARGET_TITLE,
         ],
         "60_keyboard_back_after_navigation": [
-            "[Overview]",
+            "[🏠 Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
         ],
         "62_mouse_activity_tab_for_detail": [
-            "[Activity]",
+            "[💬 Activity]",
             "Comment by @github-actions",
             "[details]",
         ],
         "63_mouse_activity_details_open": [
-            "[Activity]",
+            "[💬 Activity]",
             f"opened {DETAIL_URL}",
             "[details]",
         ],
         "64_mouse_back_to_overview_after_detail": [
-            "[Overview]",
+            "[🏠 Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
         ],
         "65_mouse_footer_refresh": [
-            "[Overview]",
+            "[🏠 Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             "offline fixture mode: refresh skipped",
         ],
-        "66_mouse_footer_copy": ["[Overview]", f"copied {CURRENT_RESOURCE_URL}", "[copy]"],
-        "67_mouse_footer_open": ["[Overview]", f"opened {CURRENT_RESOURCE_URL}", "[open]"],
-        "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[help]"],
-        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[settings]"],
+        "66_mouse_footer_copy": ["[🏠 Overview]", f"copied {CURRENT_RESOURCE_URL}", "[📋 copy]"],
+        "67_mouse_footer_open": ["[🏠 Overview]", f"opened {CURRENT_RESOURCE_URL}", "[🌐 open]"],
+        "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[❔ help]"],
+        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[⚙ settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
         "90_mouse_footer_load_full": [
-            "[Overview]",
-            "[load full]",
+            "[🏠 Overview]",
+            "[⬇ full]",
             "offline fixture mode: full-depth load skipped",
         ],
     }

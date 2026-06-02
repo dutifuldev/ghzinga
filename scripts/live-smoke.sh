@@ -91,40 +91,40 @@ run_public_case() {
 }
 
 run_case pr_overview "$pr_target" overview \
-  "[Overview]" "Activity  Commits  Checks  Files  Links" "[refresh]" "[expand all]"
+  "[🏠 Overview]" "💬 Activity" "🧱 Commits" "✅ Checks" "📄 Files" "🔗 Links" "[🔄 refresh]" "[➕ all]"
 run_case pr_activity "$pr_target" activity \
-  "[Activity]" "Comment by" "[details]"
+  "[💬 Activity]" "Comment by" "[details]"
 run_case pr_commits "$pr_target" commits \
-  "[Commits]" "[+ more]"
+  "[🧱 Commits]" "[➕ more]"
 run_case pr_checks "$pr_target" checks \
-  "[Checks]" "Summary:" "[+ more]"
+  "[✅ Checks]" "Summary:" "[➕ more]"
 run_case pr_files "$pr_target" files \
-  "[Files]" "files" "[+ more]"
+  "[📄 Files]" "files" "[➕ more]"
 run_case pr_links "$pr_target" links \
-  "[Links]" "openclaw/openclaw#"
+  "[🔗 Links]" "openclaw/openclaw#"
 run_case issue_overview "$issue_target" overview \
-  "[Overview]" "Activity  Links" "Bug Description" "[expand all]"
+  "[🏠 Overview]" "💬 Activity" "🔗 Links" "Bug Description" "[➕ all]"
 run_case issue_activity "$issue_target" activity \
-  "[Activity]" "Comment by" "[details]"
+  "[💬 Activity]" "Comment by" "[details]"
 run_case issue_links "$issue_target" links \
-  "[Links]" "openclaw/openclaw#"
+  "[🔗 Links]" "openclaw/openclaw#"
 run_public_case public_pr_overview "$pr_target" overview \
-  "[Overview]" "Activity  Commits" "[refresh]"
+  "[🏠 Overview]" "💬 Activity" "🧱 Commits" "[🔄 refresh]"
 run_public_case public_pr_activity "$pr_target" activity \
-  "[Activity]" "[details]"
+  "[💬 Activity]" "[details]"
 run_public_case public_pr_commits "$pr_target" commits \
-  "[Commits]" "[+ more]"
+  "[🧱 Commits]" "[➕ more]"
 run_public_case public_pr_checks "$pr_target" checks \
-  "[Checks]" "Summary:"
+  "[✅ Checks]" "Summary:"
 run_public_case public_pr_files "$pr_target" files \
-  "[Files]" "files" "[+ more]"
+  "[📄 Files]" "files" "[➕ more]"
 run_public_case public_pr_links "$pr_target" links \
-  "[Links]" "openclaw/openclaw#"
+  "[🔗 Links]" "openclaw/openclaw#"
 run_public_case public_issue_overview "$issue_target" overview \
-  "[Overview]" "Activity  Links" "[refresh]"
+  "[🏠 Overview]" "💬 Activity" "🔗 Links" "[🔄 refresh]"
 run_public_case public_issue_activity "$issue_target" activity \
-  "[Activity]" "[details]"
+  "[💬 Activity]" "[details]"
 run_public_case public_issue_links "$issue_target" links \
-  "[Links]" "openclaw/openclaw#"
+  "[🔗 Links]" "openclaw/openclaw#"
 
 printf 'OK: live GitHub smoke checks passed. Override targets with GZG_LIVE_PR_TARGET and GZG_LIVE_ISSUE_TARGET.\n'

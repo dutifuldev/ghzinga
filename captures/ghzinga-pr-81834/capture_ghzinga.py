@@ -361,8 +361,8 @@ def expected_frames(mode: str) -> list[str]:
 
 def expected_markers(mode: str) -> list[str]:
     if mode == "issue":
-        return ["[Overview]", "[Activity]", "[Links]", "Help"]
-    return ["[Activity]", "[Commits]", "[Checks]", "[Files]", "[Links]", "Help"]
+        return ["[🏠 Overview]", "[💬 Activity]", "[🔗 Links]", "Help"]
+    return ["[💬 Activity]", "[🧱 Commits]", "[✅ Checks]", "[📄 Files]", "[🔗 Links]", "Help"]
 
 
 def expected_content_markers(mode: str, target: str | None) -> dict[str, list[str]]:
@@ -556,12 +556,12 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
 
     frames = expected_frames(mode)
     markers = expected_markers(mode) + [
-        "[refresh]",
-        "[copy]",
-        "[open]",
-        "[settings]",
-        "[help]",
-        "[quit]",
+        "[🔄 refresh]",
+        "[📋 copy]",
+        "[🌐 open]",
+        "[⚙ settings]",
+        "[❔ help]",
+        "[⏻ quit]",
     ]
     content_markers = expected_content_markers(mode, target)
     saw_scrollbar_thumb = False
