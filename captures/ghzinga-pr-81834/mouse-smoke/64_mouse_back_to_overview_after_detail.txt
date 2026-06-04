@@ -32,5 +32,5 @@
                                                                                                                         
   💬 Comment by @github-actions 1mo ago                                                                                 
   opened https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1                                           
-  [🔄 refresh] [➕ expand]   [⚙ settings] [❔ help] [⏻ quit]                                                            
+  [🔄 refresh] [➕ expand ]  [⚙ settings] [❔ help] [⏻ quit]                                                            
                                                                                                                         

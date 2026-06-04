@@ -33,4 +33,4 @@ Changed files:
 extensions/senseaudio/tts.ts:99                                                                                         
 Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice        
 offline fixture mode: full-depth load skipped                                                                           
-[🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                     
+[🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                     

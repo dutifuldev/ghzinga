@@ -21,4 +21,4 @@
   23267... fix(senseaudio): unique TTS docs subheadings [UNKNOWN] [➕ more]     
   @KLilyZ 5d ago                                                                
                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

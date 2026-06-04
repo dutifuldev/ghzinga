@@ -21,4 +21,4 @@
                                                                              │  
   +1    -0    MODIFIED extensions/senseaudio/test-api.ts [➕ more]           │  
                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

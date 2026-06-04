@@ -46,5 +46,5 @@
   [✅ PASS] OpenGrep — PR Diff/Scan changed paths (precise) [➕ more]                                                  │                                        
                                                                                                                        │                                        
                                                                                                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

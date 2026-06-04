@@ -21,4 +21,4 @@
   HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when       
   store is set to false. Try again with store set to true, or remove this item  
                                                                                 
-  [🔄 refresh] [➕ expand]   [⚙ settings] [❔ help] [⏻ quit]                    
+  [🔄 refresh] [➕ expand ]  [⚙ settings] [❔ help] [⏻ quit]                    

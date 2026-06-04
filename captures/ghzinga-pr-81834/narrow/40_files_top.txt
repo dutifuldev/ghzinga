@@ -21,4 +21,4 @@
                                                                                 
   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [➕ more]     
                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

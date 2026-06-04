@@ -21,4 +21,4 @@
                                                                                 
   [✅ PASS] suite/CodeQL Critical Quality [➕ more]                             
                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
