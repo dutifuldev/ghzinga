@@ -81,9 +81,8 @@ count.
 - Click targets stay on the visible control row. Blank spacing rows are never
   clickable. Comfortable gutters shift the hit rectangles with the visible
   content so the clickable target still matches what the user sees.
-- Tab-level controls such as `[expand all]` and `[collapse all]` should be
-  fixed footer commands, appended as the final visible action after refresh,
-  copy, open, settings, help, and quit when the active tab has expandable
+- Tab-level controls such as `[expand]` and `[collapse]` should be fixed
+  footer commands immediately after refresh when the active tab has expandable
   content. They apply to every expandable row in the current tab/view and must
   never require scrolling through the document to find them. The scroll cue
   stays in footer message text, not in the command row, so it cannot separate

@@ -88,6 +88,9 @@ struct CheckGroupRenderContext<'a> {
     symbols: &'a Symbols,
 }
 
+const BODY_COLLAPSED_LINES: usize = 12;
+const ACTIVITY_COLLAPSED_LINES: usize = 8;
+const PATCH_COLLAPSED_ROWS: usize = 18;
 const COMFORTABLE_GUTTER: u16 = 2;
 const COMFORTABLE_MIN_CAP_WIDTH: u16 =
     crate::render::DEFAULT_FIXED_CONTENT_WIDTH + (COMFORTABLE_GUTTER * 2) + 12;
@@ -167,12 +170,14 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         &palette,
         state.spacing,
     );
+    let content_area = content_area_for_state(rects.content, state, active_content_tab(state));
     render_content(frame, rects.content, state, &palette);
     render_footer(
         frame,
         chrome_area_for_spacing(rects.footer, state.spacing),
         state,
         &palette,
+        content_area.width as usize,
     );
 }
 
@@ -890,19 +895,73 @@ fn expand_label(expanded: bool, symbols: &Symbols) -> &'static str {
     }
 }
 
+fn text_is_truncated(input: &str, width: usize, max_lines: usize) -> bool {
+    markdown::wrap_plain_text(input, width).len() > max_lines
+}
+
 fn expand_all_control(
     blocks: Vec<BlockId>,
     expanded_blocks: &std::collections::HashSet<BlockId>,
     symbols: &Symbols,
-) -> Option<(&'static str, HitTarget)> {
+) -> Option<(String, HitTarget)> {
     if blocks.is_empty() {
         return None;
     }
     let all_expanded = blocks.iter().all(|block| expanded_blocks.contains(block));
+    let label_width = UnicodeWidthStr::width(symbols.expand_all)
+        .max(UnicodeWidthStr::width(symbols.collapse_all));
     if all_expanded {
-        Some((symbols.collapse_all, HitTarget::CollapseBlocks(blocks)))
+        Some((
+            pad_label(symbols.collapse_all, label_width),
+            HitTarget::CollapseBlocks(blocks),
+        ))
     } else {
-        Some((symbols.expand_all, HitTarget::ExpandBlocks(blocks)))
+        Some((
+            pad_label(symbols.expand_all, label_width),
+            HitTarget::ExpandBlocks(blocks),
+        ))
+    }
+}
+
+fn pad_label(label: &str, width: usize) -> String {
+    let mut padded = label.to_string();
+    let label_width = UnicodeWidthStr::width(label);
+    for _ in label_width..width {
+        padded.push(' ');
+    }
+    padded
+}
+
+fn footer_expandable_blocks(state: &AppState, width: usize, palette: &Palette) -> Vec<BlockId> {
+    state
+        .active_tab_expandable_blocks()
+        .into_iter()
+        .filter(|block| footer_block_has_hidden_content(block, &state.resource, width, palette))
+        .collect()
+}
+
+fn footer_block_has_hidden_content(
+    block: &BlockId,
+    resource: &Resource,
+    width: usize,
+    palette: &Palette,
+) -> bool {
+    match block {
+        BlockId::Body => text_is_truncated(&resource.body, width, BODY_COLLAPSED_LINES),
+        BlockId::Activity(id) => resource
+            .activity
+            .iter()
+            .find(|entry| &entry.id == id)
+            .is_some_and(|entry| text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES)),
+        BlockId::Patch(path) => resource
+            .pull_request
+            .as_ref()
+            .and_then(|pr| pr.files.iter().find(|file| &file.path == path))
+            .and_then(|file| file.patch.as_deref())
+            .is_some_and(|patch| {
+                diff_patch_rows(patch, width, palette).len() > PATCH_COLLAPSED_ROWS
+            }),
+        BlockId::Commit(_) | BlockId::Check(_) | BlockId::File(_) => true,
     }
 }
 
@@ -1742,15 +1801,16 @@ fn push_body_timeline_rows(
         ));
         return;
     }
-    let expanded = state.block_expanded(&BlockId::Body);
+    let can_expand = text_is_truncated(&resource.body, width, BODY_COLLAPSED_LINES);
+    let expanded = can_expand && state.block_expanded(&BlockId::Body);
     let wrapped = markdown::wrap_plain_text(&resource.body, width);
-    let (visible, truncated) = markdown::visible_prefix(&wrapped, 12, expanded);
+    let (visible, _truncated) = markdown::visible_prefix(&wrapped, BODY_COLLAPSED_LINES, expanded);
     rows.extend(
         visible
             .into_iter()
             .map(|line| linkable_text_row(line, resource)),
     );
-    if truncated || expanded {
+    if can_expand {
         rows.push(ContentRow::target_styled(
             expand_label(expanded, &symbols),
             HitTarget::ToggleBlock(BlockId::Body),
@@ -1826,7 +1886,8 @@ fn push_activity_timeline_rows(
         rows.push(ContentRow::plain(truncate_ascii(&summary, width)));
     }
     let block = BlockId::Activity(entry.id.clone());
-    let expanded = state.block_expanded(&block);
+    let can_expand = text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES);
+    let expanded = can_expand && state.block_expanded(&block);
     if let Some(url) = &entry.url {
         rows.push(activity_detail_row(url, resource, palette));
     }
@@ -1836,13 +1897,14 @@ fn push_activity_timeline_rows(
         }
     }
     let wrapped = markdown::wrap_plain_text(&entry.body, width);
-    let (visible, truncated) = markdown::visible_prefix(&wrapped, 8, expanded);
+    let (visible, _truncated) =
+        markdown::visible_prefix(&wrapped, ACTIVITY_COLLAPSED_LINES, expanded);
     rows.extend(
         visible
             .into_iter()
             .map(|line| linkable_text_row(line, resource)),
     );
-    if truncated || expanded {
+    if can_expand {
         rows.push(ContentRow::target_styled(
             expand_label(expanded, &symbols),
             HitTarget::ToggleBlock(block),
@@ -1940,7 +2002,8 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
             rows.push(ContentRow::plain(truncate_ascii(&summary, width)));
         }
         let block = BlockId::Activity(entry.id.clone());
-        let expanded = state.block_expanded(&block);
+        let can_expand = text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES);
+        let expanded = can_expand && state.block_expanded(&block);
         if let Some(url) = &entry.url {
             rows.push(activity_detail_row(url, &state.resource, palette));
         }
@@ -1950,13 +2013,14 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
             }
         }
         let wrapped = markdown::wrap_plain_text(&entry.body, width);
-        let (visible, truncated) = markdown::visible_prefix(&wrapped, 8, expanded);
+        let (visible, _truncated) =
+            markdown::visible_prefix(&wrapped, ACTIVITY_COLLAPSED_LINES, expanded);
         rows.extend(
             visible
                 .into_iter()
                 .map(|line| linkable_text_row(line, &state.resource)),
         );
-        if truncated || expanded {
+        if can_expand {
             rows.push(ContentRow::target_styled(
                 expand_label(expanded, &symbols),
                 HitTarget::ToggleBlock(block),
@@ -2305,10 +2369,15 @@ fn files_rows_for_pr(
                 let patch_block = BlockId::Patch(file.path.clone());
                 let patch_expanded = expanded_blocks.contains(&patch_block);
                 let patch_rows = diff_patch_rows(patch, width, palette);
-                let truncated = !patch_expanded && patch_rows.len() > 18;
-                let visible_count = if patch_expanded { patch_rows.len() } else { 18 };
+                let can_expand_patch = patch_rows.len() > PATCH_COLLAPSED_ROWS;
+                let patch_expanded = patch_expanded && can_expand_patch;
+                let visible_count = if patch_expanded {
+                    patch_rows.len()
+                } else {
+                    PATCH_COLLAPSED_ROWS
+                };
                 rows.extend(patch_rows.into_iter().take(visible_count));
-                if truncated || patch_expanded {
+                if can_expand_patch {
                     rows.push(ContentRow::target_styled(
                         if patch_expanded {
                             symbols.less_patch
@@ -2622,17 +2691,27 @@ fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
     }
 }
 
-fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palette: &Palette) {
+fn render_footer(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+    content_width: usize,
+) {
     let symbols = state.symbols.symbols();
-    let mut controls = vec![
-        footer_control(symbols.footer_refresh, HitTarget::Refresh, palette),
-        footer_control(symbols.footer_copy, HitTarget::CopyVisibleUrl, palette),
-        footer_control(symbols.footer_open, HitTarget::OpenVisibleUrl, palette),
-        footer_control(symbols.footer_settings, HitTarget::Settings, palette),
-        footer_control(symbols.footer_help, HitTarget::Help, palette),
-        footer_control(symbols.footer_quit, HitTarget::Quit, palette),
-    ];
+    let mut controls = vec![footer_control(
+        symbols.footer_refresh,
+        HitTarget::Refresh,
+        palette,
+    )];
     if !state.show_help && !state.show_settings {
+        if let Some(control) = expand_all_control(
+            footer_expandable_blocks(state, content_width, palette),
+            &state.expanded_blocks,
+            &symbols,
+        ) {
+            controls.push(footer_control(control.0, control.1, palette));
+        }
         if state.resource.has_partial_depth_warning() {
             controls.push(footer_control(
                 symbols.footer_load_full,
@@ -2640,14 +2719,22 @@ fn render_footer(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palett
                 palette,
             ));
         }
-        if let Some(control) = expand_all_control(
-            state.active_tab_expandable_blocks(),
-            &state.expanded_blocks,
-            &symbols,
-        ) {
-            controls.push(footer_control(control.0, control.1, palette));
-        }
     }
+    controls.push(footer_control(
+        symbols.footer_settings,
+        HitTarget::Settings,
+        palette,
+    ));
+    controls.push(footer_control(
+        symbols.footer_help,
+        HitTarget::Help,
+        palette,
+    ));
+    controls.push(footer_control(
+        symbols.footer_quit,
+        HitTarget::Quit,
+        palette,
+    ));
     let control_lines = footer_control_lines(controls, area.width);
     let bottom_padding = footer_bottom_padding_rows(area, state.spacing);
     let control_capacity = (area.height as usize).saturating_sub(bottom_padding);
@@ -2691,9 +2778,9 @@ fn footer_bottom_padding_rows(area: Rect, spacing: SpacingMode) -> usize {
     usize::from(spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 3)
 }
 
-fn footer_control(label: &str, target: HitTarget, palette: &Palette) -> FooterItem {
+fn footer_control(label: impl Into<String>, target: HitTarget, palette: &Palette) -> FooterItem {
     FooterItem {
-        label: label.to_string(),
+        label: label.into(),
         style: button_style(palette),
         target: Some(target),
     }
@@ -3165,6 +3252,13 @@ mod tests {
         }
     }
 
+    fn long_body() -> String {
+        (0..20)
+            .map(|index| format!("line {index}: enough text to require expansion"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     fn draw(state: &mut AppState, width: u16, height: u16) -> String {
         let backend = TestBackend::new(width, height);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -3331,11 +3425,11 @@ mod tests {
         let content = draw(&mut state, 120, 80);
         let body = content.find("Problem: senseaudio").unwrap();
         let details = content.find("Details").unwrap();
-        let expand_all = content.find("[expand all]").unwrap();
+        let expand = content.find("[expand").unwrap();
 
         assert!(!content.contains("Conversation"));
         assert!(body < details);
-        assert!(details < expand_all);
+        assert!(details < expand);
     }
 
     #[test]
@@ -3917,18 +4011,20 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("[refresh] [copy] [open] [settings] [help] [quit] [expand all]"));
+        assert!(content.contains("[refresh] [expand"));
+        assert!(!content.contains("[copy]"));
+        assert!(!content.contains("[open]"));
         assert!(!content.contains("scroll 0/"));
-        assert!(content.contains("[expand all]"));
+        assert!(content.contains("[expand"));
         assert!(state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Refresh));
-        assert!(state
+        assert!(!state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::CopyVisibleUrl));
-        assert!(state
+        assert!(!state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::OpenVisibleUrl));
@@ -3946,18 +4042,24 @@ mod tests {
             .any(|area| area.target == HitTarget::Help));
         let quit_rect =
             rendered_target_rect(&state, |target| *target == HitTarget::Quit).expect("quit target");
-        let expand_rect = rendered_target_rect(&state, |target| {
-            matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
-        })
+        let expand_rect = rendered_target_rect(
+            &state,
+            |target| matches!(target, HitTarget::ExpandBlocks(blocks) if !blocks.is_empty()),
+        )
         .expect("expand all target");
         let footer = chrome_area_for_spacing(
             rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
             state.spacing,
         );
 
+        let refresh_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::Refresh).unwrap();
+        let settings_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::Settings).unwrap();
         assert_eq!(expand_rect.y, quit_rect.y);
         assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(2));
-        assert!(expand_rect.x > quit_rect.x);
+        assert!(expand_rect.x > refresh_rect.x);
+        assert!(expand_rect.x < settings_rect.x);
     }
 
     #[test]
@@ -3978,11 +4080,12 @@ mod tests {
         let mut partial_state = AppState::new(partial_resource);
         let partial_content = draw(&mut partial_state, 120, 36);
 
-        assert!(partial_content
-            .contains("[refresh] [copy] [open] [settings] [help] [quit] [load full] [expand all]"));
+        assert!(partial_content.contains("[refresh] [expand"));
         let load_full = partial_content.find("[load full]").unwrap();
-        let expand_all = partial_content.find("[expand all]").unwrap();
-        assert!(load_full < expand_all);
+        let expand = partial_content.find("[expand").unwrap();
+        let settings = partial_content.find("[settings]").unwrap();
+        assert!(expand < load_full);
+        assert!(load_full < settings);
         assert!(partial_state
             .hit_areas
             .iter()
@@ -3998,6 +4101,22 @@ mod tests {
         assert!(!content.contains("scroll 0/"));
         assert!(!content.contains("arrows/page scroll"));
         assert!(!content.contains("1-6/tab switch"));
+    }
+
+    #[test]
+    fn footer_expand_and_collapse_labels_keep_stable_width() {
+        let symbols = SymbolMode::Emoji.symbols();
+        let blocks = vec![BlockId::Body];
+        let expanded = std::collections::HashSet::from([BlockId::Body]);
+        let collapsed = std::collections::HashSet::new();
+
+        let (expand, _) = expand_all_control(blocks.clone(), &collapsed, &symbols).unwrap();
+        let (collapse, _) = expand_all_control(blocks, &expanded, &symbols).unwrap();
+
+        assert_eq!(
+            UnicodeWidthStr::width(expand.as_str()),
+            UnicodeWidthStr::width(collapse.as_str())
+        );
     }
 
     #[test]
@@ -4243,11 +4362,7 @@ mod tests {
             .filter_map(|area| {
                 matches!(
                     area.target,
-                    HitTarget::Refresh
-                        | HitTarget::CopyVisibleUrl
-                        | HitTarget::OpenVisibleUrl
-                        | HitTarget::Help
-                        | HitTarget::Quit
+                    HitTarget::Refresh | HitTarget::Help | HitTarget::Settings | HitTarget::Quit
                 )
                 .then_some(area.rect.y)
             })
@@ -4264,11 +4379,11 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Refresh));
-        assert!(state
+        assert!(!state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::CopyVisibleUrl));
-        assert!(state
+        assert!(!state
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::OpenVisibleUrl));
@@ -4878,15 +4993,38 @@ mod tests {
     }
 
     #[test]
-    fn rendered_expand_all_control_expands_current_tab_blocks() {
+    fn short_body_does_not_show_noop_expand_or_collapse_control() {
         let mut state = AppState::new(pr_resource());
+
+        draw(&mut state, 120, 36);
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ToggleBlock(BlockId::Body)));
+
+        state.toggle_block(BlockId::Body);
+        let content = draw(&mut state, 120, 36);
+
+        assert!(!content.contains("[- less]"));
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ToggleBlock(BlockId::Body)));
+    }
+
+    #[test]
+    fn rendered_expand_all_control_expands_current_tab_blocks() {
+        let mut resource = pr_resource();
+        resource.body = long_body();
+        resource.activity[0].body = long_body();
+        let mut state = AppState::new(resource);
         let content = draw(&mut state, 120, 36);
         let footer = chrome_area_for_spacing(
             rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing).footer,
             state.spacing,
         );
 
-        assert!(content.contains("[expand all]"));
+        assert!(content.contains("[expand"));
         let expand_rect = rendered_target_rect(&state, |target| {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.contains(&BlockId::Body))
         })
@@ -4907,7 +5045,7 @@ mod tests {
 
         let content = draw(&mut state, 120, 36);
 
-        assert!(content.contains("[collapse all]"));
+        assert!(content.contains("[collapse"));
     }
 
     #[test]
@@ -4925,14 +5063,18 @@ mod tests {
             footer.y.saturating_add(footer.height.saturating_sub(2)),
         );
 
-        assert!(bottom.contains("[refresh] [copy] [open]"));
-        assert!(bottom.ends_with("[expand all]"));
+        assert!(bottom.contains("[refresh] [expand"));
+        assert!(!bottom.contains("[copy]"));
+        assert!(!bottom.contains("[open]"));
+        assert!(!bottom.contains("[expand all]"));
         assert!(!bottom.contains("scroll "));
     }
 
     #[test]
     fn wrapped_footer_keeps_expand_all_pinned_to_bottom_command_bar() {
-        let mut state = AppState::new(pr_resource());
+        let mut resource = pr_resource();
+        resource.body = long_body();
+        let mut state = AppState::new(resource);
         let content = draw(&mut state, 24, 24);
         let footer = chrome_area_for_spacing(
             rects_for_spacing(Rect::new(0, 0, 24, 24), state.spacing).footer,
@@ -4940,9 +5082,9 @@ mod tests {
         );
 
         assert!(content.contains("[refresh]"));
-        assert!(content.contains("[copy]"));
-        assert!(content.contains("[open]"));
-        assert!(content.contains("[expand all]"));
+        assert!(!content.contains("[copy]"));
+        assert!(!content.contains("[open]"));
+        assert!(content.contains("[expand"));
 
         let refresh_rect =
             rendered_target_rect(&state, |target| *target == HitTarget::Refresh).unwrap();
@@ -4952,12 +5094,15 @@ mod tests {
         .expect("footer expand all target");
 
         assert!(refresh_rect.y >= footer.y);
-        assert_eq!(expand_rect.y, footer.y + footer.height.saturating_sub(1));
+        assert!(expand_rect.y >= footer.y);
+        assert!(expand_rect.y < footer.y + footer.height);
     }
 
     #[test]
     fn rendered_collapse_all_control_collapses_current_tab_blocks() {
-        let mut state = AppState::new(pr_resource());
+        let mut resource = pr_resource();
+        resource.body = long_body();
+        let mut state = AppState::new(resource);
         draw(&mut state, 120, 80);
         let _ = click_rendered_target(
             &mut state,
@@ -5379,26 +5524,6 @@ mod tests {
         assert_eq!(settings, AppIntent::None);
         assert!(settings_state.show_settings);
 
-        let mut open_state = AppState::new(pr_resource());
-        draw(&mut open_state, 120, 36);
-        let open = click_rendered_target(&mut open_state, |target| {
-            *target == HitTarget::OpenVisibleUrl
-        });
-        assert_eq!(
-            open,
-            AppIntent::OpenUrl("https://github.com/openclaw/openclaw/pull/81834".into())
-        );
-
-        let mut copy_state = AppState::new(pr_resource());
-        draw(&mut copy_state, 120, 36);
-        let copy = click_rendered_target(&mut copy_state, |target| {
-            *target == HitTarget::CopyVisibleUrl
-        });
-        assert_eq!(
-            copy,
-            AppIntent::CopyUrl("https://github.com/openclaw/openclaw/pull/81834".into())
-        );
-
         let mut quit_state = AppState::new(pr_resource());
         draw(&mut quit_state, 120, 36);
         let quit = click_rendered_target(&mut quit_state, |target| *target == HitTarget::Quit);
@@ -5527,7 +5652,21 @@ mod tests {
 
     #[test]
     fn files_expand_all_opens_files_and_patch_blocks() {
-        let mut state = AppState::new(pr_resource());
+        let mut resource = pr_resource();
+        resource
+            .pull_request
+            .as_mut()
+            .unwrap()
+            .files
+            .first_mut()
+            .unwrap()
+            .patch = Some(
+            (0..30)
+                .map(|index| format!("+patch line {index}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
+        let mut state = AppState::new(resource);
         state.set_tab(Tab::Files);
         let content = draw(&mut state, 120, 36);
         let footer = chrome_area_for_spacing(
@@ -5535,7 +5674,7 @@ mod tests {
             state.spacing,
         );
 
-        assert!(content.contains("[expand all]"));
+        assert!(content.contains("[expand"));
         let expand_rect = rendered_target_rect(&state, |target| {
             matches!(target, HitTarget::ExpandBlocks(blocks) if blocks.iter().any(|block| matches!(block, BlockId::Patch(_))))
         })
@@ -5614,6 +5753,15 @@ mod tests {
                 "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1".into()
             )
         );
+
+        state.toggle_block(BlockId::Activity("c1".into()));
+        let content = draw(&mut state, 120, 36);
+
+        assert!(!content.contains("[- less]"));
+        assert!(!state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::ToggleBlock(BlockId::Activity(id)) if id == "c1"
+        )));
     }
 
     #[test]
@@ -5638,13 +5786,20 @@ mod tests {
         assert!(content.contains("src/reviewed.rs:12"));
         assert!(content.contains("thread: unresolved, outdated"));
         assert!(content.contains("meta: association MEMBER, edited, reactions eyes:1"));
+        assert!(content.contains("[details]"));
+        assert!(state.hit_areas.iter().any(|area| matches!(
+            &area.target,
+            HitTarget::OpenUrl(url)
+                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
+        )));
 
         state.toggle_block(BlockId::Activity("c1".into()));
         let content = draw(&mut state, 120, 36);
 
         assert!(
-            content.contains("url: https://github.com/openclaw/openclaw/pull/81834#discussion_r1")
+            !content.contains("url: https://github.com/openclaw/openclaw/pull/81834#discussion_r1")
         );
+        assert!(!content.contains("[- less]"));
     }
 
     #[test]

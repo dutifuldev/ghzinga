@@ -86,9 +86,10 @@ Common keys:
 - `s`: settings.
 - `?`: help.
 
-Mouse interaction is supported for tabs, links, rows, footer actions, scrolling,
-and scrollbar dragging. Use `--no-mouse` if mouse capture would interfere with
-the surrounding terminal workflow.
+Mouse interaction is supported for tabs, links, rows, footer refresh,
+expand/collapse, settings, help, quit, scrolling, and scrollbar dragging. Use
+`--no-mouse` if mouse capture would interfere with the surrounding terminal
+workflow.
 
 ## Configuration
 
