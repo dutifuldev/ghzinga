@@ -4,7 +4,7 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "target/debug/gzg",
-  "git_commit": "9832ef164dc29795bc3079f7bc155525127ff17a",
+  "git_commit": "234c4e1b333b6b730e4972c332372d0b04f93d1c",
   "config_path": "captures/ghzinga-issue-88499/capture-empty-config.toml",
   "requested_columns": 80,
   "requested_rows": 24,
