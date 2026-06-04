@@ -124,10 +124,11 @@ impl ResourceTabState {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct AddResourcePrompt {
     pub input: String,
     pub error: Option<String>,
+    pub fallback_repo: ResourceId,
 }
 
 #[derive(Debug, Clone)]
@@ -214,7 +215,11 @@ impl AppState {
     }
 
     pub fn open_add_resource_prompt(&mut self) {
-        self.add_resource_prompt = Some(AddResourcePrompt::default());
+        self.add_resource_prompt = Some(AddResourcePrompt {
+            input: String::new(),
+            error: None,
+            fallback_repo: self.resource.id.clone(),
+        });
         self.show_help = false;
         self.show_settings = false;
     }
@@ -247,7 +252,12 @@ impl AppState {
             .as_ref()
             .map(|prompt| prompt.input.trim())
             .unwrap_or_default();
-        parse_resource_reference(input, &self.resource.id)
+        let fallback_repo = self
+            .add_resource_prompt
+            .as_ref()
+            .map(|prompt| &prompt.fallback_repo)
+            .unwrap_or(&self.resource.id);
+        parse_resource_reference(input, fallback_repo)
     }
 
     pub fn active_resource_tab_label(&self, index: usize) -> Option<String> {
@@ -485,6 +495,25 @@ impl AppState {
     pub fn finish_loading(&mut self) {
         self.loading = None;
         self.refresh_requested = false;
+    }
+
+    pub fn clear_transient_loading_status_messages(&mut self) {
+        if self
+            .status_message
+            .as_deref()
+            .is_some_and(is_transient_loading_status)
+        {
+            self.status_message = None;
+        }
+        for tab in &mut self.resource_tabs {
+            if tab
+                .status_message
+                .as_deref()
+                .is_some_and(is_transient_loading_status)
+            {
+                tab.status_message = None;
+            }
+        }
     }
 
     pub fn loading_request_matches(&self, request_id: u64) -> bool {
@@ -818,6 +847,10 @@ fn resource_tab_label(resource: &Resource) -> String {
         ResourceKind::Issue => "Issue",
     };
     format!("{kind} #{} {}", resource.id.number, resource.title)
+}
+
+fn is_transient_loading_status(message: &str) -> bool {
+    message.starts_with("still loading: ")
 }
 
 fn expandable_blocks_for_tab(tab: Tab, resource: &Resource) -> Vec<BlockId> {
@@ -1350,6 +1383,24 @@ mod tests {
                 .canonical_name(),
             "owner/repo#46"
         );
+    }
+
+    #[test]
+    fn add_resource_prompt_parses_relative_numbers_against_opened_repo() {
+        let mut state = AppState::new(issue_resource());
+        state.open_add_resource_prompt();
+        state.add_resource_input_mut().unwrap().push_str("#77");
+
+        let mut other = issue_resource();
+        other.id.owner = "other".into();
+        other.id.repo = "project".into();
+        other.id.number = 2;
+        other.title = "Other issue".into();
+        state.open_resource_in_tab(other);
+
+        let parsed = state.parse_add_resource_input().unwrap();
+
+        assert_eq!(parsed.canonical_name(), "owner/repo#77");
     }
 
     #[test]

@@ -177,6 +177,7 @@ pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
         return;
     }
     state.finish_loading();
+    state.clear_transient_loading_status_messages();
     let origin_tab_id = outcome.origin_tab_id;
     match (outcome.action, outcome.result) {
         (FetchAction::Initial { .. }, Ok(resource)) => {
@@ -528,6 +529,51 @@ mod tests {
             Some("still loading: opening owner/repo#2 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn completed_fetch_clears_blocked_loading_status_on_other_tabs() {
+        let mut state = AppState::new(issue_resource(1, "Initial issue"));
+        state.open_resource_in_tab(issue_resource(2, "Second issue"));
+        state.switch_resource_tab(0);
+        let action = FetchAction::Refresh {
+            id: state.resource.id.clone(),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+        state.switch_resource_tab(1);
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let blocked_id = state.resource.id.clone();
+
+        let started = start_background_fetch(
+            &mut state,
+            FetchAction::Refresh { id: blocked_id },
+            FetchSource::Github(GithubApiGateway::new(crate::github::api::ApiDepth::Partial)),
+            &fetch_tx,
+        );
+
+        assert!(!started);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(issue_resource(1, "Updated issue")),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert!(state.status_message.is_none());
+        state.switch_resource_tab(0);
+        assert_eq!(state.resource.title, "Updated issue");
+        assert!(state.status_message.is_none());
     }
 
     #[test]
