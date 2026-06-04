@@ -101,6 +101,8 @@ pub struct ResourceTabState {
     pub last_refreshed_at: Option<String>,
     pub last_refresh_had_changes: Option<bool>,
     pub last_refresh_changed_sections: Vec<String>,
+    pub last_error: Option<String>,
+    pub status_message: Option<String>,
 }
 
 impl ResourceTabState {
@@ -116,6 +118,8 @@ impl ResourceTabState {
             last_refreshed_at: None,
             last_refresh_had_changes: None,
             last_refresh_changed_sections: Vec::new(),
+            last_error: None,
+            status_message: None,
         }
     }
 }
@@ -745,6 +749,8 @@ impl AppState {
             tab.last_refreshed_at = self.last_refreshed_at.clone();
             tab.last_refresh_had_changes = self.last_refresh_had_changes;
             tab.last_refresh_changed_sections = self.last_refresh_changed_sections.clone();
+            tab.last_error = self.last_error.clone();
+            tab.status_message = self.status_message.clone();
         }
     }
 
@@ -766,10 +772,10 @@ impl AppState {
         self.last_refreshed_at = tab.last_refreshed_at;
         self.last_refresh_had_changes = tab.last_refresh_had_changes;
         self.last_refresh_changed_sections = tab.last_refresh_changed_sections;
+        self.last_error = tab.last_error;
+        self.status_message = tab.status_message;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
-        self.last_error = None;
-        self.status_message = None;
     }
 
     fn allocate_resource_tab_id(&mut self) -> u64 {
@@ -1360,6 +1366,8 @@ mod tests {
         state.history.push(state.resource.id.clone());
         state.mark_refreshed("12:34:56 UTC", true);
         state.last_refresh_changed_sections = vec!["summary".into()];
+        state.last_error = Some("first tab error".into());
+        state.status_message = Some("first tab status".into());
         state.open_resource_in_tab(second);
 
         assert_eq!(state.resource.id.number, 2);
@@ -1379,6 +1387,34 @@ mod tests {
         assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
         assert_eq!(state.last_refresh_had_changes, Some(true));
         assert_eq!(state.last_refresh_changed_sections, ["summary"]);
+        assert_eq!(state.last_error.as_deref(), Some("first tab error"));
+        assert_eq!(state.status_message.as_deref(), Some("first tab status"));
+    }
+
+    #[test]
+    fn apply_to_inactive_resource_tab_preserves_error_and_status() {
+        let mut state = AppState::new(issue_resource());
+        let mut second = issue_resource();
+        second.id.number = 2;
+        second.title = "Second issue".into();
+        state.open_resource_in_tab(second);
+        let first_tab_id = state.resource_tabs[0].id;
+        state.status_message = Some("active status".into());
+
+        assert!(state.apply_to_resource_tab(first_tab_id, |state| {
+            state.last_error = Some("inactive error".into());
+            state.status_message = Some("inactive status".into());
+        }));
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.last_error, None);
+        assert_eq!(state.status_message.as_deref(), Some("active status"));
+
+        state.switch_resource_tab(0);
+
+        assert_eq!(state.resource.id.number, 1);
+        assert_eq!(state.last_error.as_deref(), Some("inactive error"));
+        assert_eq!(state.status_message.as_deref(), Some("inactive status"));
     }
 
     #[test]

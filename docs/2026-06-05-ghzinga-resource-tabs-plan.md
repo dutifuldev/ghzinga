@@ -40,6 +40,9 @@ adds `resource_tabs` plus `active_resource_tab` for the tab layer. This keeps
 the existing renderers and fetch code simple while allowing each resource tab to
 snapshot its own active section, scroll offset, scroll limit, expanded rows,
 navigation history, and refresh metadata.
+Per-tab refresh/error footer messages are snapshotted with the same view state,
+so failures from background fetches stay attached to the tab that started them
+even if the user switches away before the request completes.
 
 The add-resource modal is normal app state, not a terminal side effect. While it
 is open, keyboard input is routed to the modal first. Enter parses and returns
@@ -62,6 +65,8 @@ Mouse hit testing follows render stacking order: later registered hit areas win.
 The modal registers a no-op overlay hit area before its buttons, so clicks
 inside the dialog cannot reach underlying content. That also lets the tab close
 affordance win over the broader tab body target.
+Modal geometry is clamped to the actual terminal frame before clearing or
+drawing, so very small or freshly resized terminals do not panic.
 
 ## Herdr Inspiration
 
@@ -88,4 +93,5 @@ machinery. Resource tabs are only an in-process reading/navigation layer.
 - Fetch tests cover `OpenTab` outcome application and fetch completion after
   switching away from the origin tab.
 - Render and hit-target tests cover modal overlay blocking, tab-close overlap,
-  and overflowed resource tabs keeping the active tab visible.
+  tiny terminal modal drawing, and overflowed resource tabs keeping the active
+  tab visible.

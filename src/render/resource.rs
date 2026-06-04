@@ -398,8 +398,11 @@ fn render_add_resource_modal(
     let Some(prompt) = state.add_resource_prompt.as_ref() else {
         return;
     };
-    let modal_width = area.width.saturating_sub(4).clamp(24, 68);
-    let modal_height = area.height.saturating_sub(2).clamp(7, 9);
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let modal_width = area.width.min(area.width.saturating_sub(4).clamp(24, 68));
+    let modal_height = area.height.min(area.height.saturating_sub(2).clamp(7, 9));
     let modal = Rect::new(
         area.x
             .saturating_add(area.width.saturating_sub(modal_width) / 2),
@@ -4094,6 +4097,22 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::CancelResourcePrompt));
+    }
+
+    #[test]
+    fn add_resource_modal_renders_inside_tiny_terminal() {
+        let backend = TestBackend::new(12, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.open_add_resource_prompt();
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| {
+            area.target == HitTarget::ModalOverlay && area.rect.width <= 12 && area.rect.height <= 5
+        }));
     }
 
     #[test]
