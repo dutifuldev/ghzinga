@@ -277,20 +277,6 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "offline fixture mode: refresh skipped")
         write_frame(ROOT, "60_mouse_footer_refresh", frames)
 
-        copy_button = find_marker_position(SESSION, "[📋 copy]")
-        mouse_coordinates["copy"] = list(copy_button)
-        send_mouse_click(SESSION, *copy_button)
-        wait_for_text(SESSION, f"copied {DETAIL_URL}")
-        require_file_contains(copy_log_path(), DETAIL_URL)
-        write_frame(ROOT, "61_mouse_footer_copy", frames)
-
-        open_button = find_marker_position(SESSION, "[🌐 open]")
-        mouse_coordinates["open"] = list(open_button)
-        send_mouse_click(SESSION, *open_button)
-        wait_for_text(SESSION, f"opened {DETAIL_URL}")
-        require_file_contains(open_log_path(), DETAIL_URL)
-        write_frame(ROOT, "62_mouse_footer_open", frames)
-
         actual_tmux_size = tmux_size(SESSION)
         quit_button = find_marker_position(SESSION, "[⏻ quit]")
         mouse_coordinates["quit"] = list(quit_button)
@@ -308,8 +294,6 @@ def capture_mouse_smoke():
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
                 "detail_url": DETAIL_URL,
-                "open_url": DETAIL_URL,
-                "copy_url": DETAIL_URL,
             },
             "quit_exited": True,
             "mouse_coordinates": mouse_coordinates,
@@ -406,11 +390,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
-    expected_adapter_outputs = {
-        "detail_url": DETAIL_URL,
-        "open_url": DETAIL_URL,
-        "copy_url": DETAIL_URL,
-    }
+    expected_adapter_outputs = {"detail_url": DETAIL_URL}
     if manifest.get("adapter_outputs") != expected_adapter_outputs:
         errors.append(
             f"adapter_outputs is {manifest.get('adapter_outputs')!r}, "
@@ -427,8 +407,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "links_tab",
         "linked_issue",
         "refresh",
-        "copy",
-        "open",
         "quit",
     ):
         if target not in coordinates:
@@ -469,8 +447,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             TITLE,
             "offline fixture mode: refresh skipped",
         ],
-        "61_mouse_footer_copy": ["[🏠 Overview]", f"copied {DETAIL_URL}", "[📋 copy]"],
-        "62_mouse_footer_open": ["[🏠 Overview]", f"opened {DETAIL_URL}", "[🌐 open]"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():

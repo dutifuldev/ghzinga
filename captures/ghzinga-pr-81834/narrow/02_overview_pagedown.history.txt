@@ -20,5 +20,5 @@
   transcodes MP3→opus for voice-note targets. Errors split into HTTP /          
   base_resp.status_code / missing-audio buckets.                                
   - What did NOT change: no core code; ASR untouched; streaming, telephony,     
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
-  [➕ all]                                                                      
+                                                                                
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

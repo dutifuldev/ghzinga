@@ -1,50 +1,50 @@
                                                                                                                                                                 
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                                   
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                                                          
+  feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                                                                                                         
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
                                                                                                                                                                 
                                                                                                                                                                 
-  [🏠 Overview] 💬 Activity  🔗 Links                                                                                                                           
+  [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                                          
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
-  📝 @xneone opened 2d ago                                                                                                                                      
-  Bug Description                                                                                                                                               
+  📝 @KLilyZ opened 2w ago                                                                                                                                      
+  Summary                                                                                                                                                       
                                                                                                                                                                 
-  When using a provider configured with api: openai-responses, the gateway sends store=false in responses API requests.                                         
-  On subsequent turns within the same session, the gateway includes previous_response_id referencing the previous                                               
-  response. Since that response was never persisted server-side, the API returns a 404.                                                                         
+  - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                                                                    
+  - Why it matters: completes the round trip in the same plugin; SenseAudio's /v1/t2a_v2 is solid TTS and pairs with the                                        
+  ASR added in #66943.                                                                                                                                          
+  - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices                                         
+  via /v1/get_voice, transcodes MP3→opus for voice-note targets. Errors split into HTTP / base_resp.status_code /                                               
+  missing-audio buckets.                                                                                                                                        
+  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of                                         
+  scope.                                                                                                                                                        
                                                                                                                                                                 
-  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when store is set to false. Try again with store                                           
-  set to true, or remove this item from your input.                                                                                                             
-                                                                                                                                                                
-  Expected Behavior                                                                                                                                             
-                                                                                                                                                                
-  The provider should either avoid previous_response_id when store=false or persist the response when continuing a                                              
+  Change Type (select all)                                                                                                                                      
   [➕ more]                                                                                                                                                     
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
-  💬 Comment by @clawsweeper 2d ago                                                                                                                             
-  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay failure                                         
-  for custom openai-responses providers because generic Responses payloads can be unstored while replaying server-owned                                         
-  reasoning item IDs.                                                                                                                                           
+  💬 Comment by @github-actions 2w ago                                                                                                                          
+  meta: association CONTRIBUTOR                                                                                                                                 
+  [details]                                                                                                                                                     
+  <!-- openclaw:dependency-change-awareness -->                                                                                                                 
+                                                                                                                                                                
+  Dependency Changes Detected                                                                                                                                   
+                                                                                                                                                                
+  This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                                                           
+                                                                                                                                                                
+  Changed files:                                                                                                                                                
+  - extensions/senseaudio/package.json                                                                                                                          
+  [➕ more]                                                                                                                                                     
                                                                                                                                                                 
   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
                                                                                                                                                                 
-  • Timeline by @osolmaz 2d ago                                                                                                                                 
-  added label provider: openai-responses                                                                                                                        
+  💬 Comment by @KLilyZ 2w ago                                                                                                                                  
+  meta: association NONE                                                                                                                                        
+  [details]                                                                                                                                                     
+  Codex review: needs changes before merge.                                                                                                                     
                                                                                                                                                                 
-  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
-                                                                                                                                                                
-  💬 Comment by @tianxiaochannel-oss88 1d ago                                                                                                                   
-  Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when                                                
-  store=false is used through the openai-responses provider. Removing the previous response reference makes the next                                            
-  request succeed.                                                                                                                                              
-                                                                                                                                                                
-  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────                                        
-                                                                                                                                                                
-                                                                                                                                                                
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]                                                                                     
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

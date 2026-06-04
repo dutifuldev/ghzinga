@@ -32,5 +32,5 @@
   failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying      
   server-owned reasoning item IDs.                                                                                      
                                                                                                                         
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]                                             
+  [🔄 refresh] [➕ expand]   [⚙ settings] [❔ help] [⏻ quit]                                                            
                                                                                                                         

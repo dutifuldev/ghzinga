@@ -35,16 +35,16 @@
   <id>.                                                                                                                                                         
   [➕ more]                                                                                                                                                     
                                                                                                                                                                 
-  Comment by @KLilyZ 1w ago                                                                                                                                     
+  Comment by @KLilyZ 2w ago                                                                                                                                     
   meta: association NONE                                                                                                                                        
   [details]                                                                                                                                                     
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no                                                       
   contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,                                         
   just flagging it in case it slipped past the queue.                                                                                                           
                                                                                                                                                                 
-  Comment by @RomneyDa 3d ago                                                                                                                                   
+  Comment by @RomneyDa 6d ago                                                                                                                                   
   meta: association MEMBER                                                                                                                                      
   [details]                                                                                                                                                     
                                                                                                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                                                            
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

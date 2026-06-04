@@ -4,7 +4,7 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
   📄 6 files changed +1.1k -22                                                                                          
-  ⓘ opened https://github.com/openclaw/openclaw/pull/81834                                                              
+  ⓘ offline fixture mode: refresh skipped                                                                               
   [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -13,7 +13,7 @@
                                                                                                                         
   Mouse                                                                                                                 
   - Click tabs to switch sections.                                                                                      
-  - Click [➕ more] / [➖ less] or [➕ all] / [➖ all] to expand or collapse long text, checks, and files.              
+  - Click [➕ more] / [➖ less] or [➕ expand] / [➖ collapse] to expand or collapse long text, checks, and files.      
   - Click visible GitHub issue or PR references to navigate.                                                            
   - Click settings rows to apply theme and symbol preferences.                                                          
   - Use the mouse wheel to scroll the current view.                                                                     
@@ -31,6 +31,6 @@
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - 1-6: jump to the visible tab in that position                                                                       
   - v: reverse chronological feed order                                                                                 
-  opened https://github.com/openclaw/openclaw/pull/81834                                                                
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit]                                                      
+  offline fixture mode: refresh skipped                                                                                 
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
                                                                                                                         

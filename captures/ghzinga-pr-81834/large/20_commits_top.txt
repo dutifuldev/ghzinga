@@ -10,19 +10,19 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
   fb948... feat(senseaudio): add SenseAudio TTS provider [UNKNOWN] [➕ more]                                                                                    
-  @KLilyZ 3d ago                                                                                                                                                
+  @KLilyZ 5d ago                                                                                                                                                
                                                                                                                                                                 
   617f3... fix(senseaudio): address TTS review feedback [UNKNOWN] [➕ more]                                                                                     
-  @KLilyZ 3d ago                                                                                                                                                
+  @KLilyZ 5d ago                                                                                                                                                
                                                                                                                                                                 
   162df... docs(senseaudio): document the new TTS provider [UNKNOWN] [➕ more]                                                                                  
-  @KLilyZ 3d ago                                                                                                                                                
+  @KLilyZ 5d ago                                                                                                                                                
                                                                                                                                                                 
   23267... fix(senseaudio): unique TTS docs subheadings [UNKNOWN] [➕ more]                                                                                     
-  @KLilyZ 3d ago                                                                                                                                                
+  @KLilyZ 5d ago                                                                                                                                                
                                                                                                                                                                 
   fb416... docs(senseaudio): use ASCII commas in the English example text [UNKNOWN] [➕ more]                                                                   
-  @KLilyZ 3d ago                                                                                                                                                
+  @KLilyZ 5d ago                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
@@ -46,5 +46,5 @@
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                                                            
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

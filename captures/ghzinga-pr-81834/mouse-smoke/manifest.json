@@ -5,14 +5,12 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "70b4b95b053897ab99aecb24b732ebfa41d38e38",
+  "git_commit": "a6f0570ed75f0ff82100589ab920e711cf7cbf49",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg openclaw/openclaw#81834 --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
-    "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1",
-    "open_url": "https://github.com/openclaw/openclaw/pull/81834",
-    "copy_url": "https://github.com/openclaw/openclaw/pull/81834"
+    "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
   },
   "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"fixed\"\nfixed_width = 118\nscrollbar = \"on-scroll\"\n",
   "quit_exited": true,
@@ -38,11 +36,11 @@
       14
     ],
     "expand_all": [
-      70,
+      16,
       35
     ],
     "collapse_all": [
-      70,
+      16,
       35
     ],
     "checks_tab": [
@@ -81,20 +79,12 @@
       3,
       35
     ],
-    "copy": [
-      16,
-      35
-    ],
-    "open": [
-      26,
-      35
-    ],
     "help": [
-      50,
+      44,
       35
     ],
     "settings": [
-      36,
+      16,
       35
     ],
     "settings_compact": [
@@ -102,11 +92,11 @@
       30
     ],
     "quit": [
-      58,
+      38,
       36
     ],
     "load_full": [
-      68,
+      28,
       36
     ]
   },
@@ -210,16 +200,6 @@
       "name": "65_mouse_footer_refresh",
       "txt": "65_mouse_footer_refresh.txt",
       "ansi": "65_mouse_footer_refresh.ansi"
-    },
-    {
-      "name": "66_mouse_footer_copy",
-      "txt": "66_mouse_footer_copy.txt",
-      "ansi": "66_mouse_footer_copy.ansi"
-    },
-    {
-      "name": "67_mouse_footer_open",
-      "txt": "67_mouse_footer_open.txt",
-      "ansi": "67_mouse_footer_open.ansi"
     },
     {
       "name": "70_mouse_footer_help",

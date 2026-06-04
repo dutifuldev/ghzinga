@@ -1,11 +1,11 @@
                                                                                 
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d   
-  openai-responses provider: 404 on previous_response_id when store=false       
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d          
+  feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                         
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
+  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
                                                                                 
-                                                                                
-   🏠 Overview  💬 Activity [🔗 Links]                                          
+   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [🔗 Links]         
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
@@ -13,12 +13,12 @@
                                                                                 
   Mouse                                                                         
   - Click tabs to switch sections.                                              
-  - Click [➕ more] / [➖ less] or [➕ all] / [➖ all] to expand or collapse    
-  long text, checks, and files.                                                 
+  - Click [➕ more] / [➖ less] or [➕ expand] / [➖ collapse] to expand or     
+  collapse long text, checks, and files.                                        
   - Click visible GitHub issue or PR references to navigate.                    
   - Click settings rows to apply theme and symbol preferences.                  
   - Use the mouse wheel to scroll the current view.                             
                                                                                 
   Keyboard                                                                      
                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit]              
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

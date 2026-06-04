@@ -46,5 +46,5 @@
   [✅ PASS] ClawSweeper Dispatch/dispatch [➕ more]                                                                                                             
                                                                                                                                                                 
                                                                                                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                                                            
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

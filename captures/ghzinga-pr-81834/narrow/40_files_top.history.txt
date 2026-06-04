@@ -20,5 +20,5 @@
   +3    -1    MODIFIED extensions/senseaudio/index.ts [➕ more]                 
                                                                                 
   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [➕ more]     
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
-  [➕ all]                                                                      
+                                                                                
+  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
