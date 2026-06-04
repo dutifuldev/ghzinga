@@ -53,7 +53,9 @@ fetch, so input is not lost if another fetch is already active.
 
 `FetchAction::OpenTab` centralizes the async path. Successful results call
 `open_resource_in_tab`, which appends or deduplicates tabs and restores the
-active resource snapshot.
+active resource snapshot. Fetch completion does not close the add-resource
+prompt; the runner closes the prompt when a request is accepted so a later prompt
+opened while an older request is in flight cannot lose typed input.
 
 Background fetches carry a request id and originating resource-tab id. A fetch
 completion is ignored if it does not match the current loading request, and

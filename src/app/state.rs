@@ -304,7 +304,6 @@ impl AppState {
                 .push(ResourceTabState::new(tab_id, resource));
             self.restore_resource_tab(self.resource_tabs.len() - 1);
         }
-        self.close_add_resource_prompt();
     }
 
     pub fn apply_to_resource_tab(&mut self, tab_id: u64, apply: impl FnOnce(&mut Self)) -> bool {
@@ -1415,6 +1414,25 @@ mod tests {
         assert_eq!(state.resource.id.number, 1);
         assert_eq!(state.last_error.as_deref(), Some("inactive error"));
         assert_eq!(state.status_message.as_deref(), Some("inactive status"));
+    }
+
+    #[test]
+    fn opening_resource_tab_does_not_close_later_prompt_input() {
+        let mut state = AppState::new(issue_resource());
+        let mut fetched = issue_resource();
+        fetched.id.number = 2;
+        fetched.title = "Fetched issue".into();
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("owner/repo#3");
+
+        state.open_resource_in_tab(fetched);
+
+        assert_eq!(state.resource.id.number, 2);
+        let prompt = state.add_resource_prompt.as_ref().unwrap();
+        assert_eq!(prompt.input, "owner/repo#3");
     }
 
     #[test]
