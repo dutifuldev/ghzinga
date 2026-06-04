@@ -236,10 +236,7 @@ fn apply_add_resource_prompt_key(state: &mut AppState, key: KeyEvent) -> AppInte
 
 fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
     match state.parse_add_resource_input() {
-        Ok(id) => {
-            state.close_add_resource_prompt();
-            AppIntent::OpenResource(id)
-        }
+        Ok(id) => AppIntent::OpenResource(id),
         Err(error) => {
             state.set_add_resource_error(error.to_string());
             AppIntent::None
@@ -333,6 +330,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_add_resource_prompt();
             AppIntent::None
         }
+        HitTarget::ModalOverlay => AppIntent::None,
         HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
             state.should_quit = true;
@@ -1508,7 +1506,7 @@ mod tests {
                 kind_hint: None,
             })
         );
-        assert!(state.add_resource_prompt.is_none());
+        assert!(state.add_resource_prompt.is_some());
     }
 
     #[test]
@@ -1636,5 +1634,36 @@ mod tests {
                 kind_hint: None,
             })
         );
+    }
+
+    #[test]
+    fn modal_overlay_mouse_target_blocks_underlying_content_hits() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 8, 1),
+            HitTarget::Navigate(crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 99,
+                kind_hint: None,
+            }),
+        ));
+        state
+            .hit_areas
+            .push(HitArea::new(Rect::new(0, 0, 8, 1), HitTarget::ModalOverlay));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.add_resource_prompt.is_some());
     }
 }

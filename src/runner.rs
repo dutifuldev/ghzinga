@@ -236,10 +236,14 @@ async fn handle_intent(
                     fetch_source,
                     fetch_tx,
                 ) {
+                    state.close_add_resource_prompt();
                     *last_refresh = Instant::now();
+                } else if let Some(message) = state.status_message.clone() {
+                    state.set_add_resource_error(message);
                 }
             } else {
                 state.status_message = Some("offline fixture mode: open resource skipped".into());
+                state.set_add_resource_error("offline fixture mode: open resource skipped");
             }
             false
         }
@@ -794,6 +798,46 @@ mod tests {
         assert_eq!(
             state.status_message.as_deref(),
             Some("offline fixture mode: full-depth load skipped")
+        );
+        assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn open_resource_prompt_stays_open_when_fetch_cannot_start() {
+        let fixture = issue_resource(1, "Initial issue");
+        let mut state = AppState::new(fixture.clone());
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("owner/repo#2");
+        state.begin_loading(
+            state.resource.id.clone(),
+            "refreshing owner/repo#1 from GitHub",
+        );
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let should_quit = handle_intent(
+            &mut state,
+            AppIntent::OpenResource(ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 2,
+                kind_hint: None,
+            }),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture])),
+            &mut last_refresh,
+            &fetch_tx,
+        )
+        .await;
+
+        assert!(!should_quit);
+        let prompt = state.add_resource_prompt.as_ref().unwrap();
+        assert_eq!(prompt.input, "owner/repo#2");
+        assert_eq!(
+            prompt.error.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
     }

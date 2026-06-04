@@ -28,6 +28,8 @@ or issues open without turning the first screen into a dashboard.
 - If the resource is already open, ghzinga updates and focuses the existing tab.
 - Resource tabs show kind, number, title, a new-resource button, and close
   affordances.
+- When there are more resource tabs than fit, the visible tab window keeps the
+  active resource tab reachable.
 - Closing the last resource tab is ignored so the app always has a valid active
   resource.
 
@@ -43,7 +45,8 @@ The add-resource modal is normal app state, not a terminal side effect. While it
 is open, keyboard input is routed to the modal first. Enter parses and returns
 an `OpenResource(ResourceId)` intent. The runner handles that intent through the
 same background fetch channel used by refresh, startup loading, and link
-navigation.
+navigation. The prompt remains open until the runner accepts the background
+fetch, so input is not lost if another fetch is already active.
 
 `FetchAction::OpenTab` centralizes the async path. Successful results call
 `open_resource_in_tab`, which appends or deduplicates tabs and restores the
@@ -56,8 +59,9 @@ prevents a slow response from overwriting a different tab after the user clicks
 away.
 
 Mouse hit testing follows render stacking order: later registered hit areas win.
-That makes modal controls capture clicks over underlying content and lets the
-tab close affordance win over the broader tab body target.
+The modal registers a no-op overlay hit area before its buttons, so clicks
+inside the dialog cannot reach underlying content. That also lets the tab close
+affordance win over the broader tab body target.
 
 ## Herdr Inspiration
 
@@ -83,4 +87,5 @@ machinery. Resource tabs are only an in-process reading/navigation layer.
   per-resource view state, history, and refresh status.
 - Fetch tests cover `OpenTab` outcome application and fetch completion after
   switching away from the origin tab.
-- Hit-target tests cover modal and tab-close overlap behavior.
+- Render and hit-target tests cover modal overlay blocking, tab-close overlap,
+  and overflowed resource tabs keeping the active tab visible.

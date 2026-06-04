@@ -234,9 +234,10 @@ fn render_resource_tabs(
         .x
         .saturating_add(area.width.saturating_sub(add_width.max(1)));
     let tab_right = add_x.saturating_sub(1);
+    let start_index = visible_resource_tab_start(state, tab_right.saturating_sub(area.x));
     let mut x = area.x;
     let mut spans = Vec::<Span<'static>>::new();
-    for index in 0..state.resource_tabs.len() {
+    for index in start_index..state.resource_tabs.len() {
         if x >= tab_right {
             break;
         }
@@ -245,9 +246,7 @@ fn render_resource_tabs(
         };
         let active = index == state.active_resource_tab;
         let remaining = tab_right.saturating_sub(x);
-        let desired_width = (UnicodeWidthStr::width(label.as_str()) as u16)
-            .saturating_add(6)
-            .clamp(10, 32);
+        let desired_width = resource_tab_width(&label);
         let width = desired_width.min(remaining);
         if width < 4 {
             break;
@@ -289,6 +288,38 @@ fn render_resource_tabs(
         state,
         palette,
     );
+}
+
+fn visible_resource_tab_start(state: &AppState, available_width: u16) -> usize {
+    let len = state.resource_tabs.len();
+    if len == 0 || available_width < 4 {
+        return 0;
+    }
+    let active = state.active_resource_tab.min(len.saturating_sub(1));
+    let mut start = active;
+    let mut used = 0_u16;
+    for index in (0..=active).rev() {
+        let Some(label) = state.active_resource_tab_label(index) else {
+            continue;
+        };
+        let width = resource_tab_width(&label).min(available_width);
+        if width < 4 {
+            break;
+        }
+        let needed = width.saturating_add(u16::from(used > 0));
+        if used.saturating_add(needed) > available_width {
+            break;
+        }
+        start = index;
+        used = used.saturating_add(needed);
+    }
+    start
+}
+
+fn resource_tab_width(label: &str) -> u16 {
+    (UnicodeWidthStr::width(label) as u16)
+        .saturating_add(6)
+        .clamp(10, 32)
 }
 
 fn render_header_add_button(
@@ -392,6 +423,9 @@ fn render_add_resource_modal(
     if inner.width == 0 || inner.height == 0 {
         return;
     }
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::ModalOverlay));
     let mut rows = Vec::<Line<'static>>::new();
     rows.push(Line::from(Span::styled(
         "Open PR or issue",
@@ -4007,6 +4041,59 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::Tab(Tab::Checks)));
+    }
+
+    #[test]
+    fn resource_tab_overflow_keeps_active_tab_visible() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81845 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("follow-up resource {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        let active = state.active_resource_tab;
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ResourceTab(active)));
+    }
+
+    #[test]
+    fn add_resource_modal_registers_overlay_above_underlying_hits() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.open_add_resource_prompt();
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        let overlay = state
+            .hit_areas
+            .iter()
+            .find(|area| area.target == HitTarget::ModalOverlay)
+            .expect("modal overlay hit area");
+        let target = crate::input::hit_test(&state.hit_areas, overlay.rect.x, overlay.rect.y);
+
+        assert_eq!(target, Some(HitTarget::ModalOverlay));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ConfirmResourcePrompt));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::CancelResourcePrompt));
     }
 
     #[test]

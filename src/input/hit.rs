@@ -18,6 +18,7 @@ pub enum HitTarget {
     OpenResourcePrompt,
     ConfirmResourcePrompt,
     CancelResourcePrompt,
+    ModalOverlay,
     LoadFullDepth,
     CopyVisibleUrl,
     OpenVisibleUrl,
