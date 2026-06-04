@@ -42,7 +42,7 @@ visible way to load the complete supported data set in place.
 ## UI Rules
 
 - `[load full]` is only visible when it can do something useful.
-- `[expand]` / `[collapse]` remains immediately after refresh when both
+- `[expand ]` / `[collapse]` remains immediately after refresh when both
   controls are present, with `[load full]` after it.
 - The footer does not render an always-on shortcut hint line. The action remains
   discoverable through `[load full]`, the Help view, and the README shortcut
@@ -54,6 +54,6 @@ visible way to load the complete supported data set in place.
 - Unit test the resource partial-depth marker helper.
 - Reducer tests for keyboard `f` and footer click intent.
 - Render tests for conditional `[load full]` visibility and ordering after
-  `[expand]`.
+  `[expand ]`.
 - Runner tests for full-depth fetch outcome behavior and offline-fixture skip.
 - Update README and verification matrix once implemented.

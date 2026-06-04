@@ -341,7 +341,7 @@ Desktop/medium-large:
 | bold section headings, colored status words, clickable links                |
 | visible [➕ more] / [➖ less] controls for expansion                          |
 +----------------------------------------------------------------------------+
-| [🔄 refresh]  [➕ expand]  [❔ help]  [⏻ quit]                         |
+| [🔄 refresh]  [➕ expand ]  [❔ help]  [⏻ quit]                         |
 +----------------------------------------------------------------------------+
 ```
 
@@ -356,7 +356,7 @@ OK checks PASS | files 2 | +86 | -0
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
-[🔄 refresh] | [➕ expand] | [❔ help] | [⏻ quit]
+[🔄 refresh] | [➕ expand ] | [❔ help] | [⏻ quit]
 ```
 
 Visual style:
@@ -377,7 +377,7 @@ Visual style:
   below the normal status chips. That row is normally blank so loading text does
   not push branch/check/file status sideways.
 - Buttons and expandable controls use bold styling and text labels, for example
-  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[➕ expand]`.
+  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[➕ expand ]`.
 - The footer does not keep an always-on scroll/shortcut cheat sheet. Scroll
   orientation is handled by the configurable right-edge scrollbar, while the
   footer message area is reserved for transient status, loading, save, and error
@@ -483,7 +483,7 @@ Issue tabs:
   are truncated by default; expanded state reuses existing `BlockId`s.
 - Per-item `[➕ more]` and `[➖ less]` controls render only when the collapsed
   item actually hides content.
-- Tab-level `[➕ expand]` and `[➖ collapse]` controls belong in the fixed
+- Tab-level `[➕ expand ]` and `[➖ collapse]` controls belong in the fixed
   bottom command bar immediately after refresh, not in the scrollable
   feed/list. They operate on every expandable `BlockId` in the active tab, so
   users can expand or collapse the whole current view without scrolling to find
@@ -667,7 +667,7 @@ Long text behavior:
 - Visible controls:
   - `[➕ more]` expands one block
   - `[➖ less]` collapses it
-  - footer `[➕ expand]` / `[➖ collapse]` immediately after refresh for
+  - footer `[➕ expand ]` / `[➖ collapse]` immediately after refresh for
     tab-level expansion when a tab has expandable body, comment, commit, check,
     file, or patch rows
 - Mouse activation uses shared hit targets for single-block and all-block
