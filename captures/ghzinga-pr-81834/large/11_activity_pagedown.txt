@@ -8,43 +8,43 @@
    🏠 Overview [💬 Activity] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                                          
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                     │                                        
-                                                                                                                       │                                        
-  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The     │                                        
-  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider │                                        
-  <id>.                                                                                                                │                                        
+  Changed files:                                                                                                       │                                        
+  - extensions/senseaudio/package.json                                                                                 │                                        
   [➕ more]                                                                                                            │                                        
+                                                                                                                       │                                        
+  Comment by @KLilyZ 2w ago                                                                                            │                                        
+  meta: association NONE                                                                                               █                                        
+  [details]                                                                                                            █                                        
+  Codex review: needs changes before merge.                                                                            █                                        
+                                                                                                                       █                                        
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTTP █                                        
+  helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                     █                                        
+                                                                                                                       █                                        
+  Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The     █                                        
+  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider █                                        
+  <id>.                                                                                                                █                                        
+  [➕ more]                                                                                                            █                                        
                                                                                                                        │                                        
   Comment by @KLilyZ 2w ago                                                                                            │                                        
   meta: association NONE                                                                                               │                                        
   [details]                                                                                                            │                                        
-  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no              █                                        
-  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,█                                        
-  just flagging it in case it slipped past the queue.                                                                  █                                        
-                                                                                                                       █                                        
-  Comment by @RomneyDa 6d ago                                                                                          █                                        
-  meta: association MEMBER                                                                                             █                                        
-  [details]                                                                                                            █                                        
-  <!-- dependency-guard-rebase-needed-backfill -->                                                                     █                                        
-  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.  █                                        
-                                                                                                                       █                                        
-  Comment by @clawsweeper 5d ago                                                                                       █                                        
+  Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no              │                                        
+  contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No rush,│                                        
+  just flagging it in case it slipped past the queue.                                                                  │                                        
+                                                                                                                       │                                        
+  Comment by @RomneyDa 6d ago                                                                                          │                                        
+  meta: association MEMBER                                                                                             │                                        
+  [details]                                                                                                            │                                        
+  <!-- dependency-guard-rebase-needed-backfill -->                                                                     │                                        
+  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.  │                                        
+                                                                                                                       │                                        
+  Comment by @clawsweeper 5d ago                                                                                       │                                        
   meta: association CONTRIBUTOR, edited                                                                                │                                        
   [details]                                                                                                            │                                        
   Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                          │                                        
                                                                                                                        │                                        
   Summary                                                                                                              │                                        
   The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,     │                                        
-  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.          │                                        
-                                                                                                                       │                                        
-  PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                │                                        
-                                                                                                                       │                                        
-  [➕ more]                                                                                                            │                                        
-                                                                                                                       │                                        
-  Comment by @socket-security 5d ago                                                                                   │                                        
-  meta: association NONE, edited                                                                                       │                                        
-  [details]                                                                                                            │                                        
-  Review the following changes in direct dependencies. Learn more about [Socket for                                    │                                        
                                                                                                                                                                 
   [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 
