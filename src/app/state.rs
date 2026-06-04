@@ -215,6 +215,10 @@ impl AppState {
     }
 
     pub fn open_add_resource_prompt(&mut self) {
+        if self.show_help || self.show_settings {
+            self.scroll = 0;
+            self.scroll_limit = u16::MAX;
+        }
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
@@ -1282,6 +1286,29 @@ mod tests {
         assert!(state.show_help);
         assert_eq!(state.scroll, 0);
         assert_eq!(state.scroll_limit, u16::MAX);
+    }
+
+    #[test]
+    fn add_resource_prompt_resets_overlay_scroll_without_touching_resource_scroll() {
+        let mut state = AppState::new(issue_resource());
+        state.scroll = 12;
+        state.scroll_limit = 20;
+        state.show_help = true;
+
+        state.open_add_resource_prompt();
+
+        assert!(!state.show_help);
+        assert_eq!(state.scroll, 0);
+        assert_eq!(state.scroll_limit, u16::MAX);
+
+        state.close_add_resource_prompt();
+        state.scroll = 7;
+        state.scroll_limit = 20;
+
+        state.open_add_resource_prompt();
+
+        assert_eq!(state.scroll, 7);
+        assert_eq!(state.scroll_limit, 20);
     }
 
     #[test]

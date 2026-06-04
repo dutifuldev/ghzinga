@@ -257,10 +257,16 @@ fn numbered_tab(ch: char, tabs: &[crate::app::Tab]) -> Option<crate::app::Tab> {
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
+            if state.add_resource_prompt.is_some() {
+                return AppIntent::None;
+            }
             state.scroll_down(3);
             AppIntent::None
         }
         MouseEventKind::ScrollUp => {
+            if state.add_resource_prompt.is_some() {
+                return AppIntent::None;
+            }
             state.scroll_up(3);
             AppIntent::None
         }
@@ -800,6 +806,29 @@ mod tests {
         }
 
         assert_eq!(state.scroll, 12);
+    }
+
+    #[test]
+    fn mouse_wheel_is_inert_while_resource_prompt_is_open() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(12);
+        state.scroll = 6;
+        state.open_add_resource_prompt();
+
+        for kind in [MouseEventKind::ScrollDown, MouseEventKind::ScrollUp] {
+            let intent = apply_event(
+                &mut state,
+                AppEvent::Mouse(MouseEvent {
+                    kind,
+                    column: 1,
+                    row: 1,
+                    modifiers: KeyModifiers::empty(),
+                }),
+            );
+
+            assert_eq!(intent, AppIntent::None);
+            assert_eq!(state.scroll, 6);
+        }
     }
 
     #[test]
