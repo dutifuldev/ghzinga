@@ -739,6 +739,34 @@ mod tests {
     }
 
     #[test]
+    fn opening_resource_prompt_clears_stale_click_targets() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::Tab(Tab::Links),
+        ));
+
+        let open = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty())),
+        );
+        let click = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 4,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(open, AppIntent::None);
+        assert_eq!(click, AppIntent::None);
+        assert!(state.add_resource_prompt.is_some());
+        assert_eq!(state.active_tab, Tab::Overview);
+    }
+
+    #[test]
     fn mouse_wheel_scrolls_without_using_ctrl_shortcuts() {
         let mut state = AppState::new(resource());
 

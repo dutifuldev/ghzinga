@@ -220,6 +220,8 @@ impl AppState {
             self.scroll = 0;
             self.scroll_limit = u16::MAX;
         }
+        self.hit_areas.clear();
+        self.scrollbar_drag = None;
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
