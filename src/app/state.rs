@@ -80,6 +80,7 @@ pub struct LoadingState {
     pub target: ResourceId,
     pub message: String,
     pub request_id: u64,
+    pub origin_tab_id: u64,
     frame: u8,
 }
 
@@ -289,6 +290,15 @@ impl AppState {
         if self.resource_tabs.len() <= 1 || index >= self.resource_tabs.len() {
             return false;
         }
+        let closing_tab_id = self.resource_tabs[index].id;
+        if self
+            .loading
+            .as_ref()
+            .is_some_and(|loading| loading.origin_tab_id == closing_tab_id)
+        {
+            self.finish_loading();
+            self.clear_transient_loading_status_messages();
+        }
         self.snapshot_active_resource_tab();
         self.resource_tabs.remove(index);
         let next = if index == self.active_resource_tab {
@@ -486,10 +496,12 @@ impl AppState {
 
     pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) -> u64 {
         let request_id = self.allocate_loading_request_id();
+        let origin_tab_id = self.active_resource_tab_id();
         self.loading = Some(LoadingState {
             target,
             message: message.into(),
             request_id,
+            origin_tab_id,
             frame: 0,
         });
         self.last_error = None;
@@ -502,6 +514,15 @@ impl AppState {
     }
 
     pub fn clear_transient_loading_status_messages(&mut self) {
+        if let Some(prompt) = &mut self.add_resource_prompt {
+            if prompt
+                .error
+                .as_deref()
+                .is_some_and(is_transient_loading_status)
+            {
+                prompt.error = None;
+            }
+        }
         if self
             .status_message
             .as_deref()
@@ -1312,6 +1333,26 @@ mod tests {
     }
 
     #[test]
+    fn transient_loading_cleanup_clears_prompt_errors() {
+        let mut state = AppState::new(issue_resource());
+        state.open_add_resource_prompt();
+        state.set_add_resource_error("still loading: refreshing owner/repo#1 from GitHub");
+
+        state.clear_transient_loading_status_messages();
+
+        assert!(state.add_resource_prompt.as_ref().unwrap().error.is_none());
+
+        state.set_add_resource_error("expected a GitHub PR/issue URL");
+
+        state.clear_transient_loading_status_messages();
+
+        assert_eq!(
+            state.add_resource_prompt.as_ref().unwrap().error.as_deref(),
+            Some("expected a GitHub PR/issue URL")
+        );
+    }
+
+    #[test]
     fn scroll_down_clamps_to_rendered_scroll_limit() {
         let mut state = AppState::new(issue_resource());
         state.set_scroll_limit(7);
@@ -1527,6 +1568,28 @@ mod tests {
         assert!(!state.resource_tab_bar_visible());
 
         assert!(!state.close_resource_tab(0));
+        assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn closing_loading_origin_tab_clears_abandoned_request() {
+        let mut state = AppState::new(issue_resource());
+        let mut second = issue_resource();
+        second.id.number = 2;
+        second.title = "Second issue".into();
+        state.open_resource_in_tab(second);
+        state.begin_loading(
+            state.resource.id.clone(),
+            "refreshing owner/repo#2 from GitHub",
+        );
+        state.switch_resource_tab(0);
+        state.status_message = Some("still loading: refreshing owner/repo#2 from GitHub".into());
+
+        assert!(state.close_resource_tab(1));
+
+        assert!(state.loading.is_none());
+        assert!(state.status_message.is_none());
+        assert_eq!(state.resource.id.number, 1);
         assert_eq!(state.resource_tabs.len(), 1);
     }
 }
