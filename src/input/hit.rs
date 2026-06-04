@@ -76,6 +76,7 @@ impl HitArea {
 pub fn hit_test(areas: &[HitArea], column: u16, row: u16) -> Option<HitTarget> {
     areas
         .iter()
+        .rev()
         .find(|area| area.contains(column, row))
         .map(|area| area.target.clone())
 }
@@ -95,12 +96,12 @@ mod tests {
     }
 
     #[test]
-    fn hit_test_returns_first_matching_target() {
-        let areas = vec![HitArea::new(
-            Rect::new(0, 0, 10, 1),
-            HitTarget::Tab(Tab::Files),
-        )];
+    fn hit_test_returns_last_matching_target_to_match_render_z_order() {
+        let areas = vec![
+            HitArea::new(Rect::new(0, 0, 10, 1), HitTarget::Tab(Tab::Files)),
+            HitArea::new(Rect::new(4, 0, 3, 1), HitTarget::Tab(Tab::Checks)),
+        ];
 
-        assert_eq!(hit_test(&areas, 4, 0), Some(HitTarget::Tab(Tab::Files)));
+        assert_eq!(hit_test(&areas, 4, 0), Some(HitTarget::Tab(Tab::Checks)));
     }
 }

@@ -79,6 +79,7 @@ pub enum BlockId {
 pub struct LoadingState {
     pub target: ResourceId,
     pub message: String,
+    pub request_id: u64,
     frame: u8,
 }
 
@@ -90,21 +91,31 @@ pub struct ScrollbarDragState {
 
 #[derive(Debug, Clone)]
 pub struct ResourceTabState {
+    pub id: u64,
     pub resource: Resource,
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
     pub expanded_blocks: HashSet<BlockId>,
+    pub history: Vec<crate::domain::ResourceId>,
+    pub last_refreshed_at: Option<String>,
+    pub last_refresh_had_changes: Option<bool>,
+    pub last_refresh_changed_sections: Vec<String>,
 }
 
 impl ResourceTabState {
-    fn new(resource: Resource) -> Self {
+    fn new(id: u64, resource: Resource) -> Self {
         Self {
+            id,
             resource,
             active_tab: Tab::Overview,
             scroll: 0,
             scroll_limit: u16::MAX,
             expanded_blocks: HashSet::new(),
+            history: Vec::new(),
+            last_refreshed_at: None,
+            last_refresh_had_changes: None,
+            last_refresh_changed_sections: Vec::new(),
         }
     }
 }
@@ -120,6 +131,8 @@ pub struct AppState {
     pub resource: Resource,
     pub resource_tabs: Vec<ResourceTabState>,
     pub active_resource_tab: usize,
+    next_resource_tab_id: u64,
+    next_loading_request_id: u64,
     pub add_resource_prompt: Option<AddResourcePrompt>,
     pub active_tab: Tab,
     pub scroll: u16,
@@ -151,12 +164,14 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(resource: Resource) -> Self {
-        let resource_tabs = vec![ResourceTabState::new(resource.clone())];
+        let resource_tabs = vec![ResourceTabState::new(1, resource.clone())];
         Self {
             active_tab: Tab::Overview,
             resource,
             resource_tabs,
             active_resource_tab: 0,
+            next_resource_tab_id: 2,
+            next_loading_request_id: 1,
             add_resource_prompt: None,
             scroll: 0,
             scroll_limit: u16::MAX,
@@ -236,6 +251,13 @@ impl AppState {
         Some(resource_tab_label(&tab.resource))
     }
 
+    pub fn active_resource_tab_id(&self) -> u64 {
+        self.resource_tabs
+            .get(self.active_resource_tab)
+            .map(|tab| tab.id)
+            .unwrap_or_default()
+    }
+
     pub fn switch_resource_tab(&mut self, index: usize) -> bool {
         if index >= self.resource_tabs.len() || index == self.active_resource_tab {
             return false;
@@ -273,10 +295,35 @@ impl AppState {
             self.resource_tabs[index].resource = resource;
             self.restore_resource_tab(index);
         } else {
-            self.resource_tabs.push(ResourceTabState::new(resource));
+            let tab_id = self.allocate_resource_tab_id();
+            self.resource_tabs
+                .push(ResourceTabState::new(tab_id, resource));
             self.restore_resource_tab(self.resource_tabs.len() - 1);
         }
         self.close_add_resource_prompt();
+    }
+
+    pub fn apply_to_resource_tab(&mut self, tab_id: u64, apply: impl FnOnce(&mut Self)) -> bool {
+        let previous_tab_id = self.active_resource_tab_id();
+        self.snapshot_active_resource_tab();
+        let Some(target_index) = self.resource_tabs.iter().position(|tab| tab.id == tab_id) else {
+            return false;
+        };
+
+        self.restore_resource_tab(target_index);
+        apply(self);
+        self.snapshot_active_resource_tab();
+
+        if previous_tab_id != tab_id {
+            if let Some(previous_index) = self
+                .resource_tabs
+                .iter()
+                .position(|tab| tab.id == previous_tab_id)
+            {
+                self.restore_resource_tab(previous_index);
+            }
+        }
+        true
     }
 
     pub fn set_tab(&mut self, tab: Tab) {
@@ -420,18 +467,27 @@ impl AppState {
         changed
     }
 
-    pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) {
+    pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) -> u64 {
+        let request_id = self.allocate_loading_request_id();
         self.loading = Some(LoadingState {
             target,
             message: message.into(),
+            request_id,
             frame: 0,
         });
         self.last_error = None;
+        request_id
     }
 
     pub fn finish_loading(&mut self) {
         self.loading = None;
         self.refresh_requested = false;
+    }
+
+    pub fn loading_request_matches(&self, request_id: u64) -> bool {
+        self.loading
+            .as_ref()
+            .is_some_and(|loading| loading.request_id == request_id)
     }
 
     pub fn loading_message(&self) -> Option<&str> {
@@ -685,6 +741,10 @@ impl AppState {
             tab.scroll = self.scroll;
             tab.scroll_limit = self.scroll_limit;
             tab.expanded_blocks = self.expanded_blocks.clone();
+            tab.history = self.history.clone();
+            tab.last_refreshed_at = self.last_refreshed_at.clone();
+            tab.last_refresh_had_changes = self.last_refresh_had_changes;
+            tab.last_refresh_changed_sections = self.last_refresh_changed_sections.clone();
         }
     }
 
@@ -702,10 +762,26 @@ impl AppState {
         self.scroll = tab.scroll;
         self.scroll_limit = tab.scroll_limit;
         self.expanded_blocks = tab.expanded_blocks;
+        self.history = tab.history;
+        self.last_refreshed_at = tab.last_refreshed_at;
+        self.last_refresh_had_changes = tab.last_refresh_had_changes;
+        self.last_refresh_changed_sections = tab.last_refresh_changed_sections;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.last_error = None;
         self.status_message = None;
+    }
+
+    fn allocate_resource_tab_id(&mut self) -> u64 {
+        let id = self.next_resource_tab_id;
+        self.next_resource_tab_id = self.next_resource_tab_id.saturating_add(1);
+        id
+    }
+
+    fn allocate_loading_request_id(&mut self) -> u64 {
+        let id = self.next_loading_request_id;
+        self.next_loading_request_id = self.next_loading_request_id.saturating_add(1);
+        id
     }
 }
 
@@ -1281,10 +1357,15 @@ mod tests {
         state.set_tab(Tab::Activity);
         state.scroll = 5;
         state.toggle_block(BlockId::Body);
+        state.history.push(state.resource.id.clone());
+        state.mark_refreshed("12:34:56 UTC", true);
+        state.last_refresh_changed_sections = vec!["summary".into()];
         state.open_resource_in_tab(second);
 
         assert_eq!(state.resource.id.number, 2);
         assert_eq!(state.active_tab, Tab::Overview);
+        assert!(state.history.is_empty());
+        assert!(state.last_refreshed_at.is_none());
         assert_eq!(state.resource_tabs.len(), 2);
         assert!(state.resource_tab_bar_visible());
 
@@ -1294,6 +1375,10 @@ mod tests {
         assert_eq!(state.active_tab, Tab::Activity);
         assert_eq!(state.scroll, 5);
         assert!(state.block_expanded(&BlockId::Body));
+        assert_eq!(state.history.len(), 1);
+        assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
+        assert_eq!(state.last_refresh_had_changes, Some(true));
+        assert_eq!(state.last_refresh_changed_sections, ["summary"]);
     }
 
     #[test]

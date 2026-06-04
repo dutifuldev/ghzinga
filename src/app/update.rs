@@ -1556,7 +1556,7 @@ mod tests {
         state.open_resource_in_tab(second);
         state.hit_areas.clear();
         state.hit_areas.push(HitArea::new(
-            Rect::new(0, 1, 10, 1),
+            Rect::new(0, 1, 13, 1),
             HitTarget::ResourceTab(0),
         ));
         state.hit_areas.push(HitArea::new(
@@ -1576,6 +1576,10 @@ mod tests {
         assert_eq!(state.resource.id.number, 1);
 
         state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 13, 1),
+            HitTarget::ResourceTab(1),
+        ));
+        state.hit_areas.push(HitArea::new(
             Rect::new(10, 1, 3, 1),
             HitTarget::CloseResourceTab(1),
         ));
@@ -1589,5 +1593,48 @@ mod tests {
             }),
         );
         assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn modal_mouse_targets_win_over_underlying_content_hits() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("owner/repo#42");
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 8, 1),
+            HitTarget::Navigate(crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 99,
+                kind_hint: None,
+            }),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 8, 1),
+            HitTarget::ConfirmResourcePrompt,
+        ));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(
+            intent,
+            AppIntent::OpenResource(crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 42,
+                kind_hint: None,
+            })
+        );
     }
 }

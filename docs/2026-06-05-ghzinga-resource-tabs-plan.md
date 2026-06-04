@@ -36,7 +36,8 @@ or issues open without turning the first screen into a dashboard.
 `AppState` keeps the current `resource` field as the active resource mirror and
 adds `resource_tabs` plus `active_resource_tab` for the tab layer. This keeps
 the existing renderers and fetch code simple while allowing each resource tab to
-snapshot its own active section, scroll offset, scroll limit, and expanded rows.
+snapshot its own active section, scroll offset, scroll limit, expanded rows,
+navigation history, and refresh metadata.
 
 The add-resource modal is normal app state, not a terminal side effect. While it
 is open, keyboard input is routed to the modal first. Enter parses and returns
@@ -47,6 +48,16 @@ navigation.
 `FetchAction::OpenTab` centralizes the async path. Successful results call
 `open_resource_in_tab`, which appends or deduplicates tabs and restores the
 active resource snapshot.
+
+Background fetches carry a request id and originating resource-tab id. A fetch
+completion is ignored if it does not match the current loading request, and
+refresh/navigation completions apply to the tab that started the fetch. This
+prevents a slow response from overwriting a different tab after the user clicks
+away.
+
+Mouse hit testing follows render stacking order: later registered hit areas win.
+That makes modal controls capture clicks over underlying content and lets the
+tab close affordance win over the broader tab body target.
 
 ## Herdr Inspiration
 
@@ -69,5 +80,7 @@ machinery. Resource tabs are only an in-process reading/navigation layer.
 - Reducer tests cover opening the modal, typing, confirming, invalid input, and
   mouse hit targets.
 - State tests cover opening, switching, deduplicating, closing, and preserving
-  per-resource view state.
-- Fetch tests cover `OpenTab` outcome application.
+  per-resource view state, history, and refresh status.
+- Fetch tests cover `OpenTab` outcome application and fetch completion after
+  switching away from the origin tab.
+- Hit-target tests cover modal and tab-close overlap behavior.
