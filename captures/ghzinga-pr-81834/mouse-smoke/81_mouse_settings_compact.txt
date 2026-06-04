@@ -33,4 +33,4 @@ Symbols
 [ ] ascii  Plain terminal-safe labels                                                                                   
 [x] emoji  Richer semantic markers                                                                                      
 saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml               
-[🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit]                                                        
+[🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                            

@@ -32,5 +32,5 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]                                             
+  [🔄 refresh] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                 
                                                                                                                         

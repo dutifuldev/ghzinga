@@ -21,4 +21,4 @@
   Comment by @tianxiaochannel-oss88 1d ago                                      
   Adding a fresh macOS/Slack data point: the same previous_response_id 404      
                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]     
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

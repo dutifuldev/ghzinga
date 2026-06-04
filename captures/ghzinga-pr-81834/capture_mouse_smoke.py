@@ -314,29 +314,29 @@ def capture_mouse_smoke():
 
         send_key(SESSION, "a")
         wait_for_text(SESSION, "path: docs/plugins/plugin-inventory.md")
-        wait_for_text(SESSION, "[➖ all]")
+        wait_for_text(SESSION, "[➖ collapse]")
         write_frame(ROOT, "13_keyboard_expand_all", frames)
 
         send_key(SESSION, "a")
-        wait_for_text(SESSION, "[➕ all]")
+        wait_for_text(SESSION, "[➕ expand ]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"keyboard collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "14_keyboard_collapse_all", frames)
 
-        expand_all = find_marker_position(SESSION, "[➕ all]")
+        expand_all = find_marker_position(SESSION, "[➕ expand ]")
         mouse_coordinates["expand_all"] = list(expand_all)
         send_mouse_click(SESSION, *expand_all)
         require_screen_contains("path: docs/plugins/plugin-inventory.md")
         tmux("send-keys", "-t", SESSION, "End")
         time.sleep(0.5)
-        wait_for_text(SESSION, "[➖ all]")
+        wait_for_text(SESSION, "[➖ collapse]")
         write_frame(ROOT, "20_mouse_expand_all", frames)
 
-        collapse_all = find_marker_position(SESSION, "[➖ all]")
+        collapse_all = find_marker_position(SESSION, "[➖ collapse]")
         mouse_coordinates["collapse_all"] = list(collapse_all)
         send_mouse_click(SESSION, *collapse_all)
-        wait_for_text(SESSION, "[➕ all]")
+        wait_for_text(SESSION, "[➕ expand ]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"collapse all left first file expanded:\n{text}")
@@ -407,20 +407,6 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "offline fixture mode: refresh skipped")
         write_frame(ROOT, "65_mouse_footer_refresh", frames)
 
-        copy_button = find_marker_position(SESSION, "[📋 copy]")
-        mouse_coordinates["copy"] = list(copy_button)
-        send_mouse_click(SESSION, *copy_button)
-        wait_for_text(SESSION, f"copied {CURRENT_RESOURCE_URL}")
-        require_file_contains(copy_log_path(), CURRENT_RESOURCE_URL)
-        write_frame(ROOT, "66_mouse_footer_copy", frames)
-
-        open_button = find_marker_position(SESSION, "[🌐 open]")
-        mouse_coordinates["open"] = list(open_button)
-        send_mouse_click(SESSION, *open_button)
-        wait_for_text(SESSION, f"opened {CURRENT_RESOURCE_URL}")
-        require_file_contains(open_log_path(), CURRENT_RESOURCE_URL)
-        write_frame(ROOT, "67_mouse_footer_open", frames)
-
         help_button = find_marker_position(SESSION, "[❔ help]")
         mouse_coordinates["help"] = list(help_button)
         send_mouse_click(SESSION, *help_button)
@@ -462,8 +448,6 @@ def capture_mouse_smoke():
             "actual_tmux_size": actual_tmux_size,
             "adapter_outputs": {
                 "detail_url": DETAIL_URL,
-                "open_url": CURRENT_RESOURCE_URL,
-                "copy_url": CURRENT_RESOURCE_URL,
             },
             "saved_config": saved_config,
             "quit_exited": True,
@@ -597,11 +581,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
-    expected_adapter_outputs = {
-        "detail_url": DETAIL_URL,
-        "open_url": CURRENT_RESOURCE_URL,
-        "copy_url": CURRENT_RESOURCE_URL,
-    }
+    expected_adapter_outputs = {"detail_url": DETAIL_URL}
     if manifest.get("adapter_outputs") != expected_adapter_outputs:
         errors.append(
             f"adapter_outputs is {manifest.get('adapter_outputs')!r}, "
@@ -618,8 +598,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "activity_tab_for_detail",
         "activity_details",
         "overview_tab_after_detail",
-        "copy",
-        "open",
         "settings_compact",
         "load_full",
         "quit",
@@ -650,7 +628,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "committed: 1mo ago",
         ],
         "06_mouse_overview_less": ["[🏠 Overview]", "* commit fb948c9", "[➕ more]"],
-        "10_mouse_files_tab": ["[📄 Files]", "docs/plugins/plugin-inventory.md", "[➕ all]"],
+        "10_mouse_files_tab": ["[📄 Files]", "docs/plugins/plugin-inventory.md", "[➕ expand ]"],
         "11_mouse_file_row_more": [
             "[📄 Files]",
             "docs/plugins/reference.md [➖ less]",
@@ -663,16 +641,16 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         ],
         "13_keyboard_expand_all": [
             "[📄 Files]",
-            "[➖ all]",
+            "[➖ collapse]",
             "path: docs/plugins/plugin-inventory.md",
         ],
-        "14_keyboard_collapse_all": ["[📄 Files]", "[➕ all]"],
+        "14_keyboard_collapse_all": ["[📄 Files]", "[➕ expand ]"],
         "20_mouse_expand_all": [
             "[📄 Files]",
-            "[➖ all]",
+            "[➖ collapse]",
             "path: extensions/senseaudio/speech-provider.ts",
         ],
-        "30_mouse_collapse_all": ["[📄 Files]", "[➕ all]"],
+        "30_mouse_collapse_all": ["[📄 Files]", "[➕ expand ]"],
         "35_mouse_checks_tab": [
             "[✅ Checks]",
             "Summary: PASS",
@@ -715,8 +693,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
             "offline fixture mode: refresh skipped",
         ],
-        "66_mouse_footer_copy": ["[🏠 Overview]", f"copied {CURRENT_RESOURCE_URL}", "[📋 copy]"],
-        "67_mouse_footer_open": ["[🏠 Overview]", f"opened {CURRENT_RESOURCE_URL}", "[🌐 open]"],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[❔ help]"],
         "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[⚙ settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],

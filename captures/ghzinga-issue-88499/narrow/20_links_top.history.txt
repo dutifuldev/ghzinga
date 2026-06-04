@@ -21,4 +21,4 @@
                                                                                 
                                                                                 
                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit]              
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

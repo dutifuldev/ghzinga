@@ -21,4 +21,4 @@
   replay through missing server-side response IDs for store=false sessions.  █  
                                                                              █  
                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [➕ all]     
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

@@ -5,14 +5,12 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "70b4b95b053897ab99aecb24b732ebfa41d38e38",
+  "git_commit": "19b407a5475396d0721c58723d17855187d50a07",
   "config_path": "captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-issue-88499/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-issue-88499/mouse-smoke/capture-copy-url.sh ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
   "adapter_outputs": {
-    "detail_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
-    "open_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1",
-    "copy_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
+    "detail_url": "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
   },
   "quit_exited": true,
   "mouse_coordinates": {
@@ -44,16 +42,8 @@
       3,
       35
     ],
-    "copy": [
-      16,
-      35
-    ],
-    "open": [
-      26,
-      35
-    ],
     "quit": [
-      60,
+      54,
       35
     ]
   },
@@ -112,16 +102,6 @@
       "name": "60_mouse_footer_refresh",
       "txt": "60_mouse_footer_refresh.txt",
       "ansi": "60_mouse_footer_refresh.ansi"
-    },
-    {
-      "name": "61_mouse_footer_copy",
-      "txt": "61_mouse_footer_copy.txt",
-      "ansi": "61_mouse_footer_copy.ansi"
-    },
-    {
-      "name": "62_mouse_footer_open",
-      "txt": "62_mouse_footer_open.txt",
-      "ansi": "62_mouse_footer_open.ansi"
     }
   ]
 }

@@ -23,7 +23,7 @@ Finish the UI settings work around three user-facing preferences:
 The header identity should link to a sanitized GitHub URL from `resource.url`
 when GitHub supplied one and fall back to the resource id's GitHub URL
 otherwise. The hit target must stay separate from normal visible URL actions so
-footer `[copy]` and `[open]` still prefer visible content links and otherwise
+keyboard copy/open shortcuts still prefer visible content links and otherwise
 fall back to the current resource URL.
 
 ## Width Settings

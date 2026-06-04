@@ -20,5 +20,5 @@
   +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [➕ more]    │  
                                                                              │  
   +1    -0    MODIFIED extensions/senseaudio/test-api.ts [➕ more]           │  
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
-  [➕ all]                                                                      
+                                                                                
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

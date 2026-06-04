@@ -11,6 +11,9 @@ REPO = ROOT.parents[1]
 BIN = REPO / "target" / "debug" / "gzg"
 TARGET = "openclaw/openclaw#81834"
 TITLE = "feat(senseaudio): add SenseAudio TTS provider"
+ISSUE_TARGET = "https://github.com/openclaw/openclaw/issues/88499"
+ISSUE_TITLE = "openai-responses provider: 404 on previous_response_id when store=false (default)"
+ISSUE_FIXTURE = REPO / "fixtures" / "issue-88499.json"
 LOAD_NEEDLE = TITLE
 MODE = "pr"
 OFFLINE_FIXTURE = None
@@ -398,7 +401,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "openclaw/openclaw#66943",
             ],
         }
-    if mode == "issue" and target == "https://github.com/openclaw/openclaw/issues/88499":
+    if mode == "issue" and target == ISSUE_TARGET:
         return {
             "00_overview_top": [
                 "Bug Description",
@@ -415,6 +418,22 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
                 "openclaw/openclaw#84904",
                 "openclaw/openclaw#87310",
             ],
+        }
+    return {}
+
+
+def expected_capture_contract(root: Path, mode: str) -> dict[str, object]:
+    if mode == "pr" and root.name == "ghzinga-pr-81834":
+        return {
+            "target": TARGET,
+            "title": TITLE,
+            "offline_fixture": None,
+        }
+    if mode == "issue" and root.name == "ghzinga-issue-88499":
+        return {
+            "target": ISSUE_TARGET,
+            "title": ISSUE_TITLE,
+            "offline_fixture": repo_relative_path(ISSUE_FIXTURE),
         }
     return {}
 
@@ -513,6 +532,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     errors = []
     expected_git_commit = git_commit()
     target = None
+    contract = expected_capture_contract(root, mode)
     root_manifest = root / "manifest.json"
     expected_config_path = (root / "capture-empty-config.toml").resolve()
     expected_config_value = repo_relative_path(expected_config_path)
@@ -524,6 +544,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
         target = manifest.get("target")
         if manifest.get("mode") != mode:
             errors.append(f"{root_manifest} mode is {manifest.get('mode')!r}, expected {mode!r}")
+        validate_capture_contract(errors, root_manifest, manifest, contract)
         if resolve_repo_path(manifest.get("config_path")).resolve() != expected_config_path:
             errors.append(
                 f"{root_manifest} config_path is {manifest.get('config_path')!r}, "
@@ -557,8 +578,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     frames = expected_frames(mode)
     markers = expected_markers(mode) + [
         "[🔄 refresh]",
-        "[📋 copy]",
-        "[🌐 open]",
+        "[➕ expand ]",
         "[⚙ settings]",
         "[❔ help]",
         "[⏻ quit]",
@@ -572,6 +592,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
             errors.append(f"missing {manifest_path}")
             continue
         manifest = read_json(manifest_path)
+        validate_capture_contract(errors, manifest_path, manifest, contract)
         validate_manifest_revision(
             errors,
             manifest_path,
@@ -654,6 +675,19 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     if errors:
         raise SystemExit("Capture validation failed:\n- " + "\n- ".join(errors))
     print(f"OK: {root} captures match expected {mode} frames, markers, and content.")
+
+
+def validate_capture_contract(
+    errors: list[str],
+    manifest_path: Path,
+    manifest: dict,
+    contract: dict[str, object],
+):
+    for key, expected in contract.items():
+        if manifest.get(key) != expected:
+            errors.append(
+                f"{manifest_path} {key} is {manifest.get(key)!r}, expected {expected!r}"
+            )
 
 
 def main():

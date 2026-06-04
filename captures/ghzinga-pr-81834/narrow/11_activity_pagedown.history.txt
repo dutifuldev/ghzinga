@@ -12,13 +12,13 @@
   transcoding, registration metadata, docs, inventory updates, and tests.    │  
                                                                              │  
   Reproducibility: not applicable. for the requested feature because current █  
-  main simply lacks SenseAudio TTS. The remaining docs bug is                █  
+  main simply lacks SenseAudio TTS. The remaining docs bug is                │  
   [➕ more]                                                                  │  
                                                                              │  
-  Comment by @KLilyZ 1w ago                                                  │  
+  Comment by @KLilyZ 2w ago                                                  │  
   meta: association NONE                                                     │  
   [details]                                                                  │  
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
   cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
-  [➕ all]                                                                      
+                                                                                
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

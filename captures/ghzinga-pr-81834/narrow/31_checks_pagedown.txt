@@ -20,5 +20,5 @@
   [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                               │  
                                                                              │  
   [✅ PASS] suite/Real behavior proof [➕ more]                              │  
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full]     
-  [➕ all]                                                                      
+                                                                                
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

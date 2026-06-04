@@ -46,5 +46,5 @@
   [details]                                                                                                                                                     
   Codex review: needs changes before merge.                                                                                                                     
                                                                                                                                                                 
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                                                            
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 

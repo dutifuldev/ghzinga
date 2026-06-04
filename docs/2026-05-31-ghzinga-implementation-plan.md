@@ -341,7 +341,7 @@ Desktop/medium-large:
 | bold section headings, colored status words, clickable links                |
 | visible [➕ more] / [➖ less] controls for expansion                          |
 +----------------------------------------------------------------------------+
-| [🔄 refresh]  [🌐 open]  [❔ help]  [⏻ quit]   tab next | arrows scroll      |
+| [🔄 refresh]  [➕ expand ]  [❔ help]  [⏻ quit]                         |
 +----------------------------------------------------------------------------+
 ```
 
@@ -356,7 +356,7 @@ OK checks PASS | files 2 | +86 | -0
 ----------------------------------------------------------------
 Scrollable selected tab
 ----------------------------------------------------------------
-[🔄 refresh] | [🌐 open] | [❔ help] | [⏻ quit]
+[🔄 refresh] | [➕ expand ] | [❔ help] | [⏻ quit]
 ```
 
 Visual style:
@@ -377,7 +377,7 @@ Visual style:
   below the normal status chips. That row is normally blank so loading text does
   not push branch/check/file status sideways.
 - Buttons and expandable controls use bold styling and text labels, for example
-  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[🌐 open]`.
+  `[➕ more]`, `[➖ less]`, `[🔄 refresh]`, `[➕ expand ]`.
 - The footer does not keep an always-on scroll/shortcut cheat sheet. Scroll
   orientation is handled by the configurable right-edge scrollbar, while the
   footer message area is reserved for transient status, loading, save, and error
@@ -481,13 +481,15 @@ Issue tabs:
   clear where one item ends and the next begins.
 - Expand/collapse controls stay per item. Long comments and the opening body
   are truncated by default; expanded state reuses existing `BlockId`s.
-- Tab-level `[➕ all]` and `[➖ all]` controls belong in the fixed
-  bottom command bar after refresh/copy/open/settings/help/quit, not in the
-  scrollable feed/list. They operate on every expandable `BlockId` in the
-  active tab, so users can expand or collapse the whole current view without
-  scrolling to find the control.
+- Per-item `[➕ more]` and `[➖ less]` controls render only when the collapsed
+  item actually hides content.
+- Tab-level `[➕ expand ]` and `[➖ collapse]` controls belong in the fixed
+  bottom command bar immediately after refresh, not in the scrollable
+  feed/list. They operate on every expandable `BlockId` in the active tab, so
+  users can expand or collapse the whole current view without scrolling to find
+  the control.
 - If normal API depth reports more GitHub pages for first-page collections, the
-  fixed bottom command bar also shows `[⬇ full]` before expand/collapse-all.
+  fixed bottom command bar also shows `[⬇ full]` after expand/collapse.
   Clicking it, or pressing `f`, refetches the current resource with full
   supported pagination while preserving the economical default for ordinary
   startup, refresh, and auto-refresh.
@@ -665,9 +667,9 @@ Long text behavior:
 - Visible controls:
   - `[➕ more]` expands one block
   - `[➖ less]` collapses it
-  - footer `[➕ all]` / `[➖ all]` at the end of the bottom command
-    bar for tab-level expansion when a tab has expandable body, comment,
-    commit, check, file, or patch rows
+  - footer `[➕ expand ]` / `[➖ collapse]` immediately after refresh for
+    tab-level expansion when a tab has expandable body, comment, commit, check,
+    file, or patch rows
 - Mouse activation uses shared hit targets for single-block and all-block
   expansion.
 - Keyboard `Enter` can activate the visible footer all-block control, and `a`

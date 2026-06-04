@@ -32,5 +32,5 @@
                                                                                                                         
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The      
                                                                                                                         
-  [🔄 refresh] [📋 copy] [🌐 open] [⚙ settings] [❔ help] [⏻ quit] [⬇ full] [➕ all]                                    
+  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                   
                                                                                                                         

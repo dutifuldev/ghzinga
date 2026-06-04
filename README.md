@@ -79,7 +79,7 @@ The UI is built for active terminal use:
 - click tabs to switch views
 - click GitHub links to open or navigate
 - click rows and `[more]` controls to expand details
-- click footer actions for refresh, copy, open, settings, help, and quit
+- click footer actions for refresh, expand/collapse, settings, help, and quit
 - scroll with the mouse wheel or keyboard
 - drag the scrollbar when content is long
 - press `?` in the app for the full keyboard help
