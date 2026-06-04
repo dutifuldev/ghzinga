@@ -2,7 +2,10 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
+    widgets::{
+        Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        StatefulWidget, Widget,
+    },
     Frame,
 };
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -143,20 +146,34 @@ impl ContentRow {
 }
 
 pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
-    let rects = rects_for_spacing(frame.area(), state.spacing);
+    let mut rects = rects_for_spacing(frame.area(), state.spacing);
     let palette = state.theme.palette();
     state.hit_areas.clear();
     frame.buffer_mut().set_style(
         rects.area,
         Style::default().fg(palette.text).bg(palette.panel_bg),
     );
+    let resource_tabs_area = resource_tabs_area(&mut rects.header, state);
+    let show_header_add_button =
+        resource_tabs_area.is_none() && single_resource_add_button_visible(rects.header);
+    let header_right_reserved = if show_header_add_button {
+        add_resource_button_width(state).saturating_add(1)
+    } else {
+        0
+    };
     render_header(
         frame,
         chrome_area_for_spacing(rects.header, state.spacing),
         state,
         state.spacing,
         &palette,
+        header_right_reserved,
     );
+    if let Some(area) = resource_tabs_area {
+        render_resource_tabs(frame, area, state, &palette);
+    } else if show_header_add_button {
+        render_header_add_button(frame, rects.header, state, &palette);
+    }
     render_status(
         frame,
         chrome_area_for_spacing(rects.status, state.spacing),
@@ -179,6 +196,274 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         &palette,
         content_area.width as usize,
     );
+    if state.add_resource_prompt.is_some() {
+        render_add_resource_modal(frame, rects.area, state, &palette);
+    }
+}
+
+fn resource_tabs_area(header: &mut Rect, state: &AppState) -> Option<Rect> {
+    if !state.resource_tab_bar_visible() || header.height < 2 {
+        return None;
+    }
+    let area = Rect::new(header.x, header.y, header.width, 1);
+    header.y = header.y.saturating_add(1);
+    header.height = header.height.saturating_sub(1);
+    Some(area)
+}
+
+fn single_resource_add_button_visible(header: Rect) -> bool {
+    header.width >= 48 && header.height > 0
+}
+
+fn render_resource_tabs(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    Paragraph::new(" ".repeat(area.width as usize))
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(area, frame.buffer_mut());
+
+    let add_label = add_resource_button_label(state);
+    let add_width = UnicodeWidthStr::width(add_label.as_str()) as u16;
+    let add_x = area
+        .x
+        .saturating_add(area.width.saturating_sub(add_width.max(1)));
+    let tab_right = add_x.saturating_sub(1);
+    let mut x = area.x;
+    let mut spans = Vec::<Span<'static>>::new();
+    for index in 0..state.resource_tabs.len() {
+        if x >= tab_right {
+            break;
+        }
+        let Some(label) = state.active_resource_tab_label(index) else {
+            continue;
+        };
+        let active = index == state.active_resource_tab;
+        let remaining = tab_right.saturating_sub(x);
+        let desired_width = (UnicodeWidthStr::width(label.as_str()) as u16)
+            .saturating_add(6)
+            .clamp(10, 32);
+        let width = desired_width.min(remaining);
+        if width < 4 {
+            break;
+        }
+        let label_width = width.saturating_sub(4) as usize;
+        let tab_text = format!(" {} × ", truncate_display(&label, label_width));
+        let tab_text = fit_label_to_width(&tab_text, width);
+        let style = if active {
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(palette.text).bg(palette.surface1)
+        };
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x, area.y, width, 1),
+            HitTarget::ResourceTab(index),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x.saturating_add(width.saturating_sub(3)), area.y, 3, 1),
+            HitTarget::CloseResourceTab(index),
+        ));
+        spans.push(Span::styled(tab_text, style));
+        if x.saturating_add(width) < tab_right {
+            spans.push(Span::styled(" ", Style::default().bg(palette.surface0)));
+        }
+        x = x.saturating_add(width.saturating_add(1));
+    }
+    Paragraph::new(Line::from(spans))
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(
+            Rect::new(area.x, area.y, tab_right.saturating_sub(area.x), 1),
+            frame.buffer_mut(),
+        );
+    render_add_resource_button(
+        frame,
+        Rect::new(add_x, area.y, add_width, 1),
+        state,
+        palette,
+    );
+}
+
+fn render_header_add_button(
+    frame: &mut Frame<'_>,
+    header_area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if header_area.width == 0 || header_area.height == 0 {
+        return;
+    }
+    let width = add_resource_button_width(state);
+    if width == 0 || width > header_area.width {
+        return;
+    }
+    let row = header_area
+        .y
+        .saturating_add(header_top_padding_rows(header_area, state.spacing) as u16)
+        .min(
+            header_area
+                .y
+                .saturating_add(header_area.height.saturating_sub(1)),
+        );
+    let rect = Rect::new(
+        header_area
+            .x
+            .saturating_add(header_area.width.saturating_sub(width)),
+        row,
+        width,
+        1,
+    );
+    render_add_resource_button(frame, rect, state, palette);
+}
+
+fn render_add_resource_button(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let label = fit_label_to_width(&add_resource_button_label(state), area.width);
+    Paragraph::new(label)
+        .style(
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        )
+        .render(area, frame.buffer_mut());
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::OpenResourcePrompt));
+}
+
+fn add_resource_button_label(state: &AppState) -> String {
+    match state.symbols {
+        SymbolMode::Emoji => "[➕]",
+        SymbolMode::Ascii => "[+]",
+    }
+    .to_string()
+}
+
+fn add_resource_button_width(state: &AppState) -> u16 {
+    UnicodeWidthStr::width(add_resource_button_label(state).as_str()) as u16
+}
+
+fn render_add_resource_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(prompt) = state.add_resource_prompt.as_ref() else {
+        return;
+    };
+    let modal_width = area.width.saturating_sub(4).clamp(24, 68);
+    let modal_height = area.height.saturating_sub(2).clamp(7, 9);
+    let modal = Rect::new(
+        area.x
+            .saturating_add(area.width.saturating_sub(modal_width) / 2),
+        area.y
+            .saturating_add(area.height.saturating_sub(modal_height) / 2),
+        modal_width,
+        modal_height,
+    );
+    frame.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(palette.accent).bg(palette.surface0))
+        .style(Style::default().fg(palette.text).bg(palette.surface0));
+    frame.render_widget(block, modal);
+    let inner = Rect::new(
+        modal.x.saturating_add(1),
+        modal.y.saturating_add(1),
+        modal.width.saturating_sub(2),
+        modal.height.saturating_sub(2),
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let mut rows = Vec::<Line<'static>>::new();
+    rows.push(Line::from(Span::styled(
+        "Open PR or issue",
+        Style::default()
+            .fg(palette.text)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD),
+    )));
+    rows.push(Line::from(Span::styled(
+        "URL, owner/repo#123, owner/repo 123, or #123",
+        dim_style(palette).bg(palette.surface0),
+    )));
+    rows.push(Line::from(""));
+    let input_width = inner.width.saturating_sub(2) as usize;
+    rows.push(Line::from(Span::styled(
+        format!(
+            " {}",
+            truncate_display(&format!("{}█", prompt.input), input_width)
+        ),
+        Style::default().fg(palette.text).bg(palette.panel_bg),
+    )));
+    let detail = prompt
+        .error
+        .as_deref()
+        .unwrap_or("Enter opens, Esc cancels");
+    let detail_style = if prompt.error.is_some() {
+        Style::default()
+            .fg(palette.red)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        dim_style(palette).bg(palette.surface0)
+    };
+    rows.push(Line::from(Span::styled(
+        truncate_display(detail, inner.width as usize),
+        detail_style,
+    )));
+    while rows.len() + 1 < inner.height as usize {
+        rows.push(Line::from(""));
+    }
+    rows.push(Line::from(vec![
+        Span::styled(
+            "[open]",
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ", Style::default().bg(palette.surface0)),
+        Span::styled(
+            "[cancel]",
+            Style::default()
+                .fg(palette.text)
+                .bg(palette.surface1)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+
+    let button_y = inner.y.saturating_add(inner.height.saturating_sub(1));
+    state.hit_areas.push(HitArea::new(
+        Rect::new(inner.x, button_y, 6_u16.min(inner.width), 1),
+        HitTarget::ConfirmResourcePrompt,
+    ));
+    if inner.width >= 10 {
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x.saturating_add(8), button_y, 8, 1),
+            HitTarget::CancelResourcePrompt,
+        ));
+    }
 }
 
 fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
@@ -209,6 +494,7 @@ fn render_header(
     state: &mut AppState,
     spacing: SpacingMode,
     palette: &Palette,
+    right_reserved: u16,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -216,7 +502,7 @@ fn render_header(
     let resource = &state.resource;
     let kind = resource.kind();
     let mut header = Vec::new();
-    let width = area.width as usize;
+    let width = area.width.saturating_sub(right_reserved).max(1) as usize;
     let content_rows = area.height.saturating_sub(1) as usize;
     let updated = format!("updated {}", compact_relative_time(&resource.updated_at));
     let state_label = format!("[{} {}]", kind, resource.state);
@@ -1374,12 +1660,11 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
     );
     rows.extend(
         [
+            "- Plus opens resources; resource tabs switch or close them.",
             "- Click tabs to switch sections.",
             expand_help.as_str(),
             "- Click visible GitHub issue or PR references to navigate.",
-            "- Click settings rows to apply theme and symbol preferences.",
             "- Use the mouse wheel to scroll the current view.",
-            "",
         ]
         .into_iter()
         .flat_map(|line| markdown::wrap_plain_text(line, width))
@@ -1394,6 +1679,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar",
             "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
+            "- n: open another PR or issue in a resource tab",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
             "- o: open first visible URL, or current resource",
@@ -3908,6 +4194,7 @@ mod tests {
                     | HitTarget::Tab(_)
                     | HitTarget::OpenHeaderUrl(_)
                     | HitTarget::Refresh
+                    | HitTarget::OpenResourcePrompt
                     | HitTarget::CopyVisibleUrl
                     | HitTarget::OpenVisibleUrl
                     | HitTarget::Settings

@@ -228,6 +228,21 @@ async fn handle_intent(
             }
             false
         }
+        AppIntent::OpenResource(id) => {
+            if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
+                if start_background_fetch(
+                    state,
+                    FetchAction::OpenTab { id },
+                    fetch_source,
+                    fetch_tx,
+                ) {
+                    *last_refresh = Instant::now();
+                }
+            } else {
+                state.status_message = Some("offline fixture mode: open resource skipped".into());
+            }
+            false
+        }
         AppIntent::Navigate(id) => {
             let from = state.resource.id.clone();
             if start_background_fetch(

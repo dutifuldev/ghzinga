@@ -6,6 +6,8 @@ use crate::domain::ResourceId;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HitTarget {
     Tab(Tab),
+    ResourceTab(usize),
+    CloseResourceTab(usize),
     ToggleBlock(BlockId),
     ExpandBlocks(Vec<BlockId>),
     CollapseBlocks(Vec<BlockId>),
@@ -13,6 +15,9 @@ pub enum HitTarget {
     OpenUrl(String),
     OpenHeaderUrl(String),
     Refresh,
+    OpenResourcePrompt,
+    ConfirmResourcePrompt,
+    CancelResourcePrompt,
     LoadFullDepth,
     CopyVisibleUrl,
     OpenVisibleUrl,

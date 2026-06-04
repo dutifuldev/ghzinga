@@ -22,6 +22,7 @@ pub(crate) enum FetchAction {
     Initial { id: ResourceId },
     Refresh { id: ResourceId },
     LoadFull { id: ResourceId },
+    OpenTab { id: ResourceId },
     Navigate { from: ResourceId, to: ResourceId },
     Back { to: ResourceId },
 }
@@ -29,7 +30,10 @@ pub(crate) enum FetchAction {
 impl FetchAction {
     pub(crate) fn target(&self) -> &ResourceId {
         match self {
-            Self::Initial { id } | Self::Refresh { id } | Self::LoadFull { id } => id,
+            Self::Initial { id }
+            | Self::Refresh { id }
+            | Self::LoadFull { id }
+            | Self::OpenTab { id } => id,
             Self::Navigate { to, .. } | Self::Back { to } => to,
         }
     }
@@ -41,6 +45,7 @@ impl FetchAction {
             Self::LoadFull { id } => {
                 format!("loading full data for {} from GitHub", id.canonical_name())
             }
+            Self::OpenTab { id } => format!("opening {} in a new tab", id.canonical_name()),
             Self::Navigate { to, .. } => format!("opening {} from GitHub", to.canonical_name()),
             Self::Back { to } => format!("returning to {} from GitHub", to.canonical_name()),
         }
@@ -175,6 +180,11 @@ pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
         }
         (FetchAction::LoadFull { .. }, Ok(resource)) => {
             state.apply_refreshed_resource(resource, outcome.refreshed_at);
+            state.status_message = None;
+        }
+        (FetchAction::OpenTab { .. }, Ok(resource)) => {
+            state.open_resource_in_tab(resource);
+            state.last_error = None;
             state.status_message = None;
         }
         (FetchAction::Navigate { from, .. }, Ok(resource)) => {
@@ -353,6 +363,28 @@ mod tests {
         assert_eq!(state.resource.state, "OPEN");
         assert_eq!(state.active_tab, Tab::Overview);
         assert!(state.status_message.is_none());
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn open_tab_fetch_outcome_appends_and_activates_resource_tab() {
+        let mut state = AppState::new(issue_resource(1, "Initial issue"));
+        let second = issue_resource(2, "Second issue");
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::OpenTab {
+                    id: second.id.clone(),
+                },
+                result: Ok(second),
+                refreshed_at: "12:34:56 UTC".into(),
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert_eq!(state.active_resource_tab, 1);
         assert!(state.loading.is_none());
     }
 

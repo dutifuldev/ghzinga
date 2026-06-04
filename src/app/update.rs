@@ -9,6 +9,7 @@ pub enum AppIntent {
     None,
     Refresh,
     LoadFullDepth,
+    OpenResource(crate::domain::ResourceId),
     Navigate(crate::domain::ResourceId),
     OpenUrl(String),
     CopyUrl(String),
@@ -35,6 +36,9 @@ pub fn apply_event(state: &mut AppState, event: AppEvent) -> AppIntent {
 }
 
 fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    if state.add_resource_prompt.is_some() {
+        return apply_add_resource_prompt_key(state, key);
+    }
     match key.code {
         KeyCode::Char('q') if is_plain_shortcut(key) => {
             state.should_quit = true;
@@ -47,6 +51,10 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         KeyCode::Char('r') if is_plain_shortcut(key) => {
             state.refresh_requested = true;
             AppIntent::Refresh
+        }
+        KeyCode::Char('n') if is_plain_shortcut(key) => {
+            state.open_add_resource_prompt();
+            AppIntent::None
         }
         KeyCode::Char('f')
             if !state.show_help
@@ -197,6 +205,48 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     }
 }
 
+fn apply_add_resource_prompt_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.should_quit = true;
+            AppIntent::Quit
+        }
+        KeyCode::Esc => {
+            state.close_add_resource_prompt();
+            AppIntent::None
+        }
+        KeyCode::Enter => confirm_add_resource_prompt(state),
+        KeyCode::Backspace => {
+            if let Some(input) = state.add_resource_input_mut() {
+                input.pop();
+            }
+            state.clear_add_resource_error();
+            AppIntent::None
+        }
+        KeyCode::Char(ch) if is_plain_shortcut(key) => {
+            if let Some(input) = state.add_resource_input_mut() {
+                input.push(ch);
+            }
+            state.clear_add_resource_error();
+            AppIntent::None
+        }
+        _ => AppIntent::None,
+    }
+}
+
+fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
+    match state.parse_add_resource_input() {
+        Ok(id) => {
+            state.close_add_resource_prompt();
+            AppIntent::OpenResource(id)
+        }
+        Err(error) => {
+            state.set_add_resource_error(error.to_string());
+            AppIntent::None
+        }
+    }
+}
+
 fn is_plain_shortcut(key: KeyEvent) -> bool {
     !key.modifiers
         .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
@@ -245,6 +295,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.set_tab(tab);
             AppIntent::None
         }
+        HitTarget::ResourceTab(index) => {
+            state.switch_resource_tab(index);
+            AppIntent::None
+        }
+        HitTarget::CloseResourceTab(index) => {
+            state.close_resource_tab(index);
+            AppIntent::None
+        }
         HitTarget::ToggleBlock(id) => {
             state.toggle_block(id);
             AppIntent::None
@@ -265,6 +323,15 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         HitTarget::Refresh => {
             state.refresh_requested = true;
             AppIntent::Refresh
+        }
+        HitTarget::OpenResourcePrompt => {
+            state.open_add_resource_prompt();
+            AppIntent::None
+        }
+        HitTarget::ConfirmResourcePrompt => confirm_add_resource_prompt(state),
+        HitTarget::CancelResourcePrompt => {
+            state.close_add_resource_prompt();
+            AppIntent::None
         }
         HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
@@ -1408,5 +1475,119 @@ mod tests {
         );
 
         assert!(state.show_help);
+    }
+
+    #[test]
+    fn keyboard_n_opens_resource_prompt_and_enter_confirms_relative_number() {
+        let mut state = AppState::new(resource());
+
+        let open = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty())),
+        );
+        assert_eq!(open, AppIntent::None);
+        assert!(state.add_resource_prompt.is_some());
+
+        for ch in ['4', '2'] {
+            apply_event(
+                &mut state,
+                AppEvent::Key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::empty())),
+            );
+        }
+        let confirm = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(
+            confirm,
+            AppIntent::OpenResource(crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 42,
+                kind_hint: None,
+            })
+        );
+        assert!(state.add_resource_prompt.is_none());
+    }
+
+    #[test]
+    fn invalid_resource_prompt_input_stays_open_with_error() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("not a resource");
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        let prompt = state.add_resource_prompt.as_ref().unwrap();
+        assert!(prompt.error.is_some());
+    }
+
+    #[test]
+    fn mouse_targets_switch_close_and_open_resource_tabs() {
+        let mut state = AppState::new(resource());
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 0, 10, 1),
+            HitTarget::OpenResourcePrompt,
+        ));
+
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert!(state.add_resource_prompt.is_some());
+
+        state.close_add_resource_prompt();
+        let mut second = resource();
+        second.id.number = 2;
+        second.title = "Second".into();
+        state.open_resource_in_tab(second);
+        state.hit_areas.clear();
+        state.hit_areas.push(HitArea::new(
+            Rect::new(0, 1, 10, 1),
+            HitTarget::ResourceTab(0),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(10, 1, 3, 1),
+            HitTarget::CloseResourceTab(1),
+        ));
+
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.resource.id.number, 1);
+
+        state.hit_areas.push(HitArea::new(
+            Rect::new(10, 1, 3, 1),
+            HitTarget::CloseResourceTab(1),
+        ));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 11,
+                row: 1,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.resource_tabs.len(), 1);
     }
 }

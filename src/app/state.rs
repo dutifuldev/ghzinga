@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, str::FromStr};
 
-use crate::domain::{PullRequest, Resource, ResourceId, ResourceKind};
+use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
 use crate::input::HitArea;
 use crate::render::{
     normalize_fixed_width, ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName,
@@ -89,8 +89,38 @@ pub struct ScrollbarDragState {
 }
 
 #[derive(Debug, Clone)]
+pub struct ResourceTabState {
+    pub resource: Resource,
+    pub active_tab: Tab,
+    pub scroll: u16,
+    pub scroll_limit: u16,
+    pub expanded_blocks: HashSet<BlockId>,
+}
+
+impl ResourceTabState {
+    fn new(resource: Resource) -> Self {
+        Self {
+            resource,
+            active_tab: Tab::Overview,
+            scroll: 0,
+            scroll_limit: u16::MAX,
+            expanded_blocks: HashSet::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AddResourcePrompt {
+    pub input: String,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
+    pub resource_tabs: Vec<ResourceTabState>,
+    pub active_resource_tab: usize,
+    pub add_resource_prompt: Option<AddResourcePrompt>,
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
@@ -121,9 +151,13 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(resource: Resource) -> Self {
+        let resource_tabs = vec![ResourceTabState::new(resource.clone())];
         Self {
             active_tab: Tab::Overview,
             resource,
+            resource_tabs,
+            active_resource_tab: 0,
+            add_resource_prompt: None,
             scroll: 0,
             scroll_limit: u16::MAX,
             scrollbar_visible_frames: 0,
@@ -154,6 +188,95 @@ impl AppState {
 
     pub fn tabs(&self) -> &'static [Tab] {
         Tab::all_for(self.resource.kind())
+    }
+
+    pub fn resource_tab_bar_visible(&self) -> bool {
+        self.resource_tabs.len() > 1
+    }
+
+    pub fn open_add_resource_prompt(&mut self) {
+        self.add_resource_prompt = Some(AddResourcePrompt::default());
+        self.show_help = false;
+        self.show_settings = false;
+    }
+
+    pub fn close_add_resource_prompt(&mut self) {
+        self.add_resource_prompt = None;
+    }
+
+    pub fn add_resource_input_mut(&mut self) -> Option<&mut String> {
+        self.add_resource_prompt
+            .as_mut()
+            .map(|prompt| &mut prompt.input)
+    }
+
+    pub fn set_add_resource_error(&mut self, error: impl Into<String>) {
+        if let Some(prompt) = &mut self.add_resource_prompt {
+            prompt.error = Some(error.into());
+        }
+    }
+
+    pub fn clear_add_resource_error(&mut self) {
+        if let Some(prompt) = &mut self.add_resource_prompt {
+            prompt.error = None;
+        }
+    }
+
+    pub fn parse_add_resource_input(&self) -> Result<ResourceId, ResourceIdError> {
+        let input = self
+            .add_resource_prompt
+            .as_ref()
+            .map(|prompt| prompt.input.trim())
+            .unwrap_or_default();
+        parse_resource_reference(input, &self.resource.id)
+    }
+
+    pub fn active_resource_tab_label(&self, index: usize) -> Option<String> {
+        let tab = self.resource_tabs.get(index)?;
+        Some(resource_tab_label(&tab.resource))
+    }
+
+    pub fn switch_resource_tab(&mut self, index: usize) -> bool {
+        if index >= self.resource_tabs.len() || index == self.active_resource_tab {
+            return false;
+        }
+        self.snapshot_active_resource_tab();
+        self.restore_resource_tab(index);
+        true
+    }
+
+    pub fn close_resource_tab(&mut self, index: usize) -> bool {
+        if self.resource_tabs.len() <= 1 || index >= self.resource_tabs.len() {
+            return false;
+        }
+        self.snapshot_active_resource_tab();
+        self.resource_tabs.remove(index);
+        let next = if index == self.active_resource_tab {
+            index.saturating_sub(1).min(self.resource_tabs.len() - 1)
+        } else if index < self.active_resource_tab {
+            self.active_resource_tab.saturating_sub(1)
+        } else {
+            self.active_resource_tab
+        };
+        self.restore_resource_tab(next);
+        true
+    }
+
+    pub fn open_resource_in_tab(&mut self, resource: Resource) {
+        self.snapshot_active_resource_tab();
+        let canonical = resource.id.canonical_name();
+        if let Some(index) = self
+            .resource_tabs
+            .iter()
+            .position(|tab| tab.resource.id.canonical_name() == canonical)
+        {
+            self.resource_tabs[index].resource = resource;
+            self.restore_resource_tab(index);
+        } else {
+            self.resource_tabs.push(ResourceTabState::new(resource));
+            self.restore_resource_tab(self.resource_tabs.len() - 1);
+        }
+        self.close_add_resource_prompt();
     }
 
     pub fn set_tab(&mut self, tab: Tab) {
@@ -236,6 +359,7 @@ impl AppState {
         self.scroll = 0;
         self.scroll_limit = u16::MAX;
         self.clear_resource_view_state();
+        self.snapshot_active_resource_tab();
     }
 
     pub fn replace_resource_preserve_tab(&mut self, resource: Resource) {
@@ -249,6 +373,7 @@ impl AppState {
         self.scroll = 0;
         self.scroll_limit = u16::MAX;
         self.clear_resource_view_state();
+        self.snapshot_active_resource_tab();
     }
 
     fn clear_resource_view_state(&mut self) {
@@ -291,6 +416,7 @@ impl AppState {
         self.mark_refreshed(refreshed_at, changed);
         self.last_refresh_changed_sections = changed_sections;
         self.status_message = None;
+        self.snapshot_active_resource_tab();
         changed
     }
 
@@ -551,6 +677,66 @@ impl AppState {
         };
         self.reveal_scrollbar();
     }
+
+    fn snapshot_active_resource_tab(&mut self) {
+        if let Some(tab) = self.resource_tabs.get_mut(self.active_resource_tab) {
+            tab.resource = self.resource.clone();
+            tab.active_tab = self.active_tab;
+            tab.scroll = self.scroll;
+            tab.scroll_limit = self.scroll_limit;
+            tab.expanded_blocks = self.expanded_blocks.clone();
+        }
+    }
+
+    fn restore_resource_tab(&mut self, index: usize) {
+        let Some(tab) = self.resource_tabs.get(index).cloned() else {
+            return;
+        };
+        self.active_resource_tab = index;
+        self.resource = tab.resource;
+        self.active_tab = if self.tabs().contains(&tab.active_tab) {
+            tab.active_tab
+        } else {
+            Tab::Overview
+        };
+        self.scroll = tab.scroll;
+        self.scroll_limit = tab.scroll_limit;
+        self.expanded_blocks = tab.expanded_blocks;
+        self.hit_areas.clear();
+        self.scrollbar_drag = None;
+        self.last_error = None;
+        self.status_message = None;
+    }
+}
+
+pub fn parse_resource_reference(
+    input: &str,
+    fallback_repo: &ResourceId,
+) -> Result<ResourceId, ResourceIdError> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err(ResourceIdError::Invalid);
+    }
+    if let Ok(id) = ResourceId::parse(trimmed) {
+        return Ok(id);
+    }
+    let mut parts = trimmed.split_whitespace();
+    if let (Some(owner_repo), Some(number), None) = (parts.next(), parts.next(), parts.next()) {
+        return ResourceId::from_owner_repo_number(owner_repo, number);
+    }
+    let number = trimmed.strip_prefix('#').unwrap_or(trimmed);
+    if number.chars().all(|ch| ch.is_ascii_digit()) {
+        return ResourceId::relative_to_repo(&fallback_repo.owner, &fallback_repo.repo, number);
+    }
+    Err(ResourceIdError::Invalid)
+}
+
+fn resource_tab_label(resource: &Resource) -> String {
+    let kind = match resource.kind() {
+        ResourceKind::PullRequest => "PR",
+        ResourceKind::Issue => "Issue",
+    };
+    format!("{kind} #{} {}", resource.id.number, resource.title)
 }
 
 fn expandable_blocks_for_tab(tab: Tab, resource: &Resource) -> Vec<BlockId> {
@@ -1047,5 +1233,83 @@ mod tests {
 
         assert_eq!(state.scroll, 0);
         assert_eq!(state.scroll_limit, u16::MAX);
+    }
+
+    #[test]
+    fn add_resource_parser_accepts_links_owner_repo_and_relative_numbers() {
+        let fallback = ResourceId::from_owner_repo_number("owner/repo", "1").unwrap();
+
+        assert_eq!(
+            parse_resource_reference("https://github.com/other/project/pull/42", &fallback)
+                .unwrap()
+                .canonical_name(),
+            "other/project#42"
+        );
+        assert_eq!(
+            parse_resource_reference("other/project#43", &fallback)
+                .unwrap()
+                .canonical_name(),
+            "other/project#43"
+        );
+        assert_eq!(
+            parse_resource_reference("other/project 44", &fallback)
+                .unwrap()
+                .canonical_name(),
+            "other/project#44"
+        );
+        assert_eq!(
+            parse_resource_reference("#45", &fallback)
+                .unwrap()
+                .canonical_name(),
+            "owner/repo#45"
+        );
+        assert_eq!(
+            parse_resource_reference("46", &fallback)
+                .unwrap()
+                .canonical_name(),
+            "owner/repo#46"
+        );
+    }
+
+    #[test]
+    fn resource_tabs_preserve_view_state_when_switching() {
+        let mut state = AppState::new(issue_resource());
+        let mut second = issue_resource();
+        second.id.number = 2;
+        second.title = "Second issue".into();
+
+        state.set_tab(Tab::Activity);
+        state.scroll = 5;
+        state.toggle_block(BlockId::Body);
+        state.open_resource_in_tab(second);
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.active_tab, Tab::Overview);
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert!(state.resource_tab_bar_visible());
+
+        state.switch_resource_tab(0);
+
+        assert_eq!(state.resource.id.number, 1);
+        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.scroll, 5);
+        assert!(state.block_expanded(&BlockId::Body));
+    }
+
+    #[test]
+    fn closing_active_resource_tab_focuses_neighbor_and_keeps_last_tab() {
+        let mut state = AppState::new(issue_resource());
+        let mut second = issue_resource();
+        second.id.number = 2;
+        second.title = "Second issue".into();
+        state.open_resource_in_tab(second);
+
+        assert!(state.close_resource_tab(1));
+        assert_eq!(state.resource.id.number, 1);
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert!(!state.resource_tab_bar_visible());
+
+        assert!(!state.close_resource_tab(0));
+        assert_eq!(state.resource_tabs.len(), 1);
     }
 }

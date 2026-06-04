@@ -1,13 +1,13 @@
 # ghzinga
 
-`ghzinga` is a small terminal UI for keeping one GitHub pull request or issue
+`ghzinga` is a small terminal UI for keeping GitHub pull requests and issues
 open on the side while you work.
 
 It is not trying to be a full GitHub client. It is for maintainers who want a
 faster-than-the-web-UI view of the current status, comments, checks, files, and
-links for one PR or issue, with automatic refresh. It is similar in spirit to
+links for a PR or issue, with automatic refresh. It is similar in spirit to
 [`gh dash`](https://github.com/dlvhdr/gh-dash), but focused on a single item
-instead of a dashboard list.
+first instead of a dashboard list.
 
 `ghzinga` is inspired by [`Herdr`](https://herdr.dev/) and built with
 [`Ratatui`](https://ratatui.rs/) and
@@ -77,6 +77,8 @@ For issues, ghzinga shows:
 The UI is built for active terminal use:
 
 - click tabs to switch views
+- click the top-right plus button, or press `n`, to open another PR or issue
+- when multiple resources are open, click the resource tabs to switch or close them
 - click GitHub links to open or navigate
 - click rows and `[more]` controls to expand details
 - click footer actions for refresh, expand/collapse, settings, help, and quit
@@ -88,6 +90,7 @@ Common keys:
 
 - `q` or `Ctrl-C`: quit
 - `r`: refresh
+- `n`: open another PR or issue in a resource tab
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible link or action
