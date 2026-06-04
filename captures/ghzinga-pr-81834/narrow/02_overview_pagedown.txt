@@ -1,5 +1,5 @@
                                                                                 
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d          
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d      [➕]
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
@@ -9,7 +9,7 @@
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
-  📝 @KLilyZ opened 2w ago                                                      
+  📝 @KLilyZ opened 3w ago                                                      
   Summary                                                                       
                                                                                 
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                    

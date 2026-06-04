@@ -1,5 +1,5 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/issues/66943 [Issue CLOSED] updated 1mo                                          
+  https://github.com/openclaw/openclaw/issues/66943 [Issue CLOSED] updated 1mo                                      [➕]
   feat: add SenseAudio audio transcription provider                                                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ❌ CLOSED  👤 @Fl0rencess720                                                                                          

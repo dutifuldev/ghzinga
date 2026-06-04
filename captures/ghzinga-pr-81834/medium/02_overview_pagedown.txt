@@ -1,5 +1,5 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                                  
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                              [➕]
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)                         
@@ -9,7 +9,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  📝 @KLilyZ opened 2w ago                                                                                              
+  📝 @KLilyZ opened 3w ago                                                                                              
   Summary                                                                                                               
                                                                                                                         
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
@@ -26,7 +26,7 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  💬 Comment by @github-actions 2w ago                                                                                  
+  💬 Comment by @github-actions 3w ago                                                                                  
   meta: association CONTRIBUTOR                                                                                         
   [details]                                                                                                             
   <!-- openclaw:dependency-change-awareness -->                                                                         

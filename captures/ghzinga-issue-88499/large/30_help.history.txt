@@ -1,5 +1,5 @@
                                                                                                                                                                 
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                                   
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                               [➕]
   openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ❌ CLOSED  👤 @xneone                                                                                                                                         
@@ -12,12 +12,11 @@
   Help                                                                                                                                                          
                                                                                                                                                                 
   Mouse                                                                                                                                                         
+  - Plus opens resources; resource tabs switch or close them.                                                                                                   
   - Click tabs to switch sections.                                                                                                                              
   - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.                                             
   - Click visible GitHub issue or PR references to navigate.                                                                                                    
-  - Click settings rows to apply theme and symbol preferences.                                                                                                  
   - Use the mouse wheel to scroll the current view.                                                                                                             
-                                                                                                                                                                
   Keyboard                                                                                                                                                      
   - q: quit                                                                                                                                                     
   - ?: toggle this help                                                                                                                                         
@@ -25,6 +24,7 @@
   - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                                                                     
   - - / + in settings: decrease or increase fixed content width                                                                                                 
   - r: refresh now                                                                                                                                              
+  - n: open another PR or issue in a resource tab                                                                                                               
   - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
   - y: copy first visible URL, or current resource URL                                                                                                          
   - o: open first visible URL, or current resource                                                                                                              
