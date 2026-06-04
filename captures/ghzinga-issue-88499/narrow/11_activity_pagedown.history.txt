@@ -1,24 +1,24 @@
                                                                                 
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d          
-  feat(senseaudio): add SenseAudio TTS provider                                 
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d   
+  openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
-  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
+  ❌ CLOSED  👤 @xneone                                                         
                                                                                 
-   🏠 Overview [💬 Activity] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links          
+                                                                                
+   🏠 Overview [💬 Activity] 🔗 Links                                           
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
+  added label provider: openai-responses                                     │  
                                                                              │  
-  Changed files:                                                             █  
-  [➕ more]                                                                  █  
-                                                                             │  
-  Comment by @KLilyZ 2w ago                                                  │  
-  meta: association NONE                                                     │  
-  [details]                                                                  │  
-  Codex review: needs changes before merge.                                  │  
-                                                                             │  
-  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio │  
-  plugin, including TTS and voice-list HTTP helpers, voice-note opus         │  
-  transcoding, registration metadata, docs, inventory updates, and tests.    │  
+  Comment by @tianxiaochannel-oss88 1d ago                                   │  
+  Adding a fresh macOS/Slack data point: the same previous_response_id 404   │  
+  appears after the second message when store=false is used through the      │  
+  openai-responses provider. Removing the previous response reference makes  │  
+  the next request succeed.                                                  │  
+                                                                             █  
+  Comment by @osolmaz 1d ago                                                 █  
+  The fix should preserve normal stored-response continuation while disabling█  
+  replay through missing server-side response IDs for store=false sessions.  █  
+                                                                             █  
                                                                                 
-  [🔄 refresh] [➕ expand]   [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  
