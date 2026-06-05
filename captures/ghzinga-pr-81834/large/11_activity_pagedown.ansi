@@ -28,7 +28,7 @@
   <!-- dependency-guard-rebase-needed-backfill -->                                                                     [38;2;122;162;247m█[38;2;192;202;245m                                        
   Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.  [38;2;122;162;247m█[38;2;192;202;245m                                        
                                                                                                                        [38;2;122;162;247m█[38;2;192;202;245m                                        
-  Comment by @clawsweeper 6d ago                                                                                       [38;2;122;162;247m█[38;2;192;202;245m                                        
+  Comment by @clawsweeper 6d ago                   [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                   [38;2;122;162;247m█[38;2;192;202;245m                                        
   meta: association CONTRIBUTOR, edited                                                                                [38;2;86;95;137m│[38;2;192;202;245m                                        
   [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                            [38;2;86;95;137m│[38;2;192;202;245m                                        
   Codex review: needs changes before merge. _Reviewed May 29, 2026, 11:28 PM ET / 03:28 UTC._                          [38;2;86;95;137m│[38;2;192;202;245m                                        
@@ -38,7 +38,7 @@
   voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.          [38;2;86;95;137m│[38;2;192;202;245m                                        
                                                                                                                        [38;2;86;95;137m│[38;2;192;202;245m                                        
   PR surface: Source +369, Tests +606, Docs +60, Config 0. Total +1035 across 14 files.                                [38;2;86;95;137m│[38;2;192;202;245m                                        
-                                                                                                                       [38;2;86;95;137m│[38;2;192;202;245m                                        
+                                                   [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                   [38;2;86;95;137m│[38;2;192;202;245m                                        
   [1m[38;2;26;27;38m[48;2;122;162;247m[➕ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                            [38;2;86;95;137m│[38;2;192;202;245m                                        
                                                                                                                        [38;2;86;95;137m│[38;2;192;202;245m                                        
   Comment by @socket-security 5d ago                                                                                   [38;2;86;95;137m│[38;2;192;202;245m                                        
