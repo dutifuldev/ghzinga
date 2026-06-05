@@ -1,4 +1,3 @@
-                                                                                
   openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]  
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +19,6 @@
   Related regressions were discussed in #84904 and #87310.                   │  
   [➖ less]                                                                  │  
                                                                              │  
+  ───────────────────────────────────────────────────────────────────────────│  
                                                                                 
-  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                    
+  [🔄 refresh] [➖ collapse]  [⚙ settings] [❔ help] [⏻ quit]                   

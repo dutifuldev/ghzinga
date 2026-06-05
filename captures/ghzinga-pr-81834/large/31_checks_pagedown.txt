@@ -1,4 +1,3 @@
-                                                                                                                                                                
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d                                                                                     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -45,6 +44,7 @@
                                                                                                                        │                                        
   [✅ PASS] OpenGrep — PR Diff/Scan changed paths (precise) [➕ more]                                                  │                                        
                                                                                                                        │                                        
+  [✅ PASS] Real behavior proof [➕ more]                                                                              │                                        
                                                                                                                                                                 
-  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
+  [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                          
                                                                                                                                                                 

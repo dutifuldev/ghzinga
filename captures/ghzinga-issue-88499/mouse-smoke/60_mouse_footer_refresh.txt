@@ -1,4 +1,3 @@
-                                                                                                                        
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]  
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -31,6 +30,7 @@
   Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay         
   failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying      
   server-owned reasoning item IDs.                                                                                      
+                                                                                                                        
   offline fixture mode: refresh skipped                                                                                 
-  [🔄 refresh] [➕ expand ]  [⚙ settings] [❔ help] [⏻ quit]                                                            
+  [🔄 refresh] [➕  expand  ] [⚙ settings] [❔ help] [⏻ quit]                                                           
                                                                                                                         

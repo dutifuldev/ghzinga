@@ -339,13 +339,13 @@ def capture_mouse_smoke():
         write_frame(ROOT, "13_keyboard_expand_all", frames)
 
         send_key(SESSION, "a")
-        wait_for_text(SESSION, "[➕ expand ]")
+        wait_for_text(SESSION, "[➕  expand  ]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"keyboard collapse all left first file expanded:\n{text}")
         write_frame(ROOT, "14_keyboard_collapse_all", frames)
 
-        expand_all = find_marker_position(SESSION, "[➕ expand ]")
+        expand_all = find_marker_position(SESSION, "[➕  expand  ]")
         mouse_coordinates["expand_all"] = list(expand_all)
         send_mouse_click(SESSION, *expand_all)
         require_screen_contains("path: docs/plugins/plugin-inventory.md")
@@ -357,7 +357,7 @@ def capture_mouse_smoke():
         collapse_all = find_marker_position(SESSION, "[➖ collapse]")
         mouse_coordinates["collapse_all"] = list(collapse_all)
         send_mouse_click(SESSION, *collapse_all)
-        wait_for_text(SESSION, "[➕ expand ]")
+        wait_for_text(SESSION, "[➕  expand  ]")
         text = capture_plain(SESSION)
         if "path: docs/plugins/plugin-inventory.md" in text:
             raise RuntimeError(f"collapse all left first file expanded:\n{text}")
@@ -653,7 +653,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "committed: 1mo ago",
         ],
         "06_mouse_overview_less": ["[🏠 Overview]", "* commit fb948c9", "[➕ more]"],
-        "10_mouse_files_tab": ["[📄 Files]", "docs/plugins/plugin-inventory.md", "[➕ expand ]"],
+        "10_mouse_files_tab": ["[📄 Files]", "docs/plugins/plugin-inventory.md", "[➕  expand  ]"],
         "11_mouse_file_row_more": [
             "[📄 Files]",
             "docs/plugins/reference.md [➖ less]",
@@ -669,13 +669,13 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "[➖ collapse]",
             "path: docs/plugins/plugin-inventory.md",
         ],
-        "14_keyboard_collapse_all": ["[📄 Files]", "[➕ expand ]"],
+        "14_keyboard_collapse_all": ["[📄 Files]", "[➕  expand  ]"],
         "20_mouse_expand_all": [
             "[📄 Files]",
             "[➖ collapse]",
             "path: extensions/senseaudio/speech-provider.ts",
         ],
-        "30_mouse_collapse_all": ["[📄 Files]", "[➕ expand ]"],
+        "30_mouse_collapse_all": ["[📄 Files]", "[➕  expand  ]"],
         "35_mouse_checks_tab": [
             "[✅ Checks]",
             "Summary: PASS",

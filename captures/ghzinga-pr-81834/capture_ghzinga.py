@@ -401,7 +401,7 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             ],
             "11_activity_pagedown": [
                 "Comment by @KLilyZ",
-                "all bot checks have",
+                "Reproducibility: not applicable",
             ],
             "20_commits_top": [
                 "feat(senseaudio): add SenseAudio TTS provider",
@@ -599,7 +599,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     frames = expected_frames(mode)
     markers = expected_markers(mode) + [
         "[🔄 refresh]",
-        "[➕ expand ]",
+        "[➕  expand  ]",
         "[⚙ settings]",
         "[❔ help]",
         "[⏻ quit]",

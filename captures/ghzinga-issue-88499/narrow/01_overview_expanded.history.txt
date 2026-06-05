@@ -1,4 +1,3 @@
-                                                                                
   openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]  
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +19,6 @@
                                                                                 
   HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when       
   store is set to false. Try again with store set to true, or remove this item  
+  from your input.                                                              
                                                                                 
-  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                    
+  [🔄 refresh] [➖ collapse]  [⚙ settings] [❔ help] [⏻ quit]                   
