@@ -599,7 +599,7 @@ def validate_capture_root(root: Path, mode: str, allow_stale_revision: bool = Fa
     frames = expected_frames(mode)
     markers = expected_markers(mode) + [
         "[🔄 refresh]",
-        "[➕  expand  ]",
+        "[➕  expand ]",
         "[⚙ settings]",
         "[❔ help]",
         "[⏻ quit]",
