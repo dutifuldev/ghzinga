@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "0394c1b57efa5ad6fdcd67b7110da89d94cd61d1",
+  "git_commit": "244c808bc7b177023d6066ecacf37655fc27d895",
   "config_path": "captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/mouse-smoke/.capture-cache BROWSER=./captures/ghzinga-issue-88499/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-issue-88499/mouse-smoke/capture-copy-url.sh ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./captures/ghzinga-issue-88499/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --no-restore --refresh-seconds 0",
   "actual_tmux_size": "120x36",
