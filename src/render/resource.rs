@@ -354,7 +354,13 @@ fn render_header_add_button(
     if header_area.width == 0 || header_area.height == 0 {
         return;
     }
-    let width = add_resource_button_width().min(header_area.width).max(1);
+    let horizontal_area = chrome_area_for_spacing(header_area, state.spacing);
+    if horizontal_area.width == 0 {
+        return;
+    }
+    let width = add_resource_button_width()
+        .min(horizontal_area.width)
+        .max(1);
     if width == 0 {
         return;
     }
@@ -369,9 +375,9 @@ fn render_header_add_button(
             .saturating_add(header_area.height.saturating_sub(1)),
     );
     let rect = Rect::new(
-        header_area
+        horizontal_area
             .x
-            .saturating_add(header_area.width.saturating_sub(width)),
+            .saturating_add(horizontal_area.width.saturating_sub(width)),
         row,
         width,
         1,
@@ -5444,6 +5450,25 @@ mod tests {
         assert_eq!(top_row.trim(), "");
         assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert!(content.contains("Readable title after padded identity"));
+    }
+
+    #[test]
+    fn single_resource_add_button_respects_comfortable_header_right_gutter() {
+        let mut state = AppState::new(pr_resource());
+        state.spacing = SpacingMode::Comfortable;
+
+        draw(&mut state, 120, 36);
+
+        let rect = rendered_target_rect(&state, |target| *target == HitTarget::OpenResourcePrompt)
+            .expect("single-resource add button");
+
+        assert_eq!(rect.y, 1);
+        assert_eq!(
+            rect.x,
+            120 - COMFORTABLE_GUTTER - add_resource_button_width()
+        );
+        assert_eq!(draw_cell_symbol(&mut state, 120, 36, 118, rect.y), " ");
+        assert_eq!(draw_cell_symbol(&mut state, 120, 36, 119, rect.y), " ");
     }
 
     #[test]
