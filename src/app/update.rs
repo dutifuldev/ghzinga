@@ -39,6 +39,9 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     if state.add_resource_prompt.is_some() {
         return apply_add_resource_prompt_key(state, key);
     }
+    if state.resource_link_prompt.is_some() {
+        return apply_resource_link_prompt_key(state, key);
+    }
     match key.code {
         KeyCode::Char('q') if is_plain_shortcut(key) => {
             state.should_quit = true;
@@ -208,8 +211,8 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
 fn apply_add_resource_prompt_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     match key.code {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            state.should_quit = true;
-            AppIntent::Quit
+            state.clear_add_resource_input_or_close();
+            AppIntent::None
         }
         KeyCode::Esc => {
             state.close_add_resource_prompt();
@@ -234,6 +237,25 @@ fn apply_add_resource_prompt_key(state: &mut AppState, key: KeyEvent) -> AppInte
     }
 }
 
+fn apply_resource_link_prompt_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.close_resource_link_prompt();
+            AppIntent::None
+        }
+        KeyCode::Esc => {
+            state.close_resource_link_prompt();
+            AppIntent::None
+        }
+        KeyCode::Enter => confirm_resource_link_here(state),
+        KeyCode::Char('h') if is_plain_shortcut(key) => confirm_resource_link_here(state),
+        KeyCode::Char('n') | KeyCode::Char('t') if is_plain_shortcut(key) => {
+            confirm_resource_link_new_tab(state)
+        }
+        _ => AppIntent::None,
+    }
+}
+
 fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
     match state.parse_add_resource_input() {
         Ok(id) => AppIntent::OpenResource(id),
@@ -242,6 +264,22 @@ fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
             AppIntent::None
         }
     }
+}
+
+fn confirm_resource_link_here(state: &mut AppState) -> AppIntent {
+    let Some(id) = state.resource_link_prompt_target() else {
+        return AppIntent::None;
+    };
+    state.close_resource_link_prompt();
+    AppIntent::Navigate(id)
+}
+
+fn confirm_resource_link_new_tab(state: &mut AppState) -> AppIntent {
+    let Some(id) = state.resource_link_prompt_target() else {
+        return AppIntent::None;
+    };
+    state.close_resource_link_prompt();
+    AppIntent::OpenResource(id)
 }
 
 fn is_plain_shortcut(key: KeyEvent) -> bool {
@@ -257,14 +295,14 @@ fn numbered_tab(ch: char, tabs: &[crate::app::Tab]) -> Option<crate::app::Tab> {
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
-            if state.add_resource_prompt.is_some() {
+            if state.add_resource_prompt.is_some() || state.resource_link_prompt.is_some() {
                 return AppIntent::None;
             }
             state.scroll_down(3);
             AppIntent::None
         }
         MouseEventKind::ScrollUp => {
-            if state.add_resource_prompt.is_some() {
+            if state.add_resource_prompt.is_some() || state.resource_link_prompt.is_some() {
                 return AppIntent::None;
             }
             state.scroll_up(3);
@@ -318,6 +356,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.collapse_blocks(blocks);
             AppIntent::None
         }
+        HitTarget::ResourceLink { id, url } => apply_resource_link(state, id, url),
         HitTarget::Navigate(id) => AppIntent::Navigate(id),
         HitTarget::OpenHeaderUrl(url) => AppIntent::OpenUrl(url),
         HitTarget::OpenUrl(url) => AppIntent::OpenUrl(url),
@@ -334,6 +373,12 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         HitTarget::ConfirmResourcePrompt => confirm_add_resource_prompt(state),
         HitTarget::CancelResourcePrompt => {
             state.close_add_resource_prompt();
+            AppIntent::None
+        }
+        HitTarget::OpenLinkHere => confirm_resource_link_here(state),
+        HitTarget::OpenLinkInNewTab => confirm_resource_link_new_tab(state),
+        HitTarget::CancelResourceLinkPrompt => {
+            state.close_resource_link_prompt();
             AppIntent::None
         }
         HitTarget::ModalOverlay => AppIntent::None,
@@ -385,6 +430,25 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
     }
 }
 
+fn apply_resource_link(
+    state: &mut AppState,
+    id: crate::domain::ResourceId,
+    url: Option<String>,
+) -> AppIntent {
+    if id.canonical_name() == state.resource.id.canonical_name() {
+        if url
+            .as_deref()
+            .is_some_and(|url| state.focus_activity_url(url))
+        {
+            return AppIntent::None;
+        }
+        state.status_message = Some(format!("already viewing {}", id.canonical_name()));
+        return AppIntent::None;
+    }
+    state.open_resource_link_prompt(id, url);
+    AppIntent::None
+}
+
 fn current_resource_url(state: &AppState) -> String {
     state.resource.web_url()
 }
@@ -395,6 +459,9 @@ fn visible_or_current_url(state: &AppState) -> String {
         .iter()
         .find_map(|area| match &area.target {
             HitTarget::OpenUrl(url) => Some(url.clone()),
+            HitTarget::ResourceLink { id, url } => {
+                Some(url.clone().unwrap_or_else(|| id.web_url()))
+            }
             HitTarget::Navigate(id) => Some(id.web_url()),
             _ => None,
         })
@@ -408,7 +475,8 @@ mod tests {
     use super::*;
     use crate::app::Tab;
     use crate::domain::{
-        PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT,
+        ActivityEntry, ActivityKind, PullRequest, ReactionCounts, Resource, ResourceId,
+        ResourceKind, FULL_DEPTH_WARNING_HINT,
     };
     use crate::input::HitArea;
     use ratatui::layout::Rect;
@@ -457,6 +525,27 @@ mod tests {
             metadata: vec![],
         });
         resource
+    }
+
+    fn activity_entry(id: &str, url: &str) -> ActivityEntry {
+        ActivityEntry {
+            id: id.into(),
+            kind: ActivityKind::Comment,
+            author: "alice".into(),
+            body: "comment".into(),
+            updated_at: "now".into(),
+            path: None,
+            line: None,
+            url: Some(url.into()),
+            author_association: None,
+            reactions: ReactionCounts::default(),
+            includes_created_edit: false,
+            is_minimized: false,
+            minimized_reason: None,
+            thread_id: None,
+            thread_resolved: None,
+            thread_outdated: None,
+        }
     }
 
     #[test]
@@ -860,6 +949,37 @@ mod tests {
     }
 
     #[test]
+    fn mouse_wheel_is_inert_while_resource_link_prompt_is_open() {
+        let mut state = AppState::new(resource());
+        state.set_scroll_limit(12);
+        state.scroll = 6;
+        state.open_resource_link_prompt(
+            ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 2,
+                kind_hint: Some(ResourceKind::Issue),
+            },
+            Some("https://github.com/owner/repo/issues/2".into()),
+        );
+
+        for kind in [MouseEventKind::ScrollDown, MouseEventKind::ScrollUp] {
+            let intent = apply_event(
+                &mut state,
+                AppEvent::Mouse(MouseEvent {
+                    kind,
+                    column: 1,
+                    row: 1,
+                    modifiers: KeyModifiers::empty(),
+                }),
+            );
+
+            assert_eq!(intent, AppIntent::None);
+            assert_eq!(state.scroll, 6);
+        }
+    }
+
+    #[test]
     fn mouse_click_on_refresh_target_requests_refresh() {
         let mut state = AppState::new(resource());
         state
@@ -1213,6 +1333,91 @@ mod tests {
         assert_eq!(
             intent,
             AppIntent::OpenUrl("https://github.com/owner/repo/actions/runs/1".into())
+        );
+    }
+
+    #[test]
+    fn different_resource_link_opens_choice_prompt_and_confirms_here() {
+        let mut state = AppState::new(resource());
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::PullRequest),
+        };
+
+        let prompt = apply_event(
+            &mut state,
+            AppEvent::Activate(HitTarget::ResourceLink {
+                id: id.clone(),
+                url: Some("https://github.com/owner/repo/pull/2".into()),
+            }),
+        );
+        let confirm = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
+        );
+
+        assert_eq!(prompt, AppIntent::None);
+        assert_eq!(confirm, AppIntent::Navigate(id));
+        assert!(state.resource_link_prompt.is_none());
+    }
+
+    #[test]
+    fn different_resource_link_can_open_in_new_tab_from_prompt() {
+        let mut state = AppState::new(resource());
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+
+        apply_event(
+            &mut state,
+            AppEvent::Activate(HitTarget::ResourceLink {
+                id: id.clone(),
+                url: None,
+            }),
+        );
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::OpenResource(id));
+        assert!(state.resource_link_prompt.is_none());
+    }
+
+    #[test]
+    fn same_resource_comment_link_focuses_activity_without_prompt() {
+        let mut resource = resource();
+        resource.activity = vec![activity_entry(
+            "comment-1",
+            "https://github.com/owner/repo/issues/1#issuecomment-1",
+        )];
+        let mut state = AppState::new(resource);
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Activate(HitTarget::ResourceLink {
+                id: ResourceId {
+                    owner: "owner".into(),
+                    repo: "repo".into(),
+                    number: 1,
+                    kind_hint: Some(ResourceKind::Issue),
+                },
+                url: Some("https://github.com/owner/repo/issues/1#issuecomment-1".into()),
+            }),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.resource_link_prompt.is_none());
+        assert_eq!(state.active_tab, Tab::Activity);
+        assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
+        assert_eq!(
+            state.take_pending_activity_focus().as_deref(),
+            Some("comment-1")
         );
     }
 
@@ -1583,6 +1788,30 @@ mod tests {
         assert_eq!(intent, AppIntent::None);
         let prompt = state.add_resource_prompt.as_ref().unwrap();
         assert!(prompt.error.is_some());
+    }
+
+    #[test]
+    fn ctrl_c_in_resource_prompt_clears_input_then_closes_when_empty() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("owner/repo#42");
+
+        let first = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        );
+        let second = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        );
+
+        assert_eq!(first, AppIntent::None);
+        assert_eq!(second, AppIntent::None);
+        assert!(!state.should_quit);
+        assert!(state.add_resource_prompt.is_none());
     }
 
     #[test]

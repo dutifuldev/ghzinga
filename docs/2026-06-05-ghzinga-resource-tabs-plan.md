@@ -23,15 +23,29 @@ or issues open without turning the first screen into a dashboard.
   - `owner/repo#123`,
   - `owner/repo 123`,
   - `#123` or `123`, resolved relative to the active resource repository.
+- While typing in the modal, `Ctrl-C` clears the input first. If the input is
+  already empty, it closes the modal instead of quitting ghzinga.
 - Confirming a valid input starts a normal background GitHub fetch.
 - When the fetch completes, ghzinga opens the resource in a tab and focuses it.
 - If the resource is already open, ghzinga updates and focuses the existing tab.
 - Resource tabs show kind, number, title, a new-resource button, and close
   affordances.
+- Clicking a GitHub issue or pull-request link no longer immediately replaces
+  the active resource. If the target is a different issue or PR, ghzinga asks
+  whether to open it in the current tab or a new resource tab. If the link points
+  to a comment, review, or discussion on the current resource, ghzinga focuses
+  the matching Activity entry in place.
 - When there are more resource tabs than fit, the visible tab window keeps the
   active resource tab reachable.
 - Closing the last resource tab is ignored so the app always has a valid active
   resource.
+- The plus button uses a single `+` glyph inside its button chrome, keeps a
+  clickable target even on narrow terminals, and truncates gracefully before it
+  disappears.
+- Comfortable spacing applies the same horizontal gutter to resource tabs as it
+  does to the header, status band, navigation tabs, content, and footer. When
+  resource tabs are visible, a blank spacer row separates them from the PR/issue
+  title area.
 
 ## Architecture
 
@@ -50,6 +64,15 @@ an `OpenResource(ResourceId)` intent. The runner handles that intent through the
 same background fetch channel used by refresh, startup loading, and link
 navigation. The prompt remains open until the runner accepts the background
 fetch, so input is not lost if another fetch is already active.
+
+The resource-link choice modal is also normal app state. Rendered GitHub issue
+and pull-request links carry a resource id plus their original URL when present.
+Clicking a different resource opens the choice modal; "open here" uses the
+existing navigation flow and "new tab" uses `OpenResource`. Clicking a comment
+fragment for the active resource skips the modal, switches to Activity, expands
+the matching entry, and records a pending focus request. The next render resolves
+that request to a row index after wrapping and comfortable spacing have been
+applied, then scrolls the viewport to the focused activity row.
 
 `FetchAction::OpenTab` centralizes the async path. Successful results call
 `open_resource_in_tab`, which appends or deduplicates tabs and restores the
@@ -90,10 +113,13 @@ machinery. Resource tabs are only an in-process reading/navigation layer.
   and bare-number input.
 - Reducer tests cover opening the modal, typing, confirming, invalid input, and
   mouse hit targets.
+- Reducer tests cover `Ctrl-C` clearing and closing modal input, plus resource
+  link choice actions.
 - State tests cover opening, switching, deduplicating, closing, and preserving
   per-resource view state, history, and refresh status.
 - Fetch tests cover `OpenTab` outcome application and fetch completion after
   switching away from the origin tab.
 - Render and hit-target tests cover modal overlay blocking, tab-close overlap,
-  tiny terminal modal drawing, and overflowed resource tabs keeping the active
-  tab visible.
+  tiny terminal modal drawing, same-resource comment focusing, responsive plus
+  button rendering, comfortable tab gutters, and overflowed resource tabs keeping
+  the active tab visible.

@@ -11,6 +11,7 @@ pub enum HitTarget {
     ToggleBlock(BlockId),
     ExpandBlocks(Vec<BlockId>),
     CollapseBlocks(Vec<BlockId>),
+    ResourceLink { id: ResourceId, url: Option<String> },
     Navigate(ResourceId),
     OpenUrl(String),
     OpenHeaderUrl(String),
@@ -18,6 +19,9 @@ pub enum HitTarget {
     OpenResourcePrompt,
     ConfirmResourcePrompt,
     CancelResourcePrompt,
+    OpenLinkHere,
+    OpenLinkInNewTab,
+    CancelResourceLinkPrompt,
     ModalOverlay,
     LoadFullDepth,
     CopyVisibleUrl,
@@ -42,6 +46,7 @@ impl HitTarget {
             Self::ToggleBlock(_)
                 | Self::ExpandBlocks(_)
                 | Self::CollapseBlocks(_)
+                | Self::ResourceLink { .. }
                 | Self::Navigate(_)
                 | Self::OpenUrl(_)
                 | Self::LoadFullDepth

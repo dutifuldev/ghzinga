@@ -133,6 +133,12 @@ pub struct AddResourcePrompt {
 }
 
 #[derive(Debug, Clone)]
+pub struct ResourceLinkPrompt {
+    pub id: ResourceId,
+    pub url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
     pub resource_tabs: Vec<ResourceTabState>,
@@ -140,6 +146,8 @@ pub struct AppState {
     next_resource_tab_id: u64,
     next_loading_request_id: u64,
     pub add_resource_prompt: Option<AddResourcePrompt>,
+    pub resource_link_prompt: Option<ResourceLinkPrompt>,
+    pending_activity_focus: Option<String>,
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
@@ -179,6 +187,8 @@ impl AppState {
             next_resource_tab_id: 2,
             next_loading_request_id: 1,
             add_resource_prompt: None,
+            resource_link_prompt: None,
+            pending_activity_focus: None,
             scroll: 0,
             scroll_limit: u16::MAX,
             scrollbar_visible_frames: 0,
@@ -222,6 +232,7 @@ impl AppState {
         }
         self.hit_areas.clear();
         self.scrollbar_drag = None;
+        self.resource_link_prompt = None;
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
@@ -233,6 +244,37 @@ impl AppState {
 
     pub fn close_add_resource_prompt(&mut self) {
         self.add_resource_prompt = None;
+    }
+
+    pub fn clear_add_resource_input_or_close(&mut self) {
+        let Some(prompt) = &mut self.add_resource_prompt else {
+            return;
+        };
+        if prompt.input.is_empty() {
+            self.add_resource_prompt = None;
+        } else {
+            prompt.input.clear();
+            prompt.error = None;
+        }
+    }
+
+    pub fn open_resource_link_prompt(&mut self, id: ResourceId, url: Option<String>) {
+        self.hit_areas.clear();
+        self.scrollbar_drag = None;
+        self.add_resource_prompt = None;
+        self.resource_link_prompt = Some(ResourceLinkPrompt { id, url });
+        self.show_help = false;
+        self.show_settings = false;
+    }
+
+    pub fn close_resource_link_prompt(&mut self) {
+        self.resource_link_prompt = None;
+    }
+
+    pub fn resource_link_prompt_target(&self) -> Option<ResourceId> {
+        self.resource_link_prompt
+            .as_ref()
+            .map(|prompt| prompt.id.clone())
     }
 
     pub fn add_resource_input_mut(&mut self) -> Option<&mut String> {
@@ -427,6 +469,34 @@ impl AppState {
 
     pub fn block_expanded(&self, id: &BlockId) -> bool {
         self.expanded_blocks.contains(id)
+    }
+
+    pub fn focus_activity_url(&mut self, url: &str) -> bool {
+        let Some(fragment) = resource_url_fragment(url) else {
+            return false;
+        };
+        let Ok(id) = ResourceId::parse(url) else {
+            return false;
+        };
+        if id.canonical_name() != self.resource.id.canonical_name() {
+            return false;
+        }
+        let Some(entry_id) = self.resource.activity.iter().find_map(|entry| {
+            let entry_url = entry.url.as_deref()?;
+            (resource_url_fragment(entry_url) == Some(fragment)).then(|| entry.id.clone())
+        }) else {
+            return false;
+        };
+
+        self.set_tab(Tab::Activity);
+        self.expand_blocks([BlockId::Activity(entry_id.clone())]);
+        self.pending_activity_focus = Some(entry_id);
+        self.status_message = Some("focused linked activity".into());
+        true
+    }
+
+    pub fn take_pending_activity_focus(&mut self) -> Option<String> {
+        self.pending_activity_focus.take()
     }
 
     pub fn replace_resource_reset_view(&mut self, resource: Resource) {
@@ -756,6 +826,10 @@ impl AppState {
         self.scrollbar_visible_frames = self.scrollbar_visible_frames.saturating_sub(1);
     }
 
+    pub fn reveal_scrollbar_for_focus(&mut self) {
+        self.reveal_scrollbar();
+    }
+
     fn reveal_scrollbar(&mut self) {
         if self.scroll_limit > 0 && self.scrollbar == ScrollbarMode::OnScroll {
             self.scrollbar_visible_frames = SCROLLBAR_VISIBLE_FRAMES;
@@ -831,6 +905,7 @@ impl AppState {
         self.status_message = tab.status_message;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
+        self.pending_activity_focus = None;
     }
 
     fn allocate_resource_tab_id(&mut self) -> u64 {
@@ -878,6 +953,11 @@ fn resource_tab_label(resource: &Resource) -> String {
 
 fn is_transient_loading_status(message: &str) -> bool {
     message.starts_with("still loading: ")
+}
+
+fn resource_url_fragment(url: &str) -> Option<&str> {
+    let (_, fragment) = url.split_once('#')?;
+    (!fragment.is_empty()).then_some(fragment)
 }
 
 fn expandable_blocks_for_tab(tab: Tab, resource: &Resource) -> Vec<BlockId> {
