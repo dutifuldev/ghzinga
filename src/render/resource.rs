@@ -4440,6 +4440,7 @@ mod tests {
         let (expand, _) = expand_all_control(blocks.clone(), &collapsed, &symbols).unwrap();
         let (collapse, _) = expand_all_control(blocks, &expanded, &symbols).unwrap();
 
+        assert_eq!(expand, "[➕  expand  ]");
         assert_eq!(
             UnicodeWidthStr::width(expand.as_str()),
             UnicodeWidthStr::width(collapse.as_str())
