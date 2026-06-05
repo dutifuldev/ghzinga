@@ -110,6 +110,7 @@ pub struct ResourceTabState {
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
+    pub reverse_chronological: bool,
     pub expanded_blocks: HashSet<BlockId>,
     pub history: Vec<crate::domain::ResourceId>,
     pub last_refreshed_at: Option<String>,
@@ -127,6 +128,7 @@ impl ResourceTabState {
             active_tab: Tab::Overview,
             scroll: 0,
             scroll_limit: u16::MAX,
+            reverse_chronological: false,
             expanded_blocks: HashSet::new(),
             history: Vec::new(),
             last_refreshed_at: None,
@@ -142,6 +144,7 @@ impl ResourceTabState {
         resource: Resource,
         active_tab: Tab,
         scroll: u16,
+        reverse_chronological: bool,
         expanded_blocks: HashSet<BlockId>,
     ) -> Self {
         Self {
@@ -150,6 +153,7 @@ impl ResourceTabState {
             active_tab,
             scroll,
             scroll_limit: u16::MAX,
+            reverse_chronological,
             expanded_blocks,
             history: Vec::new(),
             last_refreshed_at: None,
@@ -937,6 +941,7 @@ impl AppState {
             tab.active_tab = self.active_tab;
             tab.scroll = self.scroll;
             tab.scroll_limit = self.scroll_limit;
+            tab.reverse_chronological = self.reverse_chronological;
             tab.expanded_blocks = self.expanded_blocks.clone();
             tab.history = self.history.clone();
             tab.last_refreshed_at = self.last_refreshed_at.clone();
@@ -960,6 +965,7 @@ impl AppState {
         };
         self.scroll = tab.scroll;
         self.scroll_limit = tab.scroll_limit;
+        self.reverse_chronological = tab.reverse_chronological;
         self.expanded_blocks = tab.expanded_blocks;
         self.history = tab.history;
         self.last_refreshed_at = tab.last_refreshed_at;

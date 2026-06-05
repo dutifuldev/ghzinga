@@ -214,7 +214,7 @@ impl ResourceTabSnapshot {
                 .or_else(|| Some(tab.resource.kind())),
             view: tab.active_tab.to_string(),
             scroll: tab.scroll,
-            reverse_chronological: false,
+            reverse_chronological: tab.reverse_chronological,
             expanded_blocks,
         }
     }
@@ -884,6 +884,7 @@ pub fn restore_state_from_snapshot(
             resource,
             active_tab,
             tab.scroll,
+            tab.reverse_chronological,
             expanded_blocks,
         ));
     }
@@ -960,6 +961,25 @@ fn timestamp_label() -> String {
         .unwrap_or_default()
         .as_secs()
         .to_string()
+}
+
+pub fn prune_session_anchors(state_dir: &Path, session_id: &str) -> Result<usize, String> {
+    let index_path = state_dir.join("session-index.json");
+    let mut index = load_index(&index_path)?;
+    let before = index.anchors.len();
+    index
+        .anchors
+        .retain(|anchor| anchor.session_id != session_id);
+    let removed = before.saturating_sub(index.anchors.len());
+    if removed > 0 {
+        save_index(&index_path, &index).map_err(|error| {
+            format!(
+                "failed to save session index {}: {error}",
+                index_path.display()
+            )
+        })?;
+    }
+    Ok(removed)
 }
 
 #[cfg(test)]
@@ -1087,6 +1107,29 @@ mod tests {
     }
 
     #[test]
+    fn session_snapshot_round_trips_reverse_order() {
+        let dir = tempdir().unwrap();
+        save_resource_cache(dir.path(), &resource(1)).unwrap();
+        let mut state = AppState::new(resource(1));
+        state.toggle_feed_order();
+
+        let snapshot = SessionSnapshot::from_state(
+            "work",
+            None,
+            vec![],
+            vec!["gzg".into()],
+            PathBuf::from("/repo"),
+            &mut state,
+        );
+
+        assert!(snapshot.resources.tabs[0].reverse_chronological);
+
+        let restored = restore_state_from_snapshot(&snapshot, dir.path()).unwrap();
+
+        assert!(restored.reverse_chronological);
+    }
+
+    #[test]
     fn restore_state_uses_cached_resources() {
         let dir = tempdir().unwrap();
         save_resource_cache(dir.path(), &resource(1)).unwrap();
@@ -1136,5 +1179,40 @@ mod tests {
             Some("s_abc123".into())
         );
         assert_eq!(parse_herdr_session_marker("other label"), None);
+    }
+
+    #[test]
+    fn pruning_session_anchors_removes_deleted_session_bindings() {
+        let dir = tempdir().unwrap();
+        let index_path = dir.path().join("session-index.json");
+        save_index(
+            &index_path,
+            &SessionIndex {
+                schema_version: INDEX_SCHEMA_VERSION,
+                anchors: vec![
+                    SessionAnchor {
+                        provider: "tmux".into(),
+                        key: "tmux=/tmp/tmux;pane=%1".into(),
+                        session_id: "deleted".into(),
+                        confidence: ContextConfidence::Strong,
+                        last_seen_at: "1".into(),
+                    },
+                    SessionAnchor {
+                        provider: "cwd".into(),
+                        key: "/repo".into(),
+                        session_id: "kept".into(),
+                        confidence: ContextConfidence::Weak,
+                        last_seen_at: "1".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
+
+        assert_eq!(prune_session_anchors(dir.path(), "deleted").unwrap(), 1);
+
+        let index = load_index(&index_path).unwrap();
+        assert_eq!(index.anchors.len(), 1);
+        assert_eq!(index.anchors[0].session_id, "kept");
     }
 }

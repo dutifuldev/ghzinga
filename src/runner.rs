@@ -69,9 +69,12 @@ fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
                 eprintln!("usage: gzg session delete <id>");
                 return Ok(2);
             };
-            let path = session::state_dir().join("sessions").join(id);
+            let state_root = session::state_dir();
+            let path = state_root.join("sessions").join(id);
             match std::fs::remove_dir_all(&path) {
                 Ok(()) => {
+                    session::prune_session_anchors(&state_root, id)
+                        .map_err(|error| anyhow::anyhow!(error))?;
                     println!("deleted session {id}");
                     Ok(0)
                 }
@@ -390,6 +393,9 @@ async fn run_tui(
 }
 
 fn persist_session(state: &mut AppState, runtime: &mut SessionRuntime) {
+    if !session_state_persistable(state) {
+        return;
+    }
     match session::save_session(
         &runtime.handle,
         runtime.snapshot.as_ref(),
@@ -402,6 +408,10 @@ fn persist_session(state: &mut AppState, runtime: &mut SessionRuntime) {
             state.last_error = Some(format!("failed to save ghzinga session: {error}"));
         }
     }
+}
+
+fn session_state_persistable(state: &AppState) -> bool {
+    !is_empty_launch_resource(&state.resource)
 }
 
 fn empty_launch_state() -> AppState {
@@ -439,6 +449,16 @@ fn empty_launch_resource() -> crate::domain::Resource {
         warnings: vec![],
         pull_request: None,
     }
+}
+
+fn is_empty_launch_resource(resource: &crate::domain::Resource) -> bool {
+    resource.id.owner == "dutifuldev"
+        && resource.id.repo == "ghzinga"
+        && resource.id.number == 1
+        && resource.title == "Open a PR or issue"
+        && resource.state == "READY"
+        && resource.author == "ghzinga"
+        && resource.pull_request.is_none()
 }
 
 fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
@@ -886,8 +906,9 @@ mod tests {
     };
 
     use super::{
-        auto_refresh_due, clipboard_command, handle_intent, maybe_auto_refresh_with_start,
-        navigate_back, navigate_to_resource, url_open_command, ClipboardPlatform,
+        auto_refresh_due, clipboard_command, empty_launch_resource, handle_intent,
+        maybe_auto_refresh_with_start, navigate_back, navigate_to_resource,
+        session_state_persistable, url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1026,6 +1047,13 @@ mod tests {
             clipboard_command(ClipboardPlatform::Windows, None, None, None),
             Some(("clip".into(), vec![]))
         );
+    }
+
+    #[test]
+    fn empty_launch_placeholder_is_not_persistable() {
+        let state = AppState::new(empty_launch_resource());
+
+        assert!(!session_state_persistable(&state));
     }
 
     #[test]
