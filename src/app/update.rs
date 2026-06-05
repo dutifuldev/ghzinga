@@ -344,6 +344,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_resource_tab(index);
             AppIntent::None
         }
+        HitTarget::PreviousResourceTab => {
+            state.previous_resource_tab();
+            AppIntent::None
+        }
+        HitTarget::NextResourceTab => {
+            state.next_resource_tab();
+            AppIntent::None
+        }
         HitTarget::ToggleBlock(id) => {
             state.toggle_block(id);
             AppIntent::None

@@ -398,6 +398,14 @@ impl AppState {
         true
     }
 
+    pub fn previous_resource_tab(&mut self) -> bool {
+        self.switch_resource_tab(self.active_resource_tab.saturating_sub(1))
+    }
+
+    pub fn next_resource_tab(&mut self) -> bool {
+        self.switch_resource_tab(self.active_resource_tab.saturating_add(1))
+    }
+
     pub fn close_resource_tab(&mut self, index: usize) -> bool {
         if self.resource_tabs.len() <= 1 || index >= self.resource_tabs.len() {
             return false;

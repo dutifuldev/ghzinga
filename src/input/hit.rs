@@ -8,6 +8,8 @@ pub enum HitTarget {
     Tab(Tab),
     ResourceTab(usize),
     CloseResourceTab(usize),
+    PreviousResourceTab,
+    NextResourceTab,
     ToggleBlock(BlockId),
     ExpandBlocks(Vec<BlockId>),
     CollapseBlocks(Vec<BlockId>),

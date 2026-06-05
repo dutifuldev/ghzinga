@@ -3866,6 +3866,89 @@ mod tests {
     }
 
     #[test]
+    fn resource_tabs_shrink_to_keep_all_tabs_visible() {
+        let backend = TestBackend::new(96, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81839 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        for index in 0..state.resource_tabs.len() {
+            assert!(
+                state
+                    .hit_areas
+                    .iter()
+                    .any(|area| area.target == HitTarget::ResourceTab(index)),
+                "resource tab {index} should stay visible"
+            );
+        }
+        for number in 81834..81839 {
+            assert!(
+                content.contains(&format!("PR #{number}")),
+                "PR #{number} identity should not be truncated"
+            );
+        }
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::PreviousResourceTab));
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::NextResourceTab));
+    }
+
+    #[test]
+    fn resource_tabs_show_arrows_when_minimum_labels_do_not_fit() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+        let visible_resource_tabs = state
+            .hit_areas
+            .iter()
+            .filter(|area| matches!(area.target, HitTarget::ResourceTab(_)))
+            .count();
+
+        assert!(visible_resource_tabs < state.resource_tabs.len());
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ResourceTab(5)));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::PreviousResourceTab));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::NextResourceTab));
+        assert!(content.contains("PR #81839"));
+    }
+
+    #[test]
     fn add_resource_modal_registers_overlay_above_underlying_hits() {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
