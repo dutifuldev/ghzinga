@@ -1,3 +1,4 @@
+                                                                                                                                                                
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d                                                                                     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -38,7 +39,6 @@
   Refresh                                                                                                                                                       
   - Live mode refreshes automatically on the configured interval.                                                                                               
   - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

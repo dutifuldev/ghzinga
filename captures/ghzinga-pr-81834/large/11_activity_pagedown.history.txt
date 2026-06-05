@@ -1,3 +1,4 @@
+                                                                                                                                                                
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d                                                                                     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -23,7 +24,7 @@
   remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider █                                        
   <id>.                                                                                                                █                                        
   [➕ more]                                                                                                            █                                        
-                                                                                                                       █                                        
+                                                                                                                       │                                        
   Comment by @KLilyZ 2w ago                                                                                            │                                        
   meta: association NONE                                                                                               │                                        
   [details]                                                                                                            │                                        
@@ -44,7 +45,6 @@
                                                                                                                        │                                        
   Summary                                                                                                              │                                        
   The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice listing,     │                                        
-  voice-note opus transcoding, docs, manifest metadata, contract coverage, unit tests, and a gated live test.          │                                        
                                                                                                                                                                 
   [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                          
                                                                                                                                                                 

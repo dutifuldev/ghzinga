@@ -1,3 +1,4 @@
+                                                                                                                                                                
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                              [+]  
   openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -44,7 +45,6 @@
   Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when                                                
   store=false is used through the openai-responses provider. Removing the previous response reference makes the next                                            
   request succeed.                                                                                                                                              
-                                                                                                                                                                
                                                                                                                                                                 
   [🔄 refresh] [➖ collapse]  [⚙ settings] [❔ help] [⏻ quit]                                                                                                   
                                                                                                                                                                 

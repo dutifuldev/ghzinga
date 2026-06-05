@@ -1,3 +1,4 @@
+                                                                                                                        
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -30,7 +31,6 @@
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                      │  
   - 1-6: jump to the visible tab in that position                                                                    │  
   - v: reverse chronological feed order                                                                              │  
-  - a: expand or collapse all rows in the current tab                                                                │  
   offline fixture mode: refresh skipped                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
                                                                                                                         

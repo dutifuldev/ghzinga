@@ -1,3 +1,4 @@
+                                                                                
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -7,8 +8,8 @@
    🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links          
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
-                                                                             │  
-  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                          █  
+                                                                             █  
+  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                          │  
                                                                              │  
   [✅ PASS] suite/Dependency Guard [➕ more]                                 │  
                                                                              │  
@@ -19,6 +20,5 @@
   [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                               │  
                                                                              │  
   [✅ PASS] suite/Real behavior proof [➕ more]                              │  
-                                                                             │  
                                                                                 
   [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]          

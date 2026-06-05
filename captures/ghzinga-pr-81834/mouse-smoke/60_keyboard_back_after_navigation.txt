@@ -1,3 +1,4 @@
+                                                                                                                        
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -30,7 +31,6 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
   💬 Comment by @github-actions 1mo ago                                                                                 
-  [details]                                                                                                             
                                                                                                                         
   [🔄 refresh] [➕  expand  ] [⚙ settings] [❔ help] [⏻ quit]                                                           
                                                                                                                         

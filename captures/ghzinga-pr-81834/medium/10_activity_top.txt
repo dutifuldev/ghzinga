@@ -1,3 +1,4 @@
+                                                                                                                        
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d                                             [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -30,7 +31,6 @@
   helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                      
                                                                                                                         
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The      
-  remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provider  
                                                                                                                         
   [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                  
                                                                                                                         

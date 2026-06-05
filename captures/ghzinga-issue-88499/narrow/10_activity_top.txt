@@ -1,3 +1,4 @@
+                                                                                
   openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]  
   openai-responses provider: 404 on previous_response_id when store=false       
   ────────────────────────────────────────────────────────────────────────────  
@@ -19,6 +20,5 @@
                                                                                 
   Comment by @tianxiaochannel-oss88 1d ago                                      
   Adding a fresh macOS/Slack data point: the same previous_response_id 404      
-  appears after the second message when store=false is used through the         
                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

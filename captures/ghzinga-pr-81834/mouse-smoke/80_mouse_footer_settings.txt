@@ -1,3 +1,4 @@
+                                                                                                                        
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -30,7 +31,6 @@
                                                                                                                      │  
   Scrollbar                                                                                                          │  
   [x] on-scroll  Show while scrolling, then fade                                                                     │  
-  [ ] always  Show whenever content can scroll                                                                       │  
   offline fixture mode: refresh skipped                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
                                                                                                                         
