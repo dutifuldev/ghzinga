@@ -2,7 +2,10 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget},
+    widgets::{
+        Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        StatefulWidget, Widget,
+    },
     Frame,
 };
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -21,6 +24,7 @@ struct ContentRow {
     line: Line<'static>,
     target: Option<HitTarget>,
     comfortable_gap_after: bool,
+    activity_focus: Option<String>,
 }
 
 struct TimelineEntry<'a> {
@@ -101,6 +105,7 @@ impl ContentRow {
             line: Line::from(text.into()),
             target: None,
             comfortable_gap_after: false,
+            activity_focus: None,
         }
     }
 
@@ -109,6 +114,7 @@ impl ContentRow {
             line: Line::from(Span::styled(text.into(), style)),
             target: None,
             comfortable_gap_after: false,
+            activity_focus: None,
         }
     }
 
@@ -117,6 +123,7 @@ impl ContentRow {
             line: Line::from(text.into()),
             target: Some(target),
             comfortable_gap_after: false,
+            activity_focus: None,
         }
     }
 
@@ -125,6 +132,7 @@ impl ContentRow {
             line: Line::from(Span::styled(text.into(), style)),
             target: Some(target),
             comfortable_gap_after: false,
+            activity_focus: None,
         }
     }
 
@@ -133,6 +141,7 @@ impl ContentRow {
             line,
             target: Some(target),
             comfortable_gap_after: false,
+            activity_focus: None,
         }
     }
 
@@ -140,23 +149,49 @@ impl ContentRow {
         self.comfortable_gap_after = true;
         self
     }
+
+    fn with_activity_focus(mut self, id: impl Into<String>) -> Self {
+        self.activity_focus = Some(id.into());
+        self
+    }
 }
 
 pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
-    let rects = rects_for_spacing(frame.area(), state.spacing);
+    let mut rects = rects_for_spacing(frame.area(), state.spacing);
     let palette = state.theme.palette();
     state.hit_areas.clear();
     frame.buffer_mut().set_style(
         rects.area,
         Style::default().fg(palette.text).bg(palette.panel_bg),
     );
+    let resource_tabs_area = resource_tabs_area(&mut rects.header, state);
+    let show_header_add_button =
+        resource_tabs_area.is_none() && single_resource_add_button_visible(rects.header);
+    let header_right_reserved = if show_header_add_button && rects.header.width >= 48 {
+        add_resource_button_width()
+            .min(rects.header.width)
+            .saturating_add(1)
+    } else {
+        0
+    };
     render_header(
         frame,
         chrome_area_for_spacing(rects.header, state.spacing),
         state,
         state.spacing,
         &palette,
+        header_right_reserved,
     );
+    if let Some(area) = resource_tabs_area {
+        render_resource_tabs(
+            frame,
+            chrome_area_for_spacing(area, state.spacing),
+            state,
+            &palette,
+        );
+    } else if show_header_add_button {
+        render_header_add_button(frame, rects.header, state, &palette);
+    }
     render_status(
         frame,
         chrome_area_for_spacing(rects.status, state.spacing),
@@ -179,6 +214,439 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         &palette,
         content_area.width as usize,
     );
+    if state.add_resource_prompt.is_some() {
+        render_add_resource_modal(frame, rects.area, state, &palette);
+    } else if state.resource_link_prompt.is_some() {
+        render_resource_link_modal(frame, rects.area, state, &palette);
+    }
+}
+
+fn resource_tabs_area(header: &mut Rect, state: &AppState) -> Option<Rect> {
+    if !state.resource_tab_bar_visible() || header.height < 2 {
+        return None;
+    }
+    let area = Rect::new(header.x, header.y, header.width, 1);
+    let consumed = if header.height >= 3 { 2 } else { 1 };
+    header.y = header.y.saturating_add(consumed);
+    header.height = header.height.saturating_sub(consumed);
+    Some(area)
+}
+
+fn single_resource_add_button_visible(header: Rect) -> bool {
+    header.width > 0 && header.height > 0
+}
+
+fn render_resource_tabs(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    Paragraph::new(" ".repeat(area.width as usize))
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(area, frame.buffer_mut());
+
+    let add_label = add_resource_button_label();
+    let add_width = (UnicodeWidthStr::width(add_label.as_str()) as u16)
+        .min(area.width)
+        .max(1);
+    let add_x = area
+        .x
+        .saturating_add(area.width.saturating_sub(add_width.max(1)));
+    let tab_right = add_x.saturating_sub(1);
+    let start_index = visible_resource_tab_start(state, tab_right.saturating_sub(area.x));
+    let mut x = area.x;
+    let mut spans = Vec::<Span<'static>>::new();
+    for index in start_index..state.resource_tabs.len() {
+        if x >= tab_right {
+            break;
+        }
+        let Some(label) = state.active_resource_tab_label(index) else {
+            continue;
+        };
+        let active = index == state.active_resource_tab;
+        let remaining = tab_right.saturating_sub(x);
+        let desired_width = resource_tab_width(&label);
+        let width = desired_width.min(remaining);
+        if width < 4 {
+            break;
+        }
+        let label_width = width.saturating_sub(4) as usize;
+        let tab_text = format!(" {} × ", truncate_display(&label, label_width));
+        let tab_text = fit_label_to_width(&tab_text, width);
+        let style = if active {
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(palette.text).bg(palette.surface1)
+        };
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x, area.y, width, 1),
+            HitTarget::ResourceTab(index),
+        ));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x.saturating_add(width.saturating_sub(3)), area.y, 3, 1),
+            HitTarget::CloseResourceTab(index),
+        ));
+        spans.push(Span::styled(tab_text, style));
+        if x.saturating_add(width) < tab_right {
+            spans.push(Span::styled(" ", Style::default().bg(palette.surface0)));
+        }
+        x = x.saturating_add(width.saturating_add(1));
+    }
+    Paragraph::new(Line::from(spans))
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(
+            Rect::new(area.x, area.y, tab_right.saturating_sub(area.x), 1),
+            frame.buffer_mut(),
+        );
+    render_add_resource_button(
+        frame,
+        Rect::new(add_x, area.y, add_width, 1),
+        state,
+        palette,
+    );
+}
+
+fn visible_resource_tab_start(state: &AppState, available_width: u16) -> usize {
+    let len = state.resource_tabs.len();
+    if len == 0 || available_width < 4 {
+        return 0;
+    }
+    let active = state.active_resource_tab.min(len.saturating_sub(1));
+    let mut start = active;
+    let mut used = 0_u16;
+    for index in (0..=active).rev() {
+        let Some(label) = state.active_resource_tab_label(index) else {
+            continue;
+        };
+        let width = resource_tab_width(&label).min(available_width);
+        if width < 4 {
+            break;
+        }
+        let needed = width.saturating_add(u16::from(used > 0));
+        if used.saturating_add(needed) > available_width {
+            break;
+        }
+        start = index;
+        used = used.saturating_add(needed);
+    }
+    start
+}
+
+fn resource_tab_width(label: &str) -> u16 {
+    (UnicodeWidthStr::width(label) as u16)
+        .saturating_add(6)
+        .clamp(10, 32)
+}
+
+fn render_header_add_button(
+    frame: &mut Frame<'_>,
+    header_area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if header_area.width == 0 || header_area.height == 0 {
+        return;
+    }
+    let width = add_resource_button_width().min(header_area.width).max(1);
+    if width == 0 {
+        return;
+    }
+    let row_offset = if header_area.width < 48 {
+        header_area.height.saturating_sub(1)
+    } else {
+        header_top_padding_rows(header_area, state.spacing) as u16
+    };
+    let row = header_area.y.saturating_add(row_offset).min(
+        header_area
+            .y
+            .saturating_add(header_area.height.saturating_sub(1)),
+    );
+    let rect = Rect::new(
+        header_area
+            .x
+            .saturating_add(header_area.width.saturating_sub(width)),
+        row,
+        width,
+        1,
+    );
+    render_add_resource_button(frame, rect, state, palette);
+}
+
+fn render_add_resource_button(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let label = add_resource_button_label_for_width(area.width);
+    Paragraph::new(label)
+        .style(
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        )
+        .render(area, frame.buffer_mut());
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::OpenResourcePrompt));
+}
+
+fn add_resource_button_label() -> String {
+    "[+]".to_string()
+}
+
+fn add_resource_button_label_for_width(width: u16) -> String {
+    if width >= add_resource_button_width() {
+        "[+]".to_string()
+    } else {
+        "+".to_string()
+    }
+}
+
+fn add_resource_button_width() -> u16 {
+    3
+}
+
+fn render_add_resource_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(prompt) = state.add_resource_prompt.as_ref() else {
+        return;
+    };
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let modal_width = area.width.min(area.width.saturating_sub(4).clamp(24, 68));
+    let modal_height = area.height.min(area.height.saturating_sub(2).clamp(7, 9));
+    let modal = Rect::new(
+        area.x
+            .saturating_add(area.width.saturating_sub(modal_width) / 2),
+        area.y
+            .saturating_add(area.height.saturating_sub(modal_height) / 2),
+        modal_width,
+        modal_height,
+    );
+    frame.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(palette.accent).bg(palette.surface0))
+        .style(Style::default().fg(palette.text).bg(palette.surface0));
+    frame.render_widget(block, modal);
+    let inner = Rect::new(
+        modal.x.saturating_add(1),
+        modal.y.saturating_add(1),
+        modal.width.saturating_sub(2),
+        modal.height.saturating_sub(2),
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::ModalOverlay));
+    let mut rows = Vec::<Line<'static>>::new();
+    rows.push(Line::from(Span::styled(
+        "Open PR or issue",
+        Style::default()
+            .fg(palette.text)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD),
+    )));
+    rows.push(Line::from(Span::styled(
+        "URL, owner/repo#123, owner/repo 123, or #123",
+        dim_style(palette).bg(palette.surface0),
+    )));
+    rows.push(Line::from(""));
+    let input_width = inner.width.saturating_sub(2) as usize;
+    rows.push(Line::from(Span::styled(
+        format!(
+            " {}",
+            truncate_display(&format!("{}█", prompt.input), input_width)
+        ),
+        Style::default().fg(palette.text).bg(palette.panel_bg),
+    )));
+    let detail = prompt
+        .error
+        .as_deref()
+        .unwrap_or("Enter opens, Esc cancels");
+    let detail_style = if prompt.error.is_some() {
+        Style::default()
+            .fg(palette.red)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        dim_style(palette).bg(palette.surface0)
+    };
+    rows.push(Line::from(Span::styled(
+        truncate_display(detail, inner.width as usize),
+        detail_style,
+    )));
+    while rows.len() + 1 < inner.height as usize {
+        rows.push(Line::from(""));
+    }
+    rows.push(Line::from(vec![
+        Span::styled(
+            "[open]",
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ", Style::default().bg(palette.surface0)),
+        Span::styled(
+            "[cancel]",
+            Style::default()
+                .fg(palette.text)
+                .bg(palette.surface1)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+
+    let button_y = inner.y.saturating_add(inner.height.saturating_sub(1));
+    state.hit_areas.push(HitArea::new(
+        Rect::new(inner.x, button_y, 6_u16.min(inner.width), 1),
+        HitTarget::ConfirmResourcePrompt,
+    ));
+    if inner.width >= 10 {
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x.saturating_add(8), button_y, 8, 1),
+            HitTarget::CancelResourcePrompt,
+        ));
+    }
+}
+
+fn render_resource_link_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(prompt) = state.resource_link_prompt.as_ref() else {
+        return;
+    };
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let modal_width = area.width.min(area.width.saturating_sub(4).clamp(28, 72));
+    let modal_height = area.height.min(area.height.saturating_sub(2).clamp(7, 10));
+    let modal = Rect::new(
+        area.x
+            .saturating_add(area.width.saturating_sub(modal_width) / 2),
+        area.y
+            .saturating_add(area.height.saturating_sub(modal_height) / 2),
+        modal_width,
+        modal_height,
+    );
+    frame.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(palette.accent).bg(palette.surface0))
+        .style(Style::default().fg(palette.text).bg(palette.surface0));
+    frame.render_widget(block, modal);
+    let inner = Rect::new(
+        modal.x.saturating_add(1),
+        modal.y.saturating_add(1),
+        modal.width.saturating_sub(2),
+        modal.height.saturating_sub(2),
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::ModalOverlay));
+
+    let mut rows = Vec::<Line<'static>>::new();
+    rows.push(Line::from(Span::styled(
+        "Open linked resource",
+        Style::default()
+            .fg(palette.text)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD),
+    )));
+    rows.push(Line::from(Span::styled(
+        truncate_display(&prompt.id.canonical_name(), inner.width as usize),
+        link_style(palette).bg(palette.surface0),
+    )));
+    if let Some(url) = &prompt.url {
+        rows.push(Line::from(Span::styled(
+            truncate_display(url, inner.width as usize),
+            dim_style(palette).bg(palette.surface0),
+        )));
+    }
+    rows.push(Line::from(Span::styled(
+        "Enter opens here, n opens in a new tab",
+        dim_style(palette).bg(palette.surface0),
+    )));
+    while rows.len() + 1 < inner.height as usize {
+        rows.push(Line::from(""));
+    }
+    rows.push(Line::from(vec![
+        Span::styled(
+            "[here]",
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ", Style::default().bg(palette.surface0)),
+        Span::styled(
+            "[new tab]",
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.green)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ", Style::default().bg(palette.surface0)),
+        Span::styled(
+            "[cancel]",
+            Style::default()
+                .fg(palette.text)
+                .bg(palette.surface1)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+
+    let button_y = inner.y.saturating_add(inner.height.saturating_sub(1));
+    let mut x = inner.x;
+    state.hit_areas.push(HitArea::new(
+        Rect::new(x, button_y, 6_u16.min(inner.width), 1),
+        HitTarget::OpenLinkHere,
+    ));
+    x = x.saturating_add(8);
+    if inner.width >= 17 {
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x, button_y, 9, 1),
+            HitTarget::OpenLinkInNewTab,
+        ));
+    }
+    x = x.saturating_add(11);
+    if inner.width >= 27 {
+        state.hit_areas.push(HitArea::new(
+            Rect::new(x, button_y, 8, 1),
+            HitTarget::CancelResourceLinkPrompt,
+        ));
+    }
 }
 
 fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
@@ -209,6 +677,7 @@ fn render_header(
     state: &mut AppState,
     spacing: SpacingMode,
     palette: &Palette,
+    right_reserved: u16,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -216,7 +685,7 @@ fn render_header(
     let resource = &state.resource;
     let kind = resource.kind();
     let mut header = Vec::new();
-    let width = area.width as usize;
+    let width = area.width.saturating_sub(right_reserved).max(1) as usize;
     let content_rows = area.height.saturating_sub(1) as usize;
     let updated = format!("updated {}", compact_relative_time(&resource.updated_at));
     let state_label = format!("[{} {}]", kind, resource.state);
@@ -997,6 +1466,15 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let row_count = rows.len();
     let max_scroll = row_count.saturating_sub(content_area.height as usize) as u16;
     state.set_scroll_limit(max_scroll);
+    if let Some(focus_id) = state.take_pending_activity_focus() {
+        if let Some(index) = rows
+            .iter()
+            .position(|row| row.activity_focus.as_deref() == Some(focus_id.as_str()))
+        {
+            state.scroll = (index as u16).min(state.scroll_limit);
+            state.reveal_scrollbar_for_focus();
+        }
+    }
     let visible_rows = rows
         .into_iter()
         .enumerate()
@@ -1297,19 +1775,24 @@ fn wrap_content_row(row: ContentRow, width: usize, spacing: SpacingMode) -> Vec<
         return vec![row];
     }
     let style = row_primary_style(&row.line);
+    let focus = row.activity_focus.clone();
     let indent = continuation_indent(width, spacing);
     let wrap_width = width.saturating_sub(indent).max(1);
     markdown::wrap_display_text(&text, wrap_width)
         .into_iter()
         .enumerate()
         .map(|(index, line)| continuation_line(line, index, indent))
-        .map(|line| match &row.target {
-            Some(target) if style != Style::default() => {
-                ContentRow::target_styled(line, target.clone(), style)
-            }
-            Some(target) => ContentRow::target(line, target.clone()),
-            None if style != Style::default() => ContentRow::styled(line, style),
-            None => ContentRow::plain(line),
+        .map(|line| {
+            let mut wrapped = match &row.target {
+                Some(target) if style != Style::default() => {
+                    ContentRow::target_styled(line, target.clone(), style)
+                }
+                Some(target) => ContentRow::target(line, target.clone()),
+                None if style != Style::default() => ContentRow::styled(line, style),
+                None => ContentRow::plain(line),
+            };
+            wrapped.activity_focus = focus.clone();
+            wrapped
         })
         .collect()
 }
@@ -1374,12 +1857,11 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
     );
     rows.extend(
         [
+            "- Plus opens resources; resource tabs switch or close them.",
             "- Click tabs to switch sections.",
             expand_help.as_str(),
             "- Click visible GitHub issue or PR references to navigate.",
-            "- Click settings rows to apply theme and symbol preferences.",
             "- Use the mouse wheel to scroll the current view.",
-            "",
         ]
         .into_iter()
         .flat_map(|line| markdown::wrap_plain_text(line, width))
@@ -1394,6 +1876,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar",
             "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
+            "- n: open another PR or issue in a resource tab",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
             "- o: open first visible URL, or current resource",
@@ -1982,12 +2465,15 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         entries.reverse();
     }
     for entry in entries {
-        rows.push(ContentRow::plain(format!(
-            "{} by @{} {}",
-            entry.kind.label(),
-            entry.author,
-            relative_time_phrase(&entry.updated_at)
-        )));
+        rows.push(
+            ContentRow::plain(format!(
+                "{} by @{} {}",
+                entry.kind.label(),
+                entry.author,
+                relative_time_phrase(&entry.updated_at)
+            ))
+            .with_activity_focus(entry.id.clone()),
+        );
         if let Some(path) = &entry.path {
             rows.push(ContentRow::plain(format!(
                 "{}:{}",
@@ -2309,7 +2795,13 @@ fn linkable_check_url_row(url: &str) -> ContentRow {
                 HitTarget::OpenUrl(url.to_string()),
             )
         } else {
-            ContentRow::target(format!("details: {url}"), HitTarget::Navigate(id))
+            ContentRow::target(
+                format!("details: {url}"),
+                HitTarget::ResourceLink {
+                    id,
+                    url: Some(url.to_string()),
+                },
+            )
         }
     } else {
         ContentRow::target(
@@ -2560,7 +3052,10 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
             rows.push(
                 ContentRow::target_styled(
                     truncate_ascii(&id.canonical_name(), width),
-                    HitTarget::Navigate(id.clone()),
+                    HitTarget::ResourceLink {
+                        id: id.clone(),
+                        url: None,
+                    },
                     link_style(palette),
                 )
                 .with_comfortable_gap_after(),
@@ -2569,7 +3064,7 @@ fn links_rows(resource: &Resource, width: usize, palette: &Palette) -> Vec<Conte
     }
     for token in linked_resource_tokens(resource) {
         if let Some((display, target)) = parse_link_token(token, resource) {
-            let HitTarget::Navigate(id) = &target else {
+            let HitTarget::ResourceLink { id, .. } = &target else {
                 continue;
             };
             let key = id.canonical_name();
@@ -2618,10 +3113,16 @@ fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarg
     let clean = link_target_from_token(token)?;
     let is_url = clean.starts_with("https://") || clean.starts_with("http://");
     if let Ok(id) = ResourceId::parse(&clean) {
-        if is_url && should_open_exact_url(&clean, &id) {
+        if is_url && should_open_exact_url(&clean, &id) && !is_resource_comment_url(&clean) {
             return Some((clean.clone(), HitTarget::OpenUrl(clean)));
         }
-        return Some((clean, HitTarget::Navigate(id)));
+        return Some((
+            clean.clone(),
+            HitTarget::ResourceLink {
+                id,
+                url: is_url.then_some(clean),
+            },
+        ));
     }
     if is_url {
         return Some((clean.clone(), HitTarget::OpenUrl(clean)));
@@ -2632,7 +3133,7 @@ fn parse_link_token(token: &str, resource: &Resource) -> Option<(String, HitTarg
                 ResourceId::relative_to_repo(&resource.id.owner, &resource.id.repo, number).ok()?;
             return Some((
                 format!("{}#{}", resource.id.repo_name_with_owner(), number),
-                HitTarget::Navigate(id),
+                HitTarget::ResourceLink { id, url: None },
             ));
         }
     }
@@ -2678,6 +3179,15 @@ fn should_open_exact_url(url: &str, id: &ResourceId) -> bool {
         id.owner, id.repo, segment, id.number
     );
     url != bare
+}
+
+fn is_resource_comment_url(url: &str) -> bool {
+    let Some((_base, fragment)) = url.split_once('#') else {
+        return false;
+    };
+    fragment.starts_with("issuecomment-")
+        || fragment.starts_with("discussion_r")
+        || fragment.starts_with("pullrequestreview-")
 }
 
 fn linkable_text_row(text: String, resource: &Resource) -> ContentRow {
@@ -3724,6 +4234,75 @@ mod tests {
     }
 
     #[test]
+    fn resource_tab_overflow_keeps_active_tab_visible() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81845 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("follow-up resource {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        let active = state.active_resource_tab;
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ResourceTab(active)));
+    }
+
+    #[test]
+    fn add_resource_modal_registers_overlay_above_underlying_hits() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.open_add_resource_prompt();
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        let overlay = state
+            .hit_areas
+            .iter()
+            .find(|area| area.target == HitTarget::ModalOverlay)
+            .expect("modal overlay hit area");
+        let target = crate::input::hit_test(&state.hit_areas, overlay.rect.x, overlay.rect.y);
+
+        assert_eq!(target, Some(HitTarget::ModalOverlay));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ConfirmResourcePrompt));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::CancelResourcePrompt));
+    }
+
+    #[test]
+    fn add_resource_modal_renders_inside_tiny_terminal() {
+        let backend = TestBackend::new(12, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        state.open_add_resource_prompt();
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+
+        assert!(state.hit_areas.iter().any(|area| {
+            area.target == HitTarget::ModalOverlay && area.rect.width <= 12 && area.rect.height <= 5
+        }));
+    }
+
+    #[test]
     fn render_registers_more_button_hit_area() {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -3759,7 +4338,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.number == 66943 && id.kind_hint == Some(ResourceKind::Issue)
+            HitTarget::ResourceLink { id, .. } if id.number == 66943 && id.kind_hint == Some(ResourceKind::Issue)
         )));
     }
 
@@ -3779,7 +4358,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "openclaw/openclaw#66943"
         )));
     }
 
@@ -3797,7 +4376,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "openclaw/openclaw#66943"
         )));
     }
 
@@ -3816,7 +4395,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "dutifuldev/ghzinga#12"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "dutifuldev/ghzinga#12"
         )));
     }
 
@@ -3834,7 +4413,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "openclaw/openclaw#66943"
         )));
     }
 
@@ -3857,7 +4436,7 @@ mod tests {
         assert!(content.contains("https://github.com/openclaw/openclaw/pull/81835"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id)
+            HitTarget::ResourceLink { id, .. }
                 if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
         )));
     }
@@ -3880,7 +4459,7 @@ mod tests {
         assert!(content.contains("dutifuldev/ghzinga#12"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "dutifuldev/ghzinga#12"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "dutifuldev/ghzinga#12"
         )));
     }
 
@@ -3904,10 +4483,12 @@ mod tests {
         assert!(state.hit_areas.iter().all(|area| {
             matches!(
                 area.target,
-                HitTarget::Navigate(_)
+                HitTarget::ResourceLink { .. }
+                    | HitTarget::Navigate(_)
                     | HitTarget::Tab(_)
                     | HitTarget::OpenHeaderUrl(_)
                     | HitTarget::Refresh
+                    | HitTarget::OpenResourcePrompt
                     | HitTarget::CopyVisibleUrl
                     | HitTarget::OpenVisibleUrl
                     | HitTarget::Settings
@@ -3918,7 +4499,7 @@ mod tests {
     }
 
     #[test]
-    fn render_registers_markdown_permalink_as_open_url() {
+    fn render_registers_markdown_permalink_as_resource_link() {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
@@ -3932,8 +4513,9 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::OpenUrl(url)
-                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
+            HitTarget::ResourceLink { id, url: Some(url) }
+                if id.canonical_name() == "openclaw/openclaw#81834"
+                    && url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
         )));
     }
 
@@ -3954,7 +4536,7 @@ mod tests {
         assert_eq!(content.matches("openclaw/openclaw#66943").count(), 1);
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "openclaw/openclaw#66943"
         )));
     }
 
@@ -3974,13 +4556,13 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::Navigate(id)
+            HitTarget::ResourceLink { id, .. }
                 if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
         )));
     }
 
     #[test]
-    fn render_registers_exact_comment_url_as_open_url() {
+    fn render_registers_exact_comment_url_as_resource_link() {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
@@ -3995,8 +4577,9 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::OpenUrl(url)
-                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
+            HitTarget::ResourceLink { id, url: Some(url) }
+                if id.canonical_name() == "openclaw/openclaw#81834"
+                    && url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
         )));
     }
 
@@ -5459,7 +6042,7 @@ mod tests {
     }
 
     #[test]
-    fn rendered_visible_link_hit_area_can_be_clicked_to_navigate() {
+    fn rendered_visible_link_hit_area_opens_choice_prompt() {
         let mut resource = pr_resource();
         resource.body = "Pairs with #66943".into();
         let mut state = AppState::new(resource);
@@ -5468,18 +6051,19 @@ mod tests {
         let intent = click_rendered_target(&mut state, |target| {
             matches!(
                 target,
-                HitTarget::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
+                HitTarget::ResourceLink { id, .. } if id.canonical_name() == "openclaw/openclaw#66943"
             )
         });
 
-        assert!(matches!(
-            intent,
-            AppIntent::Navigate(id) if id.canonical_name() == "openclaw/openclaw#66943"
-        ));
+        assert_eq!(intent, AppIntent::None);
+        assert!(state
+            .resource_link_prompt
+            .as_ref()
+            .is_some_and(|prompt| { prompt.id.canonical_name() == "openclaw/openclaw#66943" }));
     }
 
     #[test]
-    fn rendered_absolute_pr_link_hit_area_can_be_clicked_to_navigate() {
+    fn rendered_absolute_pr_link_hit_area_opens_choice_prompt() {
         let mut resource = pr_resource();
         resource.body = "Pairs with https://github.com/openclaw/openclaw/pull/81835".into();
         resource.related_resources.clear();
@@ -5490,16 +6074,15 @@ mod tests {
         let intent = click_rendered_target(&mut state, |target| {
             matches!(
                 target,
-                HitTarget::Navigate(id)
+                HitTarget::ResourceLink { id, .. }
                     if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
             )
         });
 
-        assert!(matches!(
-            intent,
-            AppIntent::Navigate(id)
-                if id.number == 81835 && id.kind_hint == Some(ResourceKind::PullRequest)
-        ));
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.resource_link_prompt.as_ref().is_some_and(|prompt| {
+            prompt.id.number == 81835 && prompt.id.kind_hint == Some(ResourceKind::PullRequest)
+        }));
     }
 
     #[test]
@@ -5736,22 +6319,24 @@ mod tests {
         assert!(!content.contains("[+ more]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::OpenUrl(url)
-                if url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
+            HitTarget::ResourceLink { id, url: Some(url) }
+                if id.canonical_name() == "openclaw/openclaw#81834"
+                    && url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
         )));
         let intent = click_rendered_target(&mut state, |target| {
             matches!(
                 target,
-                HitTarget::OpenUrl(url)
-                    if url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
+                HitTarget::ResourceLink { id, url: Some(url) }
+                    if id.canonical_name() == "openclaw/openclaw#81834"
+                        && url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
             )
         });
 
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.active_tab, Tab::Activity);
         assert_eq!(
-            intent,
-            AppIntent::OpenUrl(
-                "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1".into()
-            )
+            state.status_message.as_deref(),
+            Some("focused linked activity")
         );
 
         state.toggle_block(BlockId::Activity("c1".into()));
@@ -5789,8 +6374,9 @@ mod tests {
         assert!(content.contains("[details]"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::OpenUrl(url)
-                if url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
+            HitTarget::ResourceLink { id, url: Some(url) }
+                if id.canonical_name() == "openclaw/openclaw#81834"
+                    && url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
         )));
 
         state.toggle_block(BlockId::Activity("c1".into()));

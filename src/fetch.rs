@@ -22,6 +22,7 @@ pub(crate) enum FetchAction {
     Initial { id: ResourceId },
     Refresh { id: ResourceId },
     LoadFull { id: ResourceId },
+    OpenTab { id: ResourceId },
     Navigate { from: ResourceId, to: ResourceId },
     Back { to: ResourceId },
 }
@@ -29,7 +30,10 @@ pub(crate) enum FetchAction {
 impl FetchAction {
     pub(crate) fn target(&self) -> &ResourceId {
         match self {
-            Self::Initial { id } | Self::Refresh { id } | Self::LoadFull { id } => id,
+            Self::Initial { id }
+            | Self::Refresh { id }
+            | Self::LoadFull { id }
+            | Self::OpenTab { id } => id,
             Self::Navigate { to, .. } | Self::Back { to } => to,
         }
     }
@@ -41,6 +45,7 @@ impl FetchAction {
             Self::LoadFull { id } => {
                 format!("loading full data for {} from GitHub", id.canonical_name())
             }
+            Self::OpenTab { id } => format!("opening {} in a new tab", id.canonical_name()),
             Self::Navigate { to, .. } => format!("opening {} from GitHub", to.canonical_name()),
             Self::Back { to } => format!("returning to {} from GitHub", to.canonical_name()),
         }
@@ -51,6 +56,8 @@ pub(crate) struct FetchOutcome {
     action: FetchAction,
     result: anyhow::Result<Resource>,
     refreshed_at: String,
+    request_id: u64,
+    origin_tab_id: u64,
 }
 
 #[derive(Clone)]
@@ -137,7 +144,8 @@ pub(crate) fn start_background_fetch(
 
     let target = action.target().clone();
     let message = action.loading_message();
-    state.begin_loading(target.clone(), message);
+    let origin_tab_id = state.active_resource_tab_id();
+    let request_id = state.begin_loading(target.clone(), message);
     let tx = fetch_tx.clone();
     tokio::spawn(async move {
         let result = match &action {
@@ -148,6 +156,8 @@ pub(crate) fn start_background_fetch(
             action,
             result,
             refreshed_at: current_refresh_label(),
+            request_id,
+            origin_tab_id,
         });
     });
     true
@@ -163,37 +173,61 @@ pub(crate) fn apply_completed_fetches(
 }
 
 pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
+    if !state.loading_request_matches(outcome.request_id) {
+        return;
+    }
     state.finish_loading();
+    state.clear_transient_loading_status_messages();
+    let origin_tab_id = outcome.origin_tab_id;
     match (outcome.action, outcome.result) {
         (FetchAction::Initial { .. }, Ok(resource)) => {
-            state.replace_resource_preserve_tab(resource);
-            state.last_error = None;
-            state.status_message = None;
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.replace_resource_preserve_tab(resource);
+                state.last_error = None;
+                state.status_message = None;
+            });
         }
         (FetchAction::Refresh { .. }, Ok(resource)) => {
-            state.apply_refreshed_resource(resource, outcome.refreshed_at);
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.apply_refreshed_resource(resource, outcome.refreshed_at);
+            });
         }
         (FetchAction::LoadFull { .. }, Ok(resource)) => {
-            state.apply_refreshed_resource(resource, outcome.refreshed_at);
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.apply_refreshed_resource(resource, outcome.refreshed_at);
+                state.status_message = None;
+            });
+        }
+        (FetchAction::OpenTab { .. }, Ok(resource)) => {
+            state.open_resource_in_tab(resource);
+            state.last_error = None;
             state.status_message = None;
         }
         (FetchAction::Navigate { from, .. }, Ok(resource)) => {
-            state.history.push(from);
-            state.replace_resource_reset_view(resource);
-            state.last_error = None;
-            state.status_message = None;
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.history.push(from);
+                state.replace_resource_reset_view(resource);
+                state.last_error = None;
+                state.status_message = None;
+            });
         }
         (FetchAction::Back { .. }, Ok(resource)) => {
-            state.replace_resource_reset_view(resource);
-            state.last_error = None;
-            state.status_message = None;
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.replace_resource_reset_view(resource);
+                state.last_error = None;
+                state.status_message = None;
+            });
         }
         (FetchAction::Back { to }, Err(error)) => {
-            state.history.push(to);
-            state.last_error = Some(error.to_string());
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.history.push(to);
+                state.last_error = Some(error.to_string());
+            });
         }
         (_, Err(error)) => {
-            state.last_error = Some(error.to_string());
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                state.last_error = Some(error.to_string());
+            });
         }
     }
 }
@@ -252,6 +286,12 @@ mod tests {
         }
     }
 
+    fn begin_test_fetch(state: &mut AppState, action: &FetchAction) -> (u64, u64) {
+        let origin_tab_id = state.active_resource_tab_id();
+        let request_id = state.begin_loading(action.target().clone(), action.loading_message());
+        (request_id, origin_tab_id)
+    }
+
     #[test]
     fn automatic_refresh_starts_background_fetch_and_records_completed_changes() {
         let initial = issue_resource(1, "Initial issue");
@@ -269,8 +309,8 @@ mod tests {
             &mut last_refresh,
             now,
             |state, action| {
-                state.begin_loading(action.target().clone(), action.loading_message());
-                started.push(action);
+                let (request_id, origin_tab_id) = begin_test_fetch(state, &action);
+                started.push((action, request_id, origin_tab_id));
                 true
             },
         );
@@ -282,12 +322,15 @@ mod tests {
             Some("refreshing owner/repo#1 from GitHub")
         );
         assert_eq!(started.len(), 1);
+        let (action, request_id, origin_tab_id) = started.pop().unwrap();
         apply_fetch_outcome(
             &mut state,
             FetchOutcome {
-                action: started.pop().unwrap(),
+                action,
                 result: Ok(refreshed_resource),
                 refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
             },
         );
 
@@ -311,13 +354,17 @@ mod tests {
         state.set_scroll_limit(10);
         state.scroll_down(4);
         let id = state.resource.id.clone();
+        let action = FetchAction::LoadFull { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
 
         apply_fetch_outcome(
             &mut state,
             FetchOutcome {
-                action: FetchAction::LoadFull { id },
+                action,
                 result: Ok(full),
                 refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
             },
         );
 
@@ -338,14 +385,17 @@ mod tests {
         };
         let mut state = AppState::new(loading_resource_placeholder(id.clone()));
         state.set_tab(Tab::Files);
-        state.begin_loading(id.clone(), "opening owner/repo#1 from GitHub");
+        let action = FetchAction::Initial { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
 
         apply_fetch_outcome(
             &mut state,
             FetchOutcome {
-                action: FetchAction::Initial { id },
+                action,
                 result: Ok(issue_resource(1, "Loaded issue")),
                 refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
             },
         );
 
@@ -354,6 +404,70 @@ mod tests {
         assert_eq!(state.active_tab, Tab::Overview);
         assert!(state.status_message.is_none());
         assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn open_tab_fetch_outcome_appends_and_activates_resource_tab() {
+        let mut state = AppState::new(issue_resource(1, "Initial issue"));
+        let second = issue_resource(2, "Second issue");
+        let action = FetchAction::OpenTab {
+            id: second.id.clone(),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(second),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert_eq!(state.active_resource_tab, 1);
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn refresh_fetch_outcome_updates_origin_tab_after_user_switches_tabs() {
+        let mut state = AppState::new(issue_resource(1, "Initial issue"));
+        let second = issue_resource(2, "Second issue");
+        state.open_resource_in_tab(second);
+        state.switch_resource_tab(0);
+
+        let mut refreshed = issue_resource(1, "Updated issue");
+        refreshed.body = "Updated body".into();
+        let action = FetchAction::Refresh {
+            id: refreshed.id.clone(),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+        state.switch_resource_tab(1);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(refreshed),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.resource.title, "Second issue");
+        assert!(state.loading.is_none());
+
+        state.switch_resource_tab(0);
+
+        assert_eq!(state.resource.id.number, 1);
+        assert_eq!(state.resource.title, "Updated issue");
+        assert_eq!(state.resource.body, "Updated body");
+        assert_eq!(state.last_refreshed_at.as_deref(), Some("12:34:56 UTC"));
     }
 
     #[tokio::test]
@@ -418,6 +532,51 @@ mod tests {
     }
 
     #[test]
+    fn completed_fetch_clears_blocked_loading_status_on_other_tabs() {
+        let mut state = AppState::new(issue_resource(1, "Initial issue"));
+        state.open_resource_in_tab(issue_resource(2, "Second issue"));
+        state.switch_resource_tab(0);
+        let action = FetchAction::Refresh {
+            id: state.resource.id.clone(),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+        state.switch_resource_tab(1);
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let blocked_id = state.resource.id.clone();
+
+        let started = start_background_fetch(
+            &mut state,
+            FetchAction::Refresh { id: blocked_id },
+            FetchSource::Github(GithubApiGateway::new(crate::github::api::ApiDepth::Partial)),
+            &fetch_tx,
+        );
+
+        assert!(!started);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(issue_resource(1, "Updated issue")),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert!(state.status_message.is_none());
+        state.switch_resource_tab(0);
+        assert_eq!(state.resource.title, "Updated issue");
+        assert!(state.status_message.is_none());
+    }
+
+    #[test]
     fn offline_fixture_source_fetches_by_canonical_name_without_kind_hint() {
         let fixture = issue_resource(2, "Linked issue");
         let source = OfflineFixtureSource::new([fixture.clone()]);
@@ -463,14 +622,17 @@ mod tests {
         let mut state = AppState::new(initial);
         state.history.push(previous.id.clone());
         let popped = state.pop_history().unwrap();
-        state.begin_loading(popped.clone(), "returning to owner/repo#2 from GitHub");
+        let action = FetchAction::Back { to: popped };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
 
         apply_fetch_outcome(
             &mut state,
             FetchOutcome {
-                action: FetchAction::Back { to: popped },
+                action,
                 result: Err(anyhow::anyhow!("network down")),
                 refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
             },
         );
 

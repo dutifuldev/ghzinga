@@ -5,13 +5,11 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "19b407a5475396d0721c58723d17855187d50a07",
+  "git_commit": "fed11855974ce3a0c1b566196830cda1e2f9e16c",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg openclaw/openclaw#81834 --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --refresh-seconds 0",
   "actual_tmux_size": "120x36",
-  "adapter_outputs": {
-    "detail_url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
-  },
+  "adapter_outputs": {},
   "saved_config": "[ui]\ntheme = \"default\"\nsymbols = \"emoji\"\nspacing = \"compact\"\nwidth_mode = \"fixed\"\nfixed_width = 118\nscrollbar = \"on-scroll\"\n",
   "quit_exited": true,
   "mouse_coordinates": {
@@ -62,6 +60,10 @@
     "linked_issue": [
       3,
       12
+    ],
+    "linked_issue_here": [
+      26,
+      22
     ],
     "activity_tab_for_detail": [
       20,
@@ -172,6 +174,11 @@
       "ansi": "40_mouse_links_tab.ansi"
     },
     {
+      "name": "45_mouse_resource_link_prompt",
+      "txt": "45_mouse_resource_link_prompt.txt",
+      "ansi": "45_mouse_resource_link_prompt.ansi"
+    },
+    {
       "name": "50_mouse_navigation_row",
       "txt": "50_mouse_navigation_row.txt",
       "ansi": "50_mouse_navigation_row.ansi"
@@ -187,9 +194,9 @@
       "ansi": "62_mouse_activity_tab_for_detail.ansi"
     },
     {
-      "name": "63_mouse_activity_details_open",
-      "txt": "63_mouse_activity_details_open.txt",
-      "ansi": "63_mouse_activity_details_open.ansi"
+      "name": "63_mouse_activity_details_focus",
+      "txt": "63_mouse_activity_details_focus.txt",
+      "ansi": "63_mouse_activity_details_focus.ansi"
     },
     {
       "name": "64_mouse_back_to_overview_after_detail",
