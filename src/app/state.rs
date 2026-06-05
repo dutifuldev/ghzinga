@@ -442,6 +442,22 @@ impl AppState {
         }
     }
 
+    pub fn focus_resource_tab(&mut self, id: &crate::domain::ResourceId) -> bool {
+        let canonical = id.canonical_name();
+        let Some(index) = self
+            .resource_tabs
+            .iter()
+            .position(|tab| tab.resource.id.canonical_name() == canonical)
+        else {
+            return false;
+        };
+        if index == self.active_resource_tab {
+            return true;
+        }
+        self.switch_resource_tab(index);
+        true
+    }
+
     pub fn apply_to_resource_tab(&mut self, tab_id: u64, apply: impl FnOnce(&mut Self)) -> bool {
         let previous_tab_id = self.active_resource_tab_id();
         self.snapshot_active_resource_tab();
@@ -1704,6 +1720,23 @@ mod tests {
         assert_eq!(state.resource.id.number, 2);
         let prompt = state.add_resource_prompt.as_ref().unwrap();
         assert_eq!(prompt.input, "owner/repo#3");
+    }
+
+    #[test]
+    fn focusing_resource_tab_preserves_cached_resource() {
+        let mut state = AppState::new(issue_resource());
+        let mut cached = issue_resource();
+        cached.id.number = 2;
+        cached.title = "Cached issue".into();
+        let cached_id = cached.id.clone();
+        state.open_resource_in_tab(cached);
+        state.switch_resource_tab(0);
+
+        assert!(state.focus_resource_tab(&cached_id));
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.resource.title, "Cached issue");
+        assert_eq!(state.resource_tabs.len(), 2);
     }
 
     #[test]

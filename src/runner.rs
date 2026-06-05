@@ -231,7 +231,9 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
                     .or_else(|| session::first_refresh_action(snapshot))
                     .map(|id| FetchAction::Initial { id });
                 if let Some(resource_id) = resource_id.clone() {
-                    state.open_resource_in_tab(loading_resource_placeholder(resource_id));
+                    if !state.focus_resource_tab(&resource_id) {
+                        state.open_resource_in_tab(loading_resource_placeholder(resource_id));
+                    }
                 }
                 (state, fetch_source, initial_fetch, true)
             } else {
@@ -688,6 +690,9 @@ pub(crate) fn maybe_auto_refresh_with_start(
     now: Instant,
     mut start: impl FnMut(&mut AppState, FetchAction) -> bool,
 ) -> bool {
+    if is_loading_resource(&state.resource) {
+        return false;
+    }
     if !auto_refresh_due(
         live_refresh,
         refresh_interval,
@@ -715,6 +720,9 @@ fn maybe_refresh_loading_active_resource(
         return false;
     }
     if state.loading_message().is_some() {
+        return false;
+    }
+    if state.last_error.is_some() {
         return false;
     }
     if !(fetch_source.is_live_github() || fetch_source.is_offline_fixture()) {
@@ -1267,6 +1275,34 @@ mod tests {
     }
 
     #[test]
+    fn failed_loading_placeholder_waits_for_explicit_retry() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id));
+        state.last_error = Some("network down".into());
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        assert!(!maybe_refresh_loading_active_resource(
+            &mut state,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([issue_resource(
+                2,
+                "Fetched issue"
+            )])),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+
+        assert!(fetch_rx.try_recv().is_err());
+        assert_eq!(state.last_error.as_deref(), Some("network down"));
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
     fn automatic_refresh_waits_until_interval_is_due() {
         let initial = issue_resource(1, "Initial issue");
         let mut state = AppState::new(initial.clone());
@@ -1343,6 +1379,36 @@ mod tests {
         assert!(!refreshed);
         assert_eq!(attempts, 1);
         assert_eq!(last_refresh, now);
+    }
+
+    #[test]
+    fn automatic_refresh_skips_loading_placeholders() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id));
+        let mut last_refresh = Instant::now();
+        let now = last_refresh + Duration::from_secs(30);
+        let mut attempts = 0;
+
+        let refreshed = maybe_auto_refresh_with_start(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            now,
+            |_, _| {
+                attempts += 1;
+                true
+            },
+        );
+
+        assert!(!refreshed);
+        assert_eq!(attempts, 0);
+        assert_ne!(last_refresh, now);
     }
 
     #[tokio::test]

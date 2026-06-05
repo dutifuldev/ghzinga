@@ -241,6 +241,9 @@ Resource argument behavior:
 - `gzg owner/repo#123` with a restored session opens or focuses that resource in
   the resolved session.
 - It does not discard restored tabs unless `--new` or `--no-restore` is passed.
+- If the resource argument already exists as a restored cached tab, focus that
+  tab and refresh it in the background without replacing cached content with a
+  loading placeholder.
 - `gzg` with no resource argument restores the session tabs as-is.
 - If a new saved session is created with no resource argument and no cached
   tabs, show the add-resource prompt immediately.
@@ -257,7 +260,9 @@ First frame rules:
   resource.
 - Start background refreshes after the TUI enters the alternate screen.
 - If an inactive restored tab has no cache entry, refresh it when the user
-  focuses that tab so it cannot remain a loading placeholder indefinitely.
+  focuses that tab so it cannot remain a loading placeholder indefinitely. If
+  that fetch fails, keep the placeholder and error visible until the user
+  explicitly refreshes instead of retrying every frame.
 - Do not show a success message after refresh; only errors need status text.
 
 This builds on the existing startup progressive loading behavior.

@@ -54,6 +54,9 @@ the real resource as soon as the API call completes.
   loading detail. Do not show an `info loaded owner/repo#number` completion
   line; success should be obvious from the loaded resource and normal metadata.
 - On failure, keep the placeholder visible and show the recoverable error.
+  Do not automatically retry the failed placeholder on every frame or timed
+  refresh tick; wait for an explicit user refresh so API failures do not create
+  a retry loop.
 - `--once` should continue to block until the real resource is fetched because
   it prints a static buffer for scripts and tests.
 - Offline fixture mode should continue to load the fixture before rendering
