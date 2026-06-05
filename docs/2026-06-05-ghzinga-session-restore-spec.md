@@ -224,13 +224,17 @@ continues using its own session index.
 Startup chooses a session in this order:
 
 1. `--no-restore`: create an ephemeral unsaved session.
-2. `--new`: create a new saved session and bind it to the current contexts.
-3. `--session` or `GZG_SESSION`: load or create that exact session.
-4. Strong context match: load that session.
-5. Medium context match: load only if exactly one match exists.
-6. Weak context match: load only if no resource argument was passed and exactly
+2. `--new --session <id-or-name>` or `--new` with `GZG_SESSION`: create a new
+   saved session using that exact normalized session id and bind it to the
+   current contexts.
+3. `--new`: create a new saved session with a generated id and bind it to the
+   current contexts.
+4. `--session` or `GZG_SESSION`: load or create that exact session.
+5. Strong context match: load that session.
+6. Medium context match: load only if exactly one match exists.
+7. Weak context match: load only if no resource argument was passed and exactly
    one match exists.
-7. No match: create a new saved session and bind current contexts.
+8. No match: create a new saved session and bind current contexts.
 
 Resource argument behavior:
 
@@ -240,6 +244,8 @@ Resource argument behavior:
 - `gzg` with no resource argument restores the session tabs as-is.
 - If a new saved session is created with no resource argument and no cached
   tabs, show the add-resource prompt immediately.
+- The first real resource opened from an empty launch prompt replaces the
+  placeholder tab instead of appending a second tab.
 
 ## Rendering During Restore
 
@@ -250,6 +256,8 @@ First frame rules:
 - If no cache exists for a tab, render the existing loading placeholder for that
   resource.
 - Start background refreshes after the TUI enters the alternate screen.
+- If an inactive restored tab has no cache entry, refresh it when the user
+  focuses that tab so it cannot remain a loading placeholder indefinitely.
 - Do not show a success message after refresh; only errors need status text.
 
 This builds on the existing startup progressive loading behavior.
@@ -270,8 +278,8 @@ Persist with debounce:
 - expanded block changes
 - transient focus targets
 
-Suggested debounce: 500ms after the last change, plus a final flush on normal
-exit.
+Debounce target: 750ms after the last input change, plus immediate saves after
+completed fetches and a final flush on normal exit.
 
 Never persist:
 

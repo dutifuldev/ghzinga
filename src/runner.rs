@@ -25,6 +25,7 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
 const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
+const SESSION_SAVE_DEBOUNCE: Duration = Duration::from_millis(750);
 
 fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
     let Some(command) = args.get(1).map(String::as_str) else {
@@ -298,9 +299,11 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
         snapshot: restore_plan.snapshot,
         argv: raw_args,
         cwd,
+        dirty: false,
+        dirty_since: None,
     });
     if let Some(runtime) = &mut session_runtime {
-        persist_session(&mut state, runtime);
+        persist_session_now(&mut state, runtime);
     }
 
     run_tui(
@@ -320,6 +323,15 @@ struct SessionRuntime {
     snapshot: Option<SessionSnapshot>,
     argv: Vec<String>,
     cwd: std::path::PathBuf,
+    dirty: bool,
+    dirty_since: Option<Instant>,
+}
+
+impl SessionRuntime {
+    fn mark_dirty(&mut self, now: Instant) {
+        self.dirty = true;
+        self.dirty_since = Some(now);
+    }
 }
 
 fn print_once(state: &mut AppState) -> anyhow::Result<()> {
@@ -349,17 +361,23 @@ async fn run_tui(
     loop {
         if apply_completed_fetches(state, &mut fetch_rx) {
             if let Some(runtime) = &mut session_runtime {
-                persist_session(state, runtime);
+                persist_session_now(state, runtime);
             }
         }
         state.advance_loading_frame();
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
             if let Some(runtime) = &mut session_runtime {
-                persist_session(state, runtime);
+                persist_session_now(state, runtime);
             }
             return Ok(());
         }
+        maybe_refresh_loading_active_resource(
+            state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut last_refresh,
+        );
         maybe_auto_refresh(
             state,
             fetch_source.is_live_github(),
@@ -381,18 +399,27 @@ async fn run_tui(
             .await
             {
                 if let Some(runtime) = &mut session_runtime {
-                    persist_session(state, runtime);
+                    persist_session_now(state, runtime);
                 }
                 return Ok(());
             }
+            maybe_refresh_loading_active_resource(
+                state,
+                fetch_source.clone(),
+                &fetch_tx,
+                &mut last_refresh,
+            );
             if let Some(runtime) = &mut session_runtime {
-                persist_session(state, runtime);
+                runtime.mark_dirty(Instant::now());
             }
+        }
+        if let Some(runtime) = &mut session_runtime {
+            persist_session_when_due(state, runtime, Instant::now());
         }
     }
 }
 
-fn persist_session(state: &mut AppState, runtime: &mut SessionRuntime) {
+fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
     if !session_state_persistable(state) {
         return;
     }
@@ -403,10 +430,26 @@ fn persist_session(state: &mut AppState, runtime: &mut SessionRuntime) {
         runtime.cwd.clone(),
         state,
     ) {
-        Ok(snapshot) => runtime.snapshot = Some(snapshot),
+        Ok(snapshot) => {
+            runtime.snapshot = Some(snapshot);
+            runtime.dirty = false;
+            runtime.dirty_since = None;
+        }
         Err(error) => {
             state.last_error = Some(format!("failed to save ghzinga session: {error}"));
         }
+    }
+}
+
+fn persist_session_when_due(state: &mut AppState, runtime: &mut SessionRuntime, now: Instant) {
+    if !runtime.dirty {
+        return;
+    }
+    let Some(dirty_since) = runtime.dirty_since else {
+        return;
+    };
+    if now.duration_since(dirty_since) >= SESSION_SAVE_DEBOUNCE {
+        persist_session_now(state, runtime);
     }
 }
 
@@ -459,6 +502,10 @@ fn is_empty_launch_resource(resource: &crate::domain::Resource) -> bool {
         && resource.state == "READY"
         && resource.author == "ghzinga"
         && resource.pull_request.is_none()
+}
+
+fn is_loading_resource(resource: &crate::domain::Resource) -> bool {
+    resource.state == "LOADING"
 }
 
 fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
@@ -527,12 +574,12 @@ async fn handle_intent(
         }
         AppIntent::OpenResource(id) => {
             if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
-                if start_background_fetch(
-                    state,
-                    FetchAction::OpenTab { id },
-                    fetch_source,
-                    fetch_tx,
-                ) {
+                let action = if should_replace_empty_launch_tab(state) {
+                    FetchAction::Initial { id }
+                } else {
+                    FetchAction::OpenTab { id }
+                };
+                if start_background_fetch(state, action, fetch_source, fetch_tx) {
                     state.close_add_resource_prompt();
                     *last_refresh = Instant::now();
                 } else if let Some(message) = state.status_message.clone() {
@@ -657,6 +704,34 @@ pub(crate) fn maybe_auto_refresh_with_start(
 
 fn auto_refresh_due(live_refresh: bool, refresh_interval: Duration, elapsed: Duration) -> bool {
     live_refresh && refresh_interval.as_secs() > 0 && elapsed >= refresh_interval
+}
+
+fn maybe_refresh_loading_active_resource(
+    state: &mut AppState,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    last_refresh: &mut Instant,
+) -> bool {
+    if !is_loading_resource(&state.resource) || is_empty_launch_resource(&state.resource) {
+        return false;
+    }
+    if state.loading_message().is_some() {
+        return false;
+    }
+    if !(fetch_source.is_live_github() || fetch_source.is_offline_fixture()) {
+        return false;
+    }
+    let id = state.resource.id.clone();
+    if start_background_fetch(state, FetchAction::Refresh { id }, fetch_source, fetch_tx) {
+        *last_refresh = Instant::now();
+        true
+    } else {
+        false
+    }
+}
+
+fn should_replace_empty_launch_tab(state: &AppState) -> bool {
+    state.resource_tabs.len() == 1 && is_empty_launch_resource(&state.resource)
 }
 
 async fn open_url(state: &mut AppState, url: &str) {
@@ -899,16 +974,17 @@ mod tests {
     };
 
     use crate::{
-        app::{AppIntent, AppState},
+        app::{loading_resource_placeholder, AppIntent, AppState},
         domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
-        fetch::{FetchSource, OfflineFixtureSource},
+        fetch::{apply_completed_fetches, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
     };
 
     use super::{
         auto_refresh_due, clipboard_command, empty_launch_resource, handle_intent,
-        maybe_auto_refresh_with_start, navigate_back, navigate_to_resource,
-        session_state_persistable, url_open_command, ClipboardPlatform,
+        maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource, navigate_back,
+        navigate_to_resource, session_state_persistable, should_replace_empty_launch_tab,
+        url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1057,6 +1133,19 @@ mod tests {
     }
 
     #[test]
+    fn empty_launch_placeholder_first_open_replaces_tab() {
+        let mut state = AppState::new(empty_launch_resource());
+
+        assert!(should_replace_empty_launch_tab(&state));
+
+        state.replace_resource_preserve_tab(issue_resource(2, "Real issue"));
+
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert_eq!(state.resource.id.number, 2);
+        assert!(session_state_persistable(&state));
+    }
+
+    #[test]
     fn auto_refresh_due_requires_live_mode_positive_interval_and_elapsed_time() {
         assert!(auto_refresh_due(
             true,
@@ -1145,6 +1234,37 @@ mod tests {
             Some("still loading: refreshing owner/repo#1 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn focused_loading_placeholder_starts_refresh() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let fetched = issue_resource(2, "Fetched issue");
+        let mut state = AppState::new(loading_resource_placeholder(id.clone()));
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fetched])),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+
+        for _ in 0..10 {
+            if apply_completed_fetches(&mut state, &mut fetch_rx) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+
+        assert_eq!(state.resource.title, "Fetched issue");
+        assert_eq!(state.resource.state, "OPEN");
     }
 
     #[test]

@@ -526,10 +526,10 @@ pub fn resolve_restore_plan(request: RestoreRequest) -> RestorePlan {
         }
     };
 
-    let session_id = if request.mode == RestoreMode::New {
-        new_session_id()
-    } else if let Some(explicit) = explicit {
+    let session_id = if let Some(explicit) = explicit {
         normalize_session_id(&explicit)
+    } else if request.mode == RestoreMode::New {
+        new_session_id()
     } else if let Some(session_id) =
         resolve_index_match(&index, &contexts, request.has_resource_arg)
     {
@@ -984,10 +984,14 @@ pub fn prune_session_anchors(state_dir: &Path, session_id: &str) -> Result<usize
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use tempfile::tempdir;
 
     use super::*;
     use crate::domain::{ReactionCounts, ResourceKind};
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn resource(number: u64) -> Resource {
         Resource {
@@ -1082,6 +1086,46 @@ mod tests {
             resolve_index_match(&index, &contexts, false),
             Some("work".into())
         );
+    }
+
+    #[test]
+    fn new_mode_keeps_explicit_session_name() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let state = tempdir().unwrap();
+        let cache = tempdir().unwrap();
+        let previous_state = env::var_os(GZG_STATE_HOME_ENV);
+        let previous_cache = env::var_os(GZG_CACHE_HOME_ENV);
+        let previous_session = env::var_os(GZG_SESSION_ENV);
+        env::set_var(GZG_STATE_HOME_ENV, state.path());
+        env::set_var(GZG_CACHE_HOME_ENV, cache.path());
+        env::remove_var(GZG_SESSION_ENV);
+
+        let plan = resolve_restore_plan(RestoreRequest {
+            mode: RestoreMode::New,
+            explicit_session: Some("Work Session".into()),
+            has_resource_arg: true,
+            argv: vec!["gzg".into()],
+            cwd: PathBuf::from("/repo"),
+        });
+
+        if let Some(value) = previous_state {
+            env::set_var(GZG_STATE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_STATE_HOME_ENV);
+        }
+        if let Some(value) = previous_cache {
+            env::set_var(GZG_CACHE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_CACHE_HOME_ENV);
+        }
+        if let Some(value) = previous_session {
+            env::set_var(GZG_SESSION_ENV, value);
+        } else {
+            env::remove_var(GZG_SESSION_ENV);
+        }
+
+        assert_eq!(plan.handle.unwrap().id, "Work-Session");
+        assert!(plan.snapshot.is_none());
     }
 
     #[test]
