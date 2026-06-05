@@ -2,6 +2,7 @@
 import argparse
 import json
 import shlex
+import shutil
 import subprocess
 import time
 import unicodedata
@@ -194,6 +195,8 @@ def remove_helper_scripts():
         capture_config_path(),
     ):
         path.unlink(missing_ok=True)
+    shutil.rmtree(capture_state_path(), ignore_errors=True)
+    shutil.rmtree(capture_cache_path(), ignore_errors=True)
 
 
 def capture_config_path() -> Path:
@@ -202,6 +205,24 @@ def capture_config_path() -> Path:
 
 def capture_config_env() -> str:
     return f"GZG_CONFIG_PATH={shlex.quote(str(capture_config_path()))}"
+
+
+def capture_state_path() -> Path:
+    return ROOT / ".capture-state"
+
+
+def capture_cache_path() -> Path:
+    return ROOT / ".capture-cache"
+
+
+def capture_session_env() -> str:
+    return " ".join(
+        [
+            capture_config_env(),
+            f"GZG_STATE_HOME={shlex.quote(str(capture_state_path()))}",
+            f"GZG_CACHE_HOME={shlex.quote(str(capture_cache_path()))}",
+        ]
+    )
 
 
 def open_log_path() -> Path:
@@ -250,11 +271,11 @@ def capture_mouse_smoke():
     write_load_full_fixture()
     tmux("kill-session", "-t", SESSION, check=False)
     command = (
-        f"cd {REPO} && TERM=xterm-256color {capture_config_env()} "
-        f"{capture_adapter_env()} {BIN} {TARGET} "
-        f"--offline-fixture {NAVIGATION_FIXTURE} "
-        f"--offline-resource-fixture {NAVIGATION_TARGET_FIXTURE} "
-        f"--refresh-seconds 0"
+        f"cd {REPO} && TERM=xterm-256color {capture_session_env()} "
+        f"{capture_adapter_env()} {BIN} {shlex.quote(TARGET)} "
+        f"--offline-fixture {shlex.quote(str(NAVIGATION_FIXTURE))} "
+        f"--offline-resource-fixture {shlex.quote(str(NAVIGATION_TARGET_FIXTURE))} "
+        f"--no-restore --refresh-seconds 0"
     )
     frames = []
     mouse_coordinates = {}
@@ -460,10 +481,10 @@ def capture_mouse_smoke():
         }
 
         load_full_command = (
-            f"cd {REPO} && TERM=xterm-256color {capture_config_env()} "
-            f"{BIN} {TARGET} "
-            f"--offline-fixture {LOAD_FULL_FIXTURE} "
-            f"--refresh-seconds 0"
+            f"cd {REPO} && TERM=xterm-256color {capture_session_env()} "
+            f"{BIN} {shlex.quote(TARGET)} "
+            f"--offline-fixture {shlex.quote(str(LOAD_FULL_FIXTURE))} "
+            f"--no-restore --refresh-seconds 0"
         )
         tmux("new-session", "-d", "-x", str(COLS), "-y", str(ROWS), "-s", SESSION, load_full_command)
         tmux("resize-window", "-t", SESSION, "-x", str(COLS), "-y", str(ROWS))
