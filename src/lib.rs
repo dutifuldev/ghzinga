@@ -1,6 +1,7 @@
 pub mod app;
 pub mod cli;
 pub mod config;
+pub mod control;
 pub mod domain;
 pub mod fetch;
 pub mod github;

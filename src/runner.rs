@@ -1,5 +1,6 @@
 use std::{
     process::Stdio,
+    str::FromStr,
     time::{Duration, Instant},
 };
 
@@ -7,6 +8,8 @@ use crate::{
     app::{apply_event, loading_resource_placeholder, AppEvent, AppIntent, AppState},
     cli::Cli,
     config::{self, AppConfig},
+    control::{self, ControlReply, RuntimeCommand, RuntimeRequest},
+    domain::ResourceId,
     fetch::{
         apply_completed_fetches, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
         OfflineFixtureSource,
@@ -21,13 +24,13 @@ use clap::Parser;
 use crossterm::event::{self, Event};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
 const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
 const SESSION_SAVE_DEBOUNCE: Duration = Duration::from_millis(750);
 
-fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
+async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
     let Some(command) = args.get(1).map(String::as_str) else {
         return Ok(None);
     };
@@ -41,8 +44,209 @@ fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
             Ok(Some(0))
         }
         "session" => run_session_subcommand(&args[2..]).map(Some),
+        "open" => run_open_command(args, &args[2..]).await.map(Some),
+        "set" => run_set_command(args, &args[2..]).await.map(Some),
         _ => Ok(None),
     }
+}
+
+async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    let (session_ref, resource_args) = parse_control_session_option(args)?;
+    if resource_args.is_empty() {
+        eprintln!("usage: gzg open [--session <id-or-name>] <resource>");
+        return Ok(2);
+    }
+    let resource = parse_resource_args(&resource_args)?;
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd.clone()) {
+        Ok(plan) => plan,
+        Err(session::ControlResolveError::Ambiguous(matches)) => {
+            eprintln!(
+                "ambiguous ghzinga session; pass --session. matches: {}",
+                matches.join(", ")
+            );
+            return Ok(2);
+        }
+    };
+    print_control_warnings(&plan.warnings);
+    let Some(handle) = plan.handle else {
+        eprintln!("no persistent ghzinga session available");
+        return Ok(1);
+    };
+    match control::send_open(&handle.id, &resource).await {
+        Ok(reply) if reply.ok => {
+            println!(
+                "{}",
+                reply
+                    .result
+                    .unwrap_or_else(|| format!("opened {}", resource.canonical_name()))
+            );
+            Ok(0)
+        }
+        Ok(reply) => {
+            eprintln!(
+                "{}",
+                reply
+                    .error
+                    .unwrap_or_else(|| "control command failed".into())
+            );
+            Ok(1)
+        }
+        Err(error) => {
+            save_open_command_to_session(
+                &handle,
+                plan.snapshot,
+                raw_args.to_vec(),
+                cwd,
+                &resource,
+            )?;
+            println!(
+                "queued {} for session {} ({error})",
+                resource.canonical_name(),
+                handle.id
+            );
+            Ok(0)
+        }
+    }
+}
+
+async fn run_set_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    let (session_ref, rest) = parse_control_session_option(args)?;
+    if rest.len() != 2 {
+        eprintln!("usage: gzg set [--session <id-or-name>] <setting> <value>");
+        return Ok(2);
+    }
+    let key = &rest[0];
+    let value = &rest[1];
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd) {
+        Ok(plan) => plan,
+        Err(session::ControlResolveError::Ambiguous(matches)) => {
+            eprintln!(
+                "ambiguous ghzinga session; pass --session. matches: {}",
+                matches.join(", ")
+            );
+            return Ok(2);
+        }
+    };
+    print_control_warnings(&plan.warnings);
+    let Some(handle) = plan.handle else {
+        eprintln!("no persistent ghzinga session available");
+        return Ok(1);
+    };
+    match control::send_set(&handle.id, key, value).await {
+        Ok(reply) if reply.ok => {
+            println!(
+                "{}",
+                reply
+                    .result
+                    .unwrap_or_else(|| format!("set {key} for session {}", handle.id))
+            );
+            Ok(0)
+        }
+        Ok(reply) => {
+            eprintln!(
+                "{}",
+                reply
+                    .error
+                    .unwrap_or_else(|| "control command failed".into())
+            );
+            Ok(1)
+        }
+        Err(error) => {
+            let Some(mut snapshot) = plan.snapshot else {
+                eprintln!(
+                    "session {} is not running and has no saved state; open a resource first ({error})",
+                    handle.id
+                );
+                return Ok(1);
+            };
+            match session::apply_ui_setting_to_snapshot(&mut snapshot, key, value) {
+                Ok(()) => {
+                    session::save_snapshot(&handle.session_path(), &snapshot)?;
+                    println!("queued {key}={value} for session {} ({error})", handle.id);
+                    Ok(0)
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    Ok(2)
+                }
+            }
+        }
+    }
+}
+
+fn parse_control_session_option(args: &[String]) -> anyhow::Result<(Option<String>, Vec<String>)> {
+    let mut session_ref = None;
+    let mut rest = Vec::new();
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--session" => {
+                let Some(value) = args.get(index + 1) else {
+                    anyhow::bail!("--session requires an id or name");
+                };
+                session_ref = Some(value.clone());
+                index += 2;
+            }
+            value if value.starts_with("--session=") => {
+                session_ref = Some(value.trim_start_matches("--session=").to_string());
+                index += 1;
+            }
+            value if value.starts_with("--") => {
+                anyhow::bail!("unknown control option `{value}`");
+            }
+            _ => {
+                rest.push(args[index].clone());
+                index += 1;
+            }
+        }
+    }
+    Ok((session_ref, rest))
+}
+
+fn parse_resource_args(args: &[String]) -> anyhow::Result<ResourceId> {
+    match args {
+        [single] => ResourceId::parse(single).map_err(anyhow::Error::new),
+        [owner_repo, number] => {
+            ResourceId::from_owner_repo_number(owner_repo, number).map_err(anyhow::Error::new)
+        }
+        _ => {
+            anyhow::bail!("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")
+        }
+    }
+}
+
+fn print_control_warnings(warnings: &[String]) {
+    for warning in warnings {
+        eprintln!("warning: {warning}");
+    }
+}
+
+fn save_open_command_to_session(
+    handle: &SessionHandle,
+    snapshot: Option<SessionSnapshot>,
+    argv: Vec<String>,
+    cwd: std::path::PathBuf,
+    resource: &ResourceId,
+) -> anyhow::Result<()> {
+    let mut snapshot = if let Some(mut snapshot) = snapshot {
+        session::upsert_resource_in_snapshot(&mut snapshot, resource);
+        snapshot
+    } else {
+        let mut state = AppState::new(loading_resource_placeholder(resource.clone()));
+        SessionSnapshot::from_state(
+            handle.id.clone(),
+            None,
+            handle.contexts.clone(),
+            argv,
+            cwd,
+            &mut state,
+        )
+    };
+    session::upsert_resource_in_snapshot(&mut snapshot, resource);
+    session::save_snapshot(&handle.session_path(), &snapshot)?;
+    Ok(())
 }
 
 fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
@@ -163,7 +367,7 @@ fn print_sessions() -> anyhow::Result<()> {
 
 pub async fn run_from_cli() -> anyhow::Result<()> {
     let raw_args = std::env::args().collect::<Vec<_>>();
-    if let Some(code) = maybe_run_session_command(&raw_args)? {
+    if let Some(code) = maybe_run_session_command(&raw_args).await? {
         std::process::exit(code);
     }
     let cli = Cli::parse();
@@ -346,6 +550,17 @@ async fn run_tui(
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
     let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
+    let (control_tx, mut control_rx) = mpsc::unbounded_channel();
+    let _control_server = match &session_runtime {
+        Some(runtime) => match control::start_server(&runtime.handle.id, control_tx) {
+            Ok(server) => Some(server),
+            Err(error) => {
+                state.last_error = Some(format!("failed to start ghzinga control socket: {error}"));
+                None
+            }
+        },
+        None => None,
+    };
     let mut last_refresh = Instant::now();
     if let Some(action) = initial_fetch {
         if start_background_fetch(state, action, fetch_source.clone(), &fetch_tx) {
@@ -358,6 +573,14 @@ async fn run_tui(
                 persist_session_now(state, runtime);
             }
         }
+        handle_pending_control_requests(
+            state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut control_rx,
+            &mut session_runtime,
+            &mut last_refresh,
+        );
         state.advance_loading_frame();
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
@@ -410,6 +633,136 @@ async fn run_tui(
         if let Some(runtime) = &mut session_runtime {
             persist_session_when_due(state, runtime, Instant::now());
         }
+    }
+}
+
+fn handle_pending_control_requests(
+    state: &mut AppState,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    control_rx: &mut UnboundedReceiver<RuntimeRequest>,
+    session_runtime: &mut Option<SessionRuntime>,
+    last_refresh: &mut Instant,
+) {
+    while let Ok(request) = control_rx.try_recv() {
+        let reply = handle_control_command(
+            state,
+            request.command,
+            fetch_source.clone(),
+            fetch_tx,
+            session_runtime.as_ref(),
+            last_refresh,
+        );
+        let changed = reply.ok;
+        let _ = request.reply.send(reply);
+        if changed {
+            if let Some(runtime) = session_runtime {
+                persist_session_now(state, runtime);
+            }
+        }
+    }
+}
+
+fn handle_control_command(
+    state: &mut AppState,
+    command: RuntimeCommand,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    session_runtime: Option<&SessionRuntime>,
+    last_refresh: &mut Instant,
+) -> ControlReply {
+    match command {
+        RuntimeCommand::Open { resource, .. } => handle_control_open(
+            state,
+            resource,
+            fetch_source,
+            fetch_tx,
+            session_runtime,
+            last_refresh,
+        ),
+        RuntimeCommand::Set { key, value, .. } => {
+            match apply_control_setting(state, &key, &value) {
+                Ok(changed) => {
+                    if changed {
+                        ControlReply::ok(format!("set {key}={value}"))
+                    } else {
+                        ControlReply::ok(format!("{key} already {value}"))
+                    }
+                }
+                Err(error) => ControlReply::error(error),
+            }
+        }
+    }
+}
+
+fn handle_control_open(
+    state: &mut AppState,
+    resource: ResourceId,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    session_runtime: Option<&SessionRuntime>,
+    last_refresh: &mut Instant,
+) -> ControlReply {
+    if let Some(message) = state.loading_message() {
+        return ControlReply::error(format!("still loading: {message}"));
+    }
+    let canonical = resource.canonical_name();
+    if state.focus_resource_tab(&resource) {
+        if start_background_fetch(
+            state,
+            FetchAction::Refresh {
+                id: resource.clone(),
+            },
+            fetch_source,
+            fetch_tx,
+        ) {
+            *last_refresh = Instant::now();
+        }
+        return ControlReply::ok(format!("focused {canonical}"));
+    }
+
+    let cached = session_runtime.and_then(|runtime| {
+        session::load_resource_cache(&runtime.handle.cache_dir, &resource).ok()
+    });
+    let action = FetchAction::Refresh {
+        id: resource.clone(),
+    };
+    if should_replace_empty_launch_tab(state) {
+        state.replace_resource_preserve_tab(
+            cached.unwrap_or_else(|| loading_resource_placeholder(resource.clone())),
+        );
+    } else {
+        state.open_resource_in_tab(
+            cached.unwrap_or_else(|| loading_resource_placeholder(resource.clone())),
+        );
+    }
+    if start_background_fetch(state, action, fetch_source, fetch_tx) {
+        *last_refresh = Instant::now();
+    }
+    ControlReply::ok(format!("opening {canonical}"))
+}
+
+fn apply_control_setting(state: &mut AppState, key: &str, value: &str) -> Result<bool, String> {
+    match key.trim().to_ascii_lowercase().replace('_', "-").as_str() {
+        "theme" => Ok(state.set_theme(crate::render::ThemeName::from_str(value)?)),
+        "symbols" => Ok(state.set_symbols(crate::render::SymbolMode::from_str(value)?)),
+        "spacing" => Ok(state.set_spacing(crate::render::SpacingMode::from_str(value)?)),
+        "width-mode" => Ok(state.set_width_mode(crate::render::ContentWidthMode::from_str(
+            value,
+        )?)),
+        "fixed-width" => {
+            let width = value
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "fixed-width expects a number".to_string())?;
+            Ok(state.set_fixed_width(width))
+        }
+        "scrollbar" => Ok(state.set_scrollbar(crate::render::ScrollbarMode::from_str(
+            value,
+        )?)),
+        other => Err(format!(
+            "unknown setting `{other}`; expected theme, symbols, spacing, width-mode, fixed-width, or scrollbar"
+        )),
     }
 }
 
@@ -996,16 +1349,17 @@ mod tests {
         fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
         session::{
-            BlockIdSnapshot, LaunchSnapshot, ResourceTabSnapshot, ResourcesSnapshot,
-            SessionSnapshot, UiSnapshot,
+            self, BlockIdSnapshot, LaunchContext, LaunchSnapshot, ResourceTabSnapshot,
+            ResourcesSnapshot, SessionHandle, SessionSnapshot, UiSnapshot,
         },
     };
 
     use super::{
-        auto_refresh_due, clipboard_command, empty_launch_resource, handle_intent,
-        maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource, navigate_back,
-        navigate_to_resource, prepare_restored_initial_fetch, session_state_persistable,
-        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
+        apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
+        handle_intent, maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource,
+        navigate_back, navigate_to_resource, prepare_restored_initial_fetch,
+        save_open_command_to_session, session_state_persistable, should_replace_empty_launch_tab,
+        url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1246,6 +1600,52 @@ mod tests {
         let action = prepare_restored_initial_fetch(&mut state, &snapshot, None);
 
         assert!(matches!(action, Some(FetchAction::Refresh { .. })));
+    }
+
+    #[test]
+    fn saved_open_command_creates_or_updates_session_snapshot() {
+        let state_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let handle = SessionHandle {
+            id: "work".into(),
+            state_dir: state_dir.path().into(),
+            cache_dir: cache_dir.path().into(),
+            contexts: Vec::<LaunchContext>::new(),
+            ephemeral: false,
+        };
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+
+        save_open_command_to_session(
+            &handle,
+            None,
+            vec!["gzg".into(), "open".into(), "owner/repo#2".into()],
+            std::path::PathBuf::from("/repo"),
+            &id,
+        )
+        .unwrap();
+
+        let snapshot = session::load_snapshot(&handle.session_path()).unwrap();
+        assert_eq!(snapshot.resources.tabs.len(), 1);
+        assert_eq!(snapshot.resources.tabs[0].resource, "owner/repo#2");
+        assert_eq!(snapshot.resources.active_index, 0);
+    }
+
+    #[test]
+    fn control_setting_helper_uses_same_state_setters() {
+        let mut state = AppState::new(issue_resource(1, "Issue"));
+
+        assert!(apply_control_setting(&mut state, "spacing", "compact").unwrap());
+        assert_eq!(state.spacing, crate::render::SpacingMode::Compact);
+        assert!(apply_control_setting(&mut state, "width-mode", "full").unwrap());
+        assert_eq!(state.width_mode, crate::render::ContentWidthMode::Full);
+        assert!(apply_control_setting(&mut state, "fixed-width", "999").unwrap());
+        assert_eq!(state.fixed_width, crate::render::MAX_FIXED_CONTENT_WIDTH);
+        assert!(apply_control_setting(&mut state, "unknown", "value").is_err());
     }
 
     #[test]

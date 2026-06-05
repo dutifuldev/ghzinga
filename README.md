@@ -147,6 +147,7 @@ Environment overrides:
 
 - `GZG_STATE_HOME`: alternate session state directory
 - `GZG_CACHE_HOME`: alternate resource cache directory
+- `GZG_RUNTIME_HOME`: alternate runtime socket directory for live session control
 - `GZG_SESSION`: default named session
 
 Session commands:
@@ -157,6 +158,21 @@ gzg session show <id-or-name>
 gzg session rename <id-or-name> <name>
 gzg session delete <id-or-name>
 ```
+
+Control a running session from another shell:
+
+```sh
+gzg open --session <id-or-name> dutifuldev/ghzinga#29
+gzg set --session <id-or-name> theme solarized
+gzg set --session <id-or-name> spacing comfortable
+gzg set --session <id-or-name> width-mode fixed
+gzg set --session <id-or-name> fixed-width 118
+gzg set --session <id-or-name> scrollbar on-scroll
+```
+
+If the session is running, these commands update the live TUI without stealing
+terminal focus. If it is not running, `gzg open` updates the saved session so the
+resource appears on the next restore.
 
 ## Refresh
 

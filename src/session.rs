@@ -48,6 +48,11 @@ pub struct RestorePlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ControlResolveError {
+    Ambiguous(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionHandle {
     pub id: String,
     pub state_dir: PathBuf,
@@ -584,6 +589,94 @@ pub fn resolve_restore_plan(request: RestoreRequest) -> RestorePlan {
     }
 }
 
+pub fn resolve_control_plan(
+    explicit_session: Option<String>,
+    _argv: Vec<String>,
+    cwd: PathBuf,
+) -> Result<RestorePlan, ControlResolveError> {
+    let state_dir = state_dir();
+    let cache_dir = cache_dir();
+    let user_explicit = explicit_session.or_else(|| env::var(GZG_SESSION_ENV).ok());
+    let contexts = collect_launch_contexts(user_explicit.as_deref(), &cwd);
+    let restore_explicit = user_explicit
+        .clone()
+        .or_else(|| herdr_label_session_id(&contexts));
+    let mut warnings = Vec::new();
+    let index_path = state_dir.join("session-index.json");
+    let mut index = match load_index(&index_path) {
+        Ok(index) => index,
+        Err(error) => {
+            warnings.push(error);
+            SessionIndex::default()
+        }
+    };
+
+    let session_id = if let Some(explicit) = restore_explicit {
+        resolve_session_reference(&state_dir, &explicit)
+    } else if let Some(session_id) = resolve_control_index_match(&index, &contexts)? {
+        session_id
+    } else {
+        new_session_id()
+    };
+
+    let handle = SessionHandle {
+        id: session_id.clone(),
+        state_dir: state_dir.clone(),
+        cache_dir,
+        contexts: contexts.clone(),
+        ephemeral: false,
+    };
+    let snapshot = match load_snapshot(&handle.session_path()) {
+        Ok(snapshot) => Some(snapshot),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+        Err(error) => {
+            warnings.push(format!(
+                "failed to load session {}: {error}",
+                handle.session_path().display()
+            ));
+            None
+        }
+    };
+
+    bind_contexts(&mut index, &contexts, &session_id);
+    if let Err(error) = save_index(&index_path, &index) {
+        warnings.push(format!(
+            "failed to save session index {}: {error}",
+            index_path.display()
+        ));
+    }
+
+    Ok(RestorePlan {
+        handle: Some(handle),
+        snapshot,
+        warnings,
+    })
+}
+
+fn resolve_control_index_match(
+    index: &SessionIndex,
+    contexts: &[LaunchContext],
+) -> Result<Option<String>, ControlResolveError> {
+    for confidence in [
+        ContextConfidence::Explicit,
+        ContextConfidence::Strong,
+        ContextConfidence::Medium,
+        ContextConfidence::Weak,
+    ] {
+        let mut matches = matching_sessions(index, contexts, confidence)
+            .into_iter()
+            .collect::<Vec<_>>();
+        matches.sort();
+        if matches.len() > 1 {
+            return Err(ControlResolveError::Ambiguous(matches));
+        }
+        if matches.len() == 1 {
+            return Ok(matches.pop());
+        }
+    }
+    Ok(None)
+}
+
 fn herdr_label_session_id(contexts: &[LaunchContext]) -> Option<String> {
     contexts
         .iter()
@@ -1032,6 +1125,86 @@ pub fn session_json_path(state_dir: &Path, id: &str) -> PathBuf {
     state_dir.join("sessions").join(id).join("session.json")
 }
 
+pub fn upsert_resource_in_snapshot(snapshot: &mut SessionSnapshot, id: &ResourceId) {
+    let canonical = id.canonical_name();
+    if let Some(index) = snapshot
+        .resources
+        .tabs
+        .iter()
+        .position(|tab| tab.resource == canonical)
+    {
+        snapshot.resources.active_index = index;
+        snapshot.updated_at = timestamp_label();
+        return;
+    }
+    let next_id = snapshot
+        .resources
+        .tabs
+        .iter()
+        .filter_map(|tab| tab.id.strip_prefix("r_")?.parse::<u64>().ok())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    snapshot.resources.tabs.push(ResourceTabSnapshot {
+        id: format!("r_{next_id}"),
+        resource: canonical,
+        kind_hint: id.kind_hint,
+        view: "overview".into(),
+        scroll: 0,
+        reverse_chronological: false,
+        expanded_blocks: vec![],
+    });
+    snapshot.resources.active_index = snapshot.resources.tabs.len().saturating_sub(1);
+    snapshot.updated_at = timestamp_label();
+}
+
+pub fn apply_ui_setting_to_snapshot(
+    snapshot: &mut SessionSnapshot,
+    key: &str,
+    value: &str,
+) -> Result<(), String> {
+    match normalized_setting_key(key).as_str() {
+        "theme" => {
+            let parsed = ThemeName::from_str(value)?;
+            snapshot.ui.theme = parsed.to_string();
+        }
+        "symbols" => {
+            let parsed = SymbolMode::from_str(value)?;
+            snapshot.ui.symbols = parsed.to_string();
+        }
+        "spacing" => {
+            let parsed = SpacingMode::from_str(value)?;
+            snapshot.ui.spacing = parsed.to_string();
+        }
+        "width-mode" => {
+            let parsed = ContentWidthMode::from_str(value)?;
+            snapshot.ui.width_mode = parsed.to_string();
+        }
+        "fixed-width" => {
+            let parsed = value
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "fixed-width expects a number".to_string())?;
+            snapshot.ui.fixed_width = normalize_fixed_width(parsed);
+        }
+        "scrollbar" => {
+            let parsed = ScrollbarMode::from_str(value)?;
+            snapshot.ui.scrollbar = parsed.to_string();
+        }
+        other => {
+            return Err(format!(
+                "unknown setting `{other}`; expected theme, symbols, spacing, width-mode, fixed-width, or scrollbar"
+            ))
+        }
+    }
+    snapshot.updated_at = timestamp_label();
+    Ok(())
+}
+
+fn normalized_setting_key(key: &str) -> String {
+    key.trim().to_ascii_lowercase().replace('_', "-")
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -1473,6 +1646,52 @@ mod tests {
 
         assert_eq!(state.resource.title, "Issue 1");
         assert_eq!(state.resource.state, "OPEN");
+    }
+
+    #[test]
+    fn upsert_resource_snapshot_focuses_existing_or_appends_new_tab() {
+        let mut snapshot = snapshot("work", None, "owner/repo#1");
+        let existing = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let new = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::PullRequest),
+        };
+
+        upsert_resource_in_snapshot(&mut snapshot, &existing);
+
+        assert_eq!(snapshot.resources.tabs.len(), 1);
+        assert_eq!(snapshot.resources.active_index, 0);
+
+        upsert_resource_in_snapshot(&mut snapshot, &new);
+
+        assert_eq!(snapshot.resources.tabs.len(), 2);
+        assert_eq!(snapshot.resources.active_index, 1);
+        assert_eq!(snapshot.resources.tabs[1].resource, "owner/repo#2");
+        assert_eq!(
+            snapshot.resources.tabs[1].kind_hint,
+            Some(ResourceKind::PullRequest)
+        );
+    }
+
+    #[test]
+    fn apply_ui_setting_to_snapshot_validates_and_normalizes_values() {
+        let mut snapshot = snapshot("work", None, "owner/repo#1");
+
+        apply_ui_setting_to_snapshot(&mut snapshot, "width_mode", "full").unwrap();
+        apply_ui_setting_to_snapshot(&mut snapshot, "fixed-width", "999").unwrap();
+        apply_ui_setting_to_snapshot(&mut snapshot, "scrollbar", "hidden").unwrap();
+
+        assert_eq!(snapshot.ui.width_mode, "full");
+        assert_eq!(snapshot.ui.fixed_width, 180);
+        assert_eq!(snapshot.ui.scrollbar, "hidden");
+        assert!(apply_ui_setting_to_snapshot(&mut snapshot, "theme", "missing").is_err());
     }
 
     #[test]
