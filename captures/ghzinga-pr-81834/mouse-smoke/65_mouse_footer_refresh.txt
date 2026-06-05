@@ -1,5 +1,5 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                              [➕]
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                               [+]
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
@@ -8,29 +8,29 @@
   [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  📝 @KLilyZ opened 1mo ago                                                                                             
-  Summary                                                                                                               
-  - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
-  - Why it matters: completes the round trip in the same plugin.                                                        
-  - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system        
-  voices via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                              
-                                                                                                                        
-  Validation                                                                                                            
-  - Targeted extension tests passed.                                                                                    
-  - Contract plugin tests passed.                                                                                       
-                                                                                                                        
-  Scope                                                                                                                 
-  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                        
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [➕ more]                                                                  
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  💬 Comment by @github-actions 1mo ago                                                                                 
+                                                                                                                     █  
+  📝 @KLilyZ opened 1mo ago                                                                                          █  
+  Summary                                                                                                            █  
+  - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                         █  
+  - Why it matters: completes the round trip in the same plugin.                                                     █  
+  - What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system     │  
+  voices via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                           │  
+                                                                                                                     │  
+  Validation                                                                                                         │  
+  - Targeted extension tests passed.                                                                                 │  
+  - Contract plugin tests passed.                                                                                    │  
+                                                                                                                     │  
+  Scope                                                                                                              │  
+  Telephony, streaming, voice cloning, and text-generated voices are intentionally out of scope.                     │  
+                                                                                                                     │  
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
+                                                                                                                     │  
+  * commit fb948c9 by @KLilyZ 1mo ago [PASS] [➕ more]                                                               │  
+  feat(senseaudio): add SenseAudio TTS provider                                                                      │  
+                                                                                                                     │  
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
+                                                                                                                     │  
+  💬 Comment by @github-actions 1mo ago                                                                              │  
   offline fixture mode: refresh skipped                                                                                 
   [🔄 refresh] [➕ expand ]  [⚙ settings] [❔ help] [⏻ quit]                                                            
                                                                                                                         

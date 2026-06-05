@@ -1,5 +1,5 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                              [➕]
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                               [+]
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
@@ -8,29 +8,29 @@
   [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Settings                                                                                                              
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Config: /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml                       
-  [close settings]                                                                                                      
-                                                                                                                        
-  Width                                                                                                                 
-  [x] fixed  Cap reading tabs to the configured width                                                                   
-  [ ] full  Use the full content width                                                                                  
-  Fixed width: 118 columns                                                                                              
-  [ ] 88  Fixed-width preset                                                                                            
-  [ ] 100  Fixed-width preset                                                                                           
-  [x] 118  Fixed-width preset                                                                                           
-  [ ] 132  Fixed-width preset                                                                                           
-  [ ] 148  Fixed-width preset                                                                                           
-                                                                                                                        
-  Spacing                                                                                                               
-  [x] comfortable  Gmail-style density with gh-dash-like spacing                                                        
-  [ ] compact  Dense rows for smaller terminals                                                                         
-                                                                                                                        
-  Scrollbar                                                                                                             
-  [x] on-scroll  Show while scrolling, then fade                                                                        
+                                                                                                                     █  
+  Settings                                                                                                           █  
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
+                                                                                                                     █  
+  Config: /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml                    █  
+  [close settings]                                                                                                   █  
+                                                                                                                     █  
+  Width                                                                                                              │  
+  [x] fixed  Cap reading tabs to the configured width                                                                │  
+  [ ] full  Use the full content width                                                                               │  
+  Fixed width: 118 columns                                                                                           │  
+  [ ] 88  Fixed-width preset                                                                                         │  
+  [ ] 100  Fixed-width preset                                                                                        │  
+  [x] 118  Fixed-width preset                                                                                        │  
+  [ ] 132  Fixed-width preset                                                                                        │  
+  [ ] 148  Fixed-width preset                                                                                        │  
+                                                                                                                     │  
+  Spacing                                                                                                            │  
+  [x] comfortable  Gmail-style density with gh-dash-like spacing                                                     │  
+  [ ] compact  Dense rows for smaller terminals                                                                      │  
+                                                                                                                     │  
+  Scrollbar                                                                                                          │  
+  [x] on-scroll  Show while scrolling, then fade                                                                     │  
   offline fixture mode: refresh skipped                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
                                                                                                                         

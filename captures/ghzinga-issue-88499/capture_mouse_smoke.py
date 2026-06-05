@@ -251,9 +251,8 @@ def capture_mouse_smoke():
         activity_details = find_marker_position(SESSION, "[details]")
         mouse_coordinates["activity_details"] = list(activity_details)
         send_mouse_click(SESSION, *activity_details)
-        wait_for_text(SESSION, f"opened {DETAIL_URL}")
-        require_file_contains(open_log_path(), DETAIL_URL)
-        write_frame(ROOT, "11_mouse_activity_details_open", frames)
+        wait_for_text(SESSION, "focused linked activity")
+        write_frame(ROOT, "11_mouse_activity_details_focus", frames)
 
         links_tab = find_marker_position(SESSION, "Links", line_contains="Activity")
         mouse_coordinates["links_tab"] = list(links_tab)
@@ -264,6 +263,13 @@ def capture_mouse_smoke():
         linked_issue = find_marker_position(SESSION, NAVIGATION_TARGET)
         mouse_coordinates["linked_issue"] = list(linked_issue)
         send_mouse_click(SESSION, *linked_issue)
+        wait_for_text(SESSION, "Open linked resource")
+        wait_for_text(SESSION, "[here]")
+        write_frame(ROOT, "35_mouse_resource_link_prompt", frames)
+
+        linked_issue_here = find_marker_position(SESSION, "[here]")
+        mouse_coordinates["linked_issue_here"] = list(linked_issue_here)
+        send_mouse_click(SESSION, *linked_issue_here)
         wait_for_text(SESSION, NAVIGATION_TARGET_TITLE)
         write_frame(ROOT, "40_mouse_navigation_row", frames)
 
@@ -292,9 +298,7 @@ def capture_mouse_smoke():
             "config_path": repo_relative_path(capture_config_path()),
             "command": portable_command(command),
             "actual_tmux_size": actual_tmux_size,
-            "adapter_outputs": {
-                "detail_url": DETAIL_URL,
-            },
+            "adapter_outputs": {},
             "quit_exited": True,
             "mouse_coordinates": mouse_coordinates,
             "frames": frames,
@@ -390,7 +394,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     for variable in ("BROWSER=", "GZG_COPY_COMMAND="):
         if variable not in manifest.get("command", ""):
             errors.append(f"manifest command does not isolate adapter with {variable.rstrip('=')}")
-    expected_adapter_outputs = {"detail_url": DETAIL_URL}
+    expected_adapter_outputs = {}
     if manifest.get("adapter_outputs") != expected_adapter_outputs:
         errors.append(
             f"adapter_outputs is {manifest.get('adapter_outputs')!r}, "
@@ -406,6 +410,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "activity_details",
         "links_tab",
         "linked_issue",
+        "linked_issue_here",
         "refresh",
         "quit",
     ):
@@ -428,12 +433,19 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "07_keyboard_expand_all": ["[🏠 Overview]", EXPANDED_BODY_MARKER, "[➖ less]"],
         "08_keyboard_collapse_all": ["[🏠 Overview]", "Bug Description", "[➕ more]"],
         "10_mouse_activity_tab": ["[💬 Activity]", "Comment by @clawsweeper", "[details]"],
-        "11_mouse_activity_details_open": [
+        "11_mouse_activity_details_focus": [
             "[💬 Activity]",
-            f"opened {DETAIL_URL}",
+            "focused linked activity",
             "[details]",
         ],
         "30_mouse_links_tab": ["[🔗 Links]", NAVIGATION_TARGET],
+        "35_mouse_resource_link_prompt": [
+            "[🔗 Links]",
+            "Open linked resource",
+            NAVIGATION_TARGET,
+            "[here]",
+            "[new tab]",
+        ],
         "40_mouse_navigation_row": [
             "[🏠 Overview]",
             NAVIGATION_TARGET_TITLE,

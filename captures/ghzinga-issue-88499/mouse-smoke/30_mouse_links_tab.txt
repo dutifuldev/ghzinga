@@ -1,9 +1,9 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                       [➕]
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                        [+]
   openai-responses provider: 404 on previous_response_id when store=false (default)                                     
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ❌ CLOSED  👤 @xneone                                                                                                 
-  ⓘ opened https://github.com/openclaw/openclaw/issues/88499#issuecomment-1                                             
+  ⓘ focused linked activity                                                                                             
                                                                                                                         
    🏠 Overview  💬 Activity [🔗 Links]                                                                                  
                                                                                                                         
@@ -31,6 +31,6 @@
                                                                                                                         
                                                                                                                         
                                                                                                                         
-  opened https://github.com/openclaw/openclaw/issues/88499#issuecomment-1                                               
+  focused linked activity                                                                                               
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
                                                                                                                         
