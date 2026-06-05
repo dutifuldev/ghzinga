@@ -526,10 +526,13 @@ pub fn resolve_restore_plan(request: RestoreRequest) -> RestorePlan {
         }
     };
 
-    let session_id = if let Some(explicit) = explicit {
-        normalize_session_id(&explicit)
-    } else if request.mode == RestoreMode::New {
-        new_session_id()
+    let session_id = if request.mode == RestoreMode::New {
+        explicit
+            .as_deref()
+            .map(normalize_session_id)
+            .unwrap_or_else(new_session_id)
+    } else if let Some(explicit) = explicit {
+        resolve_session_reference(&state_dir, &explicit)
     } else if let Some(session_id) =
         resolve_index_match(&index, &contexts, request.has_resource_arg)
     {
@@ -982,6 +985,48 @@ pub fn prune_session_anchors(state_dir: &Path, session_id: &str) -> Result<usize
     Ok(removed)
 }
 
+pub fn resolve_session_reference(state_dir: &Path, input: &str) -> String {
+    let normalized = normalize_session_id(input);
+    if load_snapshot(&session_json_path(state_dir, &normalized)).is_ok() {
+        return normalized;
+    }
+
+    let name = input.trim();
+    if name.is_empty() {
+        return normalized;
+    }
+
+    let mut matches = Vec::new();
+    let sessions_dir = state_dir.join("sessions");
+    let Ok(entries) = fs::read_dir(&sessions_dir) else {
+        return normalized;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        let Ok(snapshot) = load_snapshot(&entry.path().join("session.json")) else {
+            continue;
+        };
+        if snapshot.name.as_deref() == Some(name) {
+            matches.push(id);
+        }
+    }
+    if matches.len() == 1 {
+        matches.remove(0)
+    } else {
+        normalized
+    }
+}
+
+pub fn session_json_path(state_dir: &Path, id: &str) -> PathBuf {
+    state_dir.join("sessions").join(id).join("session.json")
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -1016,6 +1061,41 @@ mod tests {
             metadata: vec![],
             warnings: vec![],
             pull_request: None,
+        }
+    }
+
+    fn snapshot(id: &str, name: Option<&str>, resource: &str) -> SessionSnapshot {
+        SessionSnapshot {
+            schema_version: SESSION_SCHEMA_VERSION,
+            id: id.into(),
+            name: name.map(str::to_string),
+            created_at: "1".into(),
+            updated_at: "1".into(),
+            launch: LaunchSnapshot {
+                argv: vec![],
+                cwd: PathBuf::from("/repo"),
+                contexts: vec![],
+            },
+            ui: UiSnapshot {
+                theme: "default".into(),
+                symbols: "emoji".into(),
+                spacing: "comfortable".into(),
+                width_mode: "fixed".into(),
+                fixed_width: 118,
+                scrollbar: "on-scroll".into(),
+            },
+            resources: ResourcesSnapshot {
+                active_index: 0,
+                tabs: vec![ResourceTabSnapshot {
+                    id: "r_1".into(),
+                    resource: resource.into(),
+                    kind_hint: Some(ResourceKind::Issue),
+                    view: "overview".into(),
+                    scroll: 0,
+                    reverse_chronological: false,
+                    expanded_blocks: vec![],
+                }],
+            },
         }
     }
 
@@ -1126,6 +1206,70 @@ mod tests {
 
         assert_eq!(plan.handle.unwrap().id, "Work-Session");
         assert!(plan.snapshot.is_none());
+    }
+
+    #[test]
+    fn explicit_session_name_restores_renamed_session() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let state = tempdir().unwrap();
+        let cache = tempdir().unwrap();
+        let previous_state = env::var_os(GZG_STATE_HOME_ENV);
+        let previous_cache = env::var_os(GZG_CACHE_HOME_ENV);
+        let previous_session = env::var_os(GZG_SESSION_ENV);
+        env::set_var(GZG_STATE_HOME_ENV, state.path());
+        env::set_var(GZG_CACHE_HOME_ENV, cache.path());
+        env::remove_var(GZG_SESSION_ENV);
+        save_snapshot(
+            &session_json_path(state.path(), "s_saved"),
+            &snapshot("s_saved", Some("work"), "owner/repo#1"),
+        )
+        .unwrap();
+
+        let plan = resolve_restore_plan(RestoreRequest {
+            mode: RestoreMode::Auto,
+            explicit_session: Some("work".into()),
+            has_resource_arg: false,
+            argv: vec!["gzg".into()],
+            cwd: PathBuf::from("/repo"),
+        });
+
+        if let Some(value) = previous_state {
+            env::set_var(GZG_STATE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_STATE_HOME_ENV);
+        }
+        if let Some(value) = previous_cache {
+            env::set_var(GZG_CACHE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_CACHE_HOME_ENV);
+        }
+        if let Some(value) = previous_session {
+            env::set_var(GZG_SESSION_ENV, value);
+        } else {
+            env::remove_var(GZG_SESSION_ENV);
+        }
+
+        assert_eq!(plan.handle.unwrap().id, "s_saved");
+        assert_eq!(plan.snapshot.unwrap().name.as_deref(), Some("work"));
+    }
+
+    #[test]
+    fn session_reference_prefers_existing_id_then_unique_name() {
+        let dir = tempdir().unwrap();
+        save_snapshot(
+            &session_json_path(dir.path(), "s_one"),
+            &snapshot("s_one", Some("work"), "owner/repo#1"),
+        )
+        .unwrap();
+        save_snapshot(
+            &session_json_path(dir.path(), "work"),
+            &snapshot("work", Some("other"), "owner/repo#2"),
+        )
+        .unwrap();
+
+        assert_eq!(resolve_session_reference(dir.path(), "work"), "work");
+        assert_eq!(resolve_session_reference(dir.path(), "missing"), "missing");
+        assert_eq!(resolve_session_reference(dir.path(), "other"), "work");
     }
 
     #[test]

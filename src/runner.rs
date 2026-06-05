@@ -52,29 +52,29 @@ fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
     };
     match command {
         "show" => {
-            let Some(id) = args.get(1) else {
-                eprintln!("usage: gzg session show <id>");
+            let Some(reference) = args.get(1) else {
+                eprintln!("usage: gzg session show <id-or-name>");
                 return Ok(2);
             };
-            let path = session::state_dir()
-                .join("sessions")
-                .join(id)
-                .join("session.json");
+            let state_root = session::state_dir();
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = session::session_json_path(&state_root, &id);
             let raw = std::fs::read_to_string(&path)
                 .with_context(|| format!("failed to read {}", path.display()))?;
             println!("{raw}");
             Ok(0)
         }
         "delete" => {
-            let Some(id) = args.get(1) else {
-                eprintln!("usage: gzg session delete <id>");
+            let Some(reference) = args.get(1) else {
+                eprintln!("usage: gzg session delete <id-or-name>");
                 return Ok(2);
             };
             let state_root = session::state_dir();
-            let path = state_root.join("sessions").join(id);
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = state_root.join("sessions").join(&id);
             match std::fs::remove_dir_all(&path) {
                 Ok(()) => {
-                    session::prune_session_anchors(&state_root, id)
+                    session::prune_session_anchors(&state_root, &id)
                         .map_err(|error| anyhow::anyhow!(error))?;
                     println!("deleted session {id}");
                     Ok(0)
@@ -87,14 +87,13 @@ fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
             }
         }
         "rename" => {
-            let (Some(id), Some(name)) = (args.get(1), args.get(2)) else {
-                eprintln!("usage: gzg session rename <id> <name>");
+            let (Some(reference), Some(name)) = (args.get(1), args.get(2)) else {
+                eprintln!("usage: gzg session rename <id-or-name> <name>");
                 return Ok(2);
             };
-            let path = session::state_dir()
-                .join("sessions")
-                .join(id)
-                .join("session.json");
+            let state_root = session::state_dir();
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = session::session_json_path(&state_root, &id);
             let mut snapshot = session::load_snapshot(&path)
                 .with_context(|| format!("failed to load {}", path.display()))?;
             snapshot.name = Some(name.to_string());
