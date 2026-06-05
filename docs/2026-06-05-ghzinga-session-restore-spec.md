@@ -124,6 +124,10 @@ Rules:
   overrides later. Global config still provides defaults.
 - `resource` strings use ghzinga's existing canonical `owner/repo#number`
   format.
+- `kind_hint` should be saved only when known from a URL or fetched payload.
+  Loading placeholders must not invent a pull-request hint for ambiguous
+  `owner/repo#number` input because the next restore still needs to try the
+  issue fallback.
 - Cached resource payloads live in cache, not inside the session file.
 
 ## Session Index
@@ -244,6 +248,9 @@ Resource argument behavior:
 - If the resource argument already exists as a restored cached tab, focus that
   tab and refresh it in the background without replacing cached content with a
   loading placeholder.
+- `--new` may use an explicit user-supplied `--session` or `GZG_SESSION` value
+  as the new session id, but it must ignore provider-discovered labels such as
+  Herdr's pane marker so the flag always creates a separate session.
 - `gzg` with no resource argument restores the session tabs as-is.
 - If a new saved session is created with no resource argument and no cached
   tabs, show the add-resource prompt immediately.
@@ -258,7 +265,9 @@ First frame rules:
 - If cached resource data exists, render it immediately with a stale marker.
 - If no cache exists for a tab, render the existing loading placeholder for that
   resource.
-- Start background refreshes after the TUI enters the alternate screen.
+- Start background refreshes after the TUI enters the alternate screen. Restored
+  tabs refresh in place and preserve saved view, scroll, order, and expanded
+  blocks; only brand-new placeholder tabs use initial replacement semantics.
 - If an inactive restored tab has no cache entry, refresh it when the user
   focuses that tab so it cannot remain a loading placeholder indefinitely. If
   that fetch fails, keep the placeholder and error visible until the user

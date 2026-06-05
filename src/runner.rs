@@ -226,15 +226,8 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
                         .unwrap_or_else(session::cache_dir),
                 )
                 .unwrap_or_else(empty_launch_state);
-                let initial_fetch = resource_id
-                    .clone()
-                    .or_else(|| session::first_refresh_action(snapshot))
-                    .map(|id| FetchAction::Initial { id });
-                if let Some(resource_id) = resource_id.clone() {
-                    if !state.focus_resource_tab(&resource_id) {
-                        state.open_resource_in_tab(loading_resource_placeholder(resource_id));
-                    }
-                }
+                let initial_fetch =
+                    prepare_restored_initial_fetch(&mut state, snapshot, resource_id.clone());
                 (state, fetch_source, initial_fetch, true)
             } else {
                 let initial_resource = resource_id
@@ -462,6 +455,23 @@ fn empty_launch_state() -> AppState {
     let mut state = AppState::new(empty_launch_resource());
     state.open_add_resource_prompt();
     state
+}
+
+fn prepare_restored_initial_fetch(
+    state: &mut AppState,
+    snapshot: &session::SessionSnapshot,
+    resource_id: Option<crate::domain::ResourceId>,
+) -> Option<FetchAction> {
+    if let Some(resource_id) = resource_id {
+        if state.focus_resource_tab(&resource_id) {
+            Some(FetchAction::Refresh { id: resource_id })
+        } else {
+            state.open_resource_in_tab(loading_resource_placeholder(resource_id.clone()));
+            Some(FetchAction::Initial { id: resource_id })
+        }
+    } else {
+        session::first_refresh_action(snapshot).map(|id| FetchAction::Refresh { id })
+    }
 }
 
 fn empty_launch_resource() -> crate::domain::Resource {
@@ -983,15 +993,19 @@ mod tests {
     use crate::{
         app::{loading_resource_placeholder, AppIntent, AppState},
         domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
-        fetch::{apply_completed_fetches, FetchSource, OfflineFixtureSource},
+        fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
+        session::{
+            BlockIdSnapshot, LaunchSnapshot, ResourceTabSnapshot, ResourcesSnapshot,
+            SessionSnapshot, UiSnapshot,
+        },
     };
 
     use super::{
         auto_refresh_due, clipboard_command, empty_launch_resource, handle_intent,
         maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource, navigate_back,
-        navigate_to_resource, session_state_persistable, should_replace_empty_launch_tab,
-        url_open_command, ClipboardPlatform,
+        navigate_to_resource, prepare_restored_initial_fetch, session_state_persistable,
+        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1046,6 +1060,41 @@ mod tests {
             metadata: vec![],
             warnings: vec![],
             pull_request: None,
+        }
+    }
+
+    fn session_snapshot_for(resource: &Resource) -> SessionSnapshot {
+        SessionSnapshot {
+            schema_version: 1,
+            id: "work".into(),
+            name: None,
+            created_at: "1".into(),
+            updated_at: "1".into(),
+            launch: LaunchSnapshot {
+                argv: vec!["gzg".into()],
+                cwd: std::path::PathBuf::from("/repo"),
+                contexts: vec![],
+            },
+            ui: UiSnapshot {
+                theme: "default".into(),
+                symbols: "emoji".into(),
+                spacing: "comfortable".into(),
+                width_mode: "fixed".into(),
+                fixed_width: 118,
+                scrollbar: "on-scroll".into(),
+            },
+            resources: ResourcesSnapshot {
+                active_index: 0,
+                tabs: vec![ResourceTabSnapshot {
+                    id: "r_1".into(),
+                    resource: resource.id.canonical_name(),
+                    kind_hint: resource.id.kind_hint,
+                    view: "activity".into(),
+                    scroll: 5,
+                    reverse_chronological: false,
+                    expanded_blocks: vec![BlockIdSnapshot::Body],
+                }],
+            },
         }
     }
 
@@ -1150,6 +1199,53 @@ mod tests {
         assert_eq!(state.resource_tabs.len(), 1);
         assert_eq!(state.resource.id.number, 2);
         assert!(session_state_persistable(&state));
+    }
+
+    #[test]
+    fn restored_cached_resource_arg_refreshes_existing_tab() {
+        let resource = issue_resource(2, "Cached issue");
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(crate::app::Tab::Activity);
+        state.scroll_down(5);
+
+        let action =
+            prepare_restored_initial_fetch(&mut state, &snapshot, Some(resource.id.clone()));
+
+        assert!(matches!(action, Some(FetchAction::Refresh { .. })));
+        assert_eq!(state.resource.title, "Cached issue");
+        assert_eq!(state.active_tab, crate::app::Tab::Activity);
+        assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn restored_missing_resource_arg_opens_loading_placeholder() {
+        let resource = issue_resource(1, "Cached issue");
+        let missing = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: None,
+        };
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource);
+
+        let action = prepare_restored_initial_fetch(&mut state, &snapshot, Some(missing));
+
+        assert!(matches!(action, Some(FetchAction::Initial { .. })));
+        assert_eq!(state.resource.title, "Loading owner/repo#2");
+        assert_eq!(state.resource_tabs.len(), 2);
+    }
+
+    #[test]
+    fn restored_session_without_resource_arg_refreshes_active_tab() {
+        let resource = issue_resource(1, "Cached issue");
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource);
+
+        let action = prepare_restored_initial_fetch(&mut state, &snapshot, None);
+
+        assert!(matches!(action, Some(FetchAction::Refresh { .. })));
     }
 
     #[test]

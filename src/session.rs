@@ -207,11 +207,14 @@ impl ResourceTabSnapshot {
         Self {
             id: format!("r_{}", tab.id),
             resource: tab.resource.id.canonical_name(),
-            kind_hint: tab
-                .resource
-                .id
-                .kind_hint
-                .or_else(|| Some(tab.resource.kind())),
+            kind_hint: if tab.resource.state == "LOADING" {
+                tab.resource.id.kind_hint
+            } else {
+                tab.resource
+                    .id
+                    .kind_hint
+                    .or_else(|| Some(tab.resource.kind()))
+            },
             view: tab.active_tab.to_string(),
             scroll: tab.scroll,
             reverse_chronological: tab.reverse_chronological,
@@ -501,12 +504,14 @@ fn current_tty() -> Option<String> {
 pub fn resolve_restore_plan(request: RestoreRequest) -> RestorePlan {
     let state_dir = state_dir();
     let cache_dir = cache_dir();
-    let configured_explicit = request
+    let user_explicit = request
         .explicit_session
         .clone()
         .or_else(|| env::var(GZG_SESSION_ENV).ok());
-    let contexts = collect_launch_contexts(configured_explicit.as_deref(), &request.cwd);
-    let explicit = configured_explicit.or_else(|| herdr_label_session_id(&contexts));
+    let contexts = collect_launch_contexts(user_explicit.as_deref(), &request.cwd);
+    let restore_explicit = user_explicit
+        .clone()
+        .or_else(|| herdr_label_session_id(&contexts));
     let mut warnings = Vec::new();
 
     if request.mode == RestoreMode::NoRestore {
@@ -527,11 +532,11 @@ pub fn resolve_restore_plan(request: RestoreRequest) -> RestorePlan {
     };
 
     let session_id = if request.mode == RestoreMode::New {
-        explicit
+        user_explicit
             .as_deref()
             .map(normalize_session_id)
             .unwrap_or_else(new_session_id)
-    } else if let Some(explicit) = explicit {
+    } else if let Some(explicit) = restore_explicit {
         resolve_session_reference(&state_dir, &explicit)
     } else if let Some(session_id) =
         resolve_index_match(&index, &contexts, request.has_resource_arg)
@@ -1034,7 +1039,10 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::domain::{ReactionCounts, ResourceKind};
+    use crate::{
+        app::loading_resource_placeholder,
+        domain::{ReactionCounts, ResourceKind},
+    };
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -1208,6 +1216,90 @@ mod tests {
         assert!(plan.snapshot.is_none());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn new_mode_ignores_herdr_label_session_marker() {
+        use std::{
+            io::{BufRead, BufReader, Write},
+            os::unix::net::UnixListener,
+            thread,
+        };
+
+        let _guard = ENV_LOCK.lock().unwrap();
+        let state = tempdir().unwrap();
+        let cache = tempdir().unwrap();
+        let socket_dir = tempdir().unwrap();
+        let socket_path = socket_dir.path().join("herdr.sock");
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = String::new();
+            BufReader::new(stream.try_clone().unwrap())
+                .read_line(&mut request)
+                .unwrap();
+            writeln!(
+                stream,
+                r#"{{"result":{{"pane":{{"label":"gzg:s_old owner/repo#1"}}}}}}"#
+            )
+            .unwrap();
+        });
+        let previous_state = env::var_os(GZG_STATE_HOME_ENV);
+        let previous_cache = env::var_os(GZG_CACHE_HOME_ENV);
+        let previous_session = env::var_os(GZG_SESSION_ENV);
+        let previous_herdr_env = env::var_os("HERDR_ENV");
+        let previous_herdr_socket = env::var_os("HERDR_SOCKET_PATH");
+        let previous_herdr_pane = env::var_os("HERDR_PANE_ID");
+        env::set_var(GZG_STATE_HOME_ENV, state.path());
+        env::set_var(GZG_CACHE_HOME_ENV, cache.path());
+        env::remove_var(GZG_SESSION_ENV);
+        env::set_var("HERDR_ENV", "1");
+        env::set_var("HERDR_SOCKET_PATH", &socket_path);
+        env::set_var("HERDR_PANE_ID", "pane-1");
+
+        let plan = resolve_restore_plan(RestoreRequest {
+            mode: RestoreMode::New,
+            explicit_session: None,
+            has_resource_arg: true,
+            argv: vec!["gzg".into()],
+            cwd: PathBuf::from("/repo"),
+        });
+
+        if let Some(value) = previous_state {
+            env::set_var(GZG_STATE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_STATE_HOME_ENV);
+        }
+        if let Some(value) = previous_cache {
+            env::set_var(GZG_CACHE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_CACHE_HOME_ENV);
+        }
+        if let Some(value) = previous_session {
+            env::set_var(GZG_SESSION_ENV, value);
+        } else {
+            env::remove_var(GZG_SESSION_ENV);
+        }
+        if let Some(value) = previous_herdr_env {
+            env::set_var("HERDR_ENV", value);
+        } else {
+            env::remove_var("HERDR_ENV");
+        }
+        if let Some(value) = previous_herdr_socket {
+            env::set_var("HERDR_SOCKET_PATH", value);
+        } else {
+            env::remove_var("HERDR_SOCKET_PATH");
+        }
+        if let Some(value) = previous_herdr_pane {
+            env::set_var("HERDR_PANE_ID", value);
+        } else {
+            env::remove_var("HERDR_PANE_ID");
+        }
+        server.join().unwrap();
+
+        assert_ne!(plan.handle.unwrap().id, "s_old");
+        assert!(plan.snapshot.is_none());
+    }
+
     #[test]
     fn explicit_session_name_restores_renamed_session() {
         let _guard = ENV_LOCK.lock().unwrap();
@@ -1292,6 +1384,29 @@ mod tests {
         assert_eq!(snapshot.resources.active_index, 1);
         assert_eq!(snapshot.resources.tabs[1].view, "activity");
         assert_eq!(snapshot.resources.tabs[1].scroll, 5);
+    }
+
+    #[test]
+    fn loading_placeholder_snapshot_keeps_ambiguous_kind_hint() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 42,
+            kind_hint: None,
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id));
+
+        let snapshot = SessionSnapshot::from_state(
+            "work",
+            None,
+            vec![],
+            vec!["gzg".into()],
+            PathBuf::from("/repo"),
+            &mut state,
+        );
+
+        assert_eq!(snapshot.resources.tabs[0].resource, "owner/repo#42");
+        assert_eq!(snapshot.resources.tabs[0].kind_hint, None);
     }
 
     #[test]
