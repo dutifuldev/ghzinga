@@ -171,7 +171,6 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         rects.area,
         Style::default().fg(palette.text).bg(palette.panel_bg),
     );
-    collapse_hidden_resource_tab_gap(frame.area(), state, &mut rects);
     let resource_tabs_area = resource_tabs_area(&mut rects.header, state);
     let show_header_add_button =
         resource_tabs_area.is_none() && single_resource_add_button_visible(rects.header);
@@ -480,21 +479,6 @@ fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
         rects.content.height = rects.content.height.saturating_sub(2);
     }
     rects
-}
-
-fn collapse_hidden_resource_tab_gap(area: Rect, state: &AppState, rects: &mut ViewRects) {
-    if state.spacing != SpacingMode::Comfortable
-        || state.resource_tab_bar_visible()
-        || area.width < 48
-        || rects.header.height < 4
-    {
-        return;
-    }
-    rects.header.height = rects.header.height.saturating_sub(1);
-    rects.status.y = rects.status.y.saturating_sub(1);
-    rects.tabs.y = rects.tabs.y.saturating_sub(1);
-    rects.content.y = rects.content.y.saturating_sub(1);
-    rects.content.height = rects.content.height.saturating_add(1);
 }
 
 fn render_tabs(
@@ -4940,12 +4924,11 @@ mod tests {
         let mut state = AppState::new(pr_resource());
         let area = Rect::new(0, 0, 120, 36);
         let base = ViewRects::compute(Rect::new(0, 0, 120, 36));
-        let mut rects = rects_for_spacing(area, state.spacing);
-        collapse_hidden_resource_tab_gap(area, &state, &mut rects);
+        let rects = rects_for_spacing(area, state.spacing);
         let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
 
         assert_eq!(rects.tabs.height, base.tabs.height + 2);
-        assert_eq!(rects.content.y, base.content.y + 2);
+        assert_eq!(rects.content.y, base.content.y + 3);
 
         let separator = draw_cell_symbol(
             &mut state,
@@ -5194,19 +5177,23 @@ mod tests {
     }
 
     #[test]
-    fn comfortable_single_resource_header_omits_hidden_tabbar_gap() {
+    fn comfortable_single_resource_header_keeps_one_padding_row() {
         let mut resource = pr_resource();
-        resource.title = "Readable title without hidden tabbar gap".into();
+        resource.title = "Readable title with balanced chrome padding".into();
         let mut state = AppState::new(resource);
         state.spacing = SpacingMode::Comfortable;
 
-        let top_row = draw_row_text(&mut state, 120, 36, 0);
-        let title_row = draw_row_text(&mut state, 120, 36, 1);
+        let top_padding = draw_row_text(&mut state, 120, 36, 0);
+        let identity_row = draw_row_text(&mut state, 120, 36, 1);
+        let title_row = draw_row_text(&mut state, 120, 36, 2);
+        let bottom_padding = draw_row_text(&mut state, 120, 36, 35);
         let content = draw(&mut state, 120, 36);
 
-        assert!(top_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
-        assert!(title_row.contains("Readable title without hidden tabbar gap"));
-        assert!(content.contains("Readable title without hidden tabbar gap"));
+        assert_eq!(top_padding.trim(), "");
+        assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
+        assert!(title_row.contains("Readable title with balanced chrome padding"));
+        assert_eq!(bottom_padding.trim(), "");
+        assert!(content.contains("Readable title with balanced chrome padding"));
     }
 
     #[test]
@@ -5219,7 +5206,7 @@ mod tests {
         let rect = rendered_target_rect(&state, |target| *target == HitTarget::OpenResourcePrompt)
             .expect("single-resource add button");
 
-        assert_eq!(rect.y, 0);
+        assert_eq!(rect.y, 1);
         assert_eq!(
             rect.x,
             120 - COMFORTABLE_GUTTER - add_resource_button_width()
@@ -5268,7 +5255,7 @@ mod tests {
         })
         .expect("header identity link");
 
-        assert_eq!(rect.y, 0);
+        assert_eq!(rect.y, 1);
         assert_eq!(rect.x, COMFORTABLE_GUTTER);
 
         let intent = click_rendered_target(&mut state, |target| {
