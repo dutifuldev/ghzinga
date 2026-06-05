@@ -32,5 +32,5 @@
   +2    -0    MODIFIED src/plugin-sdk/test-helpers/plugin-registration-contract-cases.ts [➕ more]                   █  
                                                                                                                      █  
                                                                                                                         
-  [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                  
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                   
                                                                                                                         

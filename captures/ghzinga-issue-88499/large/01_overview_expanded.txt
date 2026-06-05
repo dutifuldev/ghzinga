@@ -46,5 +46,5 @@
   store=false is used through the openai-responses provider. Removing the previous response reference makes the next                                            
   request succeed.                                                                                                                                              
                                                                                                                                                                 
-  [🔄 refresh] [➖ collapse]  [⚙ settings] [❔ help] [⏻ quit]                                                                                                   
+  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                                                                                                    
                                                                                                                                                                 

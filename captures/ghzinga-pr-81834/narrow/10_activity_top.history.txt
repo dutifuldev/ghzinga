@@ -21,4 +21,4 @@
                                                                                 
   Changed files:                                                                
                                                                                 
-  [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]          
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

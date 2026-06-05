@@ -21,4 +21,4 @@
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
   cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
                                                                                 
-  [🔄 refresh] [➕  expand  ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]          
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           

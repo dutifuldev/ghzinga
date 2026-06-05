@@ -32,5 +32,5 @@
                                                                                                                         
   💬 Comment by @github-actions 1mo ago                                                                                 
                                                                                                                         
-  [🔄 refresh] [➕  expand  ] [⚙ settings] [❔ help] [⏻ quit]                                                           
+  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                            
                                                                                                                         
