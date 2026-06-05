@@ -58,31 +58,42 @@ pub(super) fn render_resource_tabs(
     let available_width = tab_right.saturating_sub(area.x);
     let specs = resource_tab_specs(state);
     let plan = plan_resource_tabs(&specs, state.resource_tab_scroll, available_width);
+    let next_width = if plan.show_next {
+        RESOURCE_TAB_ARROW_WIDTH.min(available_width)
+    } else {
+        0
+    };
+    let next_x = tab_right.saturating_sub(next_width);
+    let tab_content_right = if plan.show_next {
+        next_x.saturating_sub(1)
+    } else {
+        tab_right
+    };
     let mut x = area.x;
     let mut spans = Vec::<Span<'static>>::new();
 
     if plan.show_previous {
-        render_resource_tab_gap(&mut spans, &mut x, tab_right, palette);
+        render_resource_tab_gap(&mut spans, &mut x, tab_content_right, palette);
         render_resource_tab_arrow(
             &mut spans,
             state,
             Rect::new(
                 x,
                 area.y,
-                RESOURCE_TAB_ARROW_WIDTH.min(tab_right.saturating_sub(x)),
+                RESOURCE_TAB_ARROW_WIDTH.min(tab_content_right.saturating_sub(x)),
                 1,
             ),
             "‹",
             HitTarget::PreviousResourceTab,
             palette,
         );
-        x = x.saturating_add(RESOURCE_TAB_ARROW_WIDTH.min(tab_right.saturating_sub(x)));
+        x = x.saturating_add(RESOURCE_TAB_ARROW_WIDTH.min(tab_content_right.saturating_sub(x)));
     }
 
     for planned in &plan.tabs {
         if let Some(spec) = specs.get(planned.index) {
-            render_resource_tab_gap(&mut spans, &mut x, tab_right, palette);
-            let width = planned.width.min(tab_right.saturating_sub(x));
+            render_resource_tab_gap(&mut spans, &mut x, tab_content_right, palette);
+            let width = planned.width.min(tab_content_right.saturating_sub(x));
             if width == 0 {
                 break;
             }
@@ -112,16 +123,17 @@ pub(super) fn render_resource_tabs(
     }
 
     if plan.show_next {
-        render_resource_tab_gap(&mut spans, &mut x, tab_right, palette);
+        if next_x > x {
+            spans.push(Span::styled(
+                " ".repeat(next_x.saturating_sub(x) as usize),
+                Style::default().bg(palette.surface0),
+            ));
+            x = next_x;
+        }
         render_resource_tab_arrow(
             &mut spans,
             state,
-            Rect::new(
-                x,
-                area.y,
-                RESOURCE_TAB_ARROW_WIDTH.min(tab_right.saturating_sub(x)),
-                1,
-            ),
+            Rect::new(x, area.y, next_width, 1),
             "›",
             HitTarget::NextResourceTab,
             palette,

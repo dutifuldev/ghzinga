@@ -3949,6 +3949,29 @@ mod tests {
     }
 
     #[test]
+    fn resource_tab_next_arrow_is_right_justified_next_to_add_button() {
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+
+        draw(&mut state, 64, 24);
+
+        let next = rendered_target_rect(&state, |target| *target == HitTarget::NextResourceTab)
+            .expect("next resource-tab arrow");
+        let add = rendered_target_rect(&state, |target| *target == HitTarget::OpenResourcePrompt)
+            .expect("add resource button");
+
+        assert_eq!(next.y, add.y);
+        assert_eq!(next.x.saturating_add(next.width).saturating_add(1), add.x);
+    }
+
+    #[test]
     fn resource_tab_arrows_scroll_strip_without_switching_resource() {
         let backend = TestBackend::new(64, 24);
         let mut terminal = Terminal::new(backend).unwrap();
