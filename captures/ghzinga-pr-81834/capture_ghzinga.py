@@ -2,6 +2,7 @@
 import argparse
 import json
 import shlex
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -213,6 +214,24 @@ def capture_config_env() -> str:
     return f"GZG_CONFIG_PATH={shlex.quote(str(capture_config_path()))}"
 
 
+def capture_state_path() -> Path:
+    return ROOT / ".capture-state"
+
+
+def capture_cache_path() -> Path:
+    return ROOT / ".capture-cache"
+
+
+def capture_session_env() -> str:
+    return " ".join(
+        [
+            capture_config_env(),
+            f"GZG_STATE_HOME={shlex.quote(str(capture_state_path()))}",
+            f"GZG_CACHE_HOME={shlex.quote(str(capture_cache_path()))}",
+        ]
+    )
+
+
 def write_capture(session: str, out_dir: Path, name: str, meta: dict, frame_meta: dict):
     plain = capture_plain(session)
     ansi = capture_ansi(session)
@@ -249,9 +268,11 @@ def capture_frame(
     for fixture in OFFLINE_RESOURCE_FIXTURES:
         fixture_args += f" --offline-resource-fixture {shlex.quote(str(fixture))}"
     capture_config_path().unlink(missing_ok=True)
+    shutil.rmtree(capture_state_path(), ignore_errors=True)
+    shutil.rmtree(capture_cache_path(), ignore_errors=True)
     command = (
-        f"TERM=xterm-256color {capture_config_env()} "
-        f"{BIN} {TARGET}{tab_arg}{fixture_args} --refresh-seconds 0"
+        f"TERM=xterm-256color {capture_session_env()} "
+        f"{BIN} {shlex.quote(TARGET)}{tab_arg}{fixture_args} --no-restore --refresh-seconds 0"
     )
     print(f"capturing {MODE} {label}/{name} ({cols}x{rows}, tab={tab or 'overview'})", flush=True)
     try:
@@ -694,8 +715,8 @@ def main():
     global ROOT, TARGET, TITLE, LOAD_NEEDLE, MODE, OFFLINE_FIXTURE, OFFLINE_RESOURCE_FIXTURES
     parser = argparse.ArgumentParser(description="Capture ghzinga in tmux")
     parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument("--target", default=TARGET)
-    parser.add_argument("--title", default=TITLE)
+    parser.add_argument("--target")
+    parser.add_argument("--title")
     parser.add_argument("--load-needle", default=None)
     parser.add_argument("--mode", choices=["pr", "issue"], default=MODE)
     parser.add_argument("--offline-fixture", type=Path)
@@ -714,8 +735,14 @@ def main():
         return
 
     ROOT = args.root.resolve()
-    TARGET = args.target
-    TITLE = args.title
+    if args.mode == "issue":
+        TARGET = args.target or ISSUE_TARGET
+        TITLE = args.title or ISSUE_TITLE
+        if args.offline_fixture is None:
+            args.offline_fixture = ISSUE_FIXTURE
+    else:
+        TARGET = args.target or TARGET
+        TITLE = args.title or TITLE
     LOAD_NEEDLE = args.load_needle or TITLE
     MODE = args.mode
     OFFLINE_FIXTURE = args.offline_fixture.resolve() if args.offline_fixture else None
