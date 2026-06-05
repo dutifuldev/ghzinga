@@ -20,7 +20,7 @@ for GitHub resources.
 
 ## Non-goals
 
-- Do not implement a Herdr-style background server in the first version.
+- Do not implement a Herdr-style headless renderer or multiplexer server.
 - Do not make Herdr understand ghzinga resources.
 - Do not depend on GitHub API availability before the first restored frame.
 - Do not restore every scroll movement synchronously.
@@ -33,6 +33,7 @@ Use XDG state and cache paths:
 ```text
 $XDG_STATE_HOME/ghzinga/sessions/<session-id>/session.json
 $XDG_STATE_HOME/ghzinga/session-index.json
+$XDG_RUNTIME_DIR/ghzinga/<session-id>.sock
 $XDG_CACHE_HOME/ghzinga/resources/<owner>/<repo>/<number>.json
 ```
 
@@ -40,6 +41,7 @@ Fallbacks:
 
 ```text
 ~/.local/state/ghzinga/...
+/tmp/ghzinga-$UID/...
 ~/.cache/ghzinga/...
 ```
 
@@ -48,6 +50,7 @@ Test and scripting overrides:
 ```text
 GZG_STATE_HOME=/tmp/gzg-state
 GZG_CACHE_HOME=/tmp/gzg-cache
+GZG_RUNTIME_HOME=/tmp/gzg-runtime
 GZG_SESSION=<session-id>
 ```
 
@@ -305,7 +308,8 @@ Never persist:
 
 ## CLI Surface
 
-Initial flags:
+The current implementation scope includes both restore and live control. These
+commands are required now, not deferred:
 
 ```text
 gzg [RESOURCE]
@@ -316,14 +320,77 @@ gzg sessions
 gzg session show <id-or-name>
 gzg session delete <id-or-name>
 gzg session rename <id-or-name> <name>
-```
-
-Later control commands can reuse the same session id system:
-
-```text
 gzg open <RESOURCE>
 gzg open --session <id-or-name> <RESOURCE>
 gzg set --session <id-or-name> theme solarized
+gzg set --session <id-or-name> spacing comfortable
+gzg set --session <id-or-name> width-mode fixed
+gzg set --session <id-or-name> fixed-width 118
+gzg set --session <id-or-name> scrollbar on-scroll
+```
+
+Control command behavior:
+
+- If the target session is running, send a local runtime command to that TUI and
+  return after the command is accepted.
+- If the target session is not running, update the saved session state so the
+  next `gzg` launch restores the requested resource or setting.
+- `gzg open <RESOURCE>` with no explicit session targets the best current
+  session using the same explicit, Herdr, tmux, screen, git, cwd, and tty
+  context resolver. If that is ambiguous, print the matching sessions and ask
+  the user to pass `--session`.
+- Opening a resource in a running TUI should behave like the in-app new-tab
+  flow: focus the existing tab when it is already open, otherwise add a new
+  resource tab, render cached content immediately when available, then refresh
+  in the background.
+- `gzg set` should use the same validation as the settings UI and persist the
+  changed value to the session snapshot.
+- Control commands should not steal terminal focus, enter alternate screen, or
+  require keyboard/mouse input into the pane.
+
+## Runtime Control Channel
+
+Each running persistent TUI owns a local Unix socket:
+
+```text
+$XDG_RUNTIME_DIR/ghzinga/<session-id>.sock
+```
+
+Fallback when `XDG_RUNTIME_DIR` is absent:
+
+```text
+/tmp/ghzinga-$UID/<session-id>.sock
+```
+
+Rules:
+
+- Socket paths are runtime-only and are not the session source of truth.
+- On TUI startup, create the socket after the session id is resolved and remove
+  stale sockets for the same session when the owning process is gone.
+- The socket should accept newline-delimited JSON commands so it can evolve
+  without breaking older clients.
+- Commands must include a schema version and command id.
+- Replies must include `ok`, the command id, and either a short result or an
+  error.
+- Unsupported command versions should fail cleanly with a user-facing error.
+- A command sent to a stale socket should fail fast, remove the stale runtime
+  marker if safe, and fall back to saved-state mutation when appropriate.
+- Runtime control is local only. Do not expose a network listener.
+- File and socket permissions should be owner-only where the platform permits
+  it.
+
+Initial command shapes:
+
+```json
+{"schema_version":1,"id":"c_1","method":"open","resource":"dutifuldev/ghzinga#29"}
+{"schema_version":1,"id":"c_2","method":"set","key":"theme","value":"solarized"}
+```
+
+Initial reply shapes:
+
+```json
+{"schema_version":1,"id":"c_1","ok":true,"result":"opened dutifuldev/ghzinga#29"}
+{"schema_version":1,"id":"c_2","ok":false,"error":"unknown theme"}
 ```
 
 ## Cache Rules
@@ -403,6 +470,24 @@ Do not auto-delete sessions silently in the first version.
 - Add capture or smoke coverage for restored multi-tab startup if render output
   changes.
 
+### Phase 5: live CLI control
+
+- Add runtime path resolution using `XDG_RUNTIME_DIR`, `/tmp/ghzinga-$UID`, and
+  `GZG_RUNTIME_HOME` for tests.
+- Add a local Unix socket listener owned by the running TUI session.
+- Add newline-delimited JSON command parsing and replies.
+- Implement `gzg open <RESOURCE>` and `gzg open --session <id-or-name>
+  <RESOURCE>` against a running TUI.
+- Implement saved-state fallback for `gzg open` when the target session is not
+  currently running.
+- Implement `gzg set --session <id-or-name> <key> <value>` for theme, spacing,
+  width mode, fixed width, and scrollbar visibility.
+- Reuse existing app actions for opening/focusing tabs and applying settings so
+  runtime commands behave the same as keyboard/mouse UI commands.
+- Add tests for running-session command delivery, stale socket fallback,
+  ambiguous session resolution, saved-state mutation, and invalid setting
+  errors.
+
 ## Verification Checklist
 
 Automated CI should use offline fixtures and temporary state/cache directories.
@@ -435,6 +520,12 @@ because they depend on auth, rate limits, terminal state, and installed tools.
   - open a Herdr pane
   - run plain `gzg`
   - open multiple PR/issue tabs
+  - from another shell, run `gzg open --session <id-or-name>
+    dutifuldev/ghzinga#29`
+  - verify the running Herdr-pane TUI opens or focuses that resource without
+    restarting
+  - from another shell, run a `gzg set --session <id-or-name> ...` command and
+    verify the running TUI updates its setting
   - quit `gzg`
   - run plain `gzg` again in the same Herdr pane
   - verify it resolves the session from `HERDR_ENV`, `HERDR_SOCKET_PATH`, and
@@ -444,8 +535,23 @@ because they depend on auth, rate limits, terminal state, and installed tools.
     pane id changes after a Herdr restart
 - Real tmux smoke test:
   - run plain `gzg` inside a tmux pane
+  - from outside the pane, run `gzg open --session <id-or-name>
+    dutifuldev/ghzinga#29`
+  - verify the running tmux-pane TUI opens or focuses that resource
   - open tabs, quit, and relaunch in the same pane
   - verify it resolves the session from `TMUX` and `TMUX_PANE`
+- Runtime control smoke test:
+  - start `gzg` with temporary state/cache/runtime directories
+  - run `gzg sessions` and capture the session id
+  - run `gzg open --session <id> <RESOURCE>` from a separate process
+  - verify the already-running TUI shows a new resource tab
+  - run `gzg set --session <id> theme solarized`
+  - verify the already-running TUI updates and the session file persists the
+    setting
+  - kill the TUI, leave the session file, and run `gzg open --session <id>
+    <RESOURCE>` again
+  - verify saved-state fallback updates the session without needing a running
+    socket
 - Escape-hatch smoke test:
   - `gzg --new` creates a separate saved session even in the same pane
   - `gzg --no-restore` ignores saved state and does not bind a new persistent
