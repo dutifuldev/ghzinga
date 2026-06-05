@@ -166,10 +166,13 @@ pub(crate) fn start_background_fetch(
 pub(crate) fn apply_completed_fetches(
     state: &mut AppState,
     fetch_rx: &mut UnboundedReceiver<FetchOutcome>,
-) {
+) -> bool {
+    let mut changed = false;
     while let Ok(outcome) = fetch_rx.try_recv() {
         apply_fetch_outcome(state, outcome);
+        changed = true;
     }
+    changed
 }
 
 pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {

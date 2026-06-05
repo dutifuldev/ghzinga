@@ -6,6 +6,7 @@ use crate::app::Tab;
 use crate::domain::{ResourceId, ResourceIdError};
 use crate::github::api::ApiDepth;
 use crate::render::{ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName};
+use crate::session::RestoreMode;
 
 pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
 
@@ -19,6 +20,18 @@ pub struct Cli {
     /// GitHub resource as URL, owner/repo#number, or owner/repo number.
     #[arg(value_name = "RESOURCE")]
     pub resource: Vec<String>,
+
+    /// Start a new saved restore session for this launch context.
+    #[arg(long)]
+    pub new: bool,
+
+    /// Disable session restore and avoid binding this launch context.
+    #[arg(long)]
+    pub no_restore: bool,
+
+    /// Load or create a named restore session.
+    #[arg(long, value_name = "ID_OR_NAME")]
+    pub session: Option<String>,
 
     /// Load a normalized resource fixture instead of calling GitHub.
     #[arg(long, value_name = "PATH")]
@@ -74,11 +87,33 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub fn restore_mode(&self) -> RestoreMode {
+        if self.no_restore {
+            RestoreMode::NoRestore
+        } else if self.new {
+            RestoreMode::New
+        } else {
+            RestoreMode::Auto
+        }
+    }
+
+    pub fn has_resource_arg(&self) -> bool {
+        !self.resource.is_empty()
+    }
+
     pub fn parse_resource_id(&self) -> Result<ResourceId, ResourceIdError> {
         match self.resource.as_slice() {
             [single] => ResourceId::parse(single),
             [owner_repo, number] => ResourceId::from_owner_repo_number(owner_repo, number),
             _ => Err(ResourceIdError::Invalid),
+        }
+    }
+
+    pub fn parse_optional_resource_id(&self) -> Result<Option<ResourceId>, ResourceIdError> {
+        if self.resource.is_empty() {
+            Ok(None)
+        } else {
+            self.parse_resource_id().map(Some)
         }
     }
 }
@@ -97,6 +132,28 @@ mod tests {
             cli.parse_resource_id().unwrap().canonical_name(),
             "openclaw/openclaw#81834"
         );
+    }
+
+    #[test]
+    fn parses_restore_flags() {
+        let cli = Cli::parse_from([
+            "ghzinga",
+            "--new",
+            "--session",
+            "work",
+            "openclaw/openclaw#81834",
+        ]);
+
+        assert_eq!(cli.restore_mode(), RestoreMode::New);
+        assert_eq!(cli.session.as_deref(), Some("work"));
+        assert!(cli.has_resource_arg());
+    }
+
+    #[test]
+    fn allows_empty_resource_for_restore() {
+        let cli = Cli::parse_from(["ghzinga"]);
+
+        assert_eq!(cli.parse_optional_resource_id().unwrap(), None);
     }
 
     #[test]

@@ -7,4 +7,5 @@ pub mod github;
 pub mod input;
 pub mod render;
 pub mod runner;
+pub mod session;
 pub mod terminal;

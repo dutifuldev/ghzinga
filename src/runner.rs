@@ -13,6 +13,7 @@ use crate::{
     },
     github::{api::GithubApiGateway, load_fixture},
     render::render_app,
+    session::{self, RestorePlan, RestoreRequest, SessionHandle, SessionSnapshot},
     terminal::TerminalGuard,
 };
 use anyhow::Context;
@@ -25,51 +26,243 @@ use tokio::sync::mpsc::{self, UnboundedSender};
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
 const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
 
+fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
+    let Some(command) = args.get(1).map(String::as_str) else {
+        return Ok(None);
+    };
+    match command {
+        "sessions" => {
+            if args.len() != 2 {
+                eprintln!("usage: gzg sessions");
+                return Ok(Some(2));
+            }
+            print_sessions()?;
+            Ok(Some(0))
+        }
+        "session" => run_session_subcommand(&args[2..]).map(Some),
+        _ => Ok(None),
+    }
+}
+
+fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
+    let Some(command) = args.first().map(String::as_str) else {
+        eprintln!("usage: gzg session <show|delete|rename> ...");
+        return Ok(2);
+    };
+    match command {
+        "show" => {
+            let Some(id) = args.get(1) else {
+                eprintln!("usage: gzg session show <id>");
+                return Ok(2);
+            };
+            let path = session::state_dir()
+                .join("sessions")
+                .join(id)
+                .join("session.json");
+            let raw = std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read {}", path.display()))?;
+            println!("{raw}");
+            Ok(0)
+        }
+        "delete" => {
+            let Some(id) = args.get(1) else {
+                eprintln!("usage: gzg session delete <id>");
+                return Ok(2);
+            };
+            let path = session::state_dir().join("sessions").join(id);
+            match std::fs::remove_dir_all(&path) {
+                Ok(()) => {
+                    println!("deleted session {id}");
+                    Ok(0)
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    eprintln!("session not found: {id}");
+                    Ok(1)
+                }
+                Err(error) => Err(error).with_context(|| format!("failed to delete {id}")),
+            }
+        }
+        "rename" => {
+            let (Some(id), Some(name)) = (args.get(1), args.get(2)) else {
+                eprintln!("usage: gzg session rename <id> <name>");
+                return Ok(2);
+            };
+            let path = session::state_dir()
+                .join("sessions")
+                .join(id)
+                .join("session.json");
+            let mut snapshot = session::load_snapshot(&path)
+                .with_context(|| format!("failed to load {}", path.display()))?;
+            snapshot.name = Some(name.to_string());
+            session::save_snapshot(&path, &snapshot)
+                .with_context(|| format!("failed to save {}", path.display()))?;
+            println!("renamed session {id} to {name}");
+            Ok(0)
+        }
+        "help" | "--help" | "-h" => {
+            eprintln!("usage: gzg session <show|delete|rename> ...");
+            Ok(0)
+        }
+        _ => {
+            eprintln!("usage: gzg session <show|delete|rename> ...");
+            Ok(2)
+        }
+    }
+}
+
+fn print_sessions() -> anyhow::Result<()> {
+    let root = session::state_dir().join("sessions");
+    let entries = match std::fs::read_dir(&root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            println!("no ghzinga sessions");
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to read {}", root.display()))
+        }
+    };
+    let mut rows = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        let snapshot_path = entry.path().join("session.json");
+        let snapshot = match session::load_snapshot(&snapshot_path) {
+            Ok(snapshot) => snapshot,
+            Err(_) => continue,
+        };
+        let active = snapshot
+            .resources
+            .tabs
+            .get(snapshot.resources.active_index)
+            .or_else(|| snapshot.resources.tabs.first())
+            .map(|tab| tab.resource.as_str())
+            .unwrap_or("-");
+        rows.push((id, snapshot.name.unwrap_or_default(), active.to_string()));
+    }
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    if rows.is_empty() {
+        println!("no ghzinga sessions");
+    } else {
+        for (id, name, active) in rows {
+            if name.is_empty() {
+                println!("{id}\t{active}");
+            } else {
+                println!("{id}\t{name}\t{active}");
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn run_from_cli() -> anyhow::Result<()> {
+    let raw_args = std::env::args().collect::<Vec<_>>();
+    if let Some(code) = maybe_run_session_command(&raw_args)? {
+        std::process::exit(code);
+    }
     let cli = Cli::parse();
     let loaded_config = config::load();
-    let resource_id = cli.parse_resource_id()?;
+    let resource_id = cli.parse_optional_resource_id()?;
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let restore_plan = if cli.once {
+        RestorePlan {
+            handle: None,
+            snapshot: None,
+            warnings: Vec::new(),
+        }
+    } else {
+        session::resolve_restore_plan(RestoreRequest {
+            mode: cli.restore_mode(),
+            explicit_session: cli.session.clone(),
+            has_resource_arg: cli.has_resource_arg(),
+            argv: raw_args.clone(),
+            cwd: cwd.clone(),
+        })
+    };
     let api_depth = cli
         .api_depth
         .unwrap_or_else(crate::github::api::ApiDepth::from_env);
-    let (mut state, fetch_source, initial_fetch) = if let Some(path) = &cli.offline_fixture {
-        let resource = load_fixture(path)?;
-        let fixture_source = OfflineFixtureSource::from_primary_and_paths(
-            resource.clone(),
-            &cli.offline_resource_fixture,
-        )?;
-        (
-            AppState::new(resource),
-            FetchSource::OfflineFixtures(fixture_source),
-            None,
-        )
-    } else {
-        let gateway = GithubApiGateway::new(api_depth);
-        let fetch_source = FetchSource::Github(gateway);
-        if cli.once {
+    let (mut state, fetch_source, initial_fetch, restored_ui) =
+        if let Some(path) = &cli.offline_fixture {
+            let resource = load_fixture(path)?;
+            let fixture_source = OfflineFixtureSource::from_primary_and_paths(
+                resource.clone(),
+                &cli.offline_resource_fixture,
+            )?;
             (
-                AppState::new(fetch_source.fetch_resource(&resource_id).await?),
-                fetch_source,
+                AppState::new(resource),
+                FetchSource::OfflineFixtures(fixture_source),
                 None,
+                false,
             )
         } else {
-            (
-                AppState::new(loading_resource_placeholder(resource_id.clone())),
-                fetch_source,
-                Some(FetchAction::Initial { id: resource_id }),
-            )
-        }
-    };
+            let gateway = GithubApiGateway::new(api_depth);
+            let fetch_source = FetchSource::Github(gateway);
+            if cli.once {
+                let Some(resource_id) = resource_id.clone() else {
+                    anyhow::bail!(
+                        "expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number"
+                    );
+                };
+                (
+                    AppState::new(fetch_source.fetch_resource(&resource_id).await?),
+                    fetch_source,
+                    None,
+                    false,
+                )
+            } else if let Some(snapshot) = &restore_plan.snapshot {
+                let mut state = session::restore_state_from_snapshot(
+                    snapshot,
+                    &restore_plan
+                        .handle
+                        .as_ref()
+                        .map(|handle| handle.cache_dir.clone())
+                        .unwrap_or_else(session::cache_dir),
+                )
+                .unwrap_or_else(empty_launch_state);
+                let initial_fetch = resource_id
+                    .clone()
+                    .or_else(|| session::first_refresh_action(snapshot))
+                    .map(|id| FetchAction::Initial { id });
+                if let Some(resource_id) = resource_id.clone() {
+                    state.open_resource_in_tab(loading_resource_placeholder(resource_id));
+                }
+                (state, fetch_source, initial_fetch, true)
+            } else {
+                let initial_resource = resource_id
+                    .clone()
+                    .map(loading_resource_placeholder)
+                    .unwrap_or_else(empty_launch_resource);
+                let mut state = AppState::new(initial_resource);
+                if resource_id.is_none() {
+                    state.open_add_resource_prompt();
+                }
+                (
+                    state,
+                    fetch_source,
+                    resource_id.map(|id| FetchAction::Initial { id }),
+                    false,
+                )
+            }
+        };
 
     state.config_path = loaded_config.path.clone();
-    state.theme = loaded_config.config.ui.theme;
-    state.symbols = loaded_config.config.ui.symbols;
-    state.spacing = loaded_config.config.ui.spacing;
-    state.width_mode = loaded_config.config.ui.width_mode;
-    state.fixed_width = loaded_config.config.ui.fixed_width;
-    state.scrollbar = loaded_config.config.ui.scrollbar;
+    if !restored_ui {
+        state.theme = loaded_config.config.ui.theme;
+        state.symbols = loaded_config.config.ui.symbols;
+        state.spacing = loaded_config.config.ui.spacing;
+        state.width_mode = loaded_config.config.ui.width_mode;
+        state.fixed_width = loaded_config.config.ui.fixed_width;
+        state.scrollbar = loaded_config.config.ui.scrollbar;
+    }
     if !loaded_config.diagnostics.is_empty() {
         state.last_error = Some(loaded_config.diagnostics.join("; "));
+    }
+    if !restore_plan.warnings.is_empty() {
+        state.last_error = Some(restore_plan.warnings.join("; "));
     }
     if let Some(theme) = cli.theme {
         state.theme = theme;
@@ -97,15 +290,33 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let mut session_runtime = restore_plan.handle.map(|handle| SessionRuntime {
+        handle,
+        snapshot: restore_plan.snapshot,
+        argv: raw_args,
+        cwd,
+    });
+    if let Some(runtime) = &mut session_runtime {
+        persist_session(&mut state, runtime);
+    }
+
     run_tui(
         &mut state,
         !cli.no_mouse,
         fetch_source,
         Duration::from_secs(cli.refresh_seconds),
         initial_fetch,
+        session_runtime,
     )
     .await
     .context("failed to run terminal UI")
+}
+
+struct SessionRuntime {
+    handle: SessionHandle,
+    snapshot: Option<SessionSnapshot>,
+    argv: Vec<String>,
+    cwd: std::path::PathBuf,
 }
 
 fn print_once(state: &mut AppState) -> anyhow::Result<()> {
@@ -122,6 +333,7 @@ async fn run_tui(
     fetch_source: FetchSource,
     refresh_interval: Duration,
     initial_fetch: Option<FetchAction>,
+    mut session_runtime: Option<SessionRuntime>,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
     let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
@@ -132,10 +344,17 @@ async fn run_tui(
         }
     }
     loop {
-        apply_completed_fetches(state, &mut fetch_rx);
+        if apply_completed_fetches(state, &mut fetch_rx) {
+            if let Some(runtime) = &mut session_runtime {
+                persist_session(state, runtime);
+            }
+        }
         state.advance_loading_frame();
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
+            if let Some(runtime) = &mut session_runtime {
+                persist_session(state, runtime);
+            }
             return Ok(());
         }
         maybe_auto_refresh(
@@ -158,9 +377,67 @@ async fn run_tui(
             )
             .await
             {
+                if let Some(runtime) = &mut session_runtime {
+                    persist_session(state, runtime);
+                }
                 return Ok(());
             }
+            if let Some(runtime) = &mut session_runtime {
+                persist_session(state, runtime);
+            }
         }
+    }
+}
+
+fn persist_session(state: &mut AppState, runtime: &mut SessionRuntime) {
+    match session::save_session(
+        &runtime.handle,
+        runtime.snapshot.as_ref(),
+        runtime.argv.clone(),
+        runtime.cwd.clone(),
+        state,
+    ) {
+        Ok(snapshot) => runtime.snapshot = Some(snapshot),
+        Err(error) => {
+            state.last_error = Some(format!("failed to save ghzinga session: {error}"));
+        }
+    }
+}
+
+fn empty_launch_state() -> AppState {
+    let mut state = AppState::new(empty_launch_resource());
+    state.open_add_resource_prompt();
+    state
+}
+
+fn empty_launch_resource() -> crate::domain::Resource {
+    use crate::domain::{MetadataItem, ReactionCounts, Resource, ResourceId, ResourceKind};
+
+    Resource {
+        id: ResourceId {
+            owner: "dutifuldev".into(),
+            repo: "ghzinga".into(),
+            number: 1,
+            kind_hint: Some(ResourceKind::Issue),
+        },
+        title: "Open a PR or issue".into(),
+        url: "https://github.com/dutifuldev/ghzinga/issues/1".into(),
+        state: "READY".into(),
+        author: "ghzinga".into(),
+        created_at: "now".into(),
+        updated_at: "now".into(),
+        labels: vec![],
+        assignees: vec![],
+        reactions: ReactionCounts::default(),
+        body: "Use the open-resource prompt to add a GitHub PR or issue.".into(),
+        activity: vec![],
+        related_resources: vec![],
+        metadata: vec![MetadataItem {
+            label: "session".into(),
+            value: "no restored resource yet".into(),
+        }],
+        warnings: vec![],
+        pull_request: None,
     }
 }
 

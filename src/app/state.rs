@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
 use crate::input::HitArea;
@@ -43,6 +43,19 @@ impl Tab {
                 Self::Links,
             ],
             ResourceKind::Issue => &[Self::Overview, Self::Activity, Self::Links],
+        }
+    }
+}
+
+impl fmt::Display for Tab {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Overview => f.write_str("overview"),
+            Self::Activity => f.write_str("activity"),
+            Self::Commits => f.write_str("commits"),
+            Self::Checks => f.write_str("checks"),
+            Self::Files => f.write_str("files"),
+            Self::Links => f.write_str("links"),
         }
     }
 }
@@ -115,6 +128,29 @@ impl ResourceTabState {
             scroll: 0,
             scroll_limit: u16::MAX,
             expanded_blocks: HashSet::new(),
+            history: Vec::new(),
+            last_refreshed_at: None,
+            last_refresh_had_changes: None,
+            last_refresh_changed_sections: Vec::new(),
+            last_error: None,
+            status_message: None,
+        }
+    }
+
+    pub(crate) fn from_session_parts(
+        id: u64,
+        resource: Resource,
+        active_tab: Tab,
+        scroll: u16,
+        expanded_blocks: HashSet<BlockId>,
+    ) -> Self {
+        Self {
+            id,
+            resource,
+            active_tab,
+            scroll,
+            scroll_limit: u16::MAX,
+            expanded_blocks,
             history: Vec::new(),
             last_refreshed_at: None,
             last_refresh_had_changes: None,
@@ -215,6 +251,34 @@ impl AppState {
             fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,
             config_path: crate::config::config_path(),
         }
+    }
+
+    pub(crate) fn from_session_tabs(
+        mut resource_tabs: Vec<ResourceTabState>,
+        active_index: usize,
+    ) -> Self {
+        if resource_tabs.is_empty() {
+            panic!("restored session state requires at least one resource tab");
+        }
+        let active_index = active_index.min(resource_tabs.len() - 1);
+        let resource = resource_tabs[active_index].resource.clone();
+        let next_resource_tab_id = resource_tabs
+            .iter()
+            .map(|tab| tab.id)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
+        let mut state = Self::new(resource);
+        state.resource_tabs.clear();
+        state.resource_tabs.append(&mut resource_tabs);
+        state.next_resource_tab_id = next_resource_tab_id;
+        state.restore_resource_tab(active_index);
+        state
+    }
+
+    pub(crate) fn session_resource_tabs(&mut self) -> Vec<ResourceTabState> {
+        self.snapshot_active_resource_tab();
+        self.resource_tabs.clone()
     }
 
     pub fn tabs(&self) -> &'static [Tab] {
