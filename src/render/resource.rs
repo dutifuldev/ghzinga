@@ -24,7 +24,7 @@ mod header;
 
 use self::header::{
     add_resource_button_width, render_header, render_header_add_button, render_resource_tabs,
-    resource_tabs_area, single_resource_add_button_visible,
+    resource_tab_chrome_rows, resource_tabs_area, single_resource_add_button_visible,
 };
 
 struct ContentRow {
@@ -165,6 +165,7 @@ impl ContentRow {
 
 pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
     let mut rects = rects_for_spacing(frame.area(), state.spacing);
+    reserve_resource_tab_chrome(&mut rects, state);
     let palette = state.theme.palette();
     state.hit_areas.clear();
     frame.buffer_mut().set_style(
@@ -479,6 +480,23 @@ fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
         rects.content.height = rects.content.height.saturating_sub(2);
     }
     rects
+}
+
+fn reserve_resource_tab_chrome(rects: &mut ViewRects, state: &AppState) {
+    if !state.resource_tab_bar_visible() {
+        return;
+    }
+
+    let rows = resource_tab_chrome_rows(rects.header);
+    if rows == 0 || rects.content.height <= rows {
+        return;
+    }
+
+    rects.header.height = rects.header.height.saturating_add(rows);
+    rects.status.y = rects.status.y.saturating_add(rows);
+    rects.tabs.y = rects.tabs.y.saturating_add(rows);
+    rects.content.y = rects.content.y.saturating_add(rows);
+    rects.content.height = rects.content.height.saturating_sub(rows);
 }
 
 fn render_tabs(
@@ -3863,6 +3881,22 @@ mod tests {
             .hit_areas
             .iter()
             .any(|area| area.target == HitTarget::ResourceTab(active)));
+    }
+
+    #[test]
+    fn resource_tab_bar_keeps_header_identity_and_title_visible() {
+        let mut state = AppState::new(pr_resource());
+        let mut resource = pr_resource();
+        resource.id.number = 81835;
+        resource.title = "tab bar regression keeps the issue title visible".into();
+        resource.url = "https://github.com/openclaw/openclaw/pull/81835".into();
+        state.open_resource_in_tab(resource);
+
+        let content = draw(&mut state, 120, 36);
+
+        assert!(content.contains("https://github.com/openclaw/openclaw/pull/81835"));
+        assert!(content.contains("tab bar regression keeps the issue title visible"));
+        assert!(state.resource_tab_bar_visible());
     }
 
     #[test]

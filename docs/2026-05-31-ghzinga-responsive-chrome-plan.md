@@ -46,9 +46,18 @@ The footer also needs a richer scroll cue. A raw offset is useful for debugging,
 but the gh-dash preview pattern is easier to read because it communicates both
 relative position and whether there is more content below.
 
+Resource tabs add another fixed chrome row when multiple PRs/issues are open.
+That row must be reserved independently from the resource identity header.
+Opening a second resource must never collapse the header into a tab-only or
+link-only strip: the GitHub link, state badge, and PR/issue title stay visible
+below the resource tabs.
+
 ## Plan
 
 1. Keep the existing `ViewRects::compute` breakpoints and row reservations.
+   When the resource tab bar is visible, reserve tab-bar chrome rows before
+   rendering the header so the title/header area keeps the same row budget it
+   has in single-resource mode.
 2. Add a reusable displayed-label helper for tabs and footer controls:
    - use the full label when it fits
    - truncate the label to the available row width when it is the first item on
@@ -94,5 +103,6 @@ relative position and whether there is more content below.
 
 At normal sizes the UI should look unchanged. At narrow sizes the chrome should
 wrap into reserved rows, keep click targets aligned with visible labels, show all
-critical resource identity metadata reliably, and only replace content with an
+critical resource identity metadata reliably, keep the active resource title
+visible whether or not resource tabs are open, and only replace content with an
 ellipsis when the terminal is genuinely too small to show the reserved chrome.

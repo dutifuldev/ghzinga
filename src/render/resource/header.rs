@@ -24,10 +24,18 @@ pub(super) fn resource_tabs_area(header: &mut Rect, state: &AppState) -> Option<
         return None;
     }
     let area = Rect::new(header.x, header.y, header.width, 1);
-    let consumed = if header.height >= 3 { 2 } else { 1 };
+    let consumed = resource_tab_chrome_rows(*header);
     header.y = header.y.saturating_add(consumed);
     header.height = header.height.saturating_sub(consumed);
     Some(area)
+}
+
+pub(super) fn resource_tab_chrome_rows(header: Rect) -> u16 {
+    if header.height >= 3 {
+        2
+    } else {
+        1
+    }
 }
 
 pub(super) fn single_resource_add_button_visible(header: Rect) -> bool {
