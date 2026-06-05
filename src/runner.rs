@@ -1,5 +1,6 @@
 use std::{
     process::Stdio,
+    str::FromStr,
     time::{Duration, Instant},
 };
 
@@ -7,12 +8,15 @@ use crate::{
     app::{apply_event, loading_resource_placeholder, AppEvent, AppIntent, AppState},
     cli::Cli,
     config::{self, AppConfig},
+    control::{self, ControlReply, RuntimeCommand, RuntimeRequest},
+    domain::ResourceId,
     fetch::{
         apply_completed_fetches, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
         OfflineFixtureSource,
     },
     github::{api::GithubApiGateway, load_fixture},
     render::render_app,
+    session::{self, RestorePlan, RestoreRequest, SessionHandle, SessionSnapshot},
     terminal::TerminalGuard,
 };
 use anyhow::Context;
@@ -20,56 +24,447 @@ use clap::Parser;
 use crossterm::event::{self, Event};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(250);
 const MAX_PENDING_EVENTS_PER_FRAME: usize = 64;
+const SESSION_SAVE_DEBOUNCE: Duration = Duration::from_millis(750);
+
+async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32>> {
+    let Some(command) = args.get(1).map(String::as_str) else {
+        return Ok(None);
+    };
+    match command {
+        "sessions" => {
+            if args.len() != 2 {
+                eprintln!("usage: gzg sessions");
+                return Ok(Some(2));
+            }
+            print_sessions()?;
+            Ok(Some(0))
+        }
+        "session" => run_session_subcommand(&args[2..]).map(Some),
+        "open" => run_open_command(args, &args[2..]).await.map(Some),
+        "set" => run_set_command(args, &args[2..]).await.map(Some),
+        _ => Ok(None),
+    }
+}
+
+async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    let (session_ref, resource_args) = parse_control_session_option(args)?;
+    if resource_args.is_empty() {
+        eprintln!("usage: gzg open [--session <id-or-name>] <resource>");
+        return Ok(2);
+    }
+    let resource = parse_resource_args(&resource_args)?;
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd.clone()) {
+        Ok(plan) => plan,
+        Err(session::ControlResolveError::Ambiguous(matches)) => {
+            eprintln!(
+                "ambiguous ghzinga session; pass --session. matches: {}",
+                matches.join(", ")
+            );
+            return Ok(2);
+        }
+    };
+    print_control_warnings(&plan.warnings);
+    let Some(handle) = plan.handle else {
+        eprintln!("no persistent ghzinga session available");
+        return Ok(1);
+    };
+    match control::send_open(&handle.id, &resource).await {
+        Ok(reply) if reply.ok => {
+            println!(
+                "{}",
+                reply
+                    .result
+                    .unwrap_or_else(|| format!("opened {}", resource.canonical_name()))
+            );
+            Ok(0)
+        }
+        Ok(reply) => {
+            eprintln!(
+                "{}",
+                reply
+                    .error
+                    .unwrap_or_else(|| "control command failed".into())
+            );
+            Ok(1)
+        }
+        Err(error) => {
+            save_open_command_to_session(
+                &handle,
+                plan.snapshot,
+                raw_args.to_vec(),
+                cwd,
+                &resource,
+            )?;
+            println!(
+                "queued {} for session {} ({error})",
+                resource.canonical_name(),
+                handle.id
+            );
+            Ok(0)
+        }
+    }
+}
+
+async fn run_set_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    let (session_ref, rest) = parse_control_session_option(args)?;
+    if rest.len() != 2 {
+        eprintln!("usage: gzg set [--session <id-or-name>] <setting> <value>");
+        return Ok(2);
+    }
+    let key = &rest[0];
+    let value = &rest[1];
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd) {
+        Ok(plan) => plan,
+        Err(session::ControlResolveError::Ambiguous(matches)) => {
+            eprintln!(
+                "ambiguous ghzinga session; pass --session. matches: {}",
+                matches.join(", ")
+            );
+            return Ok(2);
+        }
+    };
+    print_control_warnings(&plan.warnings);
+    let Some(handle) = plan.handle else {
+        eprintln!("no persistent ghzinga session available");
+        return Ok(1);
+    };
+    match control::send_set(&handle.id, key, value).await {
+        Ok(reply) if reply.ok => {
+            println!(
+                "{}",
+                reply
+                    .result
+                    .unwrap_or_else(|| format!("set {key} for session {}", handle.id))
+            );
+            Ok(0)
+        }
+        Ok(reply) => {
+            eprintln!(
+                "{}",
+                reply
+                    .error
+                    .unwrap_or_else(|| "control command failed".into())
+            );
+            Ok(1)
+        }
+        Err(error) => {
+            let Some(mut snapshot) = plan.snapshot else {
+                eprintln!(
+                    "session {} is not running and has no saved state; open a resource first ({error})",
+                    handle.id
+                );
+                return Ok(1);
+            };
+            match session::apply_ui_setting_to_snapshot(&mut snapshot, key, value) {
+                Ok(()) => {
+                    session::save_snapshot(&handle.session_path(), &snapshot)?;
+                    println!("queued {key}={value} for session {} ({error})", handle.id);
+                    Ok(0)
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    Ok(2)
+                }
+            }
+        }
+    }
+}
+
+fn parse_control_session_option(args: &[String]) -> anyhow::Result<(Option<String>, Vec<String>)> {
+    let mut session_ref = None;
+    let mut rest = Vec::new();
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--session" => {
+                let Some(value) = args.get(index + 1) else {
+                    anyhow::bail!("--session requires an id or name");
+                };
+                session_ref = Some(value.clone());
+                index += 2;
+            }
+            value if value.starts_with("--session=") => {
+                session_ref = Some(value.trim_start_matches("--session=").to_string());
+                index += 1;
+            }
+            value if value.starts_with("--") => {
+                anyhow::bail!("unknown control option `{value}`");
+            }
+            _ => {
+                rest.push(args[index].clone());
+                index += 1;
+            }
+        }
+    }
+    Ok((session_ref, rest))
+}
+
+fn parse_resource_args(args: &[String]) -> anyhow::Result<ResourceId> {
+    match args {
+        [single] => ResourceId::parse(single).map_err(anyhow::Error::new),
+        [owner_repo, number] => {
+            ResourceId::from_owner_repo_number(owner_repo, number).map_err(anyhow::Error::new)
+        }
+        _ => {
+            anyhow::bail!("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")
+        }
+    }
+}
+
+fn print_control_warnings(warnings: &[String]) {
+    for warning in warnings {
+        eprintln!("warning: {warning}");
+    }
+}
+
+fn save_open_command_to_session(
+    handle: &SessionHandle,
+    snapshot: Option<SessionSnapshot>,
+    argv: Vec<String>,
+    cwd: std::path::PathBuf,
+    resource: &ResourceId,
+) -> anyhow::Result<()> {
+    let mut snapshot = if let Some(mut snapshot) = snapshot {
+        session::upsert_resource_in_snapshot(&mut snapshot, resource);
+        snapshot
+    } else {
+        let mut state = AppState::new(loading_resource_placeholder(resource.clone()));
+        SessionSnapshot::from_state(
+            handle.id.clone(),
+            None,
+            handle.contexts.clone(),
+            argv,
+            cwd,
+            &mut state,
+        )
+    };
+    session::upsert_resource_in_snapshot(&mut snapshot, resource);
+    session::save_snapshot(&handle.session_path(), &snapshot)?;
+    Ok(())
+}
+
+fn run_session_subcommand(args: &[String]) -> anyhow::Result<i32> {
+    let Some(command) = args.first().map(String::as_str) else {
+        eprintln!("usage: gzg session <show|delete|rename> ...");
+        return Ok(2);
+    };
+    match command {
+        "show" => {
+            let Some(reference) = args.get(1) else {
+                eprintln!("usage: gzg session show <id-or-name>");
+                return Ok(2);
+            };
+            let state_root = session::state_dir();
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = session::session_json_path(&state_root, &id);
+            let raw = std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read {}", path.display()))?;
+            println!("{raw}");
+            Ok(0)
+        }
+        "delete" => {
+            let Some(reference) = args.get(1) else {
+                eprintln!("usage: gzg session delete <id-or-name>");
+                return Ok(2);
+            };
+            let state_root = session::state_dir();
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = state_root.join("sessions").join(&id);
+            match std::fs::remove_dir_all(&path) {
+                Ok(()) => {
+                    session::prune_session_anchors(&state_root, &id)
+                        .map_err(|error| anyhow::anyhow!(error))?;
+                    println!("deleted session {id}");
+                    Ok(0)
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    eprintln!("session not found: {id}");
+                    Ok(1)
+                }
+                Err(error) => Err(error).with_context(|| format!("failed to delete {id}")),
+            }
+        }
+        "rename" => {
+            let (Some(reference), Some(name)) = (args.get(1), args.get(2)) else {
+                eprintln!("usage: gzg session rename <id-or-name> <name>");
+                return Ok(2);
+            };
+            let state_root = session::state_dir();
+            let id = session::resolve_session_reference(&state_root, reference);
+            let path = session::session_json_path(&state_root, &id);
+            let mut snapshot = session::load_snapshot(&path)
+                .with_context(|| format!("failed to load {}", path.display()))?;
+            snapshot.name = Some(name.to_string());
+            session::save_snapshot(&path, &snapshot)
+                .with_context(|| format!("failed to save {}", path.display()))?;
+            println!("renamed session {id} to {name}");
+            Ok(0)
+        }
+        "help" | "--help" | "-h" => {
+            eprintln!("usage: gzg session <show|delete|rename> ...");
+            Ok(0)
+        }
+        _ => {
+            eprintln!("usage: gzg session <show|delete|rename> ...");
+            Ok(2)
+        }
+    }
+}
+
+fn print_sessions() -> anyhow::Result<()> {
+    let root = session::state_dir().join("sessions");
+    let entries = match std::fs::read_dir(&root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            println!("no ghzinga sessions");
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to read {}", root.display()))
+        }
+    };
+    let mut rows = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        let snapshot_path = entry.path().join("session.json");
+        let snapshot = match session::load_snapshot(&snapshot_path) {
+            Ok(snapshot) => snapshot,
+            Err(_) => continue,
+        };
+        let active = snapshot
+            .resources
+            .tabs
+            .get(snapshot.resources.active_index)
+            .or_else(|| snapshot.resources.tabs.first())
+            .map(|tab| tab.resource.as_str())
+            .unwrap_or("-");
+        rows.push((id, snapshot.name.unwrap_or_default(), active.to_string()));
+    }
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    if rows.is_empty() {
+        println!("no ghzinga sessions");
+    } else {
+        for (id, name, active) in rows {
+            if name.is_empty() {
+                println!("{id}\t{active}");
+            } else {
+                println!("{id}\t{name}\t{active}");
+            }
+        }
+    }
+    Ok(())
+}
 
 pub async fn run_from_cli() -> anyhow::Result<()> {
+    let raw_args = std::env::args().collect::<Vec<_>>();
+    if let Some(code) = maybe_run_session_command(&raw_args).await? {
+        std::process::exit(code);
+    }
     let cli = Cli::parse();
     let loaded_config = config::load();
-    let resource_id = cli.parse_resource_id()?;
+    let resource_id = cli.parse_optional_resource_id()?;
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let restore_plan = if cli.once {
+        RestorePlan {
+            handle: None,
+            snapshot: None,
+            warnings: Vec::new(),
+        }
+    } else {
+        session::resolve_restore_plan(RestoreRequest {
+            mode: cli.restore_mode(),
+            explicit_session: cli.session.clone(),
+            has_resource_arg: cli.has_resource_arg(),
+            argv: raw_args.clone(),
+            cwd: cwd.clone(),
+        })
+    };
     let api_depth = cli
         .api_depth
         .unwrap_or_else(crate::github::api::ApiDepth::from_env);
-    let (mut state, fetch_source, initial_fetch) = if let Some(path) = &cli.offline_fixture {
-        let resource = load_fixture(path)?;
-        let fixture_source = OfflineFixtureSource::from_primary_and_paths(
-            resource.clone(),
-            &cli.offline_resource_fixture,
-        )?;
-        (
-            AppState::new(resource),
-            FetchSource::OfflineFixtures(fixture_source),
-            None,
-        )
-    } else {
-        let gateway = GithubApiGateway::new(api_depth);
-        let fetch_source = FetchSource::Github(gateway);
-        if cli.once {
+    let (mut state, fetch_source, initial_fetch, restored_ui) =
+        if let Some(path) = &cli.offline_fixture {
+            let resource = load_fixture(path)?;
+            let fixture_source = OfflineFixtureSource::from_primary_and_paths(
+                resource.clone(),
+                &cli.offline_resource_fixture,
+            )?;
             (
-                AppState::new(fetch_source.fetch_resource(&resource_id).await?),
-                fetch_source,
+                AppState::new(resource),
+                FetchSource::OfflineFixtures(fixture_source),
                 None,
+                false,
             )
         } else {
-            (
-                AppState::new(loading_resource_placeholder(resource_id.clone())),
-                fetch_source,
-                Some(FetchAction::Initial { id: resource_id }),
-            )
-        }
-    };
+            let gateway = GithubApiGateway::new(api_depth);
+            let fetch_source = FetchSource::Github(gateway);
+            if cli.once {
+                let Some(resource_id) = resource_id.clone() else {
+                    anyhow::bail!(
+                        "expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number"
+                    );
+                };
+                (
+                    AppState::new(fetch_source.fetch_resource(&resource_id).await?),
+                    fetch_source,
+                    None,
+                    false,
+                )
+            } else if let Some(snapshot) = &restore_plan.snapshot {
+                let mut state = session::restore_state_from_snapshot(
+                    snapshot,
+                    &restore_plan
+                        .handle
+                        .as_ref()
+                        .map(|handle| handle.cache_dir.clone())
+                        .unwrap_or_else(session::cache_dir),
+                )
+                .unwrap_or_else(empty_launch_state);
+                let initial_fetch =
+                    prepare_restored_initial_fetch(&mut state, snapshot, resource_id.clone());
+                (state, fetch_source, initial_fetch, true)
+            } else {
+                let initial_resource = resource_id
+                    .clone()
+                    .map(loading_resource_placeholder)
+                    .unwrap_or_else(empty_launch_resource);
+                let mut state = AppState::new(initial_resource);
+                if resource_id.is_none() {
+                    state.open_add_resource_prompt();
+                }
+                (
+                    state,
+                    fetch_source,
+                    resource_id.map(|id| FetchAction::Initial { id }),
+                    false,
+                )
+            }
+        };
 
     state.config_path = loaded_config.path.clone();
-    state.theme = loaded_config.config.ui.theme;
-    state.symbols = loaded_config.config.ui.symbols;
-    state.spacing = loaded_config.config.ui.spacing;
-    state.width_mode = loaded_config.config.ui.width_mode;
-    state.fixed_width = loaded_config.config.ui.fixed_width;
-    state.scrollbar = loaded_config.config.ui.scrollbar;
+    if !restored_ui {
+        state.theme = loaded_config.config.ui.theme;
+        state.symbols = loaded_config.config.ui.symbols;
+        state.spacing = loaded_config.config.ui.spacing;
+        state.width_mode = loaded_config.config.ui.width_mode;
+        state.fixed_width = loaded_config.config.ui.fixed_width;
+        state.scrollbar = loaded_config.config.ui.scrollbar;
+    }
     if !loaded_config.diagnostics.is_empty() {
         state.last_error = Some(loaded_config.diagnostics.join("; "));
+    }
+    if !restore_plan.warnings.is_empty() {
+        state.last_error = Some(restore_plan.warnings.join("; "));
     }
     if let Some(theme) = cli.theme {
         state.theme = theme;
@@ -97,15 +492,44 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let mut session_runtime = restore_plan.handle.map(|handle| SessionRuntime {
+        handle,
+        snapshot: restore_plan.snapshot,
+        argv: raw_args,
+        cwd,
+        dirty: false,
+        dirty_since: None,
+    });
+    if let Some(runtime) = &mut session_runtime {
+        persist_session_now(&mut state, runtime);
+    }
+
     run_tui(
         &mut state,
         !cli.no_mouse,
         fetch_source,
         Duration::from_secs(cli.refresh_seconds),
         initial_fetch,
+        session_runtime,
     )
     .await
     .context("failed to run terminal UI")
+}
+
+struct SessionRuntime {
+    handle: SessionHandle,
+    snapshot: Option<SessionSnapshot>,
+    argv: Vec<String>,
+    cwd: std::path::PathBuf,
+    dirty: bool,
+    dirty_since: Option<Instant>,
+}
+
+impl SessionRuntime {
+    fn mark_dirty(&mut self, now: Instant) {
+        self.dirty = true;
+        self.dirty_since = Some(now);
+    }
 }
 
 fn print_once(state: &mut AppState) -> anyhow::Result<()> {
@@ -122,9 +546,21 @@ async fn run_tui(
     fetch_source: FetchSource,
     refresh_interval: Duration,
     initial_fetch: Option<FetchAction>,
+    mut session_runtime: Option<SessionRuntime>,
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
     let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
+    let (control_tx, mut control_rx) = mpsc::unbounded_channel();
+    let _control_server = match &session_runtime {
+        Some(runtime) => match control::start_server(&runtime.handle.id, control_tx) {
+            Ok(server) => Some(server),
+            Err(error) => {
+                state.last_error = Some(format!("failed to start ghzinga control socket: {error}"));
+                None
+            }
+        },
+        None => None,
+    };
     let mut last_refresh = Instant::now();
     if let Some(action) = initial_fetch {
         if start_background_fetch(state, action, fetch_source.clone(), &fetch_tx) {
@@ -132,12 +568,33 @@ async fn run_tui(
         }
     }
     loop {
-        apply_completed_fetches(state, &mut fetch_rx);
+        if apply_completed_fetches(state, &mut fetch_rx) {
+            if let Some(runtime) = &mut session_runtime {
+                persist_session_now(state, runtime);
+            }
+        }
+        handle_pending_control_requests(
+            state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut control_rx,
+            &mut session_runtime,
+            &mut last_refresh,
+        );
         state.advance_loading_frame();
         terminal.draw(|frame| render_app(frame, state))?;
         if state.should_quit {
+            if let Some(runtime) = &mut session_runtime {
+                persist_session_now(state, runtime);
+            }
             return Ok(());
         }
+        maybe_refresh_loading_active_resource(
+            state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut last_refresh,
+        );
         maybe_auto_refresh(
             state,
             fetch_source.is_live_github(),
@@ -158,10 +615,261 @@ async fn run_tui(
             )
             .await
             {
+                if let Some(runtime) = &mut session_runtime {
+                    persist_session_now(state, runtime);
+                }
                 return Ok(());
+            }
+            maybe_refresh_loading_active_resource(
+                state,
+                fetch_source.clone(),
+                &fetch_tx,
+                &mut last_refresh,
+            );
+            if let Some(runtime) = &mut session_runtime {
+                runtime.mark_dirty(Instant::now());
+            }
+        }
+        if let Some(runtime) = &mut session_runtime {
+            persist_session_when_due(state, runtime, Instant::now());
+        }
+    }
+}
+
+fn handle_pending_control_requests(
+    state: &mut AppState,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    control_rx: &mut UnboundedReceiver<RuntimeRequest>,
+    session_runtime: &mut Option<SessionRuntime>,
+    last_refresh: &mut Instant,
+) {
+    while let Ok(request) = control_rx.try_recv() {
+        let reply = handle_control_command(
+            state,
+            request.command,
+            fetch_source.clone(),
+            fetch_tx,
+            session_runtime.as_ref(),
+            last_refresh,
+        );
+        let changed = reply.ok;
+        let _ = request.reply.send(reply);
+        if changed {
+            if let Some(runtime) = session_runtime {
+                persist_session_now(state, runtime);
             }
         }
     }
+}
+
+fn handle_control_command(
+    state: &mut AppState,
+    command: RuntimeCommand,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    session_runtime: Option<&SessionRuntime>,
+    last_refresh: &mut Instant,
+) -> ControlReply {
+    match command {
+        RuntimeCommand::Open { resource, .. } => handle_control_open(
+            state,
+            resource,
+            fetch_source,
+            fetch_tx,
+            session_runtime,
+            last_refresh,
+        ),
+        RuntimeCommand::Set { key, value, .. } => {
+            match apply_control_setting(state, &key, &value) {
+                Ok(changed) => {
+                    if changed {
+                        ControlReply::ok(format!("set {key}={value}"))
+                    } else {
+                        ControlReply::ok(format!("{key} already {value}"))
+                    }
+                }
+                Err(error) => ControlReply::error(error),
+            }
+        }
+    }
+}
+
+fn handle_control_open(
+    state: &mut AppState,
+    resource: ResourceId,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    session_runtime: Option<&SessionRuntime>,
+    last_refresh: &mut Instant,
+) -> ControlReply {
+    if let Some(message) = state.loading_message() {
+        return ControlReply::error(format!("still loading: {message}"));
+    }
+    let canonical = resource.canonical_name();
+    if state.focus_resource_tab(&resource) {
+        if start_background_fetch(
+            state,
+            FetchAction::Refresh {
+                id: resource.clone(),
+            },
+            fetch_source,
+            fetch_tx,
+        ) {
+            *last_refresh = Instant::now();
+        }
+        return ControlReply::ok(format!("focused {canonical}"));
+    }
+
+    let cached = session_runtime.and_then(|runtime| {
+        session::load_resource_cache(&runtime.handle.cache_dir, &resource).ok()
+    });
+    let action = FetchAction::Refresh {
+        id: resource.clone(),
+    };
+    if should_replace_empty_launch_tab(state) {
+        state.replace_resource_preserve_tab(
+            cached.unwrap_or_else(|| loading_resource_placeholder(resource.clone())),
+        );
+    } else {
+        state.open_resource_in_tab(
+            cached.unwrap_or_else(|| loading_resource_placeholder(resource.clone())),
+        );
+    }
+    if start_background_fetch(state, action, fetch_source, fetch_tx) {
+        *last_refresh = Instant::now();
+    }
+    ControlReply::ok(format!("opening {canonical}"))
+}
+
+fn apply_control_setting(state: &mut AppState, key: &str, value: &str) -> Result<bool, String> {
+    match key.trim().to_ascii_lowercase().replace('_', "-").as_str() {
+        "theme" => Ok(state.set_theme(crate::render::ThemeName::from_str(value)?)),
+        "symbols" => Ok(state.set_symbols(crate::render::SymbolMode::from_str(value)?)),
+        "spacing" => Ok(state.set_spacing(crate::render::SpacingMode::from_str(value)?)),
+        "width-mode" => Ok(state.set_width_mode(crate::render::ContentWidthMode::from_str(
+            value,
+        )?)),
+        "fixed-width" => {
+            let width = value
+                .trim()
+                .parse::<u16>()
+                .map_err(|_| "fixed-width expects a number".to_string())?;
+            Ok(state.set_fixed_width(width))
+        }
+        "scrollbar" => Ok(state.set_scrollbar(crate::render::ScrollbarMode::from_str(
+            value,
+        )?)),
+        other => Err(format!(
+            "unknown setting `{other}`; expected theme, symbols, spacing, width-mode, fixed-width, or scrollbar"
+        )),
+    }
+}
+
+fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
+    if !session_state_persistable(state) {
+        return;
+    }
+    match session::save_session(
+        &runtime.handle,
+        runtime.snapshot.as_ref(),
+        runtime.argv.clone(),
+        runtime.cwd.clone(),
+        state,
+    ) {
+        Ok(snapshot) => {
+            runtime.snapshot = Some(snapshot);
+            runtime.dirty = false;
+            runtime.dirty_since = None;
+        }
+        Err(error) => {
+            state.last_error = Some(format!("failed to save ghzinga session: {error}"));
+        }
+    }
+}
+
+fn persist_session_when_due(state: &mut AppState, runtime: &mut SessionRuntime, now: Instant) {
+    if !runtime.dirty {
+        return;
+    }
+    let Some(dirty_since) = runtime.dirty_since else {
+        return;
+    };
+    if now.duration_since(dirty_since) >= SESSION_SAVE_DEBOUNCE {
+        persist_session_now(state, runtime);
+    }
+}
+
+fn session_state_persistable(state: &AppState) -> bool {
+    !is_empty_launch_resource(&state.resource)
+}
+
+fn empty_launch_state() -> AppState {
+    let mut state = AppState::new(empty_launch_resource());
+    state.open_add_resource_prompt();
+    state
+}
+
+fn prepare_restored_initial_fetch(
+    state: &mut AppState,
+    snapshot: &session::SessionSnapshot,
+    resource_id: Option<crate::domain::ResourceId>,
+) -> Option<FetchAction> {
+    if let Some(resource_id) = resource_id {
+        if state.focus_resource_tab(&resource_id) {
+            Some(FetchAction::Refresh { id: resource_id })
+        } else {
+            state.open_resource_in_tab(loading_resource_placeholder(resource_id.clone()));
+            Some(FetchAction::Initial { id: resource_id })
+        }
+    } else {
+        session::first_refresh_action(snapshot).map(|id| FetchAction::Refresh { id })
+    }
+}
+
+fn empty_launch_resource() -> crate::domain::Resource {
+    use crate::domain::{MetadataItem, ReactionCounts, Resource, ResourceId, ResourceKind};
+
+    Resource {
+        id: ResourceId {
+            owner: "dutifuldev".into(),
+            repo: "ghzinga".into(),
+            number: 1,
+            kind_hint: Some(ResourceKind::Issue),
+        },
+        title: "Open a PR or issue".into(),
+        url: "https://github.com/dutifuldev/ghzinga/issues/1".into(),
+        state: "READY".into(),
+        author: "ghzinga".into(),
+        created_at: "now".into(),
+        updated_at: "now".into(),
+        labels: vec![],
+        assignees: vec![],
+        reactions: ReactionCounts::default(),
+        body: "Use the open-resource prompt to add a GitHub PR or issue.".into(),
+        activity: vec![],
+        related_resources: vec![],
+        metadata: vec![MetadataItem {
+            label: "session".into(),
+            value: "no restored resource yet".into(),
+        }],
+        warnings: vec![],
+        pull_request: None,
+    }
+}
+
+fn is_empty_launch_resource(resource: &crate::domain::Resource) -> bool {
+    resource.id.owner == "dutifuldev"
+        && resource.id.repo == "ghzinga"
+        && resource.id.number == 1
+        && resource.title == "Open a PR or issue"
+        && resource.state == "READY"
+        && resource.author == "ghzinga"
+        && resource.pull_request.is_none()
+}
+
+fn is_loading_resource(resource: &crate::domain::Resource) -> bool {
+    resource.state == "LOADING"
 }
 
 fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
@@ -230,12 +938,12 @@ async fn handle_intent(
         }
         AppIntent::OpenResource(id) => {
             if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
-                if start_background_fetch(
-                    state,
-                    FetchAction::OpenTab { id },
-                    fetch_source,
-                    fetch_tx,
-                ) {
+                let action = if should_replace_empty_launch_tab(state) {
+                    FetchAction::Initial { id }
+                } else {
+                    FetchAction::OpenTab { id }
+                };
+                if start_background_fetch(state, action, fetch_source, fetch_tx) {
                     state.close_add_resource_prompt();
                     *last_refresh = Instant::now();
                 } else if let Some(message) = state.status_message.clone() {
@@ -345,6 +1053,9 @@ pub(crate) fn maybe_auto_refresh_with_start(
     now: Instant,
     mut start: impl FnMut(&mut AppState, FetchAction) -> bool,
 ) -> bool {
+    if is_loading_resource(&state.resource) {
+        return false;
+    }
     if !auto_refresh_due(
         live_refresh,
         refresh_interval,
@@ -360,6 +1071,37 @@ pub(crate) fn maybe_auto_refresh_with_start(
 
 fn auto_refresh_due(live_refresh: bool, refresh_interval: Duration, elapsed: Duration) -> bool {
     live_refresh && refresh_interval.as_secs() > 0 && elapsed >= refresh_interval
+}
+
+fn maybe_refresh_loading_active_resource(
+    state: &mut AppState,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    last_refresh: &mut Instant,
+) -> bool {
+    if !is_loading_resource(&state.resource) || is_empty_launch_resource(&state.resource) {
+        return false;
+    }
+    if state.loading_message().is_some() {
+        return false;
+    }
+    if state.last_error.is_some() {
+        return false;
+    }
+    if !(fetch_source.is_live_github() || fetch_source.is_offline_fixture()) {
+        return false;
+    }
+    let id = state.resource.id.clone();
+    if start_background_fetch(state, FetchAction::Refresh { id }, fetch_source, fetch_tx) {
+        *last_refresh = Instant::now();
+        true
+    } else {
+        false
+    }
+}
+
+fn should_replace_empty_launch_tab(state: &AppState) -> bool {
+    state.resource_tabs.len() == 1 && is_empty_launch_resource(&state.resource)
 }
 
 async fn open_url(state: &mut AppState, url: &str) {
@@ -602,15 +1344,22 @@ mod tests {
     };
 
     use crate::{
-        app::{AppIntent, AppState},
+        app::{loading_resource_placeholder, AppIntent, AppState},
         domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
-        fetch::{FetchSource, OfflineFixtureSource},
+        fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
+        session::{
+            self, BlockIdSnapshot, LaunchContext, LaunchSnapshot, ResourceTabSnapshot,
+            ResourcesSnapshot, SessionHandle, SessionSnapshot, UiSnapshot,
+        },
     };
 
     use super::{
-        auto_refresh_due, clipboard_command, handle_intent, maybe_auto_refresh_with_start,
-        navigate_back, navigate_to_resource, url_open_command, ClipboardPlatform,
+        apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
+        handle_intent, maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource,
+        navigate_back, navigate_to_resource, prepare_restored_initial_fetch,
+        save_open_command_to_session, session_state_persistable, should_replace_empty_launch_tab,
+        url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -665,6 +1414,41 @@ mod tests {
             metadata: vec![],
             warnings: vec![],
             pull_request: None,
+        }
+    }
+
+    fn session_snapshot_for(resource: &Resource) -> SessionSnapshot {
+        SessionSnapshot {
+            schema_version: 1,
+            id: "work".into(),
+            name: None,
+            created_at: "1".into(),
+            updated_at: "1".into(),
+            launch: LaunchSnapshot {
+                argv: vec!["gzg".into()],
+                cwd: std::path::PathBuf::from("/repo"),
+                contexts: vec![],
+            },
+            ui: UiSnapshot {
+                theme: "default".into(),
+                symbols: "emoji".into(),
+                spacing: "comfortable".into(),
+                width_mode: "fixed".into(),
+                fixed_width: 118,
+                scrollbar: "on-scroll".into(),
+            },
+            resources: ResourcesSnapshot {
+                active_index: 0,
+                tabs: vec![ResourceTabSnapshot {
+                    id: "r_1".into(),
+                    resource: resource.id.canonical_name(),
+                    kind_hint: resource.id.kind_hint,
+                    view: "activity".into(),
+                    scroll: 5,
+                    reverse_chronological: false,
+                    expanded_blocks: vec![BlockIdSnapshot::Body],
+                }],
+            },
         }
     }
 
@@ -749,6 +1533,119 @@ mod tests {
             clipboard_command(ClipboardPlatform::Windows, None, None, None),
             Some(("clip".into(), vec![]))
         );
+    }
+
+    #[test]
+    fn empty_launch_placeholder_is_not_persistable() {
+        let state = AppState::new(empty_launch_resource());
+
+        assert!(!session_state_persistable(&state));
+    }
+
+    #[test]
+    fn empty_launch_placeholder_first_open_replaces_tab() {
+        let mut state = AppState::new(empty_launch_resource());
+
+        assert!(should_replace_empty_launch_tab(&state));
+
+        state.replace_resource_preserve_tab(issue_resource(2, "Real issue"));
+
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert_eq!(state.resource.id.number, 2);
+        assert!(session_state_persistable(&state));
+    }
+
+    #[test]
+    fn restored_cached_resource_arg_refreshes_existing_tab() {
+        let resource = issue_resource(2, "Cached issue");
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(crate::app::Tab::Activity);
+        state.scroll_down(5);
+
+        let action =
+            prepare_restored_initial_fetch(&mut state, &snapshot, Some(resource.id.clone()));
+
+        assert!(matches!(action, Some(FetchAction::Refresh { .. })));
+        assert_eq!(state.resource.title, "Cached issue");
+        assert_eq!(state.active_tab, crate::app::Tab::Activity);
+        assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn restored_missing_resource_arg_opens_loading_placeholder() {
+        let resource = issue_resource(1, "Cached issue");
+        let missing = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: None,
+        };
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource);
+
+        let action = prepare_restored_initial_fetch(&mut state, &snapshot, Some(missing));
+
+        assert!(matches!(action, Some(FetchAction::Initial { .. })));
+        assert_eq!(state.resource.title, "Loading owner/repo#2");
+        assert_eq!(state.resource_tabs.len(), 2);
+    }
+
+    #[test]
+    fn restored_session_without_resource_arg_refreshes_active_tab() {
+        let resource = issue_resource(1, "Cached issue");
+        let snapshot = session_snapshot_for(&resource);
+        let mut state = AppState::new(resource);
+
+        let action = prepare_restored_initial_fetch(&mut state, &snapshot, None);
+
+        assert!(matches!(action, Some(FetchAction::Refresh { .. })));
+    }
+
+    #[test]
+    fn saved_open_command_creates_or_updates_session_snapshot() {
+        let state_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let handle = SessionHandle {
+            id: "work".into(),
+            state_dir: state_dir.path().into(),
+            cache_dir: cache_dir.path().into(),
+            contexts: Vec::<LaunchContext>::new(),
+            ephemeral: false,
+        };
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+
+        save_open_command_to_session(
+            &handle,
+            None,
+            vec!["gzg".into(), "open".into(), "owner/repo#2".into()],
+            std::path::PathBuf::from("/repo"),
+            &id,
+        )
+        .unwrap();
+
+        let snapshot = session::load_snapshot(&handle.session_path()).unwrap();
+        assert_eq!(snapshot.resources.tabs.len(), 1);
+        assert_eq!(snapshot.resources.tabs[0].resource, "owner/repo#2");
+        assert_eq!(snapshot.resources.active_index, 0);
+    }
+
+    #[test]
+    fn control_setting_helper_uses_same_state_setters() {
+        let mut state = AppState::new(issue_resource(1, "Issue"));
+
+        assert!(apply_control_setting(&mut state, "spacing", "compact").unwrap());
+        assert_eq!(state.spacing, crate::render::SpacingMode::Compact);
+        assert!(apply_control_setting(&mut state, "width-mode", "full").unwrap());
+        assert_eq!(state.width_mode, crate::render::ContentWidthMode::Full);
+        assert!(apply_control_setting(&mut state, "fixed-width", "999").unwrap());
+        assert_eq!(state.fixed_width, crate::render::MAX_FIXED_CONTENT_WIDTH);
+        assert!(apply_control_setting(&mut state, "unknown", "value").is_err());
     }
 
     #[test]
@@ -842,6 +1739,65 @@ mod tests {
         assert!(fetch_rx.try_recv().is_err());
     }
 
+    #[tokio::test]
+    async fn focused_loading_placeholder_starts_refresh() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let fetched = issue_resource(2, "Fetched issue");
+        let mut state = AppState::new(loading_resource_placeholder(id.clone()));
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fetched])),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+
+        for _ in 0..10 {
+            if apply_completed_fetches(&mut state, &mut fetch_rx) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+
+        assert_eq!(state.resource.title, "Fetched issue");
+        assert_eq!(state.resource.state, "OPEN");
+    }
+
+    #[test]
+    fn failed_loading_placeholder_waits_for_explicit_retry() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id));
+        state.last_error = Some("network down".into());
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        assert!(!maybe_refresh_loading_active_resource(
+            &mut state,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([issue_resource(
+                2,
+                "Fetched issue"
+            )])),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+
+        assert!(fetch_rx.try_recv().is_err());
+        assert_eq!(state.last_error.as_deref(), Some("network down"));
+        assert!(state.loading.is_none());
+    }
+
     #[test]
     fn automatic_refresh_waits_until_interval_is_due() {
         let initial = issue_resource(1, "Initial issue");
@@ -919,6 +1875,36 @@ mod tests {
         assert!(!refreshed);
         assert_eq!(attempts, 1);
         assert_eq!(last_refresh, now);
+    }
+
+    #[test]
+    fn automatic_refresh_skips_loading_placeholders() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 2,
+            kind_hint: Some(ResourceKind::Issue),
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id));
+        let mut last_refresh = Instant::now();
+        let now = last_refresh + Duration::from_secs(30);
+        let mut attempts = 0;
+
+        let refreshed = maybe_auto_refresh_with_start(
+            &mut state,
+            true,
+            Duration::from_secs(30),
+            &mut last_refresh,
+            now,
+            |_, _| {
+                attempts += 1;
+                true
+            },
+        );
+
+        assert!(!refreshed);
+        assert_eq!(attempts, 0);
+        assert_ne!(last_refresh, now);
     }
 
     #[tokio::test]

@@ -35,8 +35,17 @@ or issues open without turning the first screen into a dashboard.
   whether to open it in the current tab or a new resource tab. If the link points
   to a comment, review, or discussion on the current resource, ghzinga focuses
   the matching Activity entry in place.
-- When there are more resource tabs than fit, the visible tab window keeps the
-  active resource tab reachable.
+- Resource tabs first try to show their full kind, number, and title text. When
+  the full labels do not fit, ghzinga reduces tab widths across the row so every
+  resource tab stays visible.
+- Shrinking must preserve the identity prefix, for example `PR #29` or
+  `Issue #123`. Title text may be removed before that identity is truncated.
+- If all identity-only tabs still cannot fit, ghzinga renders a visible window
+  around the active tab and shows left/right arrow buttons for hidden tabs.
+- Clicking a tab-bar arrow only scrolls the visible tab strip. It must not
+  switch the active PR/issue, change the content view, or trigger a refresh.
+- Activating a resource tab recenters the tab window on that resource; arrows
+  can then page the tab strip away without changing the active resource.
 - Closing the last resource tab is ignored so the app always has a valid active
   resource.
 - The plus button uses a single `+` glyph inside its button chrome, keeps a
@@ -123,3 +132,6 @@ machinery. Resource tabs are only an in-process reading/navigation layer.
   tiny terminal modal drawing, same-resource comment focusing, responsive plus
   button rendering, comfortable tab gutters, and overflowed resource tabs keeping
   the active tab visible.
+- Render tests cover resource-tab shrink-to-fit behavior that keeps all tabs
+  visible without truncating `PR #number` or `Issue #number`, plus overflow arrow
+  behavior when even minimum labels cannot fit.

@@ -3866,6 +3866,142 @@ mod tests {
     }
 
     #[test]
+    fn resource_tabs_shrink_to_keep_all_tabs_visible() {
+        let backend = TestBackend::new(96, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81839 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+
+        for index in 0..state.resource_tabs.len() {
+            assert!(
+                state
+                    .hit_areas
+                    .iter()
+                    .any(|area| area.target == HitTarget::ResourceTab(index)),
+                "resource tab {index} should stay visible"
+            );
+        }
+        for number in 81834..81839 {
+            assert!(
+                content.contains(&format!("PR #{number}")),
+                "PR #{number} identity should not be truncated"
+            );
+        }
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::PreviousResourceTab));
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::NextResourceTab));
+    }
+
+    #[test]
+    fn resource_tabs_show_arrows_when_minimum_labels_do_not_fit() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let content = format!("{:?}", terminal.backend().buffer());
+        let visible_resource_tabs = state
+            .hit_areas
+            .iter()
+            .filter(|area| matches!(area.target, HitTarget::ResourceTab(_)))
+            .count();
+
+        assert!(visible_resource_tabs < state.resource_tabs.len());
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::ResourceTab(5)));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::PreviousResourceTab));
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::NextResourceTab));
+        assert!(content.contains("PR #81839"));
+    }
+
+    #[test]
+    fn resource_tab_next_arrow_is_right_justified_next_to_add_button() {
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+
+        draw(&mut state, 64, 24);
+
+        let next = rendered_target_rect(&state, |target| *target == HitTarget::NextResourceTab)
+            .expect("next resource-tab arrow");
+        let add = rendered_target_rect(&state, |target| *target == HitTarget::OpenResourcePrompt)
+            .expect("add resource button");
+
+        assert_eq!(next.y, add.y);
+        assert_eq!(next.x.saturating_add(next.width).saturating_add(1), add.x);
+    }
+
+    #[test]
+    fn resource_tab_arrows_scroll_strip_without_switching_resource() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+        let active_before = state.active_resource_tab;
+        let resource_before = state.resource.id.canonical_name();
+        let scroll_before = state.resource_tab_scroll;
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let intent = click_rendered_target(&mut state, |target| {
+            *target == HitTarget::PreviousResourceTab
+        });
+
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.active_resource_tab, active_before);
+        assert_eq!(state.resource.id.canonical_name(), resource_before);
+        assert!(state.resource_tab_scroll < scroll_before);
+    }
+
+    #[test]
     fn add_resource_modal_registers_overlay_above_underlying_hits() {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -4304,6 +4440,8 @@ mod tests {
         let (expand, _) = expand_all_control(blocks.clone(), &collapsed, &symbols).unwrap();
         let (collapse, _) = expand_all_control(blocks, &expanded, &symbols).unwrap();
 
+        assert_eq!(expand, "[➕  expand ]");
+        assert_eq!(collapse, "[➖ collapse]");
         assert_eq!(
             UnicodeWidthStr::width(expand.as_str()),
             UnicodeWidthStr::width(collapse.as_str())
@@ -4785,8 +4923,9 @@ mod tests {
     #[test]
     fn comfortable_spacing_reserves_nav_padding_and_separator() {
         let mut state = AppState::new(pr_resource());
+        let area = Rect::new(0, 0, 120, 36);
         let base = ViewRects::compute(Rect::new(0, 0, 120, 36));
-        let rects = rects_for_spacing(Rect::new(0, 0, 120, 36), state.spacing);
+        let rects = rects_for_spacing(area, state.spacing);
         let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
 
         assert_eq!(rects.tabs.height, base.tabs.height + 2);
@@ -5039,19 +5178,23 @@ mod tests {
     }
 
     #[test]
-    fn comfortable_header_adds_top_padding_without_losing_title() {
+    fn comfortable_single_resource_header_keeps_one_padding_row() {
         let mut resource = pr_resource();
-        resource.title = "Readable title after padded identity".into();
+        resource.title = "Readable title with balanced chrome padding".into();
         let mut state = AppState::new(resource);
         state.spacing = SpacingMode::Comfortable;
 
-        let top_row = draw_row_text(&mut state, 120, 36, 0);
+        let top_padding = draw_row_text(&mut state, 120, 36, 0);
         let identity_row = draw_row_text(&mut state, 120, 36, 1);
+        let title_row = draw_row_text(&mut state, 120, 36, 2);
+        let bottom_padding = draw_row_text(&mut state, 120, 36, 35);
         let content = draw(&mut state, 120, 36);
 
-        assert_eq!(top_row.trim(), "");
+        assert_eq!(top_padding.trim(), "");
         assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
-        assert!(content.contains("Readable title after padded identity"));
+        assert!(title_row.contains("Readable title with balanced chrome padding"));
+        assert_eq!(bottom_padding.trim(), "");
+        assert!(content.contains("Readable title with balanced chrome padding"));
     }
 
     #[test]

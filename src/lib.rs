@@ -1,10 +1,12 @@
 pub mod app;
 pub mod cli;
 pub mod config;
+pub mod control;
 pub mod domain;
 pub mod fetch;
 pub mod github;
 pub mod input;
 pub mod render;
 pub mod runner;
+pub mod session;
 pub mod terminal;

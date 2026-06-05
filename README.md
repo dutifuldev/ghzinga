@@ -50,6 +50,11 @@ gzg https://github.com/openclaw/openclaw/pull/81834
 gzg https://github.com/openclaw/openclaw/issues/88499
 ```
 
+Run `gzg` again from the same terminal context to restore the last ghzinga
+dashboard for that pane, tmux pane, Herdr pane, working tree, or named session.
+Use `--new` to start a separate saved session, `--no-restore` to ignore saved
+state for one run, or `--session <name>` to pick a specific saved session.
+
 `ghzinga` reuses your existing GitHub CLI login through `gh auth token`. You can
 also set `GH_TOKEN` or `GITHUB_TOKEN` to override that token. Public repositories
 can fall back to unauthenticated GitHub data when credentials are unavailable.
@@ -123,6 +128,51 @@ scrollbar = "on-scroll"
 
 You can change theme, symbols, spacing, width, and scrollbar behavior from the
 settings view inside the app.
+
+## Sessions
+
+`ghzinga` saves open PR/issue tabs and UI state under:
+
+```text
+~/.local/state/ghzinga
+```
+
+Cached GitHub resource snapshots are stored separately under:
+
+```text
+~/.cache/ghzinga
+```
+
+Environment overrides:
+
+- `GZG_STATE_HOME`: alternate session state directory
+- `GZG_CACHE_HOME`: alternate resource cache directory
+- `GZG_RUNTIME_HOME`: alternate runtime socket directory for live session control
+- `GZG_SESSION`: default named session
+
+Session commands:
+
+```sh
+gzg sessions
+gzg session show <id-or-name>
+gzg session rename <id-or-name> <name>
+gzg session delete <id-or-name>
+```
+
+Control a running session from another shell:
+
+```sh
+gzg open --session <id-or-name> dutifuldev/ghzinga#29
+gzg set --session <id-or-name> theme solarized
+gzg set --session <id-or-name> spacing comfortable
+gzg set --session <id-or-name> width-mode fixed
+gzg set --session <id-or-name> fixed-width 118
+gzg set --session <id-or-name> scrollbar on-scroll
+```
+
+If the session is running, these commands update the live TUI without stealing
+terminal focus. If it is not running, `gzg open` updates the saved session so the
+resource appears on the next restore.
 
 ## Refresh
 

@@ -1,5 +1,5 @@
                                                                                                                         
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d                                               [+]
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d                                             [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)                         
@@ -22,7 +22,7 @@
   - extensions/senseaudio/package.json                                                                                  
   [➕ more]                                                                                                             
                                                                                                                         
-  Comment by @KLilyZ 2w ago                                                                                             
+  Comment by @KLilyZ 3w ago                                                                                             
   meta: association NONE                                                                                                
   [details]                                                                                                             
   Codex review: needs changes before merge.                                                                             
@@ -32,5 +32,5 @@
                                                                                                                         
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The      
                                                                                                                         
-  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                   
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                   
                                                                                                                         

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
 use crate::input::HitArea;
@@ -43,6 +43,19 @@ impl Tab {
                 Self::Links,
             ],
             ResourceKind::Issue => &[Self::Overview, Self::Activity, Self::Links],
+        }
+    }
+}
+
+impl fmt::Display for Tab {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Overview => f.write_str("overview"),
+            Self::Activity => f.write_str("activity"),
+            Self::Commits => f.write_str("commits"),
+            Self::Checks => f.write_str("checks"),
+            Self::Files => f.write_str("files"),
+            Self::Links => f.write_str("links"),
         }
     }
 }
@@ -97,6 +110,7 @@ pub struct ResourceTabState {
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
+    pub reverse_chronological: bool,
     pub expanded_blocks: HashSet<BlockId>,
     pub history: Vec<crate::domain::ResourceId>,
     pub last_refreshed_at: Option<String>,
@@ -114,7 +128,33 @@ impl ResourceTabState {
             active_tab: Tab::Overview,
             scroll: 0,
             scroll_limit: u16::MAX,
+            reverse_chronological: false,
             expanded_blocks: HashSet::new(),
+            history: Vec::new(),
+            last_refreshed_at: None,
+            last_refresh_had_changes: None,
+            last_refresh_changed_sections: Vec::new(),
+            last_error: None,
+            status_message: None,
+        }
+    }
+
+    pub(crate) fn from_session_parts(
+        id: u64,
+        resource: Resource,
+        active_tab: Tab,
+        scroll: u16,
+        reverse_chronological: bool,
+        expanded_blocks: HashSet<BlockId>,
+    ) -> Self {
+        Self {
+            id,
+            resource,
+            active_tab,
+            scroll,
+            scroll_limit: u16::MAX,
+            reverse_chronological,
+            expanded_blocks,
             history: Vec::new(),
             last_refreshed_at: None,
             last_refresh_had_changes: None,
@@ -143,6 +183,7 @@ pub struct AppState {
     pub resource: Resource,
     pub resource_tabs: Vec<ResourceTabState>,
     pub active_resource_tab: usize,
+    pub resource_tab_scroll: usize,
     next_resource_tab_id: u64,
     next_loading_request_id: u64,
     pub add_resource_prompt: Option<AddResourcePrompt>,
@@ -184,6 +225,7 @@ impl AppState {
             resource,
             resource_tabs,
             active_resource_tab: 0,
+            resource_tab_scroll: 0,
             next_resource_tab_id: 2,
             next_loading_request_id: 1,
             add_resource_prompt: None,
@@ -215,6 +257,34 @@ impl AppState {
             fixed_width: DEFAULT_FIXED_CONTENT_WIDTH,
             config_path: crate::config::config_path(),
         }
+    }
+
+    pub(crate) fn from_session_tabs(
+        mut resource_tabs: Vec<ResourceTabState>,
+        active_index: usize,
+    ) -> Self {
+        if resource_tabs.is_empty() {
+            panic!("restored session state requires at least one resource tab");
+        }
+        let active_index = active_index.min(resource_tabs.len() - 1);
+        let resource = resource_tabs[active_index].resource.clone();
+        let next_resource_tab_id = resource_tabs
+            .iter()
+            .map(|tab| tab.id)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
+        let mut state = Self::new(resource);
+        state.resource_tabs.clear();
+        state.resource_tabs.append(&mut resource_tabs);
+        state.next_resource_tab_id = next_resource_tab_id;
+        state.restore_resource_tab(active_index);
+        state
+    }
+
+    pub(crate) fn session_resource_tabs(&mut self) -> Vec<ResourceTabState> {
+        self.snapshot_active_resource_tab();
+        self.resource_tabs.clone()
     }
 
     pub fn tabs(&self) -> &'static [Tab] {
@@ -330,6 +400,21 @@ impl AppState {
         true
     }
 
+    pub fn scroll_resource_tabs_previous(&mut self) -> bool {
+        let previous = self.resource_tab_scroll;
+        self.resource_tab_scroll = self.resource_tab_scroll.saturating_sub(1);
+        self.resource_tab_scroll != previous
+    }
+
+    pub fn scroll_resource_tabs_next(&mut self) -> bool {
+        let previous = self.resource_tab_scroll;
+        self.resource_tab_scroll = self
+            .resource_tab_scroll
+            .saturating_add(1)
+            .min(self.resource_tabs.len().saturating_sub(1));
+        self.resource_tab_scroll != previous
+    }
+
     pub fn close_resource_tab(&mut self, index: usize) -> bool {
         if self.resource_tabs.len() <= 1 || index >= self.resource_tabs.len() {
             return false;
@@ -352,6 +437,7 @@ impl AppState {
         } else {
             self.active_resource_tab
         };
+        self.resource_tab_scroll = self.resource_tab_scroll.min(self.resource_tabs.len() - 1);
         self.restore_resource_tab(next);
         true
     }
@@ -372,6 +458,22 @@ impl AppState {
                 .push(ResourceTabState::new(tab_id, resource));
             self.restore_resource_tab(self.resource_tabs.len() - 1);
         }
+    }
+
+    pub fn focus_resource_tab(&mut self, id: &crate::domain::ResourceId) -> bool {
+        let canonical = id.canonical_name();
+        let Some(index) = self
+            .resource_tabs
+            .iter()
+            .position(|tab| tab.resource.id.canonical_name() == canonical)
+        else {
+            return false;
+        };
+        if index == self.active_resource_tab {
+            return true;
+        }
+        self.switch_resource_tab(index);
+        true
     }
 
     pub fn apply_to_resource_tab(&mut self, tab_id: u64, apply: impl FnOnce(&mut Self)) -> bool {
@@ -873,6 +975,7 @@ impl AppState {
             tab.active_tab = self.active_tab;
             tab.scroll = self.scroll;
             tab.scroll_limit = self.scroll_limit;
+            tab.reverse_chronological = self.reverse_chronological;
             tab.expanded_blocks = self.expanded_blocks.clone();
             tab.history = self.history.clone();
             tab.last_refreshed_at = self.last_refreshed_at.clone();
@@ -888,6 +991,7 @@ impl AppState {
             return;
         };
         self.active_resource_tab = index;
+        self.resource_tab_scroll = index;
         self.resource = tab.resource;
         self.active_tab = if self.tabs().contains(&tab.active_tab) {
             tab.active_tab
@@ -896,6 +1000,7 @@ impl AppState {
         };
         self.scroll = tab.scroll;
         self.scroll_limit = tab.scroll_limit;
+        self.reverse_chronological = tab.reverse_chronological;
         self.expanded_blocks = tab.expanded_blocks;
         self.history = tab.history;
         self.last_refreshed_at = tab.last_refreshed_at;
@@ -1634,6 +1739,23 @@ mod tests {
         assert_eq!(state.resource.id.number, 2);
         let prompt = state.add_resource_prompt.as_ref().unwrap();
         assert_eq!(prompt.input, "owner/repo#3");
+    }
+
+    #[test]
+    fn focusing_resource_tab_preserves_cached_resource() {
+        let mut state = AppState::new(issue_resource());
+        let mut cached = issue_resource();
+        cached.id.number = 2;
+        cached.title = "Cached issue".into();
+        let cached_id = cached.id.clone();
+        state.open_resource_in_tab(cached);
+        state.switch_resource_tab(0);
+
+        assert!(state.focus_resource_tab(&cached_id));
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(state.resource.title, "Cached issue");
+        assert_eq!(state.resource_tabs.len(), 2);
     }
 
     #[test]

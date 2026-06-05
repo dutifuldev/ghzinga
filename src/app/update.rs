@@ -344,6 +344,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_resource_tab(index);
             AppIntent::None
         }
+        HitTarget::PreviousResourceTab => {
+            state.scroll_resource_tabs_previous();
+            AppIntent::None
+        }
+        HitTarget::NextResourceTab => {
+            state.scroll_resource_tabs_next();
+            AppIntent::None
+        }
         HitTarget::ToggleBlock(id) => {
             state.toggle_block(id);
             AppIntent::None
@@ -381,7 +389,11 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_resource_link_prompt();
             AppIntent::None
         }
-        HitTarget::ModalOverlay => AppIntent::None,
+        HitTarget::ModalOverlay => {
+            state.close_add_resource_prompt();
+            state.close_resource_link_prompt();
+            AppIntent::None
+        }
         HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
             state.should_quit = true;
@@ -1923,7 +1935,7 @@ mod tests {
     }
 
     #[test]
-    fn modal_overlay_mouse_target_blocks_underlying_content_hits() {
+    fn modal_overlay_mouse_target_closes_add_resource_prompt() {
         let mut state = AppState::new(resource());
         state.open_add_resource_prompt();
         state.hit_areas.push(HitArea::new(
@@ -1950,6 +1962,36 @@ mod tests {
         );
 
         assert_eq!(intent, AppIntent::None);
-        assert!(state.add_resource_prompt.is_some());
+        assert!(state.add_resource_prompt.is_none());
+    }
+
+    #[test]
+    fn modal_overlay_mouse_target_closes_resource_link_prompt() {
+        let mut state = AppState::new(resource());
+        state.open_resource_link_prompt(
+            crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 42,
+                kind_hint: None,
+            },
+            Some("https://github.com/owner/repo/issues/42".into()),
+        );
+        state
+            .hit_areas
+            .push(HitArea::new(Rect::new(0, 0, 8, 1), HitTarget::ModalOverlay));
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.resource_link_prompt.is_none());
     }
 }

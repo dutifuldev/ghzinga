@@ -1,5 +1,5 @@
                                                                                 
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 2d       [+]
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
@@ -21,4 +21,4 @@
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have   │  
   cleared (proof: sufficient, no contributor-facing blockers left) and the PR│  
                                                                                 
-  [🔄 refresh] [➕ expand ]  [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
