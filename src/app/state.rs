@@ -183,6 +183,7 @@ pub struct AppState {
     pub resource: Resource,
     pub resource_tabs: Vec<ResourceTabState>,
     pub active_resource_tab: usize,
+    pub resource_tab_scroll: usize,
     next_resource_tab_id: u64,
     next_loading_request_id: u64,
     pub add_resource_prompt: Option<AddResourcePrompt>,
@@ -224,6 +225,7 @@ impl AppState {
             resource,
             resource_tabs,
             active_resource_tab: 0,
+            resource_tab_scroll: 0,
             next_resource_tab_id: 2,
             next_loading_request_id: 1,
             add_resource_prompt: None,
@@ -398,12 +400,19 @@ impl AppState {
         true
     }
 
-    pub fn previous_resource_tab(&mut self) -> bool {
-        self.switch_resource_tab(self.active_resource_tab.saturating_sub(1))
+    pub fn scroll_resource_tabs_previous(&mut self) -> bool {
+        let previous = self.resource_tab_scroll;
+        self.resource_tab_scroll = self.resource_tab_scroll.saturating_sub(1);
+        self.resource_tab_scroll != previous
     }
 
-    pub fn next_resource_tab(&mut self) -> bool {
-        self.switch_resource_tab(self.active_resource_tab.saturating_add(1))
+    pub fn scroll_resource_tabs_next(&mut self) -> bool {
+        let previous = self.resource_tab_scroll;
+        self.resource_tab_scroll = self
+            .resource_tab_scroll
+            .saturating_add(1)
+            .min(self.resource_tabs.len().saturating_sub(1));
+        self.resource_tab_scroll != previous
     }
 
     pub fn close_resource_tab(&mut self, index: usize) -> bool {
@@ -428,6 +437,7 @@ impl AppState {
         } else {
             self.active_resource_tab
         };
+        self.resource_tab_scroll = self.resource_tab_scroll.min(self.resource_tabs.len() - 1);
         self.restore_resource_tab(next);
         true
     }
@@ -981,6 +991,7 @@ impl AppState {
             return;
         };
         self.active_resource_tab = index;
+        self.resource_tab_scroll = index;
         self.resource = tab.resource;
         self.active_tab = if self.tabs().contains(&tab.active_tab) {
             tab.active_tab

@@ -57,7 +57,7 @@ pub(super) fn render_resource_tabs(
     let tab_right = add_x.saturating_sub(1);
     let available_width = tab_right.saturating_sub(area.x);
     let specs = resource_tab_specs(state);
-    let plan = plan_resource_tabs(&specs, state.active_resource_tab, available_width);
+    let plan = plan_resource_tabs(&specs, state.resource_tab_scroll, available_width);
     let mut x = area.x;
     let mut spans = Vec::<Span<'static>>::new();
 
@@ -208,7 +208,7 @@ fn resource_tab_identity(resource: &Resource) -> String {
 
 fn plan_resource_tabs(
     specs: &[ResourceTabSpec],
-    active_resource_tab: usize,
+    resource_tab_scroll: usize,
     available_width: u16,
 ) -> ResourceTabPlan {
     if specs.is_empty() || available_width == 0 {
@@ -218,7 +218,6 @@ fn plan_resource_tabs(
             show_next: false,
         };
     }
-    let active = active_resource_tab.min(specs.len().saturating_sub(1));
     let preferred = specs
         .iter()
         .map(|spec| spec.preferred_width)
@@ -230,7 +229,7 @@ fn plan_resource_tabs(
     if measured_tab_width(&minimum) <= available_width {
         return all_resource_tabs(specs, shrink_resource_tab_widths(specs, available_width));
     }
-    overflow_resource_tab_plan(specs, active, available_width)
+    overflow_resource_tab_plan(specs, resource_tab_scroll, available_width)
 }
 
 fn all_resource_tabs(specs: &[ResourceTabSpec], widths: Vec<u16>) -> ResourceTabPlan {
@@ -270,40 +269,35 @@ fn shrink_resource_tab_widths(specs: &[ResourceTabSpec], available_width: u16) -
 
 fn overflow_resource_tab_plan(
     specs: &[ResourceTabSpec],
-    active: usize,
+    resource_tab_scroll: usize,
     available_width: u16,
 ) -> ResourceTabPlan {
-    let mut start = active;
-    let mut end = active.saturating_add(1);
+    let mut start = resource_tab_scroll.min(specs.len().saturating_sub(1));
+    let mut end = start.saturating_add(1);
     let mut widths = specs.iter().map(|spec| spec.min_width).collect::<Vec<_>>();
     if overflow_tab_width(&widths, start, end) > available_width {
-        let controls = overflow_controls_width(active > 0, active + 1 < specs.len());
+        let controls = overflow_controls_width(start > 0, start + 1 < specs.len());
         let width = available_width.saturating_sub(controls).max(1);
-        widths[active] = widths[active].min(width);
+        widths[start] = widths[start].min(width);
         return ResourceTabPlan {
             tabs: vec![PlannedResourceTab {
-                index: specs[active].index,
-                width: widths[active],
+                index: specs[start].index,
+                width: widths[start],
             }],
-            show_previous: active > 0 && available_width >= RESOURCE_TAB_ARROW_WIDTH,
-            show_next: active + 1 < specs.len()
+            show_previous: start > 0 && available_width >= RESOURCE_TAB_ARROW_WIDTH,
+            show_next: start + 1 < specs.len()
                 && available_width >= RESOURCE_TAB_ARROW_WIDTH.saturating_mul(2),
         };
     }
 
-    loop {
-        let mut changed = false;
-        if start > 0 && overflow_tab_width(&widths, start - 1, end) <= available_width {
-            start -= 1;
-            changed = true;
-        }
-        if end < specs.len() && overflow_tab_width(&widths, start, end + 1) <= available_width {
-            end += 1;
-            changed = true;
-        }
-        if !changed {
-            break;
-        }
+    while end < specs.len() && overflow_tab_width(&widths, start, end + 1) <= available_width {
+        end += 1;
+    }
+    while start > 0
+        && end.saturating_sub(start) <= 1
+        && overflow_tab_width(&widths, start - 1, end) <= available_width
+    {
+        start -= 1;
     }
 
     ResourceTabPlan {

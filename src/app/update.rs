@@ -345,11 +345,11 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             AppIntent::None
         }
         HitTarget::PreviousResourceTab => {
-            state.previous_resource_tab();
+            state.scroll_resource_tabs_previous();
             AppIntent::None
         }
         HitTarget::NextResourceTab => {
-            state.next_resource_tab();
+            state.scroll_resource_tabs_next();
             AppIntent::None
         }
         HitTarget::ToggleBlock(id) => {

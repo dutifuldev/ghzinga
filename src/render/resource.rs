@@ -3949,6 +3949,36 @@ mod tests {
     }
 
     #[test]
+    fn resource_tab_arrows_scroll_strip_without_switching_resource() {
+        let backend = TestBackend::new(64, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new(pr_resource());
+        for number in 81835..81846 {
+            let mut resource = pr_resource();
+            resource.id.number = number;
+            resource.title = format!("very long follow-up resource title {number}");
+            resource.url = format!("https://github.com/openclaw/openclaw/pull/{number}");
+            state.open_resource_in_tab(resource);
+        }
+        assert!(state.switch_resource_tab(5));
+        let active_before = state.active_resource_tab;
+        let resource_before = state.resource.id.canonical_name();
+        let scroll_before = state.resource_tab_scroll;
+
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let intent = click_rendered_target(&mut state, |target| {
+            *target == HitTarget::PreviousResourceTab
+        });
+
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.active_resource_tab, active_before);
+        assert_eq!(state.resource.id.canonical_name(), resource_before);
+        assert!(state.resource_tab_scroll < scroll_before);
+    }
+
+    #[test]
     fn add_resource_modal_registers_overlay_above_underlying_hits() {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();

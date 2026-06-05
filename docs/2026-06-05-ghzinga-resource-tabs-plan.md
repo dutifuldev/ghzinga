@@ -42,7 +42,10 @@ or issues open without turning the first screen into a dashboard.
   `Issue #123`. Title text may be removed before that identity is truncated.
 - If all identity-only tabs still cannot fit, ghzinga renders a visible window
   around the active tab and shows left/right arrow buttons for hidden tabs.
-- The visible tab window always keeps the active resource tab reachable.
+- Clicking a tab-bar arrow only scrolls the visible tab strip. It must not
+  switch the active PR/issue, change the content view, or trigger a refresh.
+- Activating a resource tab recenters the tab window on that resource; arrows
+  can then page the tab strip away without changing the active resource.
 - Closing the last resource tab is ignored so the app always has a valid active
   resource.
 - The plus button uses a single `+` glyph inside its button chrome, keeps a
