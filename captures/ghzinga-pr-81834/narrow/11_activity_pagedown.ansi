@@ -10,7 +10,7 @@
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
   plugin, including TTS and voice-list HTTP helpers, voice-note opus         [38;2;86;95;137m│[38;2;192;202;245m  
   transcoding, registration metadata, docs, inventory updates, and tests.    [38;2;86;95;137m│[38;2;192;202;245m  
-                                                                             [38;2;86;95;137m│[38;2;192;202;245m  
+    [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                        [38;2;86;95;137m│[38;2;192;202;245m  
   Reproducibility: not applicable. for the requested feature because current [38;2;122;162;247m█[38;2;192;202;245m  
   main simply lacks SenseAudio TTS. The remaining docs bug is                [38;2;86;95;137m│[38;2;192;202;245m  
   [1m[38;2;26;27;38m[48;2;122;162;247m[➕ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                  [38;2;86;95;137m│[38;2;192;202;245m  
