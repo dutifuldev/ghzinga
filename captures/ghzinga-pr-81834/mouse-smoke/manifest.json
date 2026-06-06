@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "4c9df6fd57bf75c3aa657a7719fa1083e97b8ac9",
+  "git_commit": "a00d9db15a5700e29aa5a90a7af131210f1117e3",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --no-restore --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -239,5 +239,6 @@
     }
   ],
   "load_full_fixture": "captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json",
-  "load_full_command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --no-restore --refresh-seconds 0"
+  "load_full_command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --no-restore --refresh-seconds 0",
+  "app_tree_hash": "71a58b4aaa4813d4ad5ae0be5658c8476a7d95c5051cb0c49d742e29f78a256b"
 }
