@@ -79,6 +79,11 @@ resources while a large diff is downloading. When it completes, it should merge
 patch text into the current file list by path instead of replacing the whole
 resource with an older background copy.
 
+Starting a newer blocking load for the same tab cancels any pending file-patch
+job for that tab. If file patches arrive before slower enrichment for the same
+resource generation, the enrichment merge must preserve the already-loaded patch
+text and file-patch warnings.
+
 ## Request Ownership
 
 Every async result needs enough ownership information to prove it still belongs
@@ -122,6 +127,8 @@ failing GraphQL surfaces after the fallback has succeeded.
 - Stale enrichment from old requests cannot overwrite the active tab.
 - Lazy file patch loading cannot make pending enrichment stale.
 - Lazy file patch loading cannot block opening or replacing another resource.
+- Newer blocking loads cancel stale lazy file patch results.
+- Slower enrichment preserves file patch context that loaded earlier.
 - File patch text is loaded on Files-tab demand, not as a first-screen
   prerequisite.
 - Complete loads still include file patch context when available.
