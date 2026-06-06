@@ -444,6 +444,25 @@ impl AppState {
         true
     }
 
+    pub fn next_resource_tab(&mut self) -> bool {
+        if self.resource_tabs.len() <= 1 {
+            return false;
+        }
+        self.switch_resource_tab((self.active_resource_tab + 1) % self.resource_tabs.len())
+    }
+
+    pub fn previous_resource_tab(&mut self) -> bool {
+        if self.resource_tabs.len() <= 1 {
+            return false;
+        }
+        let previous = if self.active_resource_tab == 0 {
+            self.resource_tabs.len() - 1
+        } else {
+            self.active_resource_tab - 1
+        };
+        self.switch_resource_tab(previous)
+    }
+
     pub fn scroll_resource_tabs_previous(&mut self) -> bool {
         let previous = self.resource_tab_scroll;
         self.resource_tab_scroll = self.resource_tab_scroll.saturating_sub(1);

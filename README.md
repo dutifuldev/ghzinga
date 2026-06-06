@@ -101,8 +101,9 @@ Common keys:
 - `o`: open a PR or issue in the current tab
 - `x`: close the current resource tab
 - `Ctrl-C` in the open-resource modal: clear input, then close when empty
-- `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
-- `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
+- `Left`, `Right`, `h`, `l`: switch Overview, Activity, and other content tabs
+- `Tab`, `Shift+Tab`, `Shift+Left`, `Shift+Right`: switch PR/issue tabs
+- `Up`, `Down`, `j`, `k`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible link or action
 - `y`: copy the first visible GitHub URL
 - `s`: settings

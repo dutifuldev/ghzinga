@@ -167,12 +167,40 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             }
             AppIntent::None
         }
-        KeyCode::Tab | KeyCode::Char('\t') | KeyCode::Right => {
-            state.next_tab();
+        KeyCode::Tab | KeyCode::Char('\t') => {
+            state.next_resource_tab();
+            AppIntent::None
+        }
+        KeyCode::BackTab => {
+            state.previous_resource_tab();
             AppIntent::None
         }
         KeyCode::Char('i') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.next_resource_tab();
+            AppIntent::None
+        }
+        KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            state.next_resource_tab();
+            AppIntent::None
+        }
+        KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            state.previous_resource_tab();
+            AppIntent::None
+        }
+        KeyCode::Right => {
             state.next_tab();
+            AppIntent::None
+        }
+        KeyCode::Char('l') if is_plain_shortcut(key) => {
+            state.next_tab();
+            AppIntent::None
+        }
+        KeyCode::Left => {
+            state.previous_tab();
+            AppIntent::None
+        }
+        KeyCode::Char('h') if is_plain_shortcut(key) => {
+            state.previous_tab();
             AppIntent::None
         }
         KeyCode::Backspace => AppIntent::Back,
@@ -187,15 +215,19 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             };
             apply_target(state, target)
         }
-        KeyCode::BackTab | KeyCode::Left => {
-            state.previous_tab();
-            AppIntent::None
-        }
         KeyCode::Down => {
             state.scroll_down(1);
             AppIntent::None
         }
+        KeyCode::Char('j') if is_plain_shortcut(key) => {
+            state.scroll_down(1);
+            AppIntent::None
+        }
         KeyCode::Up => {
+            state.scroll_up(1);
+            AppIntent::None
+        }
+        KeyCode::Char('k') if is_plain_shortcut(key) => {
             state.scroll_up(1);
             AppIntent::None
         }
@@ -589,6 +621,21 @@ mod tests {
         }
     }
 
+    fn resource_with_number(number: u64) -> Resource {
+        let mut resource = resource();
+        resource.id.number = number;
+        resource.title = format!("Issue {number}");
+        resource.url = format!("https://github.com/owner/repo/issues/{number}");
+        resource
+    }
+
+    fn state_with_resource_tabs() -> AppState {
+        let mut state = AppState::new(resource_with_number(1));
+        state.open_resource_in_tab(resource_with_number(2));
+        state.open_resource_in_tab(resource_with_number(3));
+        state
+    }
+
     fn pr_resource() -> Resource {
         let mut resource = resource();
         resource.id.kind_hint = Some(ResourceKind::PullRequest);
@@ -631,39 +678,133 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_tab_changes_active_tab() {
-        let mut state = AppState::new(resource());
+    fn keyboard_tab_changes_active_resource_tab() {
+        let mut state = state_with_resource_tabs();
+        state.switch_resource_tab(0);
 
         apply_event(
             &mut state,
             AppEvent::Key(KeyEvent::new(KeyCode::Tab, KeyModifiers::empty())),
         );
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_resource_tab, 1);
+        assert_eq!(state.resource.id.number, 2);
     }
 
     #[test]
-    fn literal_tab_character_changes_active_tab_for_tmux() {
-        let mut state = AppState::new(resource());
+    fn shift_tab_changes_active_resource_tab() {
+        let mut state = state_with_resource_tabs();
+        state.switch_resource_tab(0);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT)),
+        );
+
+        assert_eq!(state.active_resource_tab, 2);
+        assert_eq!(state.resource.id.number, 3);
+    }
+
+    #[test]
+    fn literal_tab_character_changes_active_resource_tab_for_tmux() {
+        let mut state = state_with_resource_tabs();
+        state.switch_resource_tab(0);
 
         apply_event(
             &mut state,
             AppEvent::Key(KeyEvent::new(KeyCode::Char('\t'), KeyModifiers::empty())),
         );
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_resource_tab, 1);
+        assert_eq!(state.resource.id.number, 2);
     }
 
     #[test]
-    fn ctrl_i_changes_active_tab_for_tmux_tab_encoding() {
-        let mut state = AppState::new(resource());
+    fn ctrl_i_changes_active_resource_tab_for_tmux_tab_encoding() {
+        let mut state = state_with_resource_tabs();
+        state.switch_resource_tab(0);
 
         apply_event(
             &mut state,
             AppEvent::Key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::CONTROL)),
         );
 
+        assert_eq!(state.active_resource_tab, 1);
+        assert_eq!(state.resource.id.number, 2);
+    }
+
+    #[test]
+    fn left_and_right_change_content_tabs() {
+        let mut state = AppState::new(pr_resource());
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::empty())),
+        );
+
         assert_eq!(state.active_tab, Tab::Activity);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::empty())),
+        );
+
+        assert_eq!(state.active_tab, Tab::Overview);
+    }
+
+    #[test]
+    fn shift_left_and_right_change_resource_tabs() {
+        let mut state = state_with_resource_tabs();
+        state.switch_resource_tab(1);
+        state.set_tab(Tab::Activity);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT)),
+        );
+
+        assert_eq!(state.active_resource_tab, 2);
+        assert_eq!(state.resource.id.number, 3);
+        assert_eq!(state.active_tab, Tab::Overview);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::SHIFT)),
+        );
+
+        assert_eq!(state.active_resource_tab, 1);
+        assert_eq!(state.resource.id.number, 2);
+    }
+
+    #[test]
+    fn vim_hjkl_mirror_arrow_keys() {
+        let mut state = AppState::new(pr_resource());
+        state.set_scroll_limit(10);
+        state.scroll = 5;
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::empty())),
+        );
+        assert_eq!(state.scroll, 6);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::empty())),
+        );
+        assert_eq!(state.scroll, 5);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty())),
+        );
+        assert_eq!(state.active_tab, Tab::Activity);
+
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())),
+        );
+        assert_eq!(state.active_tab, Tab::Overview);
     }
 
     #[test]
