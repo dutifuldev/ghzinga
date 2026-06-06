@@ -388,10 +388,9 @@ fn apply_enrichment_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
             state.apply_to_resource_tab(origin_tab_id, |state| {
                 if state.latest_fetch_request_matches(request_id)
                     && resource_matches_target(&state.resource, &target)
-                    && !state.resource.warnings.iter().any(|item| item == &warning)
                 {
-                    state.resource.warnings.push(warning);
                     state.status_message = None;
+                    push_unique_warning(&mut state.resource, warning);
                 }
             });
         }
@@ -817,6 +816,42 @@ mod tests {
 
         assert_eq!(state.resource.title, "Base issue");
         assert!(state.last_error.is_none());
+        assert_eq!(
+            state.resource.warnings,
+            ["background details unavailable: timeline timed out"]
+        );
+    }
+
+    #[test]
+    fn duplicate_progressive_enrichment_error_still_clears_status() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let mut state = AppState::new(issue_resource(1, "Base issue"));
+        state
+            .resource
+            .warnings
+            .push("background details unavailable: timeline timed out".into());
+        state.status_message = Some("loading additional GitHub details".into());
+        let action = FetchAction::Refresh { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Err(anyhow::anyhow!("timeline timed out")),
+                refreshed_at: "12:35:01 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Enrichment,
+            },
+        );
+
+        assert!(state.status_message.is_none());
         assert_eq!(
             state.resource.warnings,
             ["background details unavailable: timeline timed out"]

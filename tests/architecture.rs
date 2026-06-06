@@ -154,6 +154,26 @@ fn github_data_layer_does_not_shell_out_to_gh_view_or_api() {
 }
 
 #[test]
+fn complete_github_fetch_keeps_file_patch_enrichment() {
+    let source = fs::read_to_string("src/github/api.rs").expect("read GitHub API source");
+    let fetch_start = source
+        .find("async fn fetch_resource(&self")
+        .expect("fetch_resource implementation");
+    let base_start = source[fetch_start..]
+        .find("async fn fetch_resource_base(&self")
+        .expect("fetch_resource_base implementation")
+        + fetch_start;
+    let fetch_resource = &source[fetch_start..base_start];
+
+    assert!(fetch_resource.contains("self.fetch_resource_base(id).await?"));
+    assert!(fetch_resource.contains("self.enrich_resource(resource).await?"));
+    assert!(
+        fetch_resource.contains("self.enrich_file_patches(resource).await"),
+        "complete live fetches such as --once must keep REST diff patch context"
+    );
+}
+
+#[test]
 fn public_rest_fallback_stays_in_dedicated_rest_adapter() {
     let source =
         fs::read_to_string("src/github/public_rest.rs").expect("read public REST adapter source");

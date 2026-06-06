@@ -130,7 +130,8 @@ impl FromStr for ApiDepth {
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         let resource = self.fetch_resource_base(id).await?;
-        self.enrich_resource(resource).await
+        let resource = self.enrich_resource(resource).await?;
+        self.enrich_file_patches(resource).await
     }
 
     async fn fetch_resource_base(&self, id: &ResourceId) -> anyhow::Result<Resource> {
