@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::domain::{
     ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
-    FULL_DEPTH_WARNING_HINT,
+    FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 use crate::github::{
@@ -32,6 +32,21 @@ pub trait GithubGateway {
     fn fetch_resource(
         &self,
         id: &ResourceId,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn fetch_resource_base(
+        &self,
+        id: &ResourceId,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn enrich_resource(
+        &self,
+        resource: Resource,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn enrich_file_patches(
+        &self,
+        resource: Resource,
     ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
 }
 
@@ -114,17 +129,51 @@ impl FromStr for ApiDepth {
 
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
+        let resource = self.fetch_resource_base(id).await?;
+        if resource.uses_public_rest_fallback() {
+            Ok(resource)
+        } else {
+            let resource = self.enrich_resource(resource).await?;
+            self.enrich_file_patches(resource).await
+        }
+    }
+
+    async fn fetch_resource_base(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         match id.kind_hint {
-            Some(ResourceKind::PullRequest) => fetch_pr(id, self.api_depth).await,
-            Some(ResourceKind::Issue) => fetch_issue(id, self.api_depth).await,
-            None => match fetch_pr(id, self.api_depth).await {
+            Some(ResourceKind::PullRequest) => fetch_pr_base(id, self.api_depth).await,
+            Some(ResourceKind::Issue) => fetch_issue_base(id, self.api_depth).await,
+            None => match fetch_pr_base(id, self.api_depth).await {
                 Ok(resource) => Ok(resource),
-                Err(pr_error) => fetch_issue(id, self.api_depth)
+                Err(pr_error) => fetch_issue_base(id, self.api_depth)
                     .await
                     .with_context(|| format!("failed as PR first: {pr_error}")),
             },
         }
     }
+
+    async fn enrich_resource(&self, resource: Resource) -> anyhow::Result<Resource> {
+        match resource.kind() {
+            ResourceKind::PullRequest => enrich_pr(resource, self.api_depth).await,
+            ResourceKind::Issue => enrich_issue(resource, self.api_depth).await,
+        }
+    }
+
+    async fn enrich_file_patches(&self, mut resource: Resource) -> anyhow::Result<Resource> {
+        let id = resource.id.clone();
+        if should_enrich_file_patches(&resource) {
+            match fetch_file_patches(&id).await {
+                Ok(patches) => warn_for_missing_file_patches(&mut resource, patches),
+                Err(error) => resource
+                    .warnings
+                    .push(format!("{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING}: {error}")),
+            }
+        }
+        Ok(resource)
+    }
+}
+
+fn should_enrich_file_patches(resource: &Resource) -> bool {
+    resource.pull_request.is_some() && !resource.uses_public_rest_fallback()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -184,7 +233,7 @@ pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
     graphql_preview("issue", id)
 }
 
-async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+async fn fetch_pr_base(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_pr(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -201,26 +250,35 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     resource.warnings.extend(partial_depth_warnings);
+    Ok(resource)
+}
+
+async fn enrich_pr(mut resource: Resource, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+    let id = resource.id.clone();
+    if resource.pull_request.is_none() {
+        return Ok(resource);
+    }
+    let full_depth = api_depth.is_full();
     if full_depth {
-        enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_review_requests(&mut resource, id).await;
-        match fetch_comment_activity(id, ResourceKind::PullRequest).await {
+        enrich_project_metadata(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_labels_and_assignees(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_linked_resources(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_review_requests(&mut resource, &id).await;
+        match fetch_comment_activity(&id, ResourceKind::PullRequest).await {
             Ok(comments) => replace_comment_activity(&mut resource, comments),
             Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
         }
-        match fetch_review_activity(id).await {
+        match fetch_review_activity(&id).await {
             Ok(reviews) => replace_review_activity(&mut resource, reviews),
             Err(error) => push_enrichment_warning(&mut resource, "reviews unavailable", &error),
         }
     }
-    enrich_participants(&mut resource, id, ResourceKind::PullRequest).await;
-    match fetch_review_thread_activity(id).await {
+    enrich_participants(&mut resource, &id, ResourceKind::PullRequest).await;
+    match fetch_review_thread_activity(&id).await {
         Ok(review_comments) => resource.activity.extend(review_comments),
         Err(error) => push_enrichment_warning(&mut resource, "review threads unavailable", &error),
     }
-    match fetch_timeline_activity(id, ResourceKind::PullRequest).await {
+    match fetch_timeline_activity(&id, ResourceKind::PullRequest).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
     }
@@ -228,28 +286,24 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
         if full_depth {
-            match fetch_changed_files(id).await {
+            match fetch_changed_files(&id).await {
                 Ok(files) => pr.files = files,
                 Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
             }
-            match fetch_commits(id).await {
+            match fetch_commits(&id).await {
                 Ok(commits) => replace_pr_commits(pr, commits),
                 Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
             }
-            match fetch_commit_deployments(id).await {
+            match fetch_commit_deployments(&id).await {
                 Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
                 Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
             }
-            match fetch_status_rollup_checks(id).await {
+            match fetch_status_rollup_checks(&id).await {
                 Ok(checks) => pr.checks = checks,
                 Err(error) => warnings.push(format!("full status rollup unavailable: {error}")),
             }
         }
-        match fetch_file_patches(id).await {
-            Ok(patches) => apply_file_patches(&mut pr.files, patches),
-            Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
-        }
-        match fetch_check_suites(id).await {
+        match fetch_check_suites(&id).await {
             Ok(suites) => apply_check_suites(&mut pr.checks, suites),
             Err(error) => warnings.push(format!("check suites unavailable: {error}")),
         }
@@ -258,7 +312,7 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     Ok(resource)
 }
 
-async fn fetch_issue(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+async fn fetch_issue_base(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_issue(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -275,19 +329,25 @@ async fn fetch_issue(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Res
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     resource.warnings.extend(partial_depth_warnings);
+    Ok(resource)
+}
+
+async fn enrich_issue(mut resource: Resource, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+    let id = resource.id.clone();
+    let full_depth = api_depth.is_full();
     if full_depth {
-        enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
-        enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
-        enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
-        match fetch_comment_activity(id, ResourceKind::Issue).await {
+        enrich_project_metadata(&mut resource, &id, ResourceKind::Issue).await;
+        enrich_labels_and_assignees(&mut resource, &id, ResourceKind::Issue).await;
+        enrich_linked_resources(&mut resource, &id, ResourceKind::Issue).await;
+        match fetch_comment_activity(&id, ResourceKind::Issue).await {
             Ok(comments) => replace_comment_activity(&mut resource, comments),
             Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
         }
     }
-    enrich_participants(&mut resource, id, ResourceKind::Issue).await;
-    enrich_issue_relationships(&mut resource, id).await;
-    enrich_issue_linked_branches(&mut resource, id).await;
-    match fetch_timeline_activity(id, ResourceKind::Issue).await {
+    enrich_participants(&mut resource, &id, ResourceKind::Issue).await;
+    enrich_issue_relationships(&mut resource, &id).await;
+    enrich_issue_linked_branches(&mut resource, &id).await;
+    match fetch_timeline_activity(&id, ResourceKind::Issue).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
     }
@@ -3445,6 +3505,20 @@ fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String
         if let Some(patch) = patches.get(&file.path) {
             file.patch = Some(patch.clone());
         }
+    }
+}
+
+fn warn_for_missing_file_patches(resource: &mut Resource, patches: HashMap<String, String>) {
+    let Some(pr) = resource.pull_request.as_mut() else {
+        return;
+    };
+    apply_file_patches(&mut pr.files, patches);
+    let missing = pr.files.iter().filter(|file| file.patch.is_none()).count();
+    if missing > 0 {
+        let files = if missing == 1 { "file" } else { "files" };
+        resource.warnings.push(format!(
+            "{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING} for {missing} {files}"
+        ));
     }
 }
 
@@ -7378,6 +7452,132 @@ diff --git a/docs/two.md b/docs/two.md\n\
         apply_file_patches(&mut files, patches);
 
         assert_eq!(files[0].patch.as_deref(), Some("patch body"));
+    }
+
+    #[test]
+    fn missing_file_patch_warning_preserves_pr_resource() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Pull request".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![],
+            pull_request: Some(PullRequest {
+                base_ref: "main".into(),
+                head_ref: "feature".into(),
+                requested_reviewers: vec![],
+                review_decision: None,
+                merge_state: None,
+                additions: 1,
+                deletions: 0,
+                commits: vec![],
+                checks: vec![],
+                files: vec![ChangedFile {
+                    path: "src/one.rs".into(),
+                    additions: 1,
+                    deletions: 0,
+                    change_type: "MODIFIED".into(),
+                    patch: None,
+                }],
+                metadata: vec![],
+            }),
+        };
+
+        warn_for_missing_file_patches(&mut resource, HashMap::new());
+
+        assert_eq!(resource.title, "Pull request");
+        assert_eq!(
+            resource.warnings,
+            ["file patch context unavailable for 1 file"]
+        );
+    }
+
+    #[test]
+    fn public_rest_fallback_warning_marks_resource_as_rest_fallback() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Issue".into(),
+            url: "https://github.com/owner/repo/issues/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![],
+            pull_request: None,
+        };
+
+        assert!(!resource.uses_public_rest_fallback());
+        resource
+            .warnings
+            .push("using public REST fallback after GitHub auth/API error: rate limited".into());
+
+        assert!(resource.uses_public_rest_fallback());
+    }
+
+    #[test]
+    fn public_rest_fallback_pr_skips_authenticated_diff_enrichment() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Pull request".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![
+                "using public REST fallback after GitHub auth/API error: rate limited".into(),
+            ],
+            pull_request: Some(PullRequest {
+                base_ref: "main".into(),
+                head_ref: "feature".into(),
+                requested_reviewers: vec![],
+                review_decision: None,
+                merge_state: None,
+                additions: 1,
+                deletions: 0,
+                commits: vec![],
+                checks: vec![],
+                files: vec![ChangedFile {
+                    path: "src/one.rs".into(),
+                    additions: 1,
+                    deletions: 0,
+                    change_type: "MODIFIED".into(),
+                    patch: Some("@@ -1 +1 @@\n+line".into()),
+                }],
+                metadata: vec![],
+            }),
+        };
+
+        assert!(resource.uses_public_rest_fallback());
+        assert!(!should_enrich_file_patches(&resource));
+
+        resource.warnings.clear();
+
+        assert!(should_enrich_file_patches(&resource));
     }
 
     #[test]

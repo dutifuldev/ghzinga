@@ -15,6 +15,14 @@ available. Slower sections should load independently, update the TUI as they
 arrive, and never block reading the title, body, status, branches, basic files,
 comments, reviews, commits, or checks.
 
+In plain terms: opening a PR should feel like GitHub web. The shell appears
+immediately, the main PR identity and description appear as soon as GitHub
+returns them, and deeper details continue filling in without making the user
+stare at a blank or frozen screen.
+
+The initial implementation should preserve the existing UI shape. This is a
+loading architecture change first, not a visual redesign.
+
 ## Current problem
 
 The startup placeholder already renders immediately, but the real resource is
@@ -34,6 +42,9 @@ For a normal PR load, the default path currently waits for:
 That means useful base data is ready earlier than the UI shows it. The TUI only
 switches from the loading placeholder to the real PR after all default
 enrichments complete.
+
+This is structurally inefficient because the slowest optional request controls
+when the fastest useful data becomes visible.
 
 ## Design principle
 
@@ -55,6 +66,10 @@ The render layer should combine those sections into the current product shape:
 - Files tab
 - Links tab
 
+This keeps the loader aligned with GitHub's API boundaries without forcing the
+TUI to become a generic data framework. The TUI should still render concrete
+GitHub PR/issue concepts.
+
 ## Target behavior
 
 Initial live load:
@@ -73,6 +88,20 @@ sections.
 
 Replacing the current tab should immediately replace the active tab with a
 loading shell and then follow the same staged path.
+
+Expected user-visible order:
+
+1. Empty/loading tab appears immediately.
+2. Header, title, link, state, branch/status summary, body, and first-page
+   content appear.
+3. Overview becomes readable even if timeline/review-thread enrichment is still
+   running.
+4. Checks and deeper activity improve when their section jobs finish.
+5. File patches are loaded only after the Files tab needs them.
+
+The app must ignore stale results. If the user replaces a tab, closes it, or
+opens a different resource while background work is still running, old results
+must not overwrite the current resource.
 
 ## Resource snapshot model
 
@@ -208,6 +237,17 @@ Every result must carry the same `tab_id`, `resource_id`, `generation`, and
 `section`. The reducer must ignore results that do not match the current tab
 generation.
 
+The first implementation can use staged outcomes instead of introducing the full
+job graph at once:
+
+- `Base`: high-priority base GitHub response that ends the blocking load state.
+- `Enrichment`: background details merged into the same resource generation.
+- `Complete`: existing full-depth path used for offline fixtures, explicit full
+  loads, and specialized operations.
+
+That is enough to prove the behavior and keep the renderer stable. The richer
+section job model can follow once the staged path is working.
+
 ## Scheduling policy
 
 Default PR open:
@@ -231,6 +271,17 @@ Visible-tab priority:
 - Files prioritizes `Files` and `FilePatches`.
 - Commits prioritizes `Commits`.
 
+Request budget rules:
+
+- Never fetch PR diff patch text during default startup.
+- Never fetch all pages of every connection just to render the first screen.
+- Use REST for diff patch text and direct GitHub GraphQL/REST API calls for
+  everything else; do not shell out through `gh api`.
+- Treat background enrichment failure as a warning when base data is already
+  visible.
+- Keep refresh slower and deliberate enough that GraphQL budget is not burned by
+  hidden tabs.
+
 ## UI behavior
 
 The UI should make partial data obvious but calm.
@@ -250,6 +301,10 @@ Examples:
 - Checks tab before suites load: `Loading check suites... status rollup is shown.`
 - Overview before timeline load: show body/comments/reviews already available,
   plus `Loading timeline events...`
+
+Startup should not show a success/info banner after load completes. Status text
+is useful for active loading and errors, but a normal successful load should
+leave the content as the focus.
 
 ## Cache behavior
 
@@ -297,6 +352,41 @@ allows better API economy:
 9. Gradually make renderers read section state directly instead of relying on a
    fully materialized `Resource`.
 
+Implementation checklist for the compatibility slice:
+
+- [ ] Split live GitHub loading into base and enrichment methods.
+- [ ] Emit a base fetch outcome before enrichment completes.
+- [ ] End the blocking loading state on the base outcome.
+- [ ] Merge enrichment only when the active tab still matches the original
+      resource.
+- [ ] Keep fixture and one-shot paths compatible with complete resource loads.
+- [ ] Move REST diff patch loading behind Files-tab demand.
+- [ ] Add tests for base-before-enrichment, stale enrichment, enrichment
+      warnings, and lazy file patch scheduling.
+- [ ] Update terminal captures for PR and issue flows.
+- [ ] Run the local CI gate before opening or updating the PR.
+
+## Compatibility implementation slice
+
+The first production slice keeps the existing renderer-facing `Resource` model
+and introduces staged fetch outcomes:
+
+- `Base` applies the base GraphQL PR/issue result and ends the blocking loading
+  state.
+- `Enrichment` merges slower background details into the same tab only if the
+  current tab still shows the same resource.
+- `Complete` preserves the existing blocking path for full-depth loads, offline
+  fixtures, and file-patch requests.
+
+This avoids a renderer rewrite while still satisfying the most important
+latency rule: a normal PR renders base content without waiting for timeline,
+review threads, participants, check suites, or diff patch text.
+
+PR diff patch text is no longer part of default PR enrichment. It is loaded on
+demand once the Files tab is active and a file lacks patch context. The Files tab
+continues to render the existing `patch: not loaded` row until the diff request
+returns.
+
 ## Testing plan
 
 Unit tests:
@@ -328,6 +418,16 @@ Live validation:
 - use a public PR with comments, review threads, checks, and files
 - compare startup perceived latency before and after
 - verify no `gh api` shell-out is introduced
+
+Real-environment validation:
+
+- run `gzg` against a live GitHub PR in the existing tmux/herdr pane
+- confirm useful PR content appears before check-suite/timeline enrichment
+  completes
+- switch to Files and confirm diff patches start loading on demand
+- open several tabs through the CLI session command and confirm background
+  results do not corrupt the focused tab
+- capture narrow, medium, and large terminal sizes after the staged load settles
 
 ## Non-goals
 

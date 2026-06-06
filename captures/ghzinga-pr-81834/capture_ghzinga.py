@@ -193,6 +193,17 @@ def wait_for_loaded(session: str, timeout: float = 45.0):
     raise RuntimeError(f"{session} did not load ghzinga. Last screen:\n{last}")
 
 
+def wait_for_text(session: str, needle: str, timeout: float = 30.0):
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        last = capture_plain(session)
+        if needle in last:
+            return
+        time.sleep(0.5)
+    raise RuntimeError(f"{session} did not show {needle!r}. Last screen:\n{last}")
+
+
 def capture_plain(session: str) -> str:
     return tmux("capture-pane", "-t", session, "-N", "-p").stdout.rstrip("\n")
 
@@ -285,6 +296,8 @@ def capture_frame(
         time.sleep(2.0)
         for key in keys or []:
             send(session, key)
+        if MODE == "pr" and name.startswith("30_checks"):
+            wait_for_text(session, "suite/CI")
         write_capture(
             session,
             out_dir,

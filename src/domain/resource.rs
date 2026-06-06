@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -227,6 +227,70 @@ impl Resource {
             .any(|warning| warning.contains(FULL_DEPTH_WARNING_HINT))
     }
 
+    pub fn uses_public_rest_fallback(&self) -> bool {
+        self.warnings
+            .iter()
+            .any(|warning| warning.starts_with(PUBLIC_REST_FALLBACK_WARNING_PREFIX))
+    }
+
+    pub fn merge_file_patch_context_from(&mut self, patch_resource: &Resource) -> ResourceMerge {
+        let mut merge = ResourceMerge::default();
+
+        for warning in &patch_resource.warnings {
+            if !self.warnings.iter().any(|item| item == warning) {
+                self.warnings.push(warning.clone());
+                merge.warnings_changed = true;
+            }
+        }
+
+        let patch_by_path = patch_resource
+            .pull_request
+            .as_ref()
+            .map(file_patch_by_path)
+            .unwrap_or_default();
+
+        if let Some(pr) = &mut self.pull_request {
+            for file in &mut pr.files {
+                let Some(patch) = patch_by_path.get(&file.path) else {
+                    continue;
+                };
+                if file.patch.as_ref() != Some(*patch) {
+                    file.patch = Some((*patch).clone());
+                    merge.files_changed = true;
+                }
+            }
+        }
+
+        merge
+    }
+
+    pub fn preserve_loaded_file_patch_context_from(&mut self, existing: &Resource) {
+        for warning in &existing.warnings {
+            if warning.starts_with(FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING)
+                && !self.warnings.iter().any(|item| item == warning)
+            {
+                self.warnings.push(warning.clone());
+            }
+        }
+
+        let patch_by_path = existing
+            .pull_request
+            .as_ref()
+            .map(file_patch_by_path)
+            .unwrap_or_default();
+
+        if let Some(pr) = &mut self.pull_request {
+            for file in &mut pr.files {
+                if file.patch.is_some() {
+                    continue;
+                }
+                if let Some(patch) = patch_by_path.get(&file.path) {
+                    file.patch = Some((*patch).clone());
+                }
+            }
+        }
+    }
+
     pub fn fingerprint(&self) -> String {
         let pr_fingerprint = self.pull_request.as_ref().map_or_else(String::new, |pr| {
             format!(
@@ -384,6 +448,25 @@ impl Resource {
             .collect::<Vec<_>>()
             .join("|")
     }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ResourceMerge {
+    pub warnings_changed: bool,
+    pub files_changed: bool,
+}
+
+impl ResourceMerge {
+    pub fn changed(self) -> bool {
+        self.warnings_changed || self.files_changed
+    }
+}
+
+fn file_patch_by_path(pr: &PullRequest) -> HashMap<&String, &String> {
+    pr.files
+        .iter()
+        .filter_map(|file| file.patch.as_ref().map(|patch| (&file.path, patch)))
+        .collect()
 }
 
 fn push_changed(sections: &mut Vec<String>, label: &str, changed: bool) {
@@ -615,6 +698,9 @@ pub struct ChangedFile {
     #[serde(default)]
     pub patch: Option<String>,
 }
+
+pub const FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING: &str = "file patch context unavailable";
+pub const PUBLIC_REST_FALLBACK_WARNING_PREFIX: &str = "using public REST fallback ";
 
 #[cfg(test)]
 mod tests {
