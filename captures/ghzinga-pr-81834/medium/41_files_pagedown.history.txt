@@ -4,7 +4,7 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)                         
   📄 14 files changed +1.1k -22                                                                                         
-  ⓘ loading file diffs                                                                                                  
+  🔁 Refresh: 14:24:43 changed ✦ Changed: metadata, warnings, checks                                                    
    🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links                                                  
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
@@ -31,6 +31,6 @@
                                                                                                                      █  
   +2    -0    MODIFIED src/plugin-sdk/test-helpers/plugin-registration-contract-cases.ts [➕ more]                   █  
                                                                                                                      █  
-  loading file diffs                                                                                                    
+                                                                                                                        
   [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                   
                                                                                                                         

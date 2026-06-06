@@ -4,7 +4,7 @@
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
   ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  ⓘ loading file diffs                                                          
+  🔁 Refresh: 14:23:35 changed ✦ Changed: metadata, warnings, checks            
    🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links          
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +20,5 @@
   +203  -0    ADDED    extensions/senseaudio/speech-provider.ts [➕ more]    │  
                                                                              │  
   +1    -0    MODIFIED extensions/senseaudio/test-api.ts [➕ more]           │  
-  loading file diffs                                                            
+                                                                                
   [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
