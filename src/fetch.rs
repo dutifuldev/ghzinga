@@ -314,7 +314,9 @@ fn apply_base_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     apply_loaded_resource_outcome(state, outcome);
     if base_loaded {
         state.apply_to_resource_tab(origin_tab_id, |state| {
-            if resource_matches_target(&state.resource, &target) {
+            if resource_matches_target(&state.resource, &target)
+                && should_enqueue_enrichment(&state.resource)
+            {
                 state.status_message = Some("loading additional GitHub details".into());
             }
         });
@@ -763,6 +765,103 @@ mod tests {
         assert_eq!(state.resource.title, "Existing issue");
         assert_eq!(state.last_error.as_deref(), Some("network down"));
         assert!(state.status_message.is_none());
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn public_rest_fallback_base_does_not_show_enrichment_status() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let mut fallback = issue_resource(1, "REST fallback issue");
+        fallback
+            .warnings
+            .push("using public REST fallback after GitHub auth/API error: rate limited".into());
+        let mut state = AppState::new(loading_resource_placeholder(id.clone()));
+        let action = FetchAction::Initial { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(fallback),
+                refreshed_at: "12:34:56 UTC".into(),
+                owner: FetchOwner::new(request_id, origin_tab_id),
+                stage: FetchStage::Base,
+            },
+        );
+
+        assert_eq!(state.resource.title, "REST fallback issue");
+        assert!(state.loading.is_none());
+        assert!(state.status_message.is_none());
+    }
+
+    #[test]
+    fn enrichment_does_not_clear_other_tab_blocking_load() {
+        let first = issue_resource(1, "First issue");
+        let second = issue_resource(2, "Second issue");
+        let mut state = AppState::new(first.clone());
+        let first_action = FetchAction::Refresh {
+            id: first.id.clone(),
+        };
+        let (first_request_id, first_origin_tab_id) = begin_test_fetch(&mut state, &first_action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: first_action.clone(),
+                result: Ok(first.clone()),
+                refreshed_at: "12:34:56 UTC".into(),
+                owner: FetchOwner::new(first_request_id, first_origin_tab_id),
+                stage: FetchStage::Base,
+            },
+        );
+
+        state.open_resource_in_tab(second.clone());
+        let second_action = FetchAction::Refresh {
+            id: second.id.clone(),
+        };
+        let (second_request_id, second_origin_tab_id) =
+            begin_test_fetch(&mut state, &second_action);
+        let mut enriched_first = first.clone();
+        enriched_first.body = "enriched first body".into();
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: first_action,
+                result: Ok(enriched_first),
+                refreshed_at: "12:35:01 UTC".into(),
+                owner: FetchOwner::new(first_request_id, first_origin_tab_id),
+                stage: FetchStage::Enrichment,
+            },
+        );
+
+        assert_eq!(state.resource.id.number, 2);
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#2 from GitHub")
+        );
+        assert!(state.loading_request_matches(second_request_id));
+
+        let mut refreshed_second = second;
+        refreshed_second.body = "refreshed second body".into();
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: second_action,
+                result: Ok(refreshed_second),
+                refreshed_at: "12:35:02 UTC".into(),
+                owner: FetchOwner::new(second_request_id, second_origin_tab_id),
+                stage: FetchStage::Complete,
+            },
+        );
+
+        assert_eq!(state.resource.body, "refreshed second body");
         assert!(state.loading.is_none());
     }
 

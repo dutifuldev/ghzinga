@@ -749,7 +749,25 @@ impl AppState {
         refreshed_at: impl Into<String>,
     ) -> bool {
         resource.preserve_loaded_file_patch_context_from(&self.resource);
-        self.apply_refreshed_resource(resource, refreshed_at)
+        self.apply_background_refreshed_resource(resource, refreshed_at)
+    }
+
+    fn apply_background_refreshed_resource(
+        &mut self,
+        resource: Resource,
+        refreshed_at: impl Into<String>,
+    ) -> bool {
+        let changed_sections = self.resource.changed_sections(&resource);
+        let changed =
+            !changed_sections.is_empty() || self.resource.fingerprint() != resource.fingerprint();
+        self.resource = resource;
+        self.refresh_requested = false;
+        self.last_error = None;
+        self.mark_refreshed(refreshed_at, changed);
+        self.last_refresh_changed_sections = changed_sections;
+        self.status_message = self.file_patch_loading_message().map(str::to_string);
+        self.snapshot_active_resource_tab();
+        changed
     }
 
     pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) -> u64 {
