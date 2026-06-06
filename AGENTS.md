@@ -21,6 +21,17 @@ If app rendering, fixtures, `Cargo.toml`, or `Cargo.lock` change, regenerate the
 capture artifacts after committing the source/docs change, then commit the
 capture refresh separately.
 
+If a squash merge or capture-only commit leaves capture manifests pointing at an
+older but equivalent app/rendering tree, run:
+
+```sh
+python3 scripts/update-capture-manifests.py
+```
+
+The script stamps every ghzinga capture manifest with the current commit and the
+current app/rendering tree hash. CI verifies the tree hash with
+`python3 scripts/update-capture-manifests.py --check`.
+
 ## Architecture Boundaries
 
 - Keep `src/domain` pure: no app, GitHub, TUI, terminal, filesystem, process, or

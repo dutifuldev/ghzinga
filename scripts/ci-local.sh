@@ -24,3 +24,4 @@ python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --self-test
 python3 captures/ghzinga-pr-81834/capture_mouse_smoke.py --validate-only
 python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --self-test
 python3 captures/ghzinga-issue-88499/capture_mouse_smoke.py --validate-only
+python3 scripts/update-capture-manifests.py --check

@@ -106,6 +106,15 @@ const COMFORTABLE_GUTTER: u16 = 2;
 const COMFORTABLE_MIN_CAP_WIDTH: u16 =
     crate::render::DEFAULT_FIXED_CONTENT_WIDTH + (COMFORTABLE_GUTTER * 2) + 12;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct ChromeSpacingPlan {
+    header_top_padding_rows: u16,
+    header_bottom_gap_rows: u16,
+    status_top_gap_rows: u16,
+    footer_bottom_padding_rows: u16,
+    nav_frame_rows: u16,
+}
+
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
         Self {
@@ -559,36 +568,87 @@ fn render_resource_link_modal(
 
 fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
     let mut rects = ViewRects::compute(area);
-    if spacing == SpacingMode::Comfortable && area.width >= 48 && rects.content.height > 2 {
-        if rects.content.height > 3 {
-            rects.header.height = rects.header.height.saturating_add(1);
-            rects.status.y = rects.status.y.saturating_add(1);
-            rects.tabs.y = rects.tabs.y.saturating_add(1);
-            rects.content.y = rects.content.y.saturating_add(1);
-            rects.content.height = rects.content.height.saturating_sub(1);
-        }
-        if rects.content.height > 5 {
-            rects.header.height = rects.header.height.saturating_add(1);
-            rects.status.y = rects.status.y.saturating_add(1);
-            rects.tabs.y = rects.tabs.y.saturating_add(1);
-            rects.content.y = rects.content.y.saturating_add(1);
-            rects.content.height = rects.content.height.saturating_sub(1);
-
-            rects.status.height = rects.status.height.saturating_add(1);
-            rects.tabs.y = rects.tabs.y.saturating_add(1);
-            rects.content.y = rects.content.y.saturating_add(1);
-            rects.content.height = rects.content.height.saturating_sub(1);
-        }
-        if area.height >= 32 && rects.content.height > 3 {
-            rects.footer.height = rects.footer.height.saturating_add(1);
-            rects.footer.y = rects.footer.y.saturating_sub(1);
-            rects.content.height = rects.content.height.saturating_sub(1);
-        }
-        rects.tabs.height = rects.tabs.height.saturating_add(2);
-        rects.content.y = rects.content.y.saturating_add(2);
-        rects.content.height = rects.content.height.saturating_sub(2);
+    if let Some(plan) = chrome_spacing_plan(area, spacing, rects) {
+        extend_header_chrome(
+            &mut rects,
+            plan.header_top_padding_rows
+                .saturating_add(plan.header_bottom_gap_rows),
+        );
+        extend_status_chrome(&mut rects, plan.status_top_gap_rows);
+        extend_footer_chrome(&mut rects, plan.footer_bottom_padding_rows);
+        extend_tab_chrome(&mut rects, plan.nav_frame_rows);
     }
     rects
+}
+
+fn chrome_spacing_plan(
+    area: Rect,
+    spacing: SpacingMode,
+    rects: ViewRects,
+) -> Option<ChromeSpacingPlan> {
+    if spacing == SpacingMode::Compact || area.width < 48 || rects.content.height <= 2 {
+        return None;
+    }
+
+    let mut content_rows = rects.content.height;
+    let mut plan = ChromeSpacingPlan {
+        nav_frame_rows: 2,
+        ..ChromeSpacingPlan::default()
+    };
+
+    if content_rows > 3 {
+        plan.header_top_padding_rows = 1;
+        content_rows = content_rows.saturating_sub(1);
+    }
+    if content_rows > 5 {
+        plan.header_bottom_gap_rows = 1;
+        plan.status_top_gap_rows = 1;
+        content_rows = content_rows.saturating_sub(2);
+    }
+    if area.height >= 32 && content_rows > 3 {
+        plan.footer_bottom_padding_rows = 1;
+    }
+
+    Some(plan)
+}
+
+fn extend_header_chrome(rects: &mut ViewRects, rows: u16) {
+    if rows == 0 {
+        return;
+    }
+    rects.header.height = rects.header.height.saturating_add(rows);
+    rects.status.y = rects.status.y.saturating_add(rows);
+    rects.tabs.y = rects.tabs.y.saturating_add(rows);
+    rects.content.y = rects.content.y.saturating_add(rows);
+    rects.content.height = rects.content.height.saturating_sub(rows);
+}
+
+fn extend_status_chrome(rects: &mut ViewRects, rows: u16) {
+    if rows == 0 {
+        return;
+    }
+    rects.status.height = rects.status.height.saturating_add(rows);
+    rects.tabs.y = rects.tabs.y.saturating_add(rows);
+    rects.content.y = rects.content.y.saturating_add(rows);
+    rects.content.height = rects.content.height.saturating_sub(rows);
+}
+
+fn extend_footer_chrome(rects: &mut ViewRects, rows: u16) {
+    if rows == 0 {
+        return;
+    }
+    rects.footer.height = rects.footer.height.saturating_add(rows);
+    rects.footer.y = rects.footer.y.saturating_sub(rows);
+    rects.content.height = rects.content.height.saturating_sub(rows);
+}
+
+fn extend_tab_chrome(rects: &mut ViewRects, rows: u16) {
+    if rows == 0 {
+        return;
+    }
+    rects.tabs.height = rects.tabs.height.saturating_add(rows);
+    rects.content.y = rects.content.y.saturating_add(rows);
+    rects.content.height = rects.content.height.saturating_sub(rows);
 }
 
 fn reserve_resource_tab_chrome(rects: &mut ViewRects, state: &AppState) {
@@ -5104,9 +5164,15 @@ mod tests {
         let mut state = AppState::new(pr_resource());
         let area = Rect::new(0, 0, 120, 36);
         let base = ViewRects::compute(Rect::new(0, 0, 120, 36));
+        let plan = chrome_spacing_plan(area, state.spacing, base).expect("comfortable plan");
         let rects = rects_for_spacing(area, state.spacing);
         let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
 
+        assert_eq!(plan.header_top_padding_rows, 1);
+        assert_eq!(plan.header_bottom_gap_rows, 1);
+        assert_eq!(plan.status_top_gap_rows, 1);
+        assert_eq!(plan.footer_bottom_padding_rows, 1);
+        assert_eq!(plan.nav_frame_rows, 2);
         assert_eq!(rects.tabs.height, base.tabs.height + 2);
         assert_eq!(rects.content.y, base.content.y + 5);
 

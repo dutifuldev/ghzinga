@@ -49,9 +49,9 @@ The run covers the required terminal sizes:
 | Large | `160x50` | `captures/ghzinga-pr-81834/large/` |
 
 Each size directory includes `.txt` and `.ansi` frames, plus
-`manifest.json`. The manifests record the source revision, target resource,
-command, requested and actual tmux size, active tab, and keys used for each
-frame.
+`manifest.json`. The manifests record the source revision, app/rendering tree
+hash, target resource, command, requested and actual tmux size, active tab, and
+keys used for each frame.
 
 ## PR Captured Views
 
@@ -94,8 +94,11 @@ It checks that every size contains:
 - `[quit]`
 
 It also checks that no app/rendering source paths changed since the manifest
-revision. Use `--allow-stale-revision` only when intentionally inspecting
-historical captures.
+revision. The app/rendering tree hash lets CI validate a capture after a squash
+merge or capture-only commit even when the original capture commit is not
+available in a shallow checkout. Use `scripts/update-capture-manifests.py` after
+confirming the capture output still matches the current UI. Use
+`--allow-stale-revision` only when intentionally inspecting historical captures.
 
 For this checked-in PR evidence set, the validator also checks content markers
 in every terminal size: opening body text, dependency-warning comment content,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import shlex
 import shutil
@@ -93,13 +94,31 @@ def git_revision_exists(revision: str) -> bool:
     return result.returncode == 0
 
 
-def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -> str | None:
+def app_tree_hash(revision: str | None = None) -> str:
+    revision = revision or git_commit()
+    paths = app_freshness_paths()
+    if not revision or revision == "unknown" or not paths:
+        return "unknown"
+    result = subprocess.run(
+        ["git", "ls-tree", "-rz", "--full-tree", revision, "--", *paths],
+        cwd=REPO,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return "unknown"
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
+def app_tree_freshness_error(
+    captured_commit: str | None,
+    current_commit: str,
+    captured_tree_hash: str | None = None,
+) -> str | None:
     if not captured_commit or captured_commit == "unknown":
         return "manifest is missing a usable git_commit"
     if current_commit == "unknown":
         return "current git revision could not be resolved"
-    if not git_revision_exists(captured_commit):
-        return f"captured revision {captured_commit!r} is not available locally"
     if not git_revision_exists(current_commit):
         return f"current revision {current_commit!r} is not available locally"
 
@@ -123,6 +142,16 @@ def app_tree_freshness_error(captured_commit: str | None, current_commit: str) -
 
     if captured_commit == current_commit:
         return None
+
+    if captured_tree_hash:
+        current_tree_hash = app_tree_hash(current_commit)
+        if current_tree_hash == "unknown":
+            return "current app/rendering tree hash could not be resolved"
+        if captured_tree_hash == current_tree_hash:
+            return None
+
+    if not git_revision_exists(captured_commit):
+        return f"captured revision {captured_commit!r} is not available locally"
 
     committed_diff = subprocess.run(
         ["git", "diff", "--quiet", f"{captured_commit}..{current_commit}", "--", *paths],
@@ -152,7 +181,11 @@ def validate_manifest_revision(
 ):
     if allow_stale_revision:
         return
-    reason = app_tree_freshness_error(manifest.get("git_commit"), expected_git_commit)
+    reason = app_tree_freshness_error(
+        manifest.get("git_commit"),
+        expected_git_commit,
+        manifest.get("app_tree_hash"),
+    )
     if reason:
         errors.append(
             f"{manifest_path} git_commit {manifest.get('git_commit')!r} does not match "
@@ -330,6 +363,7 @@ def capture_size(label: str, cols: int, rows: int):
         "mode": MODE,
         "binary": repo_relative_path(BIN),
         "git_commit": git_commit(),
+        "app_tree_hash": app_tree_hash(),
         "config_path": repo_relative_path(capture_config_path()),
         "requested_columns": cols,
         "requested_rows": rows,
@@ -771,6 +805,7 @@ def main():
         "mode": MODE,
         "binary": repo_relative_path(BIN),
         "git_commit": git_commit(),
+        "app_tree_hash": app_tree_hash(),
         "config_path": repo_relative_path(capture_config_path()),
         "offline_fixture": repo_relative_path(OFFLINE_FIXTURE) if OFFLINE_FIXTURE else None,
         "offline_resource_fixtures": [

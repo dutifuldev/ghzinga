@@ -14,6 +14,7 @@ sys.path.append(str(REPO / "captures" / "ghzinga-pr-81834"))
 
 from capture_ghzinga import (  # noqa: E402
     app_tree_freshness_error,
+    app_tree_hash,
     capture_ansi,
     capture_plain,
     git_commit,
@@ -323,6 +324,7 @@ def capture_mouse_smoke():
             "extra_fixtures": [str(NAVIGATION_TARGET_FIXTURE.relative_to(REPO))],
             "binary": repo_relative_path(BIN),
             "git_commit": git_commit(),
+            "app_tree_hash": app_tree_hash(),
             "config_path": repo_relative_path(capture_config_path()),
             "command": portable_command(command),
             "actual_tmux_size": actual_tmux_size,
@@ -400,7 +402,11 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         if not any(item.get("url") == DETAIL_URL for item in fixture.get("activity", [])):
             errors.append(f"manifest fixture {fixture_path} does not include {DETAIL_URL}")
     if not allow_stale_revision:
-        reason = app_tree_freshness_error(manifest.get("git_commit"), git_commit())
+        reason = app_tree_freshness_error(
+            manifest.get("git_commit"),
+            git_commit(),
+            manifest.get("app_tree_hash"),
+        )
         if reason:
             errors.append(
                 f"{manifest_path} git_commit {manifest.get('git_commit')!r} is stale: {reason}"
