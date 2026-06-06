@@ -156,15 +156,12 @@ impl GithubGateway for GithubApiGateway {
 
     async fn enrich_file_patches(&self, mut resource: Resource) -> anyhow::Result<Resource> {
         let id = resource.id.clone();
-        if let Some(pr) = resource.pull_request.as_mut() {
-            let patches = fetch_file_patches(&id).await?;
-            apply_file_patches(&mut pr.files, patches);
-            let missing = pr.files.iter().filter(|file| file.patch.is_none()).count();
-            if missing > 0 {
-                let files = if missing == 1 { "file" } else { "files" };
-                resource.warnings.push(format!(
-                    "{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING} for {missing} {files}"
-                ));
+        if resource.pull_request.is_some() {
+            match fetch_file_patches(&id).await {
+                Ok(patches) => warn_for_missing_file_patches(&mut resource, patches),
+                Err(error) => resource
+                    .warnings
+                    .push(format!("{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING}: {error}")),
             }
         }
         Ok(resource)
@@ -3500,6 +3497,20 @@ fn apply_file_patches(files: &mut [ChangedFile], patches: HashMap<String, String
         if let Some(patch) = patches.get(&file.path) {
             file.patch = Some(patch.clone());
         }
+    }
+}
+
+fn warn_for_missing_file_patches(resource: &mut Resource, patches: HashMap<String, String>) {
+    let Some(pr) = resource.pull_request.as_mut() else {
+        return;
+    };
+    apply_file_patches(&mut pr.files, patches);
+    let missing = pr.files.iter().filter(|file| file.patch.is_none()).count();
+    if missing > 0 {
+        let files = if missing == 1 { "file" } else { "files" };
+        resource.warnings.push(format!(
+            "{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING} for {missing} {files}"
+        ));
     }
 }
 
@@ -7433,6 +7444,54 @@ diff --git a/docs/two.md b/docs/two.md\n\
         apply_file_patches(&mut files, patches);
 
         assert_eq!(files[0].patch.as_deref(), Some("patch body"));
+    }
+
+    #[test]
+    fn missing_file_patch_warning_preserves_pr_resource() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Pull request".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![],
+            pull_request: Some(PullRequest {
+                base_ref: "main".into(),
+                head_ref: "feature".into(),
+                requested_reviewers: vec![],
+                review_decision: None,
+                merge_state: None,
+                additions: 1,
+                deletions: 0,
+                commits: vec![],
+                checks: vec![],
+                files: vec![ChangedFile {
+                    path: "src/one.rs".into(),
+                    additions: 1,
+                    deletions: 0,
+                    change_type: "MODIFIED".into(),
+                    patch: None,
+                }],
+                metadata: vec![],
+            }),
+        };
+
+        warn_for_missing_file_patches(&mut resource, HashMap::new());
+
+        assert_eq!(resource.title, "Pull request");
+        assert_eq!(
+            resource.warnings,
+            ["file patch context unavailable for 1 file"]
+        );
     }
 
     #[test]
