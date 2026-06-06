@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
-  📄 6 files changed +1.1k -22                                                                                          
-                                                                                                                        
-   🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links                                                  
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Summary: PASS (5 pass, 0 pending, 0 fail)                                                                             
-  5 total: 5 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown                                                   
-                                                                                                                        
-  Passing (5)                                                                                                           
-  [✅ PASS] suite/CI [➕ more]                                                                                          
-                                                                                                                        
-  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                                                                     
-                                                                                                                        
-  [✅ PASS] suite/Dependency Guard [➕ more]                                                                            
-                                                                                                                        
-  [✅ PASS] suite/Workflow Sanity [➕ more]                                                                             
-                                                                                                                        
-  [✅ PASS] All checks [➕ more]                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]
+  feat(senseaudio): add SenseAudio TTS provider
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)
+  📄 6 files changed +1.1k -22
+
+   🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Summary: PASS (5 pass, 0 pending, 0 fail)
+  5 total: 5 pass, 0 pending, 0 fail, 0 skipped, 0 neutral, 0 unknown
+
+  Passing (5)
+  [✅ PASS] suite/CI [➕ more]
+
+  [✅ PASS] suite/CodeQL Critical Quality [➕ more]
+
+  [✅ PASS] suite/Dependency Guard [➕ more]
+
+  [✅ PASS] suite/Workflow Sanity [➕ more]
+
+  [✅ PASS] All checks [➕ more]
+
+
+
+
+
+
+
+
+  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]
+

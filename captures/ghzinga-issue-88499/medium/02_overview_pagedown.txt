@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]  
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                                                                 
-                                                                                                                        
-                                                                                                                        
-  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                     │  
-  Expected Behavior                                                                                                  │  
-                                                                                                                     │  
-  The provider should either avoid previous_response_id when store=false or persist the response when continuing a   │  
-  conversation.                                                                                                      │  
-                                                                                                                     █  
-  Related regressions were discussed in #84904 and #87310.                                                           █  
-  [➖ less]                                                                                                          █  
-                                                                                                                     █  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
-                                                                                                                     █  
-  💬 Comment by @clawsweeper 2d ago                                                                                  │  
-  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay      │  
-  failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying   │  
-  server-owned reasoning item IDs.                                                                                   │  
-                                                                                                                     │  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
-                                                                                                                     │  
-  • Timeline by @osolmaz 2d ago                                                                                      │  
-  added label provider: openai-responses                                                                             │  
-                                                                                                                     │  
-  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│  
-                                                                                                                     │  
-                                                                                                                        
-  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]
+  openai-responses provider: 404 on previous_response_id when store=false (default)
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @xneone
+
+
+  [🏠 Overview] 💬 Activity  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                     │
+  Expected Behavior                                                                                                  │
+                                                                                                                     │
+  The provider should either avoid previous_response_id when store=false or persist the response when continuing a   │
+  conversation.                                                                                                      █
+                                                                                                                     █
+  Related regressions were discussed in #84904 and #87310.                                                           █
+  [➖ less]                                                                                                          █
+                                                                                                                     █
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█
+                                                                                                                     │
+  💬 Comment by @clawsweeper 2d ago                                                                                  │
+  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay      │
+  failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying   │
+  server-owned reasoning item IDs.                                                                                   │
+                                                                                                                     │
+  ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+                                                                                                                     │
+  • Timeline by @osolmaz 2d ago                                                                                      │
+  added label provider: openai-responses                                                                             │
+                                                                                                                     │
+
+  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]
+

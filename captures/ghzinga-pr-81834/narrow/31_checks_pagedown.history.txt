@@ -1,24 +1,24 @@
-                                                                                
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d     [+]  
-  feat(senseaudio): add SenseAudio TTS provider                                 
-  ────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
-  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  🔁 Refresh: 14:38:34 changed ✦ Changed: metadata, warnings, checks            
-   🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links          
-                                                                                
-  ────────────────────────────────────────────────────────────────────────────  
-                                                                             █  
-  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                          │  
-                                                                             │  
-  [✅ PASS] suite/Dependency Guard [➕ more]                                 │  
-                                                                             │  
-  [✅ PASS] suite/GitHub Advanced Security [➕ more]                         │  
-                                                                             │  
-  [✅ PASS] suite/Labeler [➕ more]                                          │  
-                                                                             │  
-  [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                               │  
-                                                                             │  
-  [✅ PASS] suite/Real behavior proof [➕ more]                              │  
-                                                                                
-  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
+
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d     [+]
+  feat(senseaudio): add SenseAudio TTS provider
+
+  ────────────────────────────────────────────────────────────────────────────
+
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main
+  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22
+  🔁 Refresh: 15:36:56 changed ✦ Changed: metadata, warnings, checks
+   🏠 Overview  💬 Activity  🧱 Commits [✅ Checks] 📄 Files  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────
+                                                                             █
+  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                          │
+                                                                             │
+  [✅ PASS] suite/Dependency Guard [➕ more]                                 │
+                                                                             │
+  [✅ PASS] suite/GitHub Advanced Security [➕ more]                         │
+                                                                             │
+  [✅ PASS] suite/Labeler [➕ more]                                          │
+                                                                             │
+  [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                               │
+
+  [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]

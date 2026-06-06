@@ -1,24 +1,24 @@
-                                                                                
-  openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]  
-  openai-responses provider: 404 on previous_response_id when store=false       
-  ────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                         
-                                                                                
-                                                                                
-  [🏠 Overview] 💬 Activity  🔗 Links                                           
-                                                                                
-  ────────────────────────────────────────────────────────────────────────────  
-  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when    │  
-  store is set to false. Try again with store set to true, or remove this ite│  
-  from your input.                                                           █  
-                                                                             █  
-  Expected Behavior                                                          │  
-                                                                             │  
-  The provider should either avoid previous_response_id when store=false or  │  
-  persist the response when continuing a conversation.                       │  
-                                                                             │  
-  Related regressions were discussed in #84904 and #87310.                   │  
-  [➖ less]                                                                  │  
-                                                                             │  
-                                                                                
-  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                    
+
+  openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]
+  openai-responses provider: 404 on previous_response_id when store=false
+  (default)
+  ────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @xneone
+
+
+  [🏠 Overview] 💬 Activity  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────
+  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when    │
+  store is set to false. Try again with store set to true, or remove this ite█
+  from your input.                                                           █
+                                                                             │
+  Expected Behavior                                                          │
+                                                                             │
+  The provider should either avoid previous_response_id when store=false or  │
+  persist the response when continuing a conversation.                       │
+                                                                             │
+  Related regressions were discussed in #84904 and #87310.                   │
+
+  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]

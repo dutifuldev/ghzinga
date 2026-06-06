@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
-  📄 6 files changed +1.1k -22                                                                                          
-                                                                                                                        
-   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links                                                  
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [➕ more]                                                       
-                                                                                                                        
-  +1    -1    MODIFIED docs/plugins/reference.md [➕ more]                                                              
-                                                                                                                        
-  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [➕ more]                                                   
-                                                                                                                        
-  +74   -14   MODIFIED docs/providers/senseaudio.md [➕ more]                                                           
-                                                                                                                        
-  +3    -1    MODIFIED extensions/senseaudio/index.ts [➕ more]                                                         
-                                                                                                                        
-  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [➕ more]                                               
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]
+  feat(senseaudio): add SenseAudio TTS provider
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)
+  📄 6 files changed +1.1k -22
+
+   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [➕ more]
+
+  +1    -1    MODIFIED docs/plugins/reference.md [➕ more]
+
+  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [➕ more]
+
+  +74   -14   MODIFIED docs/providers/senseaudio.md [➕ more]
+
+  +3    -1    MODIFIED extensions/senseaudio/index.ts [➕ more]
+
+  +1018 -2    ADDED    extensions/senseaudio/speech-provider.ts [➕ more]
+
+
+
+
+
+
+
+
+
+
+  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]
+

@@ -1,24 +1,24 @@
-                                                                                
-  openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]  
-  openai-responses provider: 404 on previous_response_id when store=false       
-  ────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                         
-                                                                                
-                                                                                
-   🏠 Overview  💬 Activity [🔗 Links]                                          
-                                                                                
-  ────────────────────────────────────────────────────────────────────────────  
-                                                                                
-  Help                                                                          
-                                                                                
-  Mouse                                                                         
-  - Plus opens resources; resource tabs switch or close them.                   
-  - Click tabs to switch sections.                                              
-  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or    
-  collapse long text, checks, and files.                                        
-  - Click visible GitHub issue or PR references to navigate.                    
-  - Use the mouse wheel to scroll the current view.                             
-  Keyboard                                                                      
-  - q: close overlays, then ask before quitting                                 
-                                                                                
-  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  
+
+  openclaw / openclaw #88499 [Issue CLOSED] updated 1d                     [+]
+  openai-responses provider: 404 on previous_response_id when store=false
+  (default)
+  ────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @xneone
+
+
+   🏠 Overview  💬 Activity [🔗 Links]
+
+  ────────────────────────────────────────────────────────────────────────────
+
+  Help
+
+  Mouse
+  - Plus opens resources; resource tabs switch or close them.
+  - Click tabs to switch sections.
+  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or
+  collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Use the mouse wheel to scroll the current view.
+
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]

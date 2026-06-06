@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]  
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                                                                 
-                                                                                                                        
-                                                                                                                        
-  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  📝 @xneone opened 2d ago                                                                                              
-  Bug Description                                                                                                       
-                                                                                                                        
-  When using a provider configured with api: openai-responses, the gateway sends store=false in responses API           
-  requests. On subsequent turns within the same session, the gateway includes previous_response_id referencing the      
-  previous response. Since that response was never persisted server-side, the API returns a 404.                        
-                                                                                                                        
-  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when store is set to false. Try again with store   
-  set to true, or remove this item from your input.                                                                     
-                                                                                                                        
-  Expected Behavior                                                                                                     
-                                                                                                                        
-  The provider should either avoid previous_response_id when store=false or persist the response when continuing a      
-  [➕ more]                                                                                                             
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  💬 Comment by @clawsweeper 2d ago                                                                                     
-  [details]                                                                                                             
-  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay         
-  failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying      
-  server-owned reasoning item IDs.                                                                                      
-                                                                                                                        
-  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]
+  openai-responses provider: 404 on previous_response_id when store=false (default)
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @xneone
+
+
+  [🏠 Overview] 💬 Activity  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  📝 @xneone opened 2d ago
+  Bug Description
+
+  When using a provider configured with api: openai-responses, the gateway sends store=false in responses API
+  requests. On subsequent turns within the same session, the gateway includes previous_response_id referencing the
+  previous response. Since that response was never persisted server-side, the API returns a 404.
+
+  HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when store is set to false. Try again with store
+  set to true, or remove this item from your input.
+
+  Expected Behavior
+
+  The provider should either avoid previous_response_id when store=false or persist the response when continuing a
+  [➕ more]
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  💬 Comment by @clawsweeper 2d ago
+  [details]
+  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay
+
+  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]
+

@@ -1,7 +1,9 @@
 
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                              [+]
   openai-responses provider: 404 on previous_response_id when store=false (default)
+
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
   ❌ CLOSED  👤 @xneone
 
 
@@ -41,8 +43,6 @@
   Refresh
   - Live mode refreshes automatically on the configured interval.
   - The status band shows the last refresh time and whether content changed.
-
-
 
 
 

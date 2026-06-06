@@ -447,7 +447,6 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Settings")
         wait_for_text(SESSION, "Width")
         wait_for_text(SESSION, "Spacing")
-        wait_for_text(SESSION, "Scrollbar")
         write_frame(ROOT, "80_mouse_footer_settings", frames)
 
         compact_setting = find_marker_position(SESSION, "[ ] compact")
@@ -734,7 +733,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             "offline fixture mode: refresh skipped",
         ],
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[❔ help]"],
-        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[⚙ settings]"],
+        "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "[⚙ settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
         "82_mouse_quit_confirm": ["Quit ghzinga?", "[quit]", "[cancel]"],
         "90_mouse_footer_load_full": [

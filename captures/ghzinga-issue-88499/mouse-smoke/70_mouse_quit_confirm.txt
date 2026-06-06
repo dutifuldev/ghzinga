@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]  
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                     
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                                                                 
-  ⓘ offline fixture mode: refresh skipped                                                                               
-                                                                                                                        
-  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  📝 @xneone opened 2d ago                                                                                              
-  Bug Description                                                                                                       
-                                                                                                                        
-  When using a provider configure┌────────────────────────────────────────────────────┐false in responses API           
-  requests. On subsequent turns w│Quit ghzinga?                                       │response_id referencing the      
-  previous response. Since that r│Press q again or Enter to quit. Esc cancels.        │ns a 404.                        
-                                 │                                                    │                                 
-  HTTP 404: Item with id rs_xxxxx│                                                    │to false. Try again with store   
-  set to true, or remove this ite│[quit]  [cancel]                                    │                                 
-                                 └────────────────────────────────────────────────────┘                                 
-  Expected Behavior                                                                                                     
-                                                                                                                        
-  The provider should either avoid previous_response_id when store=false or persist the response when continuing a      
-  [➕ more]                                                                                                             
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  💬 Comment by @clawsweeper 2d ago                                                                                     
-  [details]                                                                                                             
-  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay         
-  failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying      
-  server-owned reasoning item IDs.                                                                                      
-  offline fixture mode: refresh skipped                                                                                 
-  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]
+  openai-responses provider: 404 on previous_response_id when store=false (default)
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @xneone
+  ⓘ offline fixture mode: refresh skipped
+
+  [🏠 Overview] 💬 Activity  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  📝 @xneone opened 2d ago
+  Bug Description                ┌────────────────────────────────────────────────────┐
+                                 │Quit ghzinga?                                       │
+  When using a provider configure│Press q again or Enter to quit. Esc cancels.        │false in responses API
+  requests. On subsequent turns w│                                                    │response_id referencing the
+  previous response. Since that r│                                                    │ns a 404.
+                                 │[quit]  [cancel]                                    │
+  HTTP 404: Item with id rs_xxxxx└────────────────────────────────────────────────────┘to false. Try again with store
+  set to true, or remove this item from your input.
+
+  Expected Behavior
+
+  The provider should either avoid previous_response_id when store=false or persist the response when continuing a
+  [➕ more]
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  💬 Comment by @clawsweeper 2d ago
+  [details]
+  Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay
+  offline fixture mode: refresh skipped
+  [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]
+

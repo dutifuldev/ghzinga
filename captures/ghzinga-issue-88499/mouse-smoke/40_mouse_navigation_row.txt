@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/issues/66943 [Issue CLOSED] updated 1mo                                     [+]  
-  feat: add SenseAudio audio transcription provider                                                                     
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @Fl0rencess720                                                                                          
-                                                                                                                        
-                                                                                                                        
-  [🏠 Overview] 💬 Activity  🔗 Links                                                                                   
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  📝 @Fl0rencess720 opened 2mo ago                                                                                      
-  Summary                                                                                                               
-  - Problem: OpenClaw has no built-in audio transcription provider.                                                     
-  - Why it matters: SenseAudio provides an OpenAI-compatible ASR API.                                                   
-  - What changed: Added a bundled senseaudio plugin that registers a mediaUnderstandingProvider.                        
-                                                                                                                        
-  Related PR: #81834                                                                                                    
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  💬 Comment by @osolmaz 1mo ago                                                                                        
-  Implementation was completed in #81834.                                                                               
-                                                                                                                        
-  Details                                                                                                               
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  Labels: size: S                                                                                                       
-  Assignees: none                                                                                                       
-  Reactions: +1:2                                                                                                       
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                          
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/issues/66943 [Issue CLOSED] updated 1mo                                     [+]
+  feat: add SenseAudio audio transcription provider
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ❌ CLOSED  👤 @Fl0rencess720
+
+
+  [🏠 Overview] 💬 Activity  🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  📝 @Fl0rencess720 opened 2mo ago
+  Summary
+  - Problem: OpenClaw has no built-in audio transcription provider.
+  - Why it matters: SenseAudio provides an OpenAI-compatible ASR API.
+  - What changed: Added a bundled senseaudio plugin that registers a mediaUnderstandingProvider.
+
+  Related PR: #81834
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  💬 Comment by @osolmaz 1mo ago
+  Implementation was completed in #81834.
+
+  Details
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Labels: size: S
+  Assignees: none
+  Reactions: +1:2
+
+
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
+

@@ -5,7 +5,7 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "81d8cc8f1713b7b3ea9ec8d84d20844b8437635f",
+  "git_commit": "4c9df6fd57bf75c3aa657a7719fa1083e97b8ac9",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --no-restore --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -15,23 +15,23 @@
   "mouse_coordinates": {
     "overview_more": [
       46,
-      29
+      30
     ],
     "overview_less": [
       46,
-      28
+      30
     ],
     "files_tab": [
       56,
-      8
+      10
     ],
     "file_row_more": [
       50,
-      14
+      16
     ],
     "file_row_less": [
       50,
-      14
+      16
     ],
     "expand_all": [
       16,
@@ -43,23 +43,23 @@
     ],
     "checks_tab": [
       45,
-      8
+      10
     ],
     "check_row_more": [
       22,
-      16
+      18
     ],
     "check_row_less": [
       22,
-      16
+      18
     ],
     "links_tab": [
       66,
-      8
+      10
     ],
     "linked_issue": [
       3,
-      12
+      14
     ],
     "linked_issue_here": [
       26,
@@ -67,15 +67,15 @@
     ],
     "activity_tab_for_detail": [
       20,
-      8
+      10
     ],
     "activity_details": [
       3,
-      13
+      15
     ],
     "overview_tab_after_detail": [
       7,
-      8
+      10
     ],
     "refresh": [
       3,
@@ -91,7 +91,7 @@
     ],
     "settings_compact": [
       3,
-      30
+      32
     ],
     "quit": [
       38,
@@ -103,7 +103,7 @@
     ],
     "load_full": [
       28,
-      35
+      36
     ]
   },
   "frames": [

@@ -1,10 +1,12 @@
 
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d                                             [+]
   feat(senseaudio): add SenseAudio TTS provider
+
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)
   📄 14 files changed +1.1k -22
-  🔁 Refresh: 15:12:50 changed ✦ Changed: metadata, warnings, checks
+  🔁 Refresh: 15:38:26 changed ✦ Changed: metadata, warnings, checks
    🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [🔗 Links]
 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -29,8 +31,6 @@
   - x: close the current resource tab
   - f: load full GitHub pages when a partial-depth warning is shown
   - y: copy first visible URL, or current resource URL
-  - Left / Right or h / l: switch Overview, Activity, and other content tabs
-  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
 

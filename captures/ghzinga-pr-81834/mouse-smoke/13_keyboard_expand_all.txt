@@ -1,36 +1,36 @@
-                                                                                                                        
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]  
-  feat(senseaudio): add SenseAudio TTS provider                                                                         
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                          
-  📄 6 files changed +1.1k -22                                                                                          
-                                                                                                                        
-   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links                                                  
-                                                                                                                        
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                        
-  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [➖ less]                                                       
-  path: docs/plugins/plugin-inventory.md                                                                                
-  change: MODIFIED, additions: 1, deletions: 1                                                                          
-  patch: not loaded                                                                                                     
-  [➖ less]                                                                                                             
-                                                                                                                        
-  +1    -1    MODIFIED docs/plugins/reference.md [➖ less]                                                              
-  path: docs/plugins/reference.md                                                                                       
-  change: MODIFIED, additions: 1, deletions: 1                                                                          
-  patch: not loaded                                                                                                     
-  [➖ less]                                                                                                             
-                                                                                                                        
-  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [➖ less]                                                   
-  path: docs/plugins/reference/senseaudio.md                                                                            
-  change: MODIFIED, additions: 3, deletions: 3                                                                          
-  patch: not loaded                                                                                                     
-  [➖ less]                                                                                                             
-                                                                                                                        
-  +74   -14   MODIFIED docs/providers/senseaudio.md [➖ less]                                                           
-  path: docs/providers/senseaudio.md                                                                                    
-  change: MODIFIED, additions: 74, deletions: 14                                                                        
-  patch: not loaded                                                                                                     
-                                                                                                                        
-  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]                                                            
-                                                                                                                        
+
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]
+  feat(senseaudio): add SenseAudio TTS provider
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)
+  📄 6 files changed +1.1k -22
+
+   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  +1    -1    MODIFIED docs/plugins/plugin-inventory.md [➖ less]
+  path: docs/plugins/plugin-inventory.md
+  change: MODIFIED, additions: 1, deletions: 1
+  patch: not loaded
+  [➖ less]
+
+  +1    -1    MODIFIED docs/plugins/reference.md [➖ less]
+  path: docs/plugins/reference.md
+  change: MODIFIED, additions: 1, deletions: 1
+  patch: not loaded
+  [➖ less]
+
+  +3    -3    MODIFIED docs/plugins/reference/senseaudio.md [➖ less]
+  path: docs/plugins/reference/senseaudio.md
+  change: MODIFIED, additions: 3, deletions: 3
+  patch: not loaded
+  [➖ less]
+
+  +74   -14   MODIFIED docs/providers/senseaudio.md [➖ less]
+  path: docs/providers/senseaudio.md
+
+  [🔄 refresh] [➖ collapse] [⚙ settings] [❔ help] [⏻ quit]
+

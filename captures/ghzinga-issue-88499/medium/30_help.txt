@@ -1,7 +1,9 @@
 
   https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                      [+]
   openai-responses provider: 404 on previous_response_id when store=false (default)
+
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
   ❌ CLOSED  👤 @xneone
 
 
@@ -29,8 +31,6 @@
   - x: close the current resource tab
   - f: load full GitHub pages when a partial-depth warning is shown
   - y: copy first visible URL, or current resource URL
-  - Left / Right or h / l: switch Overview, Activity, and other content tabs
-  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
 

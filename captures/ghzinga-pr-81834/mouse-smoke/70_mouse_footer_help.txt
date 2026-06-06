@@ -1,7 +1,9 @@
 
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                             [+]
   feat(senseaudio): add SenseAudio TTS provider
+
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)
   📄 6 files changed +1.1k -22
   ⓘ offline fixture mode: refresh skipped
@@ -16,7 +18,7 @@
   - Click tabs to switch sections.                                                                                   █
   - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.  █
   - Click visible GitHub issue or PR references to navigate.                                                         █
-  - Use the mouse wheel to scroll the current view.                                                                  █
+  - Use the mouse wheel to scroll the current view.                                                                  │
   Keyboard                                                                                                           │
   - q: close overlays, then ask before quitting                                                                      │
   - ?: toggle this help                                                                                              │
@@ -29,8 +31,6 @@
   - x: close the current resource tab                                                                                │
   - f: load full GitHub pages when a partial-depth warning is shown                                                  │
   - y: copy first visible URL, or current resource URL                                                               │
-  - Left / Right or h / l: switch Overview, Activity, and other content tabs                                         │
-  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs                                                │
   offline fixture mode: refresh skipped
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
 
