@@ -130,12 +130,12 @@ impl FromStr for ApiDepth {
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         let resource = self.fetch_resource_base(id).await?;
-        let resource = if resource.uses_public_rest_fallback() {
-            resource
+        if resource.uses_public_rest_fallback() {
+            Ok(resource)
         } else {
-            self.enrich_resource(resource).await?
-        };
-        self.enrich_file_patches(resource).await
+            let resource = self.enrich_resource(resource).await?;
+            self.enrich_file_patches(resource).await
+        }
     }
 
     async fn fetch_resource_base(&self, id: &ResourceId) -> anyhow::Result<Resource> {
@@ -160,7 +160,7 @@ impl GithubGateway for GithubApiGateway {
 
     async fn enrich_file_patches(&self, mut resource: Resource) -> anyhow::Result<Resource> {
         let id = resource.id.clone();
-        if resource.pull_request.is_some() {
+        if should_enrich_file_patches(&resource) {
             match fetch_file_patches(&id).await {
                 Ok(patches) => warn_for_missing_file_patches(&mut resource, patches),
                 Err(error) => resource
@@ -170,6 +170,10 @@ impl GithubGateway for GithubApiGateway {
         }
         Ok(resource)
     }
+}
+
+fn should_enrich_file_patches(resource: &Resource) -> bool {
+    resource.pull_request.is_some() && !resource.uses_public_rest_fallback()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7525,6 +7529,55 @@ diff --git a/docs/two.md b/docs/two.md\n\
             .push("using public REST fallback after GitHub auth/API error: rate limited".into());
 
         assert!(resource.uses_public_rest_fallback());
+    }
+
+    #[test]
+    fn public_rest_fallback_pr_skips_authenticated_diff_enrichment() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Pull request".into(),
+            url: "https://github.com/owner/repo/pull/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![
+                "using public REST fallback after GitHub auth/API error: rate limited".into(),
+            ],
+            pull_request: Some(PullRequest {
+                base_ref: "main".into(),
+                head_ref: "feature".into(),
+                requested_reviewers: vec![],
+                review_decision: None,
+                merge_state: None,
+                additions: 1,
+                deletions: 0,
+                commits: vec![],
+                checks: vec![],
+                files: vec![ChangedFile {
+                    path: "src/one.rs".into(),
+                    additions: 1,
+                    deletions: 0,
+                    change_type: "MODIFIED".into(),
+                    patch: Some("@@ -1 +1 @@\n+line".into()),
+                }],
+                metadata: vec![],
+            }),
+        };
+
+        assert!(resource.uses_public_rest_fallback());
+        assert!(!should_enrich_file_patches(&resource));
+
+        resource.warnings.clear();
+
+        assert!(should_enrich_file_patches(&resource));
     }
 
     #[test]
