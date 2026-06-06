@@ -4,7 +4,7 @@
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
   ✅ checks PASS (69 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  ⓘ loading additional GitHub details                                           
+  🔁 Refresh: 13:57:38 changed ✦ Changed: files                                 
    🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks [📄 Files] 🔗 Links          
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +20,5 @@
   +3    -1    MODIFIED extensions/senseaudio/index.ts [➕ more]                 
                                                                                 
   +2    -1    MODIFIED extensions/senseaudio/openclaw.plugin.json [➕ more]     
-  loading additional GitHub details                                             
+                                                                                
   [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
