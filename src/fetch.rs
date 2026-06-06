@@ -68,12 +68,26 @@ enum FetchStage {
     FilePatches,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FetchOwner {
+    request_id: u64,
+    origin_tab_id: u64,
+}
+
+impl FetchOwner {
+    fn new(request_id: u64, origin_tab_id: u64) -> Self {
+        Self {
+            request_id,
+            origin_tab_id,
+        }
+    }
+}
+
 pub(crate) struct FetchOutcome {
     action: FetchAction,
     result: anyhow::Result<Resource>,
     refreshed_at: String,
-    request_id: u64,
-    origin_tab_id: u64,
+    owner: FetchOwner,
     stage: FetchStage,
 }
 
@@ -185,6 +199,7 @@ pub(crate) fn start_background_fetch(
         }
         let origin_tab_id = state.active_resource_tab_id();
         let request_id = state.begin_file_patch_loading();
+        let owner = FetchOwner::new(request_id, origin_tab_id);
         let action = action.clone();
         let resource = resource.as_ref().clone();
         let tx = fetch_tx.clone();
@@ -194,8 +209,7 @@ pub(crate) fn start_background_fetch(
                 action,
                 result,
                 refreshed_at: current_refresh_label(),
-                request_id,
-                origin_tab_id,
+                owner,
                 stage: FetchStage::FilePatches,
             });
         });
@@ -211,17 +225,21 @@ pub(crate) fn start_background_fetch(
     let message = action.loading_message();
     let origin_tab_id = state.active_resource_tab_id();
     let request_id = state.begin_loading(target.clone(), message);
+    let owner = FetchOwner::new(request_id, origin_tab_id);
     let tx = fetch_tx.clone();
     tokio::spawn(async move {
         if action.can_load_progressively() && fetch_source.supports_progressive_loading() {
             let base_result = fetch_source.fetch_resource_base(&target).await;
-            let enrichment_seed = base_result.as_ref().ok().cloned();
+            let enrichment_seed = base_result
+                .as_ref()
+                .ok()
+                .filter(|resource| should_enqueue_enrichment(resource))
+                .cloned();
             let _ = tx.send(FetchOutcome {
                 action: action.clone(),
                 result: base_result,
                 refreshed_at: current_refresh_label(),
-                request_id,
-                origin_tab_id,
+                owner,
                 stage: FetchStage::Base,
             });
             if let Some(resource) = enrichment_seed {
@@ -230,8 +248,7 @@ pub(crate) fn start_background_fetch(
                     action,
                     result,
                     refreshed_at: current_refresh_label(),
-                    request_id,
-                    origin_tab_id,
+                    owner,
                     stage: FetchStage::Enrichment,
                 });
             }
@@ -251,8 +268,7 @@ pub(crate) fn start_background_fetch(
                 action,
                 result,
                 refreshed_at: current_refresh_label(),
-                request_id,
-                origin_tab_id,
+                owner,
                 stage: FetchStage::Complete,
             });
         }
@@ -282,20 +298,20 @@ pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
 }
 
 fn apply_blocking_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
-    if !finish_matching_blocking_load(state, outcome.request_id) {
+    if !finish_matching_blocking_load(state, outcome.owner) {
         return;
     }
-    apply_loaded_resource_outcome(state, outcome, false);
+    apply_loaded_resource_outcome(state, outcome);
 }
 
 fn apply_base_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
-    if !finish_matching_blocking_load(state, outcome.request_id) {
+    if !finish_matching_blocking_load(state, outcome.owner) {
         return;
     }
-    let origin_tab_id = outcome.origin_tab_id;
+    let origin_tab_id = outcome.owner.origin_tab_id;
     let target = outcome.action.target().clone();
     let base_loaded = outcome.result.is_ok();
-    apply_loaded_resource_outcome(state, outcome, false);
+    apply_loaded_resource_outcome(state, outcome);
     if base_loaded {
         state.apply_to_resource_tab(origin_tab_id, |state| {
             if resource_matches_target(&state.resource, &target) {
@@ -305,8 +321,8 @@ fn apply_base_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     }
 }
 
-fn finish_matching_blocking_load(state: &mut AppState, request_id: u64) -> bool {
-    if !state.loading_request_matches(request_id) {
+fn finish_matching_blocking_load(state: &mut AppState, owner: FetchOwner) -> bool {
+    if !state.loading_request_matches(owner.request_id) {
         return false;
     }
     state.finish_loading();
@@ -314,8 +330,8 @@ fn finish_matching_blocking_load(state: &mut AppState, request_id: u64) -> bool 
     true
 }
 
-fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, enrichment: bool) {
-    let origin_tab_id = outcome.origin_tab_id;
+fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome) {
+    let origin_tab_id = outcome.owner.origin_tab_id;
     match (outcome.action, outcome.result) {
         (FetchAction::Initial { .. }, Ok(resource)) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
@@ -388,19 +404,16 @@ fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, en
             });
         }
     }
-    if enrichment {
-        state.clear_transient_loading_status_messages();
-    }
 }
 
 fn apply_file_patch_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
-    let origin_tab_id = outcome.origin_tab_id;
-    let request_id = outcome.request_id;
+    let owner = outcome.owner;
+    let origin_tab_id = owner.origin_tab_id;
     let target = outcome.action.target().clone();
     match outcome.result {
         Ok(resource) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if state.finish_file_patch_loading(request_id)
+                if state.finish_file_patch_loading(owner.request_id)
                     && resource_matches_target(&state.resource, &target)
                 {
                     state.apply_file_patch_resource(resource, outcome.refreshed_at);
@@ -410,7 +423,7 @@ fn apply_file_patch_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
         Err(error) => {
             let error = error.to_string();
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if state.finish_file_patch_loading(request_id)
+                if state.finish_file_patch_loading(owner.request_id)
                     && resource_matches_target(&state.resource, &target)
                 {
                     state.last_error = Some(error.clone());
@@ -425,23 +438,23 @@ fn apply_file_patch_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
 }
 
 fn apply_enrichment_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
-    let origin_tab_id = outcome.origin_tab_id;
+    let owner = outcome.owner;
+    let origin_tab_id = owner.origin_tab_id;
     let target = outcome.action.target().clone();
-    let request_id = outcome.request_id;
     match outcome.result {
         Ok(resource) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if state.latest_fetch_request_matches(request_id)
+                if state.latest_fetch_request_matches(owner.request_id)
                     && resource_matches_target(&state.resource, &target)
                 {
-                    state.apply_refreshed_resource(resource, outcome.refreshed_at);
+                    state.apply_enriched_resource(resource, outcome.refreshed_at);
                 }
             });
         }
         Err(error) => {
             let warning = format!("background details unavailable: {error}");
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if state.latest_fetch_request_matches(request_id)
+                if state.latest_fetch_request_matches(owner.request_id)
                     && resource_matches_target(&state.resource, &target)
                 {
                     state.status_message = None;
@@ -462,6 +475,10 @@ fn push_unique_warning(resource: &mut Resource, warning: String) {
     if !resource.warnings.iter().any(|item| item == &warning) {
         resource.warnings.push(warning);
     }
+}
+
+fn should_enqueue_enrichment(resource: &Resource) -> bool {
+    !resource.uses_public_rest_fallback()
 }
 
 fn current_refresh_label() -> String {
@@ -491,8 +508,8 @@ mod tests {
     };
 
     use super::{
-        apply_fetch_outcome, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
-        FetchStage, OfflineFixtureSource,
+        apply_fetch_outcome, should_enqueue_enrichment, start_background_fetch, FetchAction,
+        FetchOutcome, FetchOwner, FetchSource, FetchStage, OfflineFixtureSource,
     };
 
     fn issue_resource(number: u64, title: &str) -> Resource {
@@ -590,8 +607,7 @@ mod tests {
                 action,
                 result: Ok(refreshed_resource),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -625,8 +641,7 @@ mod tests {
                 action,
                 result: Ok(full),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -657,8 +672,7 @@ mod tests {
                 action,
                 result: Ok(issue_resource(1, "Loaded issue")),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -692,8 +706,7 @@ mod tests {
                 action: action.clone(),
                 result: Ok(base),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Base,
             },
         );
@@ -713,8 +726,7 @@ mod tests {
                 action,
                 result: Ok(enriched),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
@@ -743,8 +755,7 @@ mod tests {
                 action,
                 result: Err(anyhow::anyhow!("network down")),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Base,
             },
         );
@@ -773,8 +784,7 @@ mod tests {
                 action: action.clone(),
                 result: Ok(issue_resource(1, "Base issue")),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Base,
             },
         );
@@ -788,8 +798,7 @@ mod tests {
                 action,
                 result: Ok(stale),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
@@ -817,8 +826,7 @@ mod tests {
                 action: action.clone(),
                 result: Ok(issue_resource(1, "Base issue")),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Base,
             },
         );
@@ -835,8 +843,7 @@ mod tests {
                 action,
                 result: Ok(stale),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
@@ -863,8 +870,7 @@ mod tests {
                 action,
                 result: Err(anyhow::anyhow!("timeline timed out")),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
@@ -900,8 +906,7 @@ mod tests {
                 action,
                 result: Err(anyhow::anyhow!("timeline timed out")),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
@@ -930,8 +935,7 @@ mod tests {
                 action,
                 result: Err(anyhow::anyhow!("rate limited")),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::FilePatches,
             },
         );
@@ -968,8 +972,7 @@ mod tests {
                 action,
                 result: Ok(patch_resource),
                 refreshed_at: "12:36:00 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::FilePatches,
             },
         );
@@ -1008,8 +1011,7 @@ mod tests {
                 action: action.clone(),
                 result: Ok(pr_resource_with_patch(None)),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Base,
             },
         );
@@ -1025,14 +1027,115 @@ mod tests {
                 action,
                 result: Ok(enriched),
                 refreshed_at: "12:35:01 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Enrichment,
             },
         );
 
         assert_eq!(state.resource.body, "enriched body");
         assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn public_rest_fallback_resources_do_not_enqueue_graphql_enrichment() {
+        let mut resource = issue_resource(1, "REST fallback issue");
+        assert!(should_enqueue_enrichment(&resource));
+
+        resource
+            .warnings
+            .push("using public REST fallback after GitHub auth/API error: rate limited".into());
+
+        assert!(!should_enqueue_enrichment(&resource));
+    }
+
+    #[test]
+    fn newer_blocking_fetch_cancels_pending_file_patch_result() {
+        let resource = pr_resource_with_patch(None);
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(Tab::Files);
+        let patch_request_id = state.begin_file_patch_loading();
+        let origin_tab_id = state.active_resource_tab_id();
+
+        let refresh_action = FetchAction::Refresh {
+            id: resource.id.clone(),
+        };
+        let (_refresh_request_id, _refresh_origin_tab_id) =
+            begin_test_fetch(&mut state, &refresh_action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::LoadFilePatches {
+                    resource: Box::new(resource),
+                },
+                result: Ok(pr_resource_with_patch(Some("@@ stale patch"))),
+                refreshed_at: "12:36:00 UTC".into(),
+                owner: FetchOwner::new(patch_request_id, origin_tab_id),
+                stage: FetchStage::FilePatches,
+            },
+        );
+
+        assert!(state.file_patch_loading_message().is_none());
+        assert!(state.resource.pull_request.as_ref().unwrap().files[0]
+            .patch
+            .is_none());
+    }
+
+    #[test]
+    fn enrichment_preserves_loaded_file_patches() {
+        let resource = pr_resource_with_patch(None);
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(Tab::Files);
+        let action = FetchAction::Initial {
+            id: resource.id.clone(),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: action.clone(),
+                result: Ok(resource.clone()),
+                refreshed_at: "12:34:56 UTC".into(),
+                owner: FetchOwner::new(request_id, origin_tab_id),
+                stage: FetchStage::Base,
+            },
+        );
+
+        let patch_request_id = state.begin_file_patch_loading();
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: FetchAction::LoadFilePatches {
+                    resource: Box::new(resource.clone()),
+                },
+                result: Ok(pr_resource_with_patch(Some("@@ loaded patch"))),
+                refreshed_at: "12:35:00 UTC".into(),
+                owner: FetchOwner::new(patch_request_id, origin_tab_id),
+                stage: FetchStage::FilePatches,
+            },
+        );
+
+        let mut enriched = pr_resource_with_patch(None);
+        enriched.body = "enriched body".into();
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(enriched),
+                refreshed_at: "12:35:01 UTC".into(),
+                owner: FetchOwner::new(request_id, origin_tab_id),
+                stage: FetchStage::Enrichment,
+            },
+        );
+
+        assert_eq!(state.resource.body, "enriched body");
+        assert_eq!(
+            state.resource.pull_request.as_ref().unwrap().files[0]
+                .patch
+                .as_deref(),
+            Some("@@ loaded patch")
+        );
     }
 
     #[test]
@@ -1050,8 +1153,7 @@ mod tests {
                 action,
                 result: Ok(second),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -1083,8 +1185,7 @@ mod tests {
                 action,
                 result: Ok(refreshed),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -1242,8 +1343,7 @@ mod tests {
                 action,
                 result: Ok(issue_resource(1, "Updated issue")),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );
@@ -1310,8 +1410,7 @@ mod tests {
                 action,
                 result: Err(anyhow::anyhow!("network down")),
                 refreshed_at: "12:34:56 UTC".into(),
-                request_id,
-                origin_tab_id,
+                owner: FetchOwner::new(request_id, origin_tab_id),
                 stage: FetchStage::Complete,
             },
         );

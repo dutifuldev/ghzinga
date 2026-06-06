@@ -130,7 +130,7 @@ impl FromStr for ApiDepth {
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         let resource = self.fetch_resource_base(id).await?;
-        let resource = if uses_public_rest_fallback(&resource) {
+        let resource = if resource.uses_public_rest_fallback() {
             resource
         } else {
             self.enrich_resource(resource).await?
@@ -170,13 +170,6 @@ impl GithubGateway for GithubApiGateway {
         }
         Ok(resource)
     }
-}
-
-fn uses_public_rest_fallback(resource: &Resource) -> bool {
-    resource
-        .warnings
-        .iter()
-        .any(|warning| warning.starts_with("using public REST fallback "))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7526,12 +7519,12 @@ diff --git a/docs/two.md b/docs/two.md\n\
             pull_request: None,
         };
 
-        assert!(!uses_public_rest_fallback(&resource));
+        assert!(!resource.uses_public_rest_fallback());
         resource
             .warnings
             .push("using public REST fallback after GitHub auth/API error: rate limited".into());
 
-        assert!(uses_public_rest_fallback(&resource));
+        assert!(resource.uses_public_rest_fallback());
     }
 
     #[test]

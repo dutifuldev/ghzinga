@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
 use crate::input::HitArea;
@@ -724,41 +719,14 @@ impl AppState {
         refreshed_at: impl Into<String>,
     ) -> bool {
         let mut changed_sections = Vec::new();
-        let mut changed = false;
-
-        for warning in patch_resource.warnings {
-            if !self.resource.warnings.iter().any(|item| item == &warning) {
-                self.resource.warnings.push(warning);
-                changed = true;
-                changed_sections.push("warnings".to_string());
-            }
+        let merge = self.resource.merge_file_patch_context_from(&patch_resource);
+        if merge.warnings_changed {
+            changed_sections.push("warnings".to_string());
         }
-
-        let patch_by_path = patch_resource
-            .pull_request
-            .as_ref()
-            .map(|pr| {
-                pr.files
-                    .iter()
-                    .filter_map(|file| file.patch.as_ref().map(|patch| (&file.path, patch)))
-                    .collect::<HashMap<_, _>>()
-            })
-            .unwrap_or_default();
-
-        if let Some(pr) = &mut self.resource.pull_request {
-            for file in &mut pr.files {
-                let Some(patch) = patch_by_path.get(&file.path) else {
-                    continue;
-                };
-                if file.patch.as_ref() != Some(*patch) {
-                    file.patch = Some((*patch).clone());
-                    changed = true;
-                    if !changed_sections.iter().any(|section| section == "files") {
-                        changed_sections.push("files".to_string());
-                    }
-                }
-            }
+        if merge.files_changed {
+            changed_sections.push("files".to_string());
         }
+        let changed = merge.changed();
 
         self.refresh_requested = false;
         self.last_error = None;
@@ -775,10 +743,23 @@ impl AppState {
         changed
     }
 
+    pub fn apply_enriched_resource(
+        &mut self,
+        mut resource: Resource,
+        refreshed_at: impl Into<String>,
+    ) -> bool {
+        resource.preserve_loaded_file_patch_context_from(&self.resource);
+        self.apply_refreshed_resource(resource, refreshed_at)
+    }
+
     pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) -> u64 {
         let request_id = self.allocate_loading_request_id();
         let origin_tab_id = self.active_resource_tab_id();
         self.latest_fetch_request_id = request_id;
+        self.pending_file_patch_request_id = None;
+        if self.status_message.as_deref() == Some("loading file diffs") {
+            self.status_message = None;
+        }
         self.loading = Some(LoadingState {
             target,
             message: message.into(),
