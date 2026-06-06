@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
-use crate::app::{AppState, BlockId};
+use crate::app::{AddResourceMode, AppState, BlockId};
 use crate::input::{hit_test, HitTarget};
 use crate::render::{ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName};
 
@@ -10,6 +10,7 @@ pub enum AppIntent {
     Refresh,
     LoadFullDepth,
     OpenResource(crate::domain::ResourceId),
+    ReplaceResource(crate::domain::ResourceId),
     Navigate(crate::domain::ResourceId),
     OpenUrl(String),
     CopyUrl(String),
@@ -36,6 +37,9 @@ pub fn apply_event(state: &mut AppState, event: AppEvent) -> AppIntent {
 }
 
 fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    if state.quit_confirmation {
+        return apply_quit_confirmation_key(state, key);
+    }
     if state.add_resource_prompt.is_some() {
         return apply_add_resource_prompt_key(state, key);
     }
@@ -44,8 +48,12 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     }
     match key.code {
         KeyCode::Char('q') if is_plain_shortcut(key) => {
-            state.should_quit = true;
-            AppIntent::Quit
+            if close_active_overlay(state) {
+                AppIntent::None
+            } else {
+                state.request_quit_confirmation();
+                AppIntent::None
+            }
         }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             state.should_quit = true;
@@ -68,7 +76,8 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             AppIntent::LoadFullDepth
         }
         KeyCode::Char('o') if is_plain_shortcut(key) => {
-            AppIntent::OpenUrl(visible_or_current_url(state))
+            state.open_replace_resource_prompt();
+            AppIntent::None
         }
         KeyCode::Char('y') if !state.show_settings && is_plain_shortcut(key) => {
             AppIntent::CopyUrl(visible_or_current_url(state))
@@ -208,13 +217,31 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     }
 }
 
+fn apply_quit_confirmation_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.should_quit = true;
+            AppIntent::Quit
+        }
+        KeyCode::Enter | KeyCode::Char('q') if is_plain_shortcut(key) => {
+            state.should_quit = true;
+            AppIntent::Quit
+        }
+        KeyCode::Esc | KeyCode::Char('n') if is_plain_shortcut(key) => {
+            state.close_quit_confirmation();
+            AppIntent::None
+        }
+        _ => AppIntent::None,
+    }
+}
+
 fn apply_add_resource_prompt_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     match key.code {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             state.clear_add_resource_input_or_close();
             AppIntent::None
         }
-        KeyCode::Esc => {
+        KeyCode::Esc | KeyCode::Char('q') if is_plain_shortcut(key) => {
             state.close_add_resource_prompt();
             AppIntent::None
         }
@@ -243,7 +270,7 @@ fn apply_resource_link_prompt_key(state: &mut AppState, key: KeyEvent) -> AppInt
             state.close_resource_link_prompt();
             AppIntent::None
         }
-        KeyCode::Esc => {
+        KeyCode::Esc | KeyCode::Char('q') if is_plain_shortcut(key) => {
             state.close_resource_link_prompt();
             AppIntent::None
         }
@@ -258,7 +285,15 @@ fn apply_resource_link_prompt_key(state: &mut AppState, key: KeyEvent) -> AppInt
 
 fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
     match state.parse_add_resource_input() {
-        Ok(id) => AppIntent::OpenResource(id),
+        Ok(id) => match state
+            .add_resource_prompt
+            .as_ref()
+            .map(|prompt| prompt.mode)
+            .unwrap_or(AddResourceMode::NewTab)
+        {
+            AddResourceMode::NewTab => AppIntent::OpenResource(id),
+            AddResourceMode::ReplaceCurrent => AppIntent::ReplaceResource(id),
+        },
         Err(error) => {
             state.set_add_resource_error(error.to_string());
             AppIntent::None
@@ -383,6 +418,14 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_add_resource_prompt();
             AppIntent::None
         }
+        HitTarget::ConfirmQuit => {
+            state.should_quit = true;
+            AppIntent::Quit
+        }
+        HitTarget::CancelQuit => {
+            state.close_quit_confirmation();
+            AppIntent::None
+        }
         HitTarget::OpenLinkHere => confirm_resource_link_here(state),
         HitTarget::OpenLinkInNewTab => confirm_resource_link_new_tab(state),
         HitTarget::CancelResourceLinkPrompt => {
@@ -392,12 +435,13 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         HitTarget::ModalOverlay => {
             state.close_add_resource_prompt();
             state.close_resource_link_prompt();
+            state.close_quit_confirmation();
             AppIntent::None
         }
         HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
-            state.should_quit = true;
-            AppIntent::Quit
+            state.request_quit_confirmation();
+            AppIntent::None
         }
         HitTarget::Help => {
             state.toggle_help();
@@ -440,6 +484,26 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         },
         HitTarget::Scrollbar { .. } => AppIntent::None,
     }
+}
+
+fn close_active_overlay(state: &mut AppState) -> bool {
+    if state.add_resource_prompt.is_some() {
+        state.close_add_resource_prompt();
+        return true;
+    }
+    if state.resource_link_prompt.is_some() {
+        state.close_resource_link_prompt();
+        return true;
+    }
+    if state.show_help {
+        state.toggle_help();
+        return true;
+    }
+    if state.show_settings {
+        state.close_settings();
+        return true;
+    }
+    false
 }
 
 fn apply_resource_link(
@@ -1034,7 +1098,7 @@ mod tests {
     }
 
     #[test]
-    fn keyboard_o_falls_back_to_current_resource_url() {
+    fn keyboard_o_opens_replace_current_resource_prompt() {
         let mut state = AppState::new(resource());
 
         let intent = apply_event(
@@ -1042,48 +1106,32 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
         );
 
-        assert_eq!(
-            intent,
-            AppIntent::OpenUrl("https://github.com/owner/repo/issues/1".into())
-        );
-    }
-
-    #[test]
-    fn keyboard_o_ignores_non_github_current_resource_url() {
-        let mut resource = pr_resource();
-        resource.id.owner = "huggingface".into();
-        resource.id.repo = "huggingface.js".into();
-        resource.id.number = 2185;
-        resource.url = "http://huggingface/huggingface.js#2185".into();
-        let mut state = AppState::new(resource);
-
-        let intent = apply_event(
-            &mut state,
-            AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
-        );
-
-        assert_eq!(
-            intent,
-            AppIntent::OpenUrl("https://github.com/huggingface/huggingface.js/pull/2185".into())
-        );
-    }
-
-    #[test]
-    fn keyboard_o_opens_first_visible_url() {
-        let mut state = AppState::new(resource());
-        state.hit_areas.push(HitArea::new(
-            Rect::new(0, 0, 10, 1),
-            HitTarget::OpenUrl("https://github.com/owner/repo/actions/runs/1".into()),
+        assert_eq!(intent, AppIntent::None);
+        assert!(matches!(
+            state.add_resource_prompt.as_ref().map(|prompt| prompt.mode),
+            Some(AddResourceMode::ReplaceCurrent)
         ));
+    }
+
+    #[test]
+    fn replace_current_resource_prompt_confirms_replace_intent() {
+        let mut state = AppState::new(resource());
+        state.open_replace_resource_prompt();
+        state.add_resource_input_mut().unwrap().push_str("#42");
 
         let intent = apply_event(
             &mut state,
-            AppEvent::Key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())),
+            AppEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::empty())),
         );
 
         assert_eq!(
             intent,
-            AppIntent::OpenUrl("https://github.com/owner/repo/actions/runs/1".into())
+            AppIntent::ReplaceResource(crate::domain::ResourceId {
+                owner: "owner".into(),
+                repo: "repo".into(),
+                number: 42,
+                kind_hint: None,
+            })
         );
     }
 
@@ -1450,8 +1498,9 @@ mod tests {
             }),
         );
 
-        assert_eq!(intent, AppIntent::Quit);
-        assert!(state.should_quit);
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.quit_confirmation);
+        assert!(!state.should_quit);
     }
 
     #[test]
@@ -1824,6 +1873,64 @@ mod tests {
         assert_eq!(second, AppIntent::None);
         assert!(!state.should_quit);
         assert!(state.add_resource_prompt.is_none());
+    }
+
+    #[test]
+    fn keyboard_q_closes_overlays_before_quit_confirmation() {
+        let mut state = AppState::new(resource());
+        state.show_help = true;
+
+        let close_help = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())),
+        );
+        let ask_quit = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(close_help, AppIntent::None);
+        assert_eq!(ask_quit, AppIntent::None);
+        assert!(!state.show_help);
+        assert!(state.quit_confirmation);
+        assert!(!state.should_quit);
+    }
+
+    #[test]
+    fn keyboard_q_confirms_quit_only_after_confirmation_is_visible() {
+        let mut state = AppState::new(resource());
+
+        let ask_quit = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())),
+        );
+        let confirm_quit = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(ask_quit, AppIntent::None);
+        assert_eq!(confirm_quit, AppIntent::Quit);
+        assert!(state.should_quit);
+    }
+
+    #[test]
+    fn keyboard_q_closes_resource_prompt_without_quitting() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        state
+            .add_resource_input_mut()
+            .unwrap()
+            .push_str("owner/repo#42");
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.add_resource_prompt.is_none());
+        assert!(!state.should_quit);
     }
 
     #[test]

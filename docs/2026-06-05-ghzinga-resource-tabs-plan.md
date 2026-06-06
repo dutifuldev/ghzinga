@@ -17,16 +17,23 @@ or issues open without turning the first screen into a dashboard.
 - No extra resource tab bar appears above the header until at least two
   resources are open.
 - The top-right plus button is always visible.
-- Clicking plus, or pressing `n`, opens a centered modal.
+- Clicking plus, or pressing `n`, opens a centered modal for a new tab.
+- Pressing `o` opens the same parser modal in replace-current-tab mode.
 - The modal accepts:
   - full GitHub PR and issue URLs,
   - `owner/repo#123`,
   - `owner/repo 123`,
   - `#123` or `123`, resolved relative to the active resource repository.
 - While typing in the modal, `Ctrl-C` clears the input first. If the input is
-  already empty, it closes the modal instead of quitting ghzinga.
-- Confirming a valid input starts a normal background GitHub fetch.
-- When the fetch completes, ghzinga opens the resource in a tab and focuses it.
+  already empty, it closes the modal instead of quitting ghzinga. Plain `q`
+  closes the modal.
+- Confirming a valid input starts a normal background GitHub fetch and
+  immediately shows a loading placeholder in the destination tab.
+- In new-tab mode, ghzinga creates and focuses a loading resource tab before
+  GitHub returns. In replace-current mode, ghzinga replaces the active tab with
+  the loading placeholder before GitHub returns.
+- When the fetch completes, ghzinga replaces the placeholder with the loaded
+  resource.
 - If the resource is already open, ghzinga updates and focuses the existing tab.
 - Resource tabs show kind, number, title, a new-resource button, and close
   affordances.

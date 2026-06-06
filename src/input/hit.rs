@@ -21,6 +21,8 @@ pub enum HitTarget {
     OpenResourcePrompt,
     ConfirmResourcePrompt,
     CancelResourcePrompt,
+    ConfirmQuit,
+    CancelQuit,
     OpenLinkHere,
     OpenLinkInNewTab,
     CancelResourceLinkPrompt,

@@ -3,5 +3,5 @@ pub mod state;
 pub mod update;
 
 pub(crate) use placeholder::loading_resource_placeholder;
-pub use state::{AppState, BlockId, ResourceTabState, Tab};
+pub use state::{AddResourceMode, AppState, BlockId, ResourceTabState, Tab};
 pub use update::{apply_event, AppEvent, AppIntent};

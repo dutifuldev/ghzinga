@@ -31,11 +31,7 @@ pub(super) fn resource_tabs_area(header: &mut Rect, state: &AppState) -> Option<
 }
 
 pub(super) fn resource_tab_chrome_rows(header: Rect) -> u16 {
-    if header.height >= 3 {
-        2
-    } else {
-        1
-    }
+    u16::from(header.height > 0)
 }
 
 pub(super) fn single_resource_add_button_visible(header: Rect) -> bool {

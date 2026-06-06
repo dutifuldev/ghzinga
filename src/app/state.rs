@@ -170,6 +170,13 @@ pub struct AddResourcePrompt {
     pub input: String,
     pub error: Option<String>,
     pub fallback_repo: ResourceId,
+    pub mode: AddResourceMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AddResourceMode {
+    NewTab,
+    ReplaceCurrent,
 }
 
 #[derive(Debug, Clone)]
@@ -208,6 +215,7 @@ pub struct AppState {
     pub loading: Option<LoadingState>,
     pub show_help: bool,
     pub show_settings: bool,
+    pub quit_confirmation: bool,
     pub reverse_chronological: bool,
     pub theme: ThemeName,
     pub symbols: SymbolMode,
@@ -249,6 +257,7 @@ impl AppState {
             loading: None,
             show_help: false,
             show_settings: false,
+            quit_confirmation: false,
             reverse_chronological: false,
             theme: ThemeName::Default,
             symbols: SymbolMode::Ascii,
@@ -296,6 +305,14 @@ impl AppState {
     }
 
     pub fn open_add_resource_prompt(&mut self) {
+        self.open_add_resource_prompt_with_mode(AddResourceMode::NewTab);
+    }
+
+    pub fn open_replace_resource_prompt(&mut self) {
+        self.open_add_resource_prompt_with_mode(AddResourceMode::ReplaceCurrent);
+    }
+
+    fn open_add_resource_prompt_with_mode(&mut self, mode: AddResourceMode) {
         if self.show_help || self.show_settings {
             self.scroll = 0;
             self.scroll_limit = u16::MAX;
@@ -303,10 +320,12 @@ impl AppState {
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.resource_link_prompt = None;
+        self.quit_confirmation = false;
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
             fallback_repo: self.resource.id.clone(),
+            mode,
         });
         self.show_help = false;
         self.show_settings = false;
@@ -332,6 +351,7 @@ impl AppState {
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.add_resource_prompt = None;
+        self.quit_confirmation = false;
         self.resource_link_prompt = Some(ResourceLinkPrompt { id, url });
         self.show_help = false;
         self.show_settings = false;
@@ -339,6 +359,20 @@ impl AppState {
 
     pub fn close_resource_link_prompt(&mut self) {
         self.resource_link_prompt = None;
+    }
+
+    pub fn request_quit_confirmation(&mut self) {
+        self.hit_areas.clear();
+        self.scrollbar_drag = None;
+        self.add_resource_prompt = None;
+        self.resource_link_prompt = None;
+        self.show_help = false;
+        self.show_settings = false;
+        self.quit_confirmation = true;
+    }
+
+    pub fn close_quit_confirmation(&mut self) {
+        self.quit_confirmation = false;
     }
 
     pub fn resource_link_prompt_target(&self) -> Option<ResourceId> {

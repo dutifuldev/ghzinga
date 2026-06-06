@@ -40,14 +40,20 @@ The placeholder should include:
 This is not a fake cache. It is an immediate render shell that gets replaced by
 the real resource as soon as the API call completes.
 
+The same placeholder rule applies after startup. Opening a resource in a new tab
+must create and focus a loading tab immediately. Opening a resource in the
+current tab must replace the active tab with a loading placeholder immediately.
+Neither path should leave the user staring at the previous resource while the
+API call is in flight.
+
 ## UX rules
 
 - The first frame should include the normal header, status band, tab bar,
   content area, footer controls, and loading indicator.
 - The loading detail line should say `Loading |: opening owner/repo#number from
   GitHub` and animate on later frames.
-- Settings, help, quit, scrolling, and mouse handling should work during
-  startup loading.
+- Settings, help, quit confirmation, scrolling, and mouse handling should work
+  during startup loading.
 - Duplicate refresh/navigation starts should still be ignored while the initial
   fetch is active.
 - On success, replace the placeholder with the fetched resource and clear the

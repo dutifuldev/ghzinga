@@ -82,7 +82,7 @@ For issues, ghzinga shows:
 The UI is built for active terminal use:
 
 - click tabs to switch views
-- click the top-right plus button, or press `n`, to open another PR or issue
+- click the top-right plus button, or press `n`, to open another PR or issue in a new tab
 - when multiple resources are open, click the resource tabs to switch or close them
 - click GitHub issue/PR links to choose between opening here or in a new tab
 - click same-resource comment links to focus the matching Activity entry
@@ -94,15 +94,16 @@ The UI is built for active terminal use:
 
 Common keys:
 
-- `q` or `Ctrl-C`: quit
+- `q`: close the active modal/help/settings layer, then ask before quitting
+- `Ctrl-C`: quit immediately
 - `r`: refresh
 - `n`: open another PR or issue in a resource tab
+- `o`: open a PR or issue in the current tab
 - `Ctrl-C` in the open-resource modal: clear input, then close when empty
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible link or action
 - `y`: copy the first visible GitHub URL
-- `o`: open the first visible GitHub URL
 - `s`: settings
 - `?`: help
 

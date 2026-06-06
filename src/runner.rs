@@ -872,6 +872,12 @@ fn is_loading_resource(resource: &crate::domain::Resource) -> bool {
     resource.state == "LOADING"
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OpenResourceMode {
+    NewTab,
+    ReplaceCurrent,
+}
+
 fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
     if !event::poll(EVENT_POLL_TIMEOUT)? {
         return Ok(Vec::new());
@@ -937,22 +943,25 @@ async fn handle_intent(
             false
         }
         AppIntent::OpenResource(id) => {
-            if fetch_source.is_live_github() || fetch_source.is_offline_fixture() {
-                let action = if should_replace_empty_launch_tab(state) {
-                    FetchAction::Initial { id }
-                } else {
-                    FetchAction::OpenTab { id }
-                };
-                if start_background_fetch(state, action, fetch_source, fetch_tx) {
-                    state.close_add_resource_prompt();
-                    *last_refresh = Instant::now();
-                } else if let Some(message) = state.status_message.clone() {
-                    state.set_add_resource_error(message);
-                }
-            } else {
-                state.status_message = Some("offline fixture mode: open resource skipped".into());
-                state.set_add_resource_error("offline fixture mode: open resource skipped");
-            }
+            handle_open_resource_intent(
+                state,
+                id,
+                OpenResourceMode::NewTab,
+                fetch_source,
+                fetch_tx,
+                last_refresh,
+            );
+            false
+        }
+        AppIntent::ReplaceResource(id) => {
+            handle_open_resource_intent(
+                state,
+                id,
+                OpenResourceMode::ReplaceCurrent,
+                fetch_source,
+                fetch_tx,
+                last_refresh,
+            );
             false
         }
         AppIntent::Navigate(id) => {
@@ -1000,6 +1009,43 @@ async fn handle_intent(
             false
         }
         AppIntent::None => false,
+    }
+}
+
+fn handle_open_resource_intent(
+    state: &mut AppState,
+    id: ResourceId,
+    mode: OpenResourceMode,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    last_refresh: &mut Instant,
+) {
+    if !(fetch_source.is_live_github() || fetch_source.is_offline_fixture()) {
+        state.status_message = Some("offline fixture mode: open resource skipped".into());
+        state.set_add_resource_error("offline fixture mode: open resource skipped");
+        return;
+    }
+    if let Some(message) = state.loading_message() {
+        let message = format!("still loading: {message}");
+        state.status_message = Some(message.clone());
+        state.set_add_resource_error(message);
+        return;
+    }
+
+    let replace_current =
+        mode == OpenResourceMode::ReplaceCurrent || should_replace_empty_launch_tab(state);
+    let action = if replace_current {
+        state.replace_resource_reset_view(loading_resource_placeholder(id.clone()));
+        FetchAction::Initial { id }
+    } else {
+        state.open_resource_in_tab(loading_resource_placeholder(id.clone()));
+        FetchAction::OpenTab { id }
+    };
+    if start_background_fetch(state, action, fetch_source, fetch_tx) {
+        state.close_add_resource_prompt();
+        *last_refresh = Instant::now();
+    } else if let Some(message) = state.status_message.clone() {
+        state.set_add_resource_error(message);
     }
 }
 
@@ -1737,6 +1783,60 @@ mod tests {
             Some("still loading: refreshing owner/repo#1 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn open_resource_new_tab_shows_loading_tab_immediately() {
+        let fixture = issue_resource(1, "Initial issue");
+        let fetched = issue_resource(2, "Fetched issue");
+        let id = fetched.id.clone();
+        let mut state = AppState::new(fixture.clone());
+        state.open_add_resource_prompt();
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let should_quit = handle_intent(
+            &mut state,
+            AppIntent::OpenResource(id.clone()),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture, fetched])),
+            &mut last_refresh,
+            &fetch_tx,
+        )
+        .await;
+
+        assert!(!should_quit);
+        assert_eq!(state.resource.id.canonical_name(), id.canonical_name());
+        assert_eq!(state.resource.state, "LOADING");
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert!(state.add_resource_prompt.is_none());
+        assert!(state.loading_message().is_some());
+    }
+
+    #[tokio::test]
+    async fn replace_resource_shows_loading_placeholder_immediately() {
+        let fixture = issue_resource(1, "Initial issue");
+        let fetched = issue_resource(2, "Fetched issue");
+        let id = fetched.id.clone();
+        let mut state = AppState::new(fixture.clone());
+        state.open_replace_resource_prompt();
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let should_quit = handle_intent(
+            &mut state,
+            AppIntent::ReplaceResource(id.clone()),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture, fetched])),
+            &mut last_refresh,
+            &fetch_tx,
+        )
+        .await;
+
+        assert!(!should_quit);
+        assert_eq!(state.resource.id.canonical_name(), id.canonical_name());
+        assert_eq!(state.resource.state, "LOADING");
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert!(state.add_resource_prompt.is_none());
+        assert!(state.loading_message().is_some());
     }
 
     #[tokio::test]

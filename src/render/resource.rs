@@ -222,7 +222,9 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         &palette,
         content_area.width as usize,
     );
-    if state.add_resource_prompt.is_some() {
+    if state.quit_confirmation {
+        render_quit_confirmation_modal(frame, rects.area, state, &palette);
+    } else if state.add_resource_prompt.is_some() {
         render_add_resource_modal(frame, rects.area, state, &palette);
     } else if state.resource_link_prompt.is_some() {
         render_resource_link_modal(frame, rects.area, state, &palette);
@@ -270,8 +272,18 @@ fn render_add_resource_modal(
         .hit_areas
         .push(HitArea::new(area, HitTarget::ModalOverlay));
     let mut rows = Vec::<Line<'static>>::new();
+    let (title, detail) = match prompt.mode {
+        crate::app::AddResourceMode::NewTab => (
+            "Open PR or issue in new tab",
+            "Enter opens a new tab, Esc cancels",
+        ),
+        crate::app::AddResourceMode::ReplaceCurrent => (
+            "Open PR or issue here",
+            "Enter replaces this tab, Esc cancels",
+        ),
+    };
     rows.push(Line::from(Span::styled(
-        "Open PR or issue",
+        title,
         Style::default()
             .fg(palette.text)
             .bg(palette.surface0)
@@ -290,10 +302,7 @@ fn render_add_resource_modal(
         ),
         Style::default().fg(palette.text).bg(palette.panel_bg),
     )));
-    let detail = prompt
-        .error
-        .as_deref()
-        .unwrap_or("Enter opens, Esc cancels");
+    let detail = prompt.error.as_deref().unwrap_or(detail);
     let detail_style = if prompt.error.is_some() {
         Style::default()
             .fg(palette.red)
@@ -339,6 +348,93 @@ fn render_add_resource_modal(
         state.hit_areas.push(HitArea::new(
             Rect::new(inner.x.saturating_add(8), button_y, 8, 1),
             HitTarget::CancelResourcePrompt,
+        ));
+    }
+}
+
+fn render_quit_confirmation_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let modal_width = area.width.min(area.width.saturating_sub(4).clamp(24, 54));
+    let modal_height = area.height.min(area.height.saturating_sub(2).clamp(6, 7));
+    let modal = Rect::new(
+        area.x
+            .saturating_add(area.width.saturating_sub(modal_width) / 2),
+        area.y
+            .saturating_add(area.height.saturating_sub(modal_height) / 2),
+        modal_width,
+        modal_height,
+    );
+    frame.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(palette.red).bg(palette.surface0))
+        .style(Style::default().fg(palette.text).bg(palette.surface0));
+    frame.render_widget(block, modal);
+    let inner = Rect::new(
+        modal.x.saturating_add(1),
+        modal.y.saturating_add(1),
+        modal.width.saturating_sub(2),
+        modal.height.saturating_sub(2),
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::ModalOverlay));
+
+    let mut rows = Vec::<Line<'static>>::new();
+    rows.push(Line::from(Span::styled(
+        "Quit ghzinga?",
+        Style::default()
+            .fg(palette.text)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD),
+    )));
+    rows.push(Line::from(Span::styled(
+        "Press q again or Enter to quit. Esc cancels.",
+        dim_style(palette).bg(palette.surface0),
+    )));
+    while rows.len() + 1 < inner.height as usize {
+        rows.push(Line::from(""));
+    }
+    rows.push(Line::from(vec![
+        Span::styled(
+            "[quit]",
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.red)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ", Style::default().bg(palette.surface0)),
+        Span::styled(
+            "[cancel]",
+            Style::default()
+                .fg(palette.text)
+                .bg(palette.surface1)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+
+    let button_y = inner.y.saturating_add(inner.height.saturating_sub(1));
+    state.hit_areas.push(HitArea::new(
+        Rect::new(inner.x, button_y, 6_u16.min(inner.width), 1),
+        HitTarget::ConfirmQuit,
+    ));
+    if inner.width >= 10 {
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x.saturating_add(8), button_y, 8, 1),
+            HitTarget::CancelQuit,
         ));
     }
 }
@@ -1496,16 +1592,16 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
     rows.push(heading_row("Keyboard", palette));
     rows.extend(
         [
-            "- q: quit",
+            "- q: close overlays, then ask before quitting",
             "- ?: toggle this help",
             "- s: open or close settings",
             "- t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar",
             "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
             "- n: open another PR or issue in a resource tab",
+            "- o: open a PR or issue in the current tab",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
-            "- o: open first visible URL, or current resource",
             "- Tab / Shift-Tab / Left / Right: switch tabs",
             "- 1-6: jump to the visible tab in that position",
             "- v: reverse chronological feed order",
@@ -3900,6 +3996,27 @@ mod tests {
     }
 
     #[test]
+    fn resource_tab_bar_uses_single_gap_before_header_identity() {
+        let mut state = AppState::new(pr_resource());
+        state.spacing = SpacingMode::Comfortable;
+        let mut resource = pr_resource();
+        resource.id.number = 81835;
+        resource.title = "second tab title".into();
+        resource.url = "https://github.com/openclaw/openclaw/pull/81835".into();
+        state.open_resource_in_tab(resource);
+
+        let tab_row = draw_row_text(&mut state, 120, 36, 0);
+        let gap_row = draw_row_text(&mut state, 120, 36, 1);
+        let identity_row = draw_row_text(&mut state, 120, 36, 2);
+        let title_row = draw_row_text(&mut state, 120, 36, 3);
+
+        assert!(tab_row.contains("PR #81835"));
+        assert_eq!(gap_row.trim(), "");
+        assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81835"));
+        assert!(title_row.contains("second tab title"));
+    }
+
+    #[test]
     fn resource_tabs_shrink_to_keep_all_tabs_visible() {
         let backend = TestBackend::new(96, 24);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -5914,8 +6031,9 @@ mod tests {
         let mut quit_state = AppState::new(pr_resource());
         draw(&mut quit_state, 120, 36);
         let quit = click_rendered_target(&mut quit_state, |target| *target == HitTarget::Quit);
-        assert_eq!(quit, AppIntent::Quit);
-        assert!(quit_state.should_quit);
+        assert_eq!(quit, AppIntent::None);
+        assert!(quit_state.quit_confirmation);
+        assert!(!quit_state.should_quit);
     }
 
     #[test]
