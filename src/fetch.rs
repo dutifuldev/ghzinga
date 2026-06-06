@@ -10,6 +10,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     app::AppState,
+    domain::FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
     domain::{Resource, ResourceId},
     github::{
         api::{ApiDepth, GithubApiGateway, GithubGateway},
@@ -268,12 +269,15 @@ fn apply_base_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     }
     let origin_tab_id = outcome.origin_tab_id;
     let target = outcome.action.target().clone();
+    let base_loaded = outcome.result.is_ok();
     apply_loaded_resource_outcome(state, outcome, false);
-    state.apply_to_resource_tab(origin_tab_id, |state| {
-        if resource_matches_target(&state.resource, &target) {
-            state.status_message = Some("loading additional GitHub details".into());
-        }
-    });
+    if base_loaded {
+        state.apply_to_resource_tab(origin_tab_id, |state| {
+            if resource_matches_target(&state.resource, &target) {
+                state.status_message = Some("loading additional GitHub details".into());
+            }
+        });
+    }
 }
 
 fn finish_matching_blocking_load(state: &mut AppState, request_id: u64) -> bool {
@@ -340,6 +344,20 @@ fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, en
                 state.last_error = Some(error.to_string());
             });
         }
+        (FetchAction::LoadFilePatches { resource }, Err(error)) => {
+            let target = resource.id.clone();
+            let error = error.to_string();
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                if resource_matches_target(&state.resource, &target) {
+                    state.last_error = Some(error.clone());
+                    state.status_message = None;
+                    push_unique_warning(
+                        &mut state.resource,
+                        format!("{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING}: {error}"),
+                    );
+                }
+            });
+        }
         (_, Err(error)) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
                 state.last_error = Some(error.to_string());
@@ -386,6 +404,12 @@ fn resource_matches_target(resource: &Resource, target: &ResourceId) -> bool {
         && resource.id.number == target.number
 }
 
+fn push_unique_warning(resource: &mut Resource, warning: String) {
+    if !resource.warnings.iter().any(|item| item == &warning) {
+        resource.warnings.push(warning);
+    }
+}
+
 fn current_refresh_label() -> String {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -404,7 +428,10 @@ mod tests {
 
     use crate::{
         app::{loading_resource_placeholder, AppState, Tab},
-        domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
+        domain::{
+            ChangedFile, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
+            FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
+        },
         github::api::GithubApiGateway,
         runner::maybe_auto_refresh_with_start,
     };
@@ -438,6 +465,32 @@ mod tests {
             warnings: vec![],
             pull_request: None,
         }
+    }
+
+    fn pr_resource_with_patch(patch: Option<&str>) -> Resource {
+        let mut resource = issue_resource(1, "Pull request");
+        resource.id.kind_hint = Some(ResourceKind::PullRequest);
+        resource.url = "https://github.com/owner/repo/pull/1".into();
+        resource.pull_request = Some(PullRequest {
+            base_ref: "main".into(),
+            head_ref: "feature".into(),
+            requested_reviewers: vec![],
+            review_decision: None,
+            merge_state: None,
+            additions: 1,
+            deletions: 0,
+            commits: vec![],
+            checks: vec![],
+            files: vec![ChangedFile {
+                path: "src/lib.rs".into(),
+                additions: 1,
+                deletions: 0,
+                change_type: "MODIFIED".into(),
+                patch: patch.map(str::to_string),
+            }],
+            metadata: vec![],
+        });
+        resource
     }
 
     fn begin_test_fetch(state: &mut AppState, action: &FetchAction) -> (u64, u64) {
@@ -619,6 +672,36 @@ mod tests {
     }
 
     #[test]
+    fn progressive_base_error_does_not_leave_enrichment_status() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let mut state = AppState::new(issue_resource(1, "Existing issue"));
+        let action = FetchAction::Refresh { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Err(anyhow::anyhow!("network down")),
+                refreshed_at: "12:35:01 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Base,
+            },
+        );
+
+        assert_eq!(state.resource.title, "Existing issue");
+        assert_eq!(state.last_error.as_deref(), Some("network down"));
+        assert!(state.status_message.is_none());
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
     fn progressive_enrichment_is_ignored_after_resource_replacement() {
         let id = ResourceId {
             owner: "owner".into(),
@@ -738,6 +821,38 @@ mod tests {
             state.resource.warnings,
             ["background details unavailable: timeline timed out"]
         );
+    }
+
+    #[test]
+    fn file_patch_error_marks_resource_unavailable_without_retry_status() {
+        let resource = pr_resource_with_patch(None);
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(Tab::Files);
+        let action = FetchAction::LoadFilePatches {
+            resource: Box::new(resource),
+        };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Err(anyhow::anyhow!("rate limited")),
+                refreshed_at: "12:35:01 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Complete,
+            },
+        );
+
+        assert_eq!(state.last_error.as_deref(), Some("rate limited"));
+        assert!(state.status_message.is_none());
+        assert!(state.loading.is_none());
+        assert!(state
+            .resource
+            .warnings
+            .iter()
+            .any(|warning| warning.starts_with(FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING)));
     }
 
     #[test]

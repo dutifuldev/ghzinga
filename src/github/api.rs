@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::domain::{
     ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
     MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
-    FULL_DEPTH_WARNING_HINT,
+    FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 use crate::github::{
@@ -158,6 +158,13 @@ impl GithubGateway for GithubApiGateway {
         if let Some(pr) = resource.pull_request.as_mut() {
             let patches = fetch_file_patches(&id).await?;
             apply_file_patches(&mut pr.files, patches);
+            let missing = pr.files.iter().filter(|file| file.patch.is_none()).count();
+            if missing > 0 {
+                let files = if missing == 1 { "file" } else { "files" };
+                resource.warnings.push(format!(
+                    "{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING} for {missing} {files}"
+                ));
+            }
         }
         Ok(resource)
     }

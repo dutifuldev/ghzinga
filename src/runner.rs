@@ -9,7 +9,7 @@ use crate::{
     cli::Cli,
     config::{self, AppConfig},
     control::{self, ControlReply, RuntimeCommand, RuntimeRequest},
-    domain::{Resource, ResourceId},
+    domain::{Resource, ResourceId, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING},
     fetch::{
         apply_completed_fetches, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
         OfflineFixtureSource,
@@ -1206,6 +1206,13 @@ pub(crate) fn maybe_load_file_patches_with_start(
 }
 
 fn resource_needs_file_patches(resource: &Resource) -> bool {
+    if resource
+        .warnings
+        .iter()
+        .any(|warning| warning.starts_with(FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING))
+    {
+        return false;
+    }
     resource
         .pull_request
         .as_ref()
@@ -1459,7 +1466,7 @@ mod tests {
         app::{loading_resource_placeholder, AppIntent, AppState, Tab},
         domain::{
             ChangedFile, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
-            FULL_DEPTH_WARNING_HINT,
+            FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
         },
         fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
@@ -2147,6 +2154,21 @@ mod tests {
         still_enriching.status_message = Some("loading additional GitHub details".into());
         assert!(!maybe_load_file_patches_with_start(
             &mut still_enriching,
+            true,
+            &mut last_refresh,
+            |_, action| {
+                started.push(action);
+                true
+            }
+        ));
+
+        let mut unavailable = AppState::new(pr_resource_with_patch(None));
+        unavailable.set_tab(Tab::Files);
+        unavailable.resource.warnings.push(format!(
+            "{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING}: rate limited"
+        ));
+        assert!(!maybe_load_file_patches_with_start(
+            &mut unavailable,
             true,
             &mut last_refresh,
             |_, action| {

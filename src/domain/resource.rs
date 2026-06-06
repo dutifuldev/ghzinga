@@ -616,6 +616,8 @@ pub struct ChangedFile {
     pub patch: Option<String>,
 }
 
+pub const FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING: &str = "file patch context unavailable";
+
 #[cfg(test)]
 mod tests {
     use super::*;
