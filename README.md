@@ -59,6 +59,16 @@ state for one run, or `--session <name>` to pick a specific saved session.
 also set `GH_TOKEN` or `GITHUB_TOKEN` to override that token. Public repositories
 can fall back to unauthenticated GitHub data when credentials are unavailable.
 
+Useful launch options:
+
+```sh
+gzg --tab files openclaw/openclaw#81834
+gzg --theme solarized --spacing compact openclaw/openclaw#81834
+gzg --width-mode full --scrollbar always openclaw/openclaw#81834
+gzg --api-depth full openclaw/openclaw#81834
+gzg --refresh-seconds 0 openclaw/openclaw#81834
+```
+
 ## What You Get
 
 For pull requests, ghzinga shows:
@@ -76,6 +86,11 @@ For issues, ghzinga shows:
 - author, labels, assignees, state, milestones, and projects
 - timeline activity and comments
 - linked issues or PRs
+
+Resources load progressively. The TUI shell appears immediately, core PR/issue
+data replaces the loading placeholder as soon as GitHub returns it, and slower
+details such as timeline pages, checks, review threads, and file patches fill in
+afterward. File diffs are fetched lazily when the Files tab needs them.
 
 ## Interaction
 
@@ -132,6 +147,23 @@ scrollbar = "on-scroll"
 You can change theme, symbols, spacing, width, and scrollbar behavior from the
 settings view inside the app.
 
+Supported themes:
+
+```text
+default, catppuccin, catppuccin-latte, terminal, tokyo-night,
+tokyo-night-day, dracula, nord, gruvbox, gruvbox-light, one-dark,
+one-light, solarized, solarized-light, kanagawa, kanagawa-lotus,
+rose-pine, rose-pine-dawn, vesper
+```
+
+Supported setting values:
+
+- `symbols`: `emoji`, `ascii`
+- `spacing`: `comfortable`, `compact`
+- `width_mode`: `fixed`, `full`
+- `fixed_width`: clamped between `72` and `180`
+- `scrollbar`: `always`, `on-scroll`, `hidden`
+
 ## Sessions
 
 `ghzinga` saves open PR/issue tabs and UI state under:
@@ -165,8 +197,10 @@ gzg session delete <id-or-name>
 Control a running session from another shell:
 
 ```sh
+gzg open dutifuldev/ghzinga#29
 gzg open --session <id-or-name> dutifuldev/ghzinga#29
 gzg set --session <id-or-name> theme solarized
+gzg set --session <id-or-name> symbols emoji
 gzg set --session <id-or-name> spacing comfortable
 gzg set --session <id-or-name> width-mode fixed
 gzg set --session <id-or-name> fixed-width 118
@@ -174,7 +208,8 @@ gzg set --session <id-or-name> scrollbar on-scroll
 ```
 
 If the session is running, these commands update the live TUI without stealing
-terminal focus. If it is not running, `gzg open` updates the saved session so the
+terminal focus. `gzg open` adds or focuses a resource tab in that session. If
+the target session is not running, `gzg open` updates the saved session so the
 resource appears on the next restore.
 
 ## Refresh
@@ -185,6 +220,8 @@ manually.
 
 When a resource has more data than the normal GitHub API depth loads, ghzinga
 shows a full-depth action so you can fetch the rest without restarting the app.
+Normal successful refreshes stay quiet; status messages are reserved for active
+loading, changed sections, warnings, and errors.
 
 ## License
 
