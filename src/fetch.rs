@@ -354,10 +354,13 @@ fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, en
 fn apply_enrichment_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
     let origin_tab_id = outcome.origin_tab_id;
     let target = outcome.action.target().clone();
+    let request_id = outcome.request_id;
     match outcome.result {
         Ok(resource) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if resource_matches_target(&state.resource, &target) {
+                if state.latest_fetch_request_matches(request_id)
+                    && resource_matches_target(&state.resource, &target)
+                {
                     state.apply_refreshed_resource(resource, outcome.refreshed_at);
                 }
             });
@@ -365,7 +368,8 @@ fn apply_enrichment_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
         Err(error) => {
             let warning = format!("background details unavailable: {error}");
             state.apply_to_resource_tab(origin_tab_id, |state| {
-                if resource_matches_target(&state.resource, &target)
+                if state.latest_fetch_request_matches(request_id)
+                    && resource_matches_target(&state.resource, &target)
                     && !state.resource.warnings.iter().any(|item| item == &warning)
                 {
                     state.resource.warnings.push(warning);
@@ -659,6 +663,52 @@ mod tests {
     }
 
     #[test]
+    fn progressive_enrichment_is_ignored_after_newer_request_for_same_resource() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: None,
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id.clone()));
+        let action = FetchAction::Initial { id: id.clone() };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: action.clone(),
+                result: Ok(issue_resource(1, "Base issue")),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Base,
+            },
+        );
+
+        let refresh_action = FetchAction::Refresh { id };
+        let (_newer_request_id, _same_origin_tab_id) =
+            begin_test_fetch(&mut state, &refresh_action);
+
+        let mut stale = issue_resource(1, "Stale enrichment");
+        stale.body = "should not apply".into();
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(stale),
+                refreshed_at: "12:35:01 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Enrichment,
+            },
+        );
+
+        assert_eq!(state.resource.title, "Base issue");
+        assert_ne!(state.resource.body, "should not apply");
+    }
+
+    #[test]
     fn progressive_enrichment_error_adds_warning_without_failing_resource() {
         let id = ResourceId {
             owner: "owner".into(),
@@ -668,8 +718,7 @@ mod tests {
         };
         let mut state = AppState::new(issue_resource(1, "Base issue"));
         let action = FetchAction::Refresh { id };
-        let request_id = 99;
-        let origin_tab_id = state.active_resource_tab_id();
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
 
         apply_fetch_outcome(
             &mut state,

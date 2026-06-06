@@ -107,6 +107,7 @@ pub struct ScrollbarDragState {
 pub struct ResourceTabState {
     pub id: u64,
     pub resource: Resource,
+    pub latest_fetch_request_id: u64,
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
@@ -125,6 +126,7 @@ impl ResourceTabState {
         Self {
             id,
             resource,
+            latest_fetch_request_id: 0,
             active_tab: Tab::Overview,
             scroll: 0,
             scroll_limit: u16::MAX,
@@ -150,6 +152,7 @@ impl ResourceTabState {
         Self {
             id,
             resource,
+            latest_fetch_request_id: 0,
             active_tab,
             scroll,
             scroll_limit: u16::MAX,
@@ -193,6 +196,7 @@ pub struct AppState {
     pub resource_tab_scroll: usize,
     next_resource_tab_id: u64,
     next_loading_request_id: u64,
+    latest_fetch_request_id: u64,
     pub add_resource_prompt: Option<AddResourcePrompt>,
     pub resource_link_prompt: Option<ResourceLinkPrompt>,
     pending_activity_focus: Option<String>,
@@ -236,6 +240,7 @@ impl AppState {
             resource_tab_scroll: 0,
             next_resource_tab_id: 2,
             next_loading_request_id: 1,
+            latest_fetch_request_id: 0,
             add_resource_prompt: None,
             resource_link_prompt: None,
             pending_activity_focus: None,
@@ -705,6 +710,7 @@ impl AppState {
     pub fn begin_loading(&mut self, target: ResourceId, message: impl Into<String>) -> u64 {
         let request_id = self.allocate_loading_request_id();
         let origin_tab_id = self.active_resource_tab_id();
+        self.latest_fetch_request_id = request_id;
         self.loading = Some(LoadingState {
             target,
             message: message.into(),
@@ -714,6 +720,10 @@ impl AppState {
         });
         self.last_error = None;
         request_id
+    }
+
+    pub fn latest_fetch_request_matches(&self, request_id: u64) -> bool {
+        self.latest_fetch_request_id == request_id
     }
 
     pub fn finish_loading(&mut self) {
@@ -1006,6 +1016,7 @@ impl AppState {
     fn snapshot_active_resource_tab(&mut self) {
         if let Some(tab) = self.resource_tabs.get_mut(self.active_resource_tab) {
             tab.resource = self.resource.clone();
+            tab.latest_fetch_request_id = self.latest_fetch_request_id;
             tab.active_tab = self.active_tab;
             tab.scroll = self.scroll;
             tab.scroll_limit = self.scroll_limit;
@@ -1027,6 +1038,7 @@ impl AppState {
         self.active_resource_tab = index;
         self.resource_tab_scroll = index;
         self.resource = tab.resource;
+        self.latest_fetch_request_id = tab.latest_fetch_request_id;
         self.active_tab = if self.tabs().contains(&tab.active_tab) {
             tab.active_tab
         } else {
