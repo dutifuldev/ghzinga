@@ -19,7 +19,7 @@
                                                                                                                      █  
   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────█  
                                                                                                                      █  
-  💬 Comment by @clawsweeper 2d ago                                                                                  █  
+  💬 Comment by @clawsweeper 2d ago                                                                                  │  
   Codex review: keeping this open for maintainer follow-up. Current main still has a plausible Responses replay      │  
   failure for custom openai-responses providers because generic Responses payloads can be unstored while replaying   │  
   server-owned reasoning item IDs.                                                                                   │  

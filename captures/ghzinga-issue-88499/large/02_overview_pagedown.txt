@@ -32,7 +32,7 @@
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────█                                        
                                                                                                                        █                                        
   💬 Comment by @tianxiaochannel-oss88 1d ago                                                                          █                                        
-  Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when       │                                        
+  Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when       █                                        
   store=false is used through the openai-responses provider. Removing the previous response reference makes the next   │                                        
   request succeed.                                                                                                     │                                        
                                                                                                                        │                                        

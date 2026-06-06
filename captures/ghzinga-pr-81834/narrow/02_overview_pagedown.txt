@@ -3,8 +3,8 @@
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
-  ✅ checks PASS (69 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  ⓘ loading additional GitHub details                                           
+  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
+  🔁 Refresh: 13:08:26 changed ✦ Changed: metadata, warnings, checks            
   [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links          
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +20,5 @@
   transcodes MP3→opus for voice-note targets. Errors split into HTTP /          
   base_resp.status_code / missing-audio buckets.                                
   - What did NOT change: no core code; ASR untouched; streaming, telephony,     
-  loading additional GitHub details                                             
+                                                                                
   [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]           
