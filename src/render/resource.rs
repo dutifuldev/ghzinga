@@ -1600,6 +1600,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- r: refresh now",
             "- n: open another PR or issue in a resource tab",
             "- o: open a PR or issue in the current tab",
+            "- x: close the current resource tab",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
             "- Tab / Shift-Tab / Left / Right: switch tabs",

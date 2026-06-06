@@ -100,6 +100,12 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.toggle_active_tab_expansion();
             AppIntent::None
         }
+        KeyCode::Char('x')
+            if !state.show_help && !state.show_settings && is_plain_shortcut(key) =>
+        {
+            state.close_resource_tab(state.active_resource_tab);
+            AppIntent::None
+        }
         KeyCode::Esc if state.show_settings => {
             state.close_settings();
             AppIntent::None
@@ -1912,6 +1918,49 @@ mod tests {
         assert_eq!(ask_quit, AppIntent::None);
         assert_eq!(confirm_quit, AppIntent::Quit);
         assert!(state.should_quit);
+    }
+
+    #[test]
+    fn keyboard_x_closes_current_resource_tab_only_in_normal_view() {
+        let mut state = AppState::new(resource());
+        let mut second = resource();
+        second.id.number = 2;
+        second.title = "Second".into();
+        state.open_resource_in_tab(second);
+        assert_eq!(state.active_resource_tab, 1);
+
+        let close = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(close, AppIntent::None);
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert_eq!(state.resource.id.number, 1);
+
+        state.show_help = true;
+        let ignored = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(ignored, AppIntent::None);
+        assert!(state.show_help);
+        assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn keyboard_x_keeps_last_resource_tab_open() {
+        let mut state = AppState::new(resource());
+
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::empty())),
+        );
+
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.resource_tabs.len(), 1);
+        assert_eq!(state.resource.id.number, 1);
     }
 
     #[test]

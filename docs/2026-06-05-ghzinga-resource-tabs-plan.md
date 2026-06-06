@@ -37,6 +37,9 @@ or issues open without turning the first screen into a dashboard.
 - If the resource is already open, ghzinga updates and focuses the existing tab.
 - Resource tabs show kind, number, title, a new-resource button, and close
   affordances.
+- Pressing `x` in the normal view closes the current resource tab. It is a
+  no-op when only one resource tab is open and while modals, help, or settings
+  own the UI.
 - Clicking a GitHub issue or pull-request link no longer immediately replaces
   the active resource. If the target is a different issue or PR, ghzinga asks
   whether to open it in the current tab or a new resource tab. If the link points

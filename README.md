@@ -99,6 +99,7 @@ Common keys:
 - `r`: refresh
 - `n`: open another PR or issue in a resource tab
 - `o`: open a PR or issue in the current tab
+- `x`: close the current resource tab
 - `Ctrl-C` in the open-resource modal: clear input, then close when empty
 - `Tab`, `Shift+Tab`, `Left`, `Right`: switch tabs
 - `Up`, `Down`, `PageUp`, `PageDown`, `Home`, `End`: scroll
