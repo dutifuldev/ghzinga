@@ -26,11 +26,11 @@
   - r: refresh now                                                                                                   [38;2;86;95;137m│[38;2;192;202;245m  
   - n: open another PR or issue in a resource tab                                                                    [38;2;86;95;137m│[38;2;192;202;245m  
   - o: open a PR or issue in the current tab                                                                         [38;2;86;95;137m│[38;2;192;202;245m  
+  - x: close the current resource tab                                                                                [38;2;86;95;137m│[38;2;192;202;245m  
   - f: load full GitHub pages when a partial-depth warning is shown                                                  [38;2;86;95;137m│[38;2;192;202;245m  
   - y: copy first visible URL, or current resource URL                                                               [38;2;86;95;137m│[38;2;192;202;245m  
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                      [38;2;86;95;137m│[38;2;192;202;245m  
   - 1-6: jump to the visible tab in that position                                                                    [38;2;86;95;137m│[38;2;192;202;245m  
-  - v: reverse chronological feed order                                                                              [38;2;86;95;137m│[38;2;192;202;245m  
   [38;2;169;177;214moffline fixture mode: refresh skipped[38;2;192;202;245m                                                                                 
   [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                                          
                                                                                                                         

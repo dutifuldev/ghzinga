@@ -26,11 +26,11 @@
   - r: refresh now                                                                                                      
   - n: open another PR or issue in a resource tab                                                                       
   - o: open a PR or issue in the current tab                                                                            
+  - x: close the current resource tab                                                                                   
   - f: load full GitHub pages when a partial-depth warning is shown                                                     
   - y: copy first visible URL, or current resource URL                                                                  
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - 1-6: jump to the visible tab in that position                                                                       
-  - v: reverse chronological feed order                                                                                 
                                                                                                                         
   [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                                          
                                                                                                                         
