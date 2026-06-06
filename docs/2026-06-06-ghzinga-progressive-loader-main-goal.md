@@ -73,6 +73,12 @@ Base data must end the blocking loading state. Enrichment and file-patch results
 must merge into the current tab only if they still belong to the same resource
 and request generation.
 
+`FilePatches` is a background-only stage. It must not set the global blocking
+loading state, and it must not prevent opening, replacing, or switching
+resources while a large diff is downloading. When it completes, it should merge
+patch text into the current file list by path instead of replacing the whole
+resource with an older background copy.
+
 ## Request Ownership
 
 Every async result needs enough ownership information to prove it still belongs
@@ -99,6 +105,11 @@ Optional enrichment failures should preserve base content. For example, if REST
 diff patch fetching fails, the PR should still load and the Files tab should
 show a warning or fallback row instead of failing the whole resource.
 
+When the base load falls back to public REST because GraphQL auth or rate limit
+state is unavailable, the loader should keep that REST-shaped resource and skip
+GraphQL-only enrichment for that load. It should not immediately retry the same
+failing GraphQL surfaces after the fallback has succeeded.
+
 ## Acceptance Criteria
 
 - Opening a live PR or issue renders the TUI shell immediately.
@@ -109,6 +120,8 @@ show a warning or fallback row instead of failing the whole resource.
 - Replacing the current tab immediately replaces the visible resource with the
   target loading state.
 - Stale enrichment from old requests cannot overwrite the active tab.
+- Lazy file patch loading cannot make pending enrichment stale.
+- Lazy file patch loading cannot block opening or replacing another resource.
 - File patch text is loaded on Files-tab demand, not as a first-screen
   prerequisite.
 - Complete loads still include file patch context when available.

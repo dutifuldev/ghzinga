@@ -130,7 +130,11 @@ impl FromStr for ApiDepth {
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         let resource = self.fetch_resource_base(id).await?;
-        let resource = self.enrich_resource(resource).await?;
+        let resource = if uses_public_rest_fallback(&resource) {
+            resource
+        } else {
+            self.enrich_resource(resource).await?
+        };
         self.enrich_file_patches(resource).await
     }
 
@@ -166,6 +170,13 @@ impl GithubGateway for GithubApiGateway {
         }
         Ok(resource)
     }
+}
+
+fn uses_public_rest_fallback(resource: &Resource) -> bool {
+    resource
+        .warnings
+        .iter()
+        .any(|warning| warning.starts_with("using public REST fallback "))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7492,6 +7503,35 @@ diff --git a/docs/two.md b/docs/two.md\n\
             resource.warnings,
             ["file patch context unavailable for 1 file"]
         );
+    }
+
+    #[test]
+    fn public_rest_fallback_warning_marks_resource_as_rest_fallback() {
+        let mut resource = Resource {
+            id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
+            title: "Issue".into(),
+            url: "https://github.com/owner/repo/issues/1".into(),
+            state: "OPEN".into(),
+            author: "alice".into(),
+            created_at: "now".into(),
+            updated_at: "now".into(),
+            labels: vec![],
+            assignees: vec![],
+            reactions: ReactionCounts::default(),
+            body: "Body".into(),
+            activity: vec![],
+            related_resources: vec![],
+            metadata: vec![],
+            warnings: vec![],
+            pull_request: None,
+        };
+
+        assert!(!uses_public_rest_fallback(&resource));
+        resource
+            .warnings
+            .push("using public REST fallback after GitHub auth/API error: rate limited".into());
+
+        assert!(uses_public_rest_fallback(&resource));
     }
 
     #[test]

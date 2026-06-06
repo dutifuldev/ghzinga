@@ -1178,13 +1178,10 @@ pub(crate) fn maybe_load_file_patches_with_start(
     last_refresh: &mut Instant,
     mut start: impl FnMut(&mut AppState, FetchAction) -> bool,
 ) -> bool {
-    if !live_github || state.active_tab != Tab::Files || state.loading_message().is_some() {
-        return false;
-    }
-    if state
-        .status_message
-        .as_deref()
-        .is_some_and(|message| message == "loading additional GitHub details")
+    if !live_github
+        || state.active_tab != Tab::Files
+        || state.loading_message().is_some()
+        || state.file_patch_loading_message().is_some()
     {
         return false;
     }
@@ -2149,11 +2146,11 @@ mod tests {
             }
         ));
 
-        let mut still_enriching = AppState::new(pr_resource_with_patch(None));
-        still_enriching.set_tab(Tab::Files);
-        still_enriching.status_message = Some("loading additional GitHub details".into());
+        let mut already_loading_patches = AppState::new(pr_resource_with_patch(None));
+        already_loading_patches.set_tab(Tab::Files);
+        already_loading_patches.begin_file_patch_loading();
         assert!(!maybe_load_file_patches_with_start(
-            &mut still_enriching,
+            &mut already_loading_patches,
             true,
             &mut last_refresh,
             |_, action| {

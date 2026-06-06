@@ -65,6 +65,7 @@ enum FetchStage {
     Complete,
     Base,
     Enrichment,
+    FilePatches,
 }
 
 pub(crate) struct FetchOutcome {
@@ -178,6 +179,29 @@ pub(crate) fn start_background_fetch(
     fetch_source: FetchSource,
     fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
+    if let FetchAction::LoadFilePatches { resource } = &action {
+        if state.file_patch_loading_message().is_some() {
+            return false;
+        }
+        let origin_tab_id = state.active_resource_tab_id();
+        let request_id = state.begin_file_patch_loading();
+        let action = action.clone();
+        let resource = resource.as_ref().clone();
+        let tx = fetch_tx.clone();
+        tokio::spawn(async move {
+            let result = fetch_source.enrich_file_patches(resource).await;
+            let _ = tx.send(FetchOutcome {
+                action,
+                result,
+                refreshed_at: current_refresh_label(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::FilePatches,
+            });
+        });
+        return true;
+    }
+
     if let Some(message) = state.loading_message() {
         state.status_message = Some(format!("still loading: {message}"));
         return false;
@@ -253,6 +277,7 @@ pub(crate) fn apply_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
         FetchStage::Complete => apply_blocking_fetch_outcome(state, outcome),
         FetchStage::Base => apply_base_fetch_outcome(state, outcome),
         FetchStage::Enrichment => apply_enrichment_fetch_outcome(state, outcome),
+        FetchStage::FilePatches => apply_file_patch_fetch_outcome(state, outcome),
     }
 }
 
@@ -313,8 +338,7 @@ fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, en
         (FetchAction::LoadFilePatches { .. }, Ok(resource)) => {
             state.apply_to_resource_tab(origin_tab_id, |state| {
                 if resource_matches_target(&state.resource, &resource.id) {
-                    state.apply_refreshed_resource(resource, outcome.refreshed_at);
-                    state.status_message = None;
+                    state.apply_file_patch_resource(resource, outcome.refreshed_at);
                 }
             });
         }
@@ -366,6 +390,37 @@ fn apply_loaded_resource_outcome(state: &mut AppState, outcome: FetchOutcome, en
     }
     if enrichment {
         state.clear_transient_loading_status_messages();
+    }
+}
+
+fn apply_file_patch_fetch_outcome(state: &mut AppState, outcome: FetchOutcome) {
+    let origin_tab_id = outcome.origin_tab_id;
+    let request_id = outcome.request_id;
+    let target = outcome.action.target().clone();
+    match outcome.result {
+        Ok(resource) => {
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                if state.finish_file_patch_loading(request_id)
+                    && resource_matches_target(&state.resource, &target)
+                {
+                    state.apply_file_patch_resource(resource, outcome.refreshed_at);
+                }
+            });
+        }
+        Err(error) => {
+            let error = error.to_string();
+            state.apply_to_resource_tab(origin_tab_id, |state| {
+                if state.finish_file_patch_loading(request_id)
+                    && resource_matches_target(&state.resource, &target)
+                {
+                    state.last_error = Some(error.clone());
+                    push_unique_warning(
+                        &mut state.resource,
+                        format!("{FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING}: {error}"),
+                    );
+                }
+            });
+        }
     }
 }
 
@@ -866,7 +921,8 @@ mod tests {
         let action = FetchAction::LoadFilePatches {
             resource: Box::new(resource),
         };
-        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+        let origin_tab_id = state.active_resource_tab_id();
+        let request_id = state.begin_file_patch_loading();
 
         apply_fetch_outcome(
             &mut state,
@@ -876,7 +932,7 @@ mod tests {
                 refreshed_at: "12:35:01 UTC".into(),
                 request_id,
                 origin_tab_id,
-                stage: FetchStage::Complete,
+                stage: FetchStage::FilePatches,
             },
         );
 
@@ -888,6 +944,95 @@ mod tests {
             .warnings
             .iter()
             .any(|warning| warning.starts_with(FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING)));
+    }
+
+    #[test]
+    fn file_patch_outcome_merges_patches_without_overwriting_current_resource() {
+        let mut current = pr_resource_with_patch(None);
+        current.body = "current enriched body".into();
+        current.warnings.push("current warning".into());
+        let mut patch_resource = pr_resource_with_patch(Some("@@ -1 +1 @@\n-old\n+new"));
+        patch_resource.body = "older background copy".into();
+        patch_resource.warnings.push("patch warning".into());
+        let mut state = AppState::new(current);
+        state.set_tab(Tab::Files);
+        let action = FetchAction::LoadFilePatches {
+            resource: Box::new(pr_resource_with_patch(None)),
+        };
+        let origin_tab_id = state.active_resource_tab_id();
+        let request_id = state.begin_file_patch_loading();
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(patch_resource),
+                refreshed_at: "12:36:00 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::FilePatches,
+            },
+        );
+
+        assert_eq!(state.resource.body, "current enriched body");
+        assert_eq!(
+            state.resource.pull_request.as_ref().unwrap().files[0]
+                .patch
+                .as_deref(),
+            Some("@@ -1 +1 @@\n-old\n+new")
+        );
+        assert_eq!(
+            state.resource.warnings,
+            ["current warning", "patch warning"]
+        );
+        assert_eq!(state.last_refresh_changed_sections, ["warnings", "files"]);
+        assert!(state.file_patch_loading_message().is_none());
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn file_patch_loading_does_not_invalidate_pending_enrichment() {
+        let id = ResourceId {
+            owner: "owner".into(),
+            repo: "repo".into(),
+            number: 1,
+            kind_hint: Some(ResourceKind::PullRequest),
+        };
+        let mut state = AppState::new(loading_resource_placeholder(id.clone()));
+        let action = FetchAction::Initial { id };
+        let (request_id, origin_tab_id) = begin_test_fetch(&mut state, &action);
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action: action.clone(),
+                result: Ok(pr_resource_with_patch(None)),
+                refreshed_at: "12:34:56 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Base,
+            },
+        );
+
+        state.set_tab(Tab::Files);
+        state.begin_file_patch_loading();
+        let mut enriched = pr_resource_with_patch(None);
+        enriched.body = "enriched body".into();
+
+        apply_fetch_outcome(
+            &mut state,
+            FetchOutcome {
+                action,
+                result: Ok(enriched),
+                refreshed_at: "12:35:01 UTC".into(),
+                request_id,
+                origin_tab_id,
+                stage: FetchStage::Enrichment,
+            },
+        );
+
+        assert_eq!(state.resource.body, "enriched body");
+        assert!(state.loading.is_none());
     }
 
     #[test]
@@ -1015,6 +1160,53 @@ mod tests {
             Some("still loading: opening owner/repo#2 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn file_patch_loading_does_not_block_open_fetches() {
+        let resource = pr_resource_with_patch(None);
+        let second = issue_resource(2, "Second issue");
+        let mut state = AppState::new(resource.clone());
+        state.set_tab(Tab::Files);
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert!(start_background_fetch(
+            &mut state,
+            FetchAction::LoadFilePatches {
+                resource: Box::new(resource)
+            },
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([second.clone()])),
+            &fetch_tx,
+        ));
+        assert!(state.loading.is_none());
+        assert_eq!(
+            state.file_patch_loading_message(),
+            Some("loading file diffs")
+        );
+
+        assert!(start_background_fetch(
+            &mut state,
+            FetchAction::OpenTab {
+                id: second.id.clone()
+            },
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([second])),
+            &fetch_tx,
+        ));
+        assert_eq!(
+            state.loading_message(),
+            Some("opening owner/repo#2 in a new tab")
+        );
+
+        let mut outcomes = Vec::new();
+        for _ in 0..2 {
+            outcomes.push(fetch_rx.recv().await.expect("fetch outcome"));
+        }
+        assert!(outcomes
+            .iter()
+            .any(|outcome| outcome.stage == FetchStage::FilePatches));
+        assert!(outcomes
+            .iter()
+            .any(|outcome| outcome.stage == FetchStage::Complete));
     }
 
     #[test]

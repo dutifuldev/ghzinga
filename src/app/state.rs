@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    path::PathBuf,
+    str::FromStr,
+};
 
 use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
 use crate::input::HitArea;
@@ -108,6 +113,7 @@ pub struct ResourceTabState {
     pub id: u64,
     pub resource: Resource,
     pub latest_fetch_request_id: u64,
+    pub pending_file_patch_request_id: Option<u64>,
     pub active_tab: Tab,
     pub scroll: u16,
     pub scroll_limit: u16,
@@ -127,6 +133,7 @@ impl ResourceTabState {
             id,
             resource,
             latest_fetch_request_id: 0,
+            pending_file_patch_request_id: None,
             active_tab: Tab::Overview,
             scroll: 0,
             scroll_limit: u16::MAX,
@@ -153,6 +160,7 @@ impl ResourceTabState {
             id,
             resource,
             latest_fetch_request_id: 0,
+            pending_file_patch_request_id: None,
             active_tab,
             scroll,
             scroll_limit: u16::MAX,
@@ -197,6 +205,7 @@ pub struct AppState {
     next_resource_tab_id: u64,
     next_loading_request_id: u64,
     latest_fetch_request_id: u64,
+    pending_file_patch_request_id: Option<u64>,
     pub add_resource_prompt: Option<AddResourcePrompt>,
     pub resource_link_prompt: Option<ResourceLinkPrompt>,
     pending_activity_focus: Option<String>,
@@ -241,6 +250,7 @@ impl AppState {
             next_resource_tab_id: 2,
             next_loading_request_id: 1,
             latest_fetch_request_id: 0,
+            pending_file_patch_request_id: None,
             add_resource_prompt: None,
             resource_link_prompt: None,
             pending_activity_focus: None,
@@ -670,6 +680,7 @@ impl AppState {
         self.last_refresh_had_changes = None;
         self.last_refresh_changed_sections.clear();
         self.loading = None;
+        self.pending_file_patch_request_id = None;
     }
 
     pub fn push_current_to_history(&mut self) {
@@ -702,7 +713,64 @@ impl AppState {
         self.loading = None;
         self.mark_refreshed(refreshed_at, changed);
         self.last_refresh_changed_sections = changed_sections;
-        self.status_message = None;
+        self.status_message = self.file_patch_loading_message().map(str::to_string);
+        self.snapshot_active_resource_tab();
+        changed
+    }
+
+    pub fn apply_file_patch_resource(
+        &mut self,
+        patch_resource: Resource,
+        refreshed_at: impl Into<String>,
+    ) -> bool {
+        let mut changed_sections = Vec::new();
+        let mut changed = false;
+
+        for warning in patch_resource.warnings {
+            if !self.resource.warnings.iter().any(|item| item == &warning) {
+                self.resource.warnings.push(warning);
+                changed = true;
+                changed_sections.push("warnings".to_string());
+            }
+        }
+
+        let patch_by_path = patch_resource
+            .pull_request
+            .as_ref()
+            .map(|pr| {
+                pr.files
+                    .iter()
+                    .filter_map(|file| file.patch.as_ref().map(|patch| (&file.path, patch)))
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default();
+
+        if let Some(pr) = &mut self.resource.pull_request {
+            for file in &mut pr.files {
+                let Some(patch) = patch_by_path.get(&file.path) else {
+                    continue;
+                };
+                if file.patch.as_ref() != Some(*patch) {
+                    file.patch = Some((*patch).clone());
+                    changed = true;
+                    if !changed_sections.iter().any(|section| section == "files") {
+                        changed_sections.push("files".to_string());
+                    }
+                }
+            }
+        }
+
+        self.refresh_requested = false;
+        self.last_error = None;
+        if self.status_message.as_deref() == Some("loading file diffs") {
+            self.status_message = None;
+        }
+        self.mark_refreshed(refreshed_at, changed);
+        self.last_refresh_changed_sections = if changed {
+            changed_sections
+        } else {
+            Vec::new()
+        };
         self.snapshot_active_resource_tab();
         changed
     }
@@ -720,6 +788,37 @@ impl AppState {
         });
         self.last_error = None;
         request_id
+    }
+
+    pub fn begin_file_patch_loading(&mut self) -> u64 {
+        let request_id = self.allocate_loading_request_id();
+        self.pending_file_patch_request_id = Some(request_id);
+        self.status_message = Some("loading file diffs".into());
+        self.last_error = None;
+        self.snapshot_active_resource_tab();
+        request_id
+    }
+
+    pub fn file_patch_loading_request_matches(&self, request_id: u64) -> bool {
+        self.pending_file_patch_request_id == Some(request_id)
+    }
+
+    pub fn file_patch_loading_message(&self) -> Option<&str> {
+        self.pending_file_patch_request_id
+            .is_some()
+            .then_some("loading file diffs")
+    }
+
+    pub fn finish_file_patch_loading(&mut self, request_id: u64) -> bool {
+        if !self.file_patch_loading_request_matches(request_id) {
+            return false;
+        }
+        self.pending_file_patch_request_id = None;
+        if self.status_message.as_deref() == Some("loading file diffs") {
+            self.status_message = None;
+        }
+        self.snapshot_active_resource_tab();
+        true
     }
 
     pub fn latest_fetch_request_matches(&self, request_id: u64) -> bool {
@@ -1017,6 +1116,7 @@ impl AppState {
         if let Some(tab) = self.resource_tabs.get_mut(self.active_resource_tab) {
             tab.resource = self.resource.clone();
             tab.latest_fetch_request_id = self.latest_fetch_request_id;
+            tab.pending_file_patch_request_id = self.pending_file_patch_request_id;
             tab.active_tab = self.active_tab;
             tab.scroll = self.scroll;
             tab.scroll_limit = self.scroll_limit;
@@ -1039,6 +1139,7 @@ impl AppState {
         self.resource_tab_scroll = index;
         self.resource = tab.resource;
         self.latest_fetch_request_id = tab.latest_fetch_request_id;
+        self.pending_file_patch_request_id = tab.pending_file_patch_request_id;
         self.active_tab = if self.tabs().contains(&tab.active_tab) {
             tab.active_tab
         } else {
