@@ -1,50 +1,50 @@
-                                                                                                                                                                
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d                                                                                     [+]  
-  feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
-  🔁 Refresh: 14:41:14 changed ✦ Changed: metadata, warnings, checks                                                                                            
-                                                                                                                                                                
-   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [🔗 Links]                                                                                         
-                                                                                                                                                                
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                                                                
-  Help                                                                                                                                                          
-                                                                                                                                                                
-  Mouse                                                                                                                                                         
-  - Plus opens resources; resource tabs switch or close them.                                                                                                   
-  - Click tabs to switch sections.                                                                                                                              
-  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.                                             
-  - Click visible GitHub issue or PR references to navigate.                                                                                                    
-  - Use the mouse wheel to scroll the current view.                                                                                                             
-  Keyboard                                                                                                                                                      
-  - q: close overlays, then ask before quitting                                                                                                                 
-  - ?: toggle this help                                                                                                                                         
-  - s: open or close settings                                                                                                                                   
-  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                                                                     
-  - - / + in settings: decrease or increase fixed content width                                                                                                 
-  - r: refresh now                                                                                                                                              
-  - n: open another PR or issue in a resource tab                                                                                                               
-  - o: open a PR or issue in the current tab                                                                                                                    
-  - x: close the current resource tab                                                                                                                           
-  - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
-  - y: copy first visible URL, or current resource URL                                                                                                          
-  - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
-  - 1-6: jump to the visible tab in that position                                                                                                               
-  - v: reverse chronological feed order                                                                                                                         
-  - a: expand or collapse all rows in the current tab                                                                                                           
-  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                                                          
-  - e: expand or collapse the main body                                                                                                                         
-  - Backspace: return after following a link                                                                                                                    
-                                                                                                                                                                
-  Refresh                                                                                                                                                       
-  - Live mode refreshes automatically on the configured interval.                                                                                               
-  - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                                                                  
-                                                                                                                                                                
+
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d                                                                                     [+]
+  feat(senseaudio): add SenseAudio TTS provider
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22
+  🔁 Refresh: 15:13:56 changed ✦ Changed: metadata, warnings, checks
+
+   🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [🔗 Links]
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Help
+
+  Mouse
+  - Plus opens resources; resource tabs switch or close them.
+  - Click tabs to switch sections.
+  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Use the mouse wheel to scroll the current view.
+  Keyboard
+  - q: close overlays, then ask before quitting
+  - ?: toggle this help
+  - s: open or close settings
+  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar
+  - - / + in settings: decrease or increase fixed content width
+  - r: refresh now
+  - n: open another PR or issue in a resource tab
+  - o: open a PR or issue in the current tab
+  - x: close the current resource tab
+  - f: load full GitHub pages when a partial-depth warning is shown
+  - y: copy first visible URL, or current resource URL
+  - Left / Right or h / l: switch Overview, Activity, and other content tabs
+  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
+  - 1-6: jump to the visible tab in that position
+  - v: reverse chronological feed order
+  - a: expand or collapse all rows in the current tab
+  - Up / Down or k / j, PageUp / PageDown / Home / End: scroll
+  - e: expand or collapse the main body
+  - Backspace: return after following a link
+
+  Refresh
+  - Live mode refreshes automatically on the configured interval.
+  - The status band shows the last refresh time and whether content changed.
+
+
+
+
+
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
+

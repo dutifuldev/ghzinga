@@ -1,50 +1,50 @@
-[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                                
-  [1;4m[38;2;122;162;247m[48;2;36;40;59mhttps://github.com/openclaw/openclaw/pull/81834[0m[38;2;192;202;245m[48;2;36;40;59m [1m[38;2;158;206;106m[PR OPEN][0m[38;2;192;202;245m[48;2;36;40;59m [38;2;86;95;137mupdated 4d[38;2;192;202;245m[48;2;26;27;38m                                                                                     [1m[38;2;26;27;38m[48;2;122;162;247m[+][0m[38;2;192;202;245m[48;2;26;27;38m  
-  [1m[48;2;36;40;59mfeat(senseaudio): add SenseAudio TTS provider[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                 
-  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
-  [1m[38;2;26;27;38m[48;2;158;206;106m✅ OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m👤 @KLilyZ[38;2;192;202;245m  [38;2;122;162;247mfeat/senseaudio-tts -> main[38;2;192;202;245m  [1m[38;2;26;27;38m[48;2;158;206;106m✅ checks PASS (80 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;125;207;255m📄 14 files changed [38;2;158;206;106m+1.1k[38;2;125;207;255m [38;2;247;118;142m-22[0m[38;2;192;202;245m[48;2;26;27;38m                                  
-  [38;2;169;177;214m🔁 Refresh: 14:41:14 changed ✦ Changed: metadata, warnings, checks[38;2;192;202;245m                                                                                            
-                                                                                                                                                                
-  [38;2;169;177;214m 🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [1m[38;2;26;27;38m[48;2;122;162;247m[🔗 Links][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                         
-                                                                                                                                                                
-  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
-                                                                                                                                                                
-  [1m[38;2;122;162;247mHelp[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                          
-                                                                                                                                                                
-  [1m[38;2;122;162;247mMouse[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                         
-  - Plus opens resources; resource tabs switch or close them.                                                                                                   
-  - Click tabs to switch sections.                                                                                                                              
-  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.                                             
-  - Click visible GitHub issue or PR references to navigate.                                                                                                    
-  - Use the mouse wheel to scroll the current view.                                                                                                             
-  [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                      
-  - q: close overlays, then ask before quitting                                                                                                                 
-  - ?: toggle this help                                                                                                                                         
-  - s: open or close settings                                                                                                                                   
-  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                                                                     
-  - - / + in settings: decrease or increase fixed content width                                                                                                 
-  - r: refresh now                                                                                                                                              
-  - n: open another PR or issue in a resource tab                                                                                                               
-  - o: open a PR or issue in the current tab                                                                                                                    
-  - x: close the current resource tab                                                                                                                           
-  - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
-  - y: copy first visible URL, or current resource URL                                                                                                          
-  - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
-  - 1-6: jump to the visible tab in that position                                                                                                               
-  - v: reverse chronological feed order                                                                                                                         
-  - a: expand or collapse all rows in the current tab                                                                                                           
-  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                                                          
-  - e: expand or collapse the main body                                                                                                                         
-  - Backspace: return after following a link                                                                                                                    
-                                                                                                                                                                
-  [1m[38;2;122;162;247mRefresh[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                                                       
-  - Live mode refreshes automatically on the configured interval.                                                                                               
-  - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-  [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                  
-                                                                                                                                                                
+[38;2;192;202;245m[48;2;26;27;38m
+  [1;4m[38;2;122;162;247m[48;2;36;40;59mhttps://github.com/openclaw/openclaw/pull/81834[0m[38;2;192;202;245m[48;2;36;40;59m [1m[38;2;158;206;106m[PR OPEN][0m[38;2;192;202;245m[48;2;36;40;59m [38;2;86;95;137mupdated 4d[38;2;192;202;245m[48;2;26;27;38m                                                                                     [1m[38;2;26;27;38m[48;2;122;162;247m[+][0m[38;2;192;202;245m[48;2;26;27;38m
+  [1m[48;2;36;40;59mfeat(senseaudio): add SenseAudio TTS provider[0m[38;2;192;202;245m[48;2;26;27;38m
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m
+  [1m[38;2;26;27;38m[48;2;158;206;106m✅ OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m👤 @KLilyZ[38;2;192;202;245m  [38;2;122;162;247mfeat/senseaudio-tts -> main[38;2;192;202;245m  [1m[38;2;26;27;38m[48;2;158;206;106m✅ checks PASS (80 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m  [1m[38;2;125;207;255m📄 14 files changed [38;2;158;206;106m+1.1k[38;2;125;207;255m [38;2;247;118;142m-22[0m[38;2;192;202;245m[48;2;26;27;38m
+  [38;2;169;177;214m🔁 Refresh: 15:13:56 changed ✦ Changed: metadata, warnings, checks[38;2;192;202;245m
+
+  [38;2;169;177;214m 🏠 Overview  💬 Activity  🧱 Commits  ✅ Checks  📄 Files [1m[38;2;26;27;38m[48;2;122;162;247m[🔗 Links][0m[38;2;192;202;245m[48;2;26;27;38m
+
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m
+
+  [1m[38;2;122;162;247mHelp[0m[38;2;192;202;245m[48;2;26;27;38m
+
+  [1m[38;2;122;162;247mMouse[0m[38;2;192;202;245m[48;2;26;27;38m
+  - Plus opens resources; resource tabs switch or close them.
+  - Click tabs to switch sections.
+  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Use the mouse wheel to scroll the current view.
+  [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m
+  - q: close overlays, then ask before quitting
+  - ?: toggle this help
+  - s: open or close settings
+  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar
+  - - / + in settings: decrease or increase fixed content width
+  - r: refresh now
+  - n: open another PR or issue in a resource tab
+  - o: open a PR or issue in the current tab
+  - x: close the current resource tab
+  - f: load full GitHub pages when a partial-depth warning is shown
+  - y: copy first visible URL, or current resource URL
+  - Left / Right or h / l: switch Overview, Activity, and other content tabs
+  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
+  - 1-6: jump to the visible tab in that position
+  - v: reverse chronological feed order
+  - a: expand or collapse all rows in the current tab
+  - Up / Down or k / j, PageUp / PageDown / Home / End: scroll
+  - e: expand or collapse the main body
+  - Backspace: return after following a link
+
+  [1m[38;2;122;162;247mRefresh[0m[38;2;192;202;245m[48;2;26;27;38m
+  - Live mode refreshes automatically on the configured interval.
+  - The status band shows the last refresh time and whether content changed.
+
+
+
+
+
+  [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m
+
