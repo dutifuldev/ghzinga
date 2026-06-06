@@ -2,8 +2,8 @@
   https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d                                                                                     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (80 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
-  🔁 Refresh: 12:20:58 changed ✦ Changed: metadata, warnings, checks                                                                                            
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (69 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
+  ⓘ loading additional GitHub details                                                                                                                           
                                                                                                                                                                 
   [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                                          
                                                                                                                                                                 
@@ -45,6 +45,6 @@
   meta: association NONE                                                                                                                                        
   [details]                                                                                                                                                     
   Codex review: needs changes before merge.                                                                                                                     
-                                                                                                                                                                
+  loading additional GitHub details                                                                                                                             
   [🔄 refresh] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                                           
                                                                                                                                                                 
