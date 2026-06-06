@@ -33,6 +33,21 @@ pub trait GithubGateway {
         &self,
         id: &ResourceId,
     ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn fetch_resource_base(
+        &self,
+        id: &ResourceId,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn enrich_resource(
+        &self,
+        resource: Resource,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
+
+    fn enrich_file_patches(
+        &self,
+        resource: Resource,
+    ) -> impl Future<Output = anyhow::Result<Resource>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -114,16 +129,37 @@ impl FromStr for ApiDepth {
 
 impl GithubGateway for GithubApiGateway {
     async fn fetch_resource(&self, id: &ResourceId) -> anyhow::Result<Resource> {
+        let resource = self.fetch_resource_base(id).await?;
+        self.enrich_resource(resource).await
+    }
+
+    async fn fetch_resource_base(&self, id: &ResourceId) -> anyhow::Result<Resource> {
         match id.kind_hint {
-            Some(ResourceKind::PullRequest) => fetch_pr(id, self.api_depth).await,
-            Some(ResourceKind::Issue) => fetch_issue(id, self.api_depth).await,
-            None => match fetch_pr(id, self.api_depth).await {
+            Some(ResourceKind::PullRequest) => fetch_pr_base(id, self.api_depth).await,
+            Some(ResourceKind::Issue) => fetch_issue_base(id, self.api_depth).await,
+            None => match fetch_pr_base(id, self.api_depth).await {
                 Ok(resource) => Ok(resource),
-                Err(pr_error) => fetch_issue(id, self.api_depth)
+                Err(pr_error) => fetch_issue_base(id, self.api_depth)
                     .await
                     .with_context(|| format!("failed as PR first: {pr_error}")),
             },
         }
+    }
+
+    async fn enrich_resource(&self, resource: Resource) -> anyhow::Result<Resource> {
+        match resource.kind() {
+            ResourceKind::PullRequest => enrich_pr(resource, self.api_depth).await,
+            ResourceKind::Issue => enrich_issue(resource, self.api_depth).await,
+        }
+    }
+
+    async fn enrich_file_patches(&self, mut resource: Resource) -> anyhow::Result<Resource> {
+        let id = resource.id.clone();
+        if let Some(pr) = resource.pull_request.as_mut() {
+            let patches = fetch_file_patches(&id).await?;
+            apply_file_patches(&mut pr.files, patches);
+        }
+        Ok(resource)
     }
 }
 
@@ -184,7 +220,7 @@ pub fn command_preview_for_issue(id: &ResourceId) -> Vec<String> {
     graphql_preview("issue", id)
 }
 
-async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+async fn fetch_pr_base(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_pr(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -201,26 +237,35 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     let dto = pr_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     resource.warnings.extend(partial_depth_warnings);
+    Ok(resource)
+}
+
+async fn enrich_pr(mut resource: Resource, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+    let id = resource.id.clone();
+    if resource.pull_request.is_none() {
+        return Ok(resource);
+    }
+    let full_depth = api_depth.is_full();
     if full_depth {
-        enrich_project_metadata(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_labels_and_assignees(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_linked_resources(&mut resource, id, ResourceKind::PullRequest).await;
-        enrich_review_requests(&mut resource, id).await;
-        match fetch_comment_activity(id, ResourceKind::PullRequest).await {
+        enrich_project_metadata(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_labels_and_assignees(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_linked_resources(&mut resource, &id, ResourceKind::PullRequest).await;
+        enrich_review_requests(&mut resource, &id).await;
+        match fetch_comment_activity(&id, ResourceKind::PullRequest).await {
             Ok(comments) => replace_comment_activity(&mut resource, comments),
             Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
         }
-        match fetch_review_activity(id).await {
+        match fetch_review_activity(&id).await {
             Ok(reviews) => replace_review_activity(&mut resource, reviews),
             Err(error) => push_enrichment_warning(&mut resource, "reviews unavailable", &error),
         }
     }
-    enrich_participants(&mut resource, id, ResourceKind::PullRequest).await;
-    match fetch_review_thread_activity(id).await {
+    enrich_participants(&mut resource, &id, ResourceKind::PullRequest).await;
+    match fetch_review_thread_activity(&id).await {
         Ok(review_comments) => resource.activity.extend(review_comments),
         Err(error) => push_enrichment_warning(&mut resource, "review threads unavailable", &error),
     }
-    match fetch_timeline_activity(id, ResourceKind::PullRequest).await {
+    match fetch_timeline_activity(&id, ResourceKind::PullRequest).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
     }
@@ -228,28 +273,24 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     let mut warnings = Vec::new();
     if let Some(pr) = resource.pull_request.as_mut() {
         if full_depth {
-            match fetch_changed_files(id).await {
+            match fetch_changed_files(&id).await {
                 Ok(files) => pr.files = files,
                 Err(error) => warnings.push(format!("full changed file list unavailable: {error}")),
             }
-            match fetch_commits(id).await {
+            match fetch_commits(&id).await {
                 Ok(commits) => replace_pr_commits(pr, commits),
                 Err(error) => warnings.push(format!("full commit list unavailable: {error}")),
             }
-            match fetch_commit_deployments(id).await {
+            match fetch_commit_deployments(&id).await {
                 Ok(deployments) => apply_commit_deployments(&mut pr.commits, deployments),
                 Err(error) => warnings.push(format!("commit deployments unavailable: {error}")),
             }
-            match fetch_status_rollup_checks(id).await {
+            match fetch_status_rollup_checks(&id).await {
                 Ok(checks) => pr.checks = checks,
                 Err(error) => warnings.push(format!("full status rollup unavailable: {error}")),
             }
         }
-        match fetch_file_patches(id).await {
-            Ok(patches) => apply_file_patches(&mut pr.files, patches),
-            Err(error) => warnings.push(format!("file patch context unavailable: {error}")),
-        }
-        match fetch_check_suites(id).await {
+        match fetch_check_suites(&id).await {
             Ok(suites) => apply_check_suites(&mut pr.checks, suites),
             Err(error) => warnings.push(format!("check suites unavailable: {error}")),
         }
@@ -258,7 +299,7 @@ async fn fetch_pr(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resour
     Ok(resource)
 }
 
-async fn fetch_issue(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+async fn fetch_issue_base(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Resource> {
     let output = match run_graphql_base_issue(id).await {
         Ok(output) => output,
         Err(error) if crate::github::auth::should_try_public_rest_fallback(&error) => {
@@ -275,19 +316,25 @@ async fn fetch_issue(id: &ResourceId, api_depth: ApiDepth) -> anyhow::Result<Res
     let dto = issue_view_from_graphql(&output)?;
     let mut resource = dto.into_resource(id);
     resource.warnings.extend(partial_depth_warnings);
+    Ok(resource)
+}
+
+async fn enrich_issue(mut resource: Resource, api_depth: ApiDepth) -> anyhow::Result<Resource> {
+    let id = resource.id.clone();
+    let full_depth = api_depth.is_full();
     if full_depth {
-        enrich_project_metadata(&mut resource, id, ResourceKind::Issue).await;
-        enrich_labels_and_assignees(&mut resource, id, ResourceKind::Issue).await;
-        enrich_linked_resources(&mut resource, id, ResourceKind::Issue).await;
-        match fetch_comment_activity(id, ResourceKind::Issue).await {
+        enrich_project_metadata(&mut resource, &id, ResourceKind::Issue).await;
+        enrich_labels_and_assignees(&mut resource, &id, ResourceKind::Issue).await;
+        enrich_linked_resources(&mut resource, &id, ResourceKind::Issue).await;
+        match fetch_comment_activity(&id, ResourceKind::Issue).await {
             Ok(comments) => replace_comment_activity(&mut resource, comments),
             Err(error) => push_enrichment_warning(&mut resource, "comments unavailable", &error),
         }
     }
-    enrich_participants(&mut resource, id, ResourceKind::Issue).await;
-    enrich_issue_relationships(&mut resource, id).await;
-    enrich_issue_linked_branches(&mut resource, id).await;
-    match fetch_timeline_activity(id, ResourceKind::Issue).await {
+    enrich_participants(&mut resource, &id, ResourceKind::Issue).await;
+    enrich_issue_relationships(&mut resource, &id).await;
+    enrich_issue_linked_branches(&mut resource, &id).await;
+    match fetch_timeline_activity(&id, ResourceKind::Issue).await {
         Ok(timeline) => resource.activity.extend(timeline),
         Err(error) => push_enrichment_warning(&mut resource, "timeline unavailable", &error),
     }

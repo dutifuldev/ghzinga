@@ -5,11 +5,11 @@ use std::{
 };
 
 use crate::{
-    app::{apply_event, loading_resource_placeholder, AppEvent, AppIntent, AppState},
+    app::{apply_event, loading_resource_placeholder, AppEvent, AppIntent, AppState, Tab},
     cli::Cli,
     config::{self, AppConfig},
     control::{self, ControlReply, RuntimeCommand, RuntimeRequest},
-    domain::ResourceId,
+    domain::{Resource, ResourceId},
     fetch::{
         apply_completed_fetches, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
         OfflineFixtureSource,
@@ -573,6 +573,12 @@ async fn run_tui(
                 persist_session_now(state, runtime);
             }
         }
+        maybe_load_file_patches_for_active_files_tab(
+            state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut last_refresh,
+        );
         handle_pending_control_requests(
             state,
             fetch_source.clone(),
@@ -621,6 +627,12 @@ async fn run_tui(
                 return Ok(());
             }
             maybe_refresh_loading_active_resource(
+                state,
+                fetch_source.clone(),
+                &fetch_tx,
+                &mut last_refresh,
+            );
+            maybe_load_file_patches_for_active_files_tab(
                 state,
                 fetch_source.clone(),
                 &fetch_tx,
@@ -1146,6 +1158,60 @@ fn maybe_refresh_loading_active_resource(
     }
 }
 
+fn maybe_load_file_patches_for_active_files_tab(
+    state: &mut AppState,
+    fetch_source: FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+    last_refresh: &mut Instant,
+) -> bool {
+    maybe_load_file_patches_with_start(
+        state,
+        fetch_source.is_live_github(),
+        last_refresh,
+        |state, action| start_background_fetch(state, action, fetch_source.clone(), fetch_tx),
+    )
+}
+
+pub(crate) fn maybe_load_file_patches_with_start(
+    state: &mut AppState,
+    live_github: bool,
+    last_refresh: &mut Instant,
+    mut start: impl FnMut(&mut AppState, FetchAction) -> bool,
+) -> bool {
+    if !live_github || state.active_tab != Tab::Files || state.loading_message().is_some() {
+        return false;
+    }
+    if state
+        .status_message
+        .as_deref()
+        .is_some_and(|message| message == "loading additional GitHub details")
+    {
+        return false;
+    }
+    if !resource_needs_file_patches(&state.resource) {
+        return false;
+    }
+    let resource = state.resource.clone();
+    if start(
+        state,
+        FetchAction::LoadFilePatches {
+            resource: Box::new(resource),
+        },
+    ) {
+        *last_refresh = Instant::now();
+        true
+    } else {
+        false
+    }
+}
+
+fn resource_needs_file_patches(resource: &Resource) -> bool {
+    resource
+        .pull_request
+        .as_ref()
+        .is_some_and(|pr| pr.files.iter().any(|file| file.patch.is_none()))
+}
+
 fn should_replace_empty_launch_tab(state: &AppState) -> bool {
     state.resource_tabs.len() == 1 && is_empty_launch_resource(&state.resource)
 }
@@ -1390,8 +1456,11 @@ mod tests {
     };
 
     use crate::{
-        app::{loading_resource_placeholder, AppIntent, AppState},
-        domain::{ReactionCounts, Resource, ResourceId, ResourceKind, FULL_DEPTH_WARNING_HINT},
+        app::{loading_resource_placeholder, AppIntent, AppState, Tab},
+        domain::{
+            ChangedFile, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
+            FULL_DEPTH_WARNING_HINT,
+        },
         fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
         github::api::GithubGateway,
         session::{
@@ -1402,10 +1471,10 @@ mod tests {
 
     use super::{
         apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
-        handle_intent, maybe_auto_refresh_with_start, maybe_refresh_loading_active_resource,
-        navigate_back, navigate_to_resource, prepare_restored_initial_fetch,
-        save_open_command_to_session, session_state_persistable, should_replace_empty_launch_tab,
-        url_open_command, ClipboardPlatform,
+        handle_intent, maybe_auto_refresh_with_start, maybe_load_file_patches_with_start,
+        maybe_refresh_loading_active_resource, navigate_back, navigate_to_resource,
+        prepare_restored_initial_fetch, save_open_command_to_session, session_state_persistable,
+        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1435,6 +1504,18 @@ mod tests {
                 .pop_front()
                 .ok_or_else(|| anyhow::anyhow!("no fake resource queued"))
         }
+
+        async fn fetch_resource_base(&self, id: &ResourceId) -> anyhow::Result<Resource> {
+            self.fetch_resource(id).await
+        }
+
+        async fn enrich_resource(&self, resource: Resource) -> anyhow::Result<Resource> {
+            Ok(resource)
+        }
+
+        async fn enrich_file_patches(&self, resource: Resource) -> anyhow::Result<Resource> {
+            Ok(resource)
+        }
     }
 
     fn issue_resource(number: u64, title: &str) -> Resource {
@@ -1461,6 +1542,32 @@ mod tests {
             warnings: vec![],
             pull_request: None,
         }
+    }
+
+    fn pr_resource_with_patch(patch: Option<&str>) -> Resource {
+        let mut resource = issue_resource(1, "Pull request");
+        resource.id.kind_hint = Some(ResourceKind::PullRequest);
+        resource.url = "https://github.com/owner/repo/pull/1".into();
+        resource.pull_request = Some(PullRequest {
+            base_ref: "main".into(),
+            head_ref: "feature".into(),
+            requested_reviewers: vec![],
+            review_decision: None,
+            merge_state: None,
+            additions: 1,
+            deletions: 0,
+            commits: vec![],
+            checks: vec![],
+            files: vec![ChangedFile {
+                path: "src/lib.rs".into(),
+                additions: 1,
+                deletions: 0,
+                change_type: "MODIFIED".into(),
+                patch: patch.map(str::to_string),
+            }],
+            metadata: vec![],
+        });
+        resource
     }
 
     fn session_snapshot_for(resource: &Resource) -> SessionSnapshot {
@@ -1975,6 +2082,80 @@ mod tests {
         assert!(!refreshed);
         assert_eq!(attempts, 1);
         assert_eq!(last_refresh, now);
+    }
+
+    #[test]
+    fn files_tab_schedules_missing_file_patches_on_demand() {
+        let mut state = AppState::new(pr_resource_with_patch(None));
+        state.set_tab(Tab::Files);
+        let mut last_refresh = Instant::now();
+        let mut started = Vec::new();
+
+        let scheduled =
+            maybe_load_file_patches_with_start(&mut state, true, &mut last_refresh, |_, action| {
+                started.push(action);
+                true
+            });
+
+        assert!(scheduled);
+        assert_eq!(started.len(), 1);
+        match &started[0] {
+            FetchAction::LoadFilePatches { resource } => {
+                assert_eq!(resource.id.canonical_name(), "owner/repo#1");
+                assert!(resource
+                    .pull_request
+                    .as_ref()
+                    .unwrap()
+                    .files
+                    .iter()
+                    .any(|file| file.patch.is_none()));
+            }
+            other => panic!("expected file patch load, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn file_patch_loading_waits_for_files_tab_missing_patches_and_idle_load_state() {
+        let mut not_files = AppState::new(pr_resource_with_patch(None));
+        let mut last_refresh = Instant::now();
+        let mut started = Vec::new();
+
+        assert!(!maybe_load_file_patches_with_start(
+            &mut not_files,
+            true,
+            &mut last_refresh,
+            |_, action| {
+                started.push(action);
+                true
+            }
+        ));
+
+        let mut already_loaded = AppState::new(pr_resource_with_patch(Some("@@ patch")));
+        already_loaded.set_tab(Tab::Files);
+        assert!(!maybe_load_file_patches_with_start(
+            &mut already_loaded,
+            true,
+            &mut last_refresh,
+            |_, action| {
+                started.push(action);
+                true
+            }
+        ));
+
+        let mut still_enriching = AppState::new(pr_resource_with_patch(None));
+        still_enriching.set_tab(Tab::Files);
+        still_enriching.status_message = Some("loading additional GitHub details".into());
+        assert!(!maybe_load_file_patches_with_start(
+            &mut still_enriching,
+            true,
+            &mut last_refresh,
+            |_, action| {
+                started.push(action);
+                true
+            }
+        ));
+
+        assert!(started.is_empty());
     }
 
     #[test]

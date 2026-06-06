@@ -297,6 +297,27 @@ allows better API economy:
 9. Gradually make renderers read section state directly instead of relying on a
    fully materialized `Resource`.
 
+## Compatibility implementation slice
+
+The first production slice keeps the existing renderer-facing `Resource` model
+and introduces staged fetch outcomes:
+
+- `Base` applies the base GraphQL PR/issue result and ends the blocking loading
+  state.
+- `Enrichment` merges slower background details into the same tab only if the
+  current tab still shows the same resource.
+- `Complete` preserves the existing blocking path for full-depth loads, offline
+  fixtures, and file-patch requests.
+
+This avoids a renderer rewrite while still satisfying the most important
+latency rule: a normal PR renders base content without waiting for timeline,
+review threads, participants, check suites, or diff patch text.
+
+PR diff patch text is no longer part of default PR enrichment. It is loaded on
+demand once the Files tab is active and a file lacks patch context. The Files tab
+continues to render the existing `patch: not loaded` row until the diff request
+returns.
+
 ## Testing plan
 
 Unit tests:
