@@ -205,6 +205,7 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         chrome_area_for_spacing(rects.status, state.spacing),
         state,
         &palette,
+        state.spacing,
     );
     render_tabs(
         frame,
@@ -566,6 +567,18 @@ fn rects_for_spacing(area: Rect, spacing: SpacingMode) -> ViewRects {
             rects.content.y = rects.content.y.saturating_add(1);
             rects.content.height = rects.content.height.saturating_sub(1);
         }
+        if rects.content.height > 5 {
+            rects.header.height = rects.header.height.saturating_add(1);
+            rects.status.y = rects.status.y.saturating_add(1);
+            rects.tabs.y = rects.tabs.y.saturating_add(1);
+            rects.content.y = rects.content.y.saturating_add(1);
+            rects.content.height = rects.content.height.saturating_sub(1);
+
+            rects.status.height = rects.status.height.saturating_add(1);
+            rects.tabs.y = rects.tabs.y.saturating_add(1);
+            rects.content.y = rects.content.y.saturating_add(1);
+            rects.content.height = rects.content.height.saturating_sub(1);
+        }
         if area.height >= 32 && rects.content.height > 3 {
             rects.footer.height = rects.footer.height.saturating_add(1);
             rects.footer.y = rects.footer.y.saturating_sub(1);
@@ -683,7 +696,13 @@ fn comfortable_nav_frame_enabled(area: Rect, spacing: SpacingMode) -> bool {
     spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 3
 }
 
-fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &Palette) {
+fn render_status(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &AppState,
+    palette: &Palette,
+    spacing: SpacingMode,
+) {
     let resource = &state.resource;
     let symbols = state.symbols.symbols();
     let mut pieces = Vec::new();
@@ -731,15 +750,22 @@ fn render_status(frame: &mut Frame<'_>, area: Rect, state: &AppState, palette: &
     }
 
     let detail = status_detail_line(state, &symbols);
-    let detail_rows = usize::from(area.height > 1);
-    let summary_rows = (area.height as usize).saturating_sub(detail_rows).max(1);
-    let mut lines = fit_lines_to_height(
+    let top_padding =
+        usize::from(spacing == SpacingMode::Comfortable && area.width >= 48 && area.height >= 4);
+    let content_height = (area.height as usize).saturating_sub(top_padding);
+    let detail_rows = usize::from(content_height > 1);
+    let summary_rows = content_height.saturating_sub(detail_rows).max(1);
+    let mut lines = Vec::new();
+    for _ in 0..top_padding {
+        lines.push(Line::from(""));
+    }
+    lines.extend(fit_lines_to_height(
         wrap_styled_pieces(&pieces, area.width as usize),
         summary_rows,
         area.width as usize,
         palette,
-    );
-    if area.height > 1 {
+    ));
+    if content_height > 1 {
         lines.extend(status_detail_lines(
             detail.as_deref(),
             state.last_error.is_some(),
@@ -3754,7 +3780,7 @@ mod tests {
 
     #[test]
     fn renders_enrichment_warnings() {
-        let backend = TestBackend::new(120, 40);
+        let backend = TestBackend::new(120, 48);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
         resource.warnings = vec!["timeline unavailable: permission denied".into()];
@@ -3772,7 +3798,7 @@ mod tests {
 
     #[test]
     fn renders_review_and_merge_state_in_overview() {
-        let backend = TestBackend::new(120, 40);
+        let backend = TestBackend::new(120, 48);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
         let pr = resource.pull_request.as_mut().unwrap();
@@ -3791,7 +3817,7 @@ mod tests {
 
     #[test]
     fn renders_reaction_breakdown() {
-        let backend = TestBackend::new(120, 36);
+        let backend = TestBackend::new(120, 48);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
         resource.reactions.eyes = 1;
@@ -5082,7 +5108,7 @@ mod tests {
         let tabs = chrome_area_for_spacing(rects.tabs, state.spacing);
 
         assert_eq!(rects.tabs.height, base.tabs.height + 2);
-        assert_eq!(rects.content.y, base.content.y + 3);
+        assert_eq!(rects.content.y, base.content.y + 5);
 
         let separator = draw_cell_symbol(
             &mut state,
@@ -5340,12 +5366,21 @@ mod tests {
         let top_padding = draw_row_text(&mut state, 120, 36, 0);
         let identity_row = draw_row_text(&mut state, 120, 36, 1);
         let title_row = draw_row_text(&mut state, 120, 36, 2);
+        let title_bottom_padding = draw_row_text(&mut state, 120, 36, 3);
+        let header_separator = draw_row_text(&mut state, 120, 36, 4);
+        let status_top_padding = draw_row_text(&mut state, 120, 36, 5);
+        let status_row = draw_row_text(&mut state, 120, 36, 6);
         let bottom_padding = draw_row_text(&mut state, 120, 36, 35);
         let content = draw(&mut state, 120, 36);
 
         assert_eq!(top_padding.trim(), "");
         assert!(identity_row.contains("https://github.com/openclaw/openclaw/pull/81834"));
         assert!(title_row.contains("Readable title with balanced chrome padding"));
+        assert_eq!(title_bottom_padding.trim(), "");
+        assert!(header_separator.contains("─"));
+        assert_eq!(status_top_padding.trim(), "");
+        assert!(status_row.contains("OPEN"));
+        assert!(status_row.contains("@KLilyZ"));
         assert_eq!(bottom_padding.trim(), "");
         assert!(content.contains("Readable title with balanced chrome padding"));
     }
@@ -6040,7 +6075,7 @@ mod tests {
 
     #[test]
     fn renders_help_overlay() {
-        let backend = TestBackend::new(80, 24);
+        let backend = TestBackend::new(80, 28);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut state = AppState::new(pr_resource());
         state.show_help = true;
@@ -6387,7 +6422,7 @@ mod tests {
         resource.activity[0].thread_outdated = Some(true);
         let mut state = AppState::new(resource);
 
-        let content = draw(&mut state, 120, 40);
+        let content = draw(&mut state, 120, 48);
 
         assert!(content.contains("Threads: 1 unresolved / 1 thread, 1 outdated"));
     }

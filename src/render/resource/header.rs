@@ -509,8 +509,10 @@ pub(super) fn render_header(
     let top_padding = header_top_padding_rows(area, spacing);
     let usable_rows = content_rows.saturating_sub(top_padding);
     let header_style = header_block_style(palette);
-    let updated_in_meta =
-        (usable_rows > 0 && usable_rows < 3 && width >= 56).then_some(updated.as_str());
+    let updated_in_meta = (usable_rows > 0
+        && width >= 56
+        && (usable_rows < 3 || spacing == SpacingMode::Comfortable))
+        .then_some(updated.as_str());
     for _ in 0..top_padding {
         header.push(Line::from("").style(header_style));
     }
@@ -523,7 +525,7 @@ pub(super) fn render_header(
             palette,
         ));
     }
-    if usable_rows >= 3 {
+    if usable_rows >= 3 && updated_in_meta.is_none() {
         header.push(
             Line::from(Span::styled(
                 truncate_display(&updated, width),
