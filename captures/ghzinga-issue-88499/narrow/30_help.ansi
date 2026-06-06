@@ -19,6 +19,6 @@
   - Click visible GitHub issue or PR references to navigate.                    
   - Use the mouse wheel to scroll the current view.                             
   [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                      
-  - q: quit                                                                     
+  - q: close overlays, then ask before quitting                                 
                                                                                 
   [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                  

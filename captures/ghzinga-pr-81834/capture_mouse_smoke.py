@@ -462,6 +462,13 @@ def capture_mouse_smoke():
         quit_button = find_marker_position(SESSION, "[⏻ quit]")
         mouse_coordinates["quit"] = list(quit_button)
         send_mouse_click(SESSION, *quit_button)
+        wait_for_text(SESSION, "Quit ghzinga?")
+        wait_for_text(SESSION, "Press q again or Enter to quit. Esc cancels.")
+        write_frame(ROOT, "82_mouse_quit_confirm", frames)
+
+        quit_confirm = find_marker_position(SESSION, "[quit]")
+        mouse_coordinates["quit_confirm"] = list(quit_confirm)
+        send_mouse_click(SESSION, *quit_confirm)
         wait_for_session_exit(SESSION)
 
         manifest = {
@@ -626,6 +633,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "settings_compact",
         "load_full",
         "quit",
+        "quit_confirm",
     ):
         if target not in coordinates:
             errors.append(f"manifest missing {target} mouse coordinate")
@@ -728,6 +736,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "70_mouse_footer_help": ["Help", "Keyboard", "Mouse", "[❔ help]"],
         "80_mouse_footer_settings": ["Settings", "Width", "Spacing", "Scrollbar", "[⚙ settings]"],
         "81_mouse_settings_compact": ["Settings", "[x] compact", "saved settings to"],
+        "82_mouse_quit_confirm": ["Quit ghzinga?", "[quit]", "[cancel]"],
         "90_mouse_footer_load_full": [
             "[🏠 Overview]",
             "[⬇ full]",

@@ -308,6 +308,13 @@ def capture_mouse_smoke():
         quit_button = find_marker_position(SESSION, "[⏻ quit]")
         mouse_coordinates["quit"] = list(quit_button)
         send_mouse_click(SESSION, *quit_button)
+        wait_for_text(SESSION, "Quit ghzinga?")
+        wait_for_text(SESSION, "Press q again or Enter to quit. Esc cancels.")
+        write_frame(ROOT, "70_mouse_quit_confirm", frames)
+
+        quit_confirm = find_marker_position(SESSION, "[quit]")
+        mouse_coordinates["quit_confirm"] = list(quit_confirm)
+        send_mouse_click(SESSION, *quit_confirm)
         wait_for_session_exit(SESSION)
 
         manifest = {
@@ -434,6 +441,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "linked_issue_here",
         "refresh",
         "quit",
+        "quit_confirm",
     ):
         if target not in coordinates:
             errors.append(f"manifest missing {target} mouse coordinate")
@@ -480,6 +488,7 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             TITLE,
             "offline fixture mode: refresh skipped",
         ],
+        "70_mouse_quit_confirm": ["Quit ghzinga?", "[quit]", "[cancel]"],
     }
     frames = collect_manifest_frames(manifest.get("frames", []), manifest_path, errors)
     for name, markers in expected.items():

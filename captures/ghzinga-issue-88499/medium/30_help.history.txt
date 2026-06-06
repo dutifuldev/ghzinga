@@ -18,16 +18,16 @@
   - Click visible GitHub issue or PR references to navigate.                                                            
   - Use the mouse wheel to scroll the current view.                                                                     
   Keyboard                                                                                                              
-  - q: quit                                                                                                             
+  - q: close overlays, then ask before quitting                                                                         
   - ?: toggle this help                                                                                                 
   - s: open or close settings                                                                                           
   - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                             
   - - / + in settings: decrease or increase fixed content width                                                         
   - r: refresh now                                                                                                      
   - n: open another PR or issue in a resource tab                                                                       
+  - o: open a PR or issue in the current tab                                                                            
   - f: load full GitHub pages when a partial-depth warning is shown                                                     
   - y: copy first visible URL, or current resource URL                                                                  
-  - o: open first visible URL, or current resource                                                                      
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
   - 1-6: jump to the visible tab in that position                                                                       
   - v: reverse chronological feed order                                                                                 

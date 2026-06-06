@@ -1,5 +1,5 @@
                                                                                 
-  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 3d     [+]  
+  https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 4d     [+]  
   feat(senseaudio): add SenseAudio TTS provider                                 
   ────────────────────────────────────────────────────────────────────────────  
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
@@ -19,6 +19,6 @@
   - Click visible GitHub issue or PR references to navigate.                    
   - Use the mouse wheel to scroll the current view.                             
   Keyboard                                                                      
-  - q: quit                                                                     
+  - q: close overlays, then ask before quitting                                 
                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

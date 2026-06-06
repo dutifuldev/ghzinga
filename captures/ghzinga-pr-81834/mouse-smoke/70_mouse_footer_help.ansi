@@ -18,16 +18,16 @@
   - Click visible GitHub issue or PR references to navigate.                                                         [38;2;122;162;247m█[38;2;192;202;245m  
   - Use the mouse wheel to scroll the current view.                                                                  [38;2;122;162;247m█[38;2;192;202;245m  
   [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                           [38;2;122;162;247m█[38;2;192;202;245m  
-  - q: quit                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
+  - q: close overlays, then ask before quitting                                                                      [38;2;86;95;137m│[38;2;192;202;245m  
   - ?: toggle this help                                                                                              [38;2;86;95;137m│[38;2;192;202;245m  
   - s: open or close settings                                                                                        [38;2;86;95;137m│[38;2;192;202;245m  
   - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                          [38;2;86;95;137m│[38;2;192;202;245m  
   - - / + in settings: decrease or increase fixed content width                                                      [38;2;86;95;137m│[38;2;192;202;245m  
   - r: refresh now                                                                                                   [38;2;86;95;137m│[38;2;192;202;245m  
   - n: open another PR or issue in a resource tab                                                                    [38;2;86;95;137m│[38;2;192;202;245m  
+  - o: open a PR or issue in the current tab                                                                         [38;2;86;95;137m│[38;2;192;202;245m  
   - f: load full GitHub pages when a partial-depth warning is shown                                                  [38;2;86;95;137m│[38;2;192;202;245m  
   - y: copy first visible URL, or current resource URL                                                               [38;2;86;95;137m│[38;2;192;202;245m  
-  - o: open first visible URL, or current resource                                                                   [38;2;86;95;137m│[38;2;192;202;245m  
   - Tab / Shift-Tab / Left / Right: switch tabs                                                                      [38;2;86;95;137m│[38;2;192;202;245m  
   - 1-6: jump to the visible tab in that position                                                                    [38;2;86;95;137m│[38;2;192;202;245m  
   - v: reverse chronological feed order                                                                              [38;2;86;95;137m│[38;2;192;202;245m  

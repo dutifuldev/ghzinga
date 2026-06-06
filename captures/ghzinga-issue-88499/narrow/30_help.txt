@@ -19,6 +19,6 @@
   - Click visible GitHub issue or PR references to navigate.                    
   - Use the mouse wheel to scroll the current view.                             
   Keyboard                                                                      
-  - q: quit                                                                     
+  - q: close overlays, then ask before quitting                                 
                                                                                 
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  

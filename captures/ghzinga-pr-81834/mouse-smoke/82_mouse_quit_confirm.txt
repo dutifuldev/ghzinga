@@ -1,0 +1,36 @@
+https://github.com/openclaw/openclaw/pull/81834 [PR OPEN] updated 1d                                                 [+]
+feat(senseaudio): add SenseAudio TTS provider                                                                           
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                            
+📄 6 files changed +1.1k -22                                                                                            
+ⓘ saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml             
+[🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                    
+📝 @KLilyZ opened 1mo ago                                                                                               
+Summary                                                                                                                 
+- Problem: senseaudio bundled plugin only has ASR; no TTS.                                                              
+- Why it matters: completes the round trip in the same plugin.                                                          
+- What changed: registers a speechProvider in extensions/senseaudio/. Synthesizes via /v1/t2a_v2, lists system voices   
+via /v1/get_voice, transcodes MP3 to opus for voice-note targets.                                                       
+                                                                                                                        
+Validation                       ┌────────────────────────────────────────────────────┐                                 
+- Targeted extension tests passed│Quit ghzinga?                                       │                                 
+- Contract plugin tests passed.  │Press q again or Enter to quit. Esc cancels.        │                                 
+                                 │                                                    │                                 
+Scope                            │                                                    │                                 
+Telephony, streaming, voice cloni│[quit]  [cancel]                                    │ scope.                          
+─────────────────────────────────└────────────────────────────────────────────────────┘─────────────────────────────────
+* commit fb948c9 by @KLilyZ 1mo ago [PASS] [➕ more]                                                                    
+feat(senseaudio): add SenseAudio TTS provider                                                                           
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+💬 Comment by @github-actions 1mo ago                                                                                   
+[details]                                                                                                               
+Dependency Changes Detected                                                                                             
+This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
+                                                                                                                        
+Changed files:                                                                                                          
+- extensions/senseaudio/package.json                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+💬 Comment by @osolmaz 1mo ago                                                                                          
+extensions/senseaudio/tts.ts:99                                                                                         
+saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml               
+[🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                              
