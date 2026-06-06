@@ -4,33 +4,33 @@
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
   [1m[38;2;26;27;38m[48;2;158;206;106m✅ OPEN[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m👤 @KLilyZ[38;2;192;202;245m  [38;2;122;162;247mfeat/senseaudio-tts -> main[38;2;192;202;245m  [1m[38;2;26;27;38m[48;2;158;206;106m✅ checks PASS (80 pass, 0 pending, 0 fail)[0m[38;2;192;202;245m[48;2;26;27;38m                         
   [1m[38;2;125;207;255m📄 14 files changed [38;2;158;206;106m+1.1k[38;2;125;207;255m [38;2;247;118;142m-22[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                         
-  [38;2;169;177;214m🔁 Refresh: 14:24:16 changed ✦ Changed: metadata, warnings, checks[38;2;192;202;245m                                                    
+  [38;2;169;177;214m🔁 Refresh: 14:39:26 changed ✦ Changed: metadata, warnings, checks[38;2;192;202;245m                                                    
   [38;2;169;177;214m 🏠 Overview [1m[38;2;26;27;38m[48;2;122;162;247m[💬 Activity][0m[38;2;169;177;214m[48;2;26;27;38m 🧱 Commits  ✅ Checks  📄 Files  🔗 Links [38;2;192;202;245m                                                 
                                                                                                                         
   [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
+  Changed files:                                                                                                     [38;2;86;95;137m│[38;2;192;202;245m  
+  - extensions/senseaudio/package.json                                                                               [38;2;86;95;137m│[38;2;192;202;245m  
+  [1m[38;2;26;27;38m[48;2;122;162;247m[➕ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
+                                                                                                                     [38;2;122;162;247m█[38;2;192;202;245m  
+  Comment by @KLilyZ 3w ago                                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
+  meta: association NONE                                                                                             [38;2;122;162;247m█[38;2;192;202;245m  
+  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
+  Codex review: needs changes before merge.                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
+                                                                                                                     [38;2;86;95;137m│[38;2;192;202;245m  
+  Summary The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, including TTS and voice-list HTT[38;2;86;95;137m│[38;2;192;202;245m  
   helpers, voice-note opus transcoding, registration metadata, docs, inventory updates, and tests.                   [38;2;86;95;137m│[38;2;192;202;245m  
                                                                                                                      [38;2;86;95;137m│[38;2;192;202;245m  
   Reproducibility: not applicable. for the requested feature because current main simply lacks SenseAudio TTS. The   [38;2;86;95;137m│[38;2;192;202;245m  
   remaining docs bug is source-reproducible from the PR docs line 95 and the current CLI contract requiring --provide[38;2;86;95;137m│[38;2;192;202;245m  
   <id>.                                                                                                              [38;2;86;95;137m│[38;2;192;202;245m  
-  [1m[38;2;26;27;38m[48;2;122;162;247m[➕ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
-                                                                                                                     [38;2;122;162;247m█[38;2;192;202;245m  
-  Comment by @KLilyZ 2w ago                                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
-  meta: association NONE                                                                                             [38;2;122;162;247m█[38;2;192;202;245m  
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;122;162;247m█[38;2;192;202;245m  
+  [1m[38;2;26;27;38m[48;2;122;162;247m[➕ more][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
+                                                                                                                     [38;2;86;95;137m│[38;2;192;202;245m  
+  Comment by @KLilyZ 2w ago                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
+  meta: association NONE                                                                                             [38;2;86;95;137m│[38;2;192;202;245m  
+  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
   Hi @hydro13, gentle ping when you have a moment 🙏 — all bot checks have cleared (proof: sufficient, no            [38;2;86;95;137m│[38;2;192;202;245m  
   contributor-facing blockers left) and the PR has been waiting since the 15th. Happy to address any feedback. No    [38;2;86;95;137m│[38;2;192;202;245m  
   rush, just flagging it in case it slipped past the queue.                                                          [38;2;86;95;137m│[38;2;192;202;245m  
-                                                                                                                     [38;2;86;95;137m│[38;2;192;202;245m  
-  Comment by @RomneyDa 1w ago                                                                                        [38;2;86;95;137m│[38;2;192;202;245m  
-  meta: association MEMBER                                                                                           [38;2;86;95;137m│[38;2;192;202;245m  
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
-  <!-- dependency-guard-rebase-needed-backfill -->                                                                   [38;2;86;95;137m│[38;2;192;202;245m  
-  Heads up: this PR needs to be updated against current main before the new required Dependency Guard check can pass.[38;2;86;95;137m│[38;2;192;202;245m  
-                                                                                                                     [38;2;86;95;137m│[38;2;192;202;245m  
-  Comment by @clawsweeper 1w ago                   [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                 [38;2;86;95;137m│[38;2;192;202;245m  
-  meta: association CONTRIBUTOR, edited                                                                              [38;2;86;95;137m│[38;2;192;202;245m  
-  [1m[38;2;122;162;247m[details][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                          [38;2;86;95;137m│[38;2;192;202;245m  
                                                                                                                         
   [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[➕  expand ][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⬇ full][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                   
                                                                                                                         

@@ -22,11 +22,11 @@
   Adding a fresh macOS/Slack data point: the same previous_response_id 404 appears after the second message when        
   store=false is used through the openai-responses provider. Removing the previous response reference makes the next    
   request succeed.                                                                                                      
-    [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                                                                   
+                                                                                                                        
   Comment by @osolmaz 1d ago                                                                                            
   The fix should preserve normal stored-response continuation while disabling replay through missing server-side        
   response IDs for store=false sessions.                                                                                
-   [39m[49m [38;2;192;202;245m[48;2;26;27;38m                                                                                                                    
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         
