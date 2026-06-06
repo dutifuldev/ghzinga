@@ -1,36 +1,36 @@
-[38;2;192;202;245m[48;2;26;27;38m                                                                                                                        
-  [1;4m[38;2;122;162;247m[48;2;36;40;59mhttps://github.com/openclaw/openclaw/issues/88499[0m[38;2;192;202;245m[48;2;36;40;59m [1m[38;2;247;118;142m[Issue CLOSED][0m[38;2;192;202;245m[48;2;36;40;59m [38;2;86;95;137mupdated 1d[38;2;192;202;245m[48;2;26;27;38m                                      [1m[38;2;26;27;38m[48;2;122;162;247m[+][0m[38;2;192;202;245m[48;2;26;27;38m  
-  [1m[48;2;36;40;59mopenai-responses provider: 404 on previous_response_id when store=false (default)[0m[38;2;192;202;245m[48;2;26;27;38m                                     
-  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
-  [1m[38;2;26;27;38m[48;2;247;118;142m❌ CLOSED[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m👤 @xneone[38;2;192;202;245m                                                                                                 
-                                                                                                                        
-                                                                                                                        
-  [38;2;169;177;214m 🏠 Overview  💬 Activity [1m[38;2;26;27;38m[48;2;122;162;247m[🔗 Links][0m[38;2;192;202;245m[48;2;26;27;38m                                                                                  
-                                                                                                                        
-  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m  
-                                                                                                                        
-  [1m[38;2;122;162;247mHelp[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                  
-                                                                                                                        
-  [1m[38;2;122;162;247mMouse[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                                 
-  - Plus opens resources; resource tabs switch or close them.                                                           
-  - Click tabs to switch sections.                                                                                      
-  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.     
-  - Click visible GitHub issue or PR references to navigate.                                                            
-  - Use the mouse wheel to scroll the current view.                                                                     
-  [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m                                                                                                              
-  - q: close overlays, then ask before quitting                                                                         
-  - ?: toggle this help                                                                                                 
-  - s: open or close settings                                                                                           
-  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                             
-  - - / + in settings: decrease or increase fixed content width                                                         
-  - r: refresh now                                                                                                      
-  - n: open another PR or issue in a resource tab                                                                       
-  - o: open a PR or issue in the current tab                                                                            
-  - x: close the current resource tab                                                                                   
-  - f: load full GitHub pages when a partial-depth warning is shown                                                     
-  - y: copy first visible URL, or current resource URL                                                                  
-  - Tab / Shift-Tab / Left / Right: switch tabs                                                                         
-  - 1-6: jump to the visible tab in that position                                                                       
-                                                                                                                        
-  [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m                                                                          
-                                                                                                                        
+[38;2;192;202;245m[48;2;26;27;38m
+  [1;4m[38;2;122;162;247m[48;2;36;40;59mhttps://github.com/openclaw/openclaw/issues/88499[0m[38;2;192;202;245m[48;2;36;40;59m [1m[38;2;247;118;142m[Issue CLOSED][0m[38;2;192;202;245m[48;2;36;40;59m [38;2;86;95;137mupdated 1d[38;2;192;202;245m[48;2;26;27;38m                                      [1m[38;2;26;27;38m[48;2;122;162;247m[+][0m[38;2;192;202;245m[48;2;26;27;38m
+  [1m[48;2;36;40;59mopenai-responses provider: 404 on previous_response_id when store=false (default)[0m[38;2;192;202;245m[48;2;26;27;38m
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m
+  [1m[38;2;26;27;38m[48;2;247;118;142m❌ CLOSED[0m[38;2;192;202;245m[48;2;26;27;38m  [38;2;169;177;214m👤 @xneone[38;2;192;202;245m
+
+
+  [38;2;169;177;214m 🏠 Overview  💬 Activity [1m[38;2;26;27;38m[48;2;122;162;247m[🔗 Links][0m[38;2;192;202;245m[48;2;26;27;38m
+
+  [38;2;65;72;104m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[38;2;192;202;245m
+
+  [1m[38;2;122;162;247mHelp[0m[38;2;192;202;245m[48;2;26;27;38m
+
+  [1m[38;2;122;162;247mMouse[0m[38;2;192;202;245m[48;2;26;27;38m
+  - Plus opens resources; resource tabs switch or close them.
+  - Click tabs to switch sections.
+  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Use the mouse wheel to scroll the current view.
+  [1m[38;2;122;162;247mKeyboard[0m[38;2;192;202;245m[48;2;26;27;38m
+  - q: close overlays, then ask before quitting
+  - ?: toggle this help
+  - s: open or close settings
+  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar
+  - - / + in settings: decrease or increase fixed content width
+  - r: refresh now
+  - n: open another PR or issue in a resource tab
+  - o: open a PR or issue in the current tab
+  - x: close the current resource tab
+  - f: load full GitHub pages when a partial-depth warning is shown
+  - y: copy first visible URL, or current resource URL
+  - Left / Right or h / l: switch Overview, Activity, and other content tabs
+  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
+
+  [1m[38;2;26;27;38m[48;2;122;162;247m[🔄 refresh][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⚙ settings][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[❔ help][0m[38;2;192;202;245m[48;2;26;27;38m [1m[38;2;26;27;38m[48;2;122;162;247m[⏻ quit][0m[38;2;192;202;245m[48;2;26;27;38m
+

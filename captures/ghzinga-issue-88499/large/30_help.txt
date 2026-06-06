@@ -1,50 +1,50 @@
-                                                                                                                                                                
-  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                              [+]  
-  openai-responses provider: 404 on previous_response_id when store=false (default)                                                                             
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  ❌ CLOSED  👤 @xneone                                                                                                                                         
-                                                                                                                                                                
-                                                                                                                                                                
-   🏠 Overview  💬 Activity [🔗 Links]                                                                                                                          
-                                                                                                                                                                
-  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-                                                                                                                                                                
-  Help                                                                                                                                                          
-                                                                                                                                                                
-  Mouse                                                                                                                                                         
-  - Plus opens resources; resource tabs switch or close them.                                                                                                   
-  - Click tabs to switch sections.                                                                                                                              
-  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.                                             
-  - Click visible GitHub issue or PR references to navigate.                                                                                                    
-  - Use the mouse wheel to scroll the current view.                                                                                                             
-  Keyboard                                                                                                                                                      
-  - q: close overlays, then ask before quitting                                                                                                                 
-  - ?: toggle this help                                                                                                                                         
-  - s: open or close settings                                                                                                                                   
-  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar                                                                     
-  - - / + in settings: decrease or increase fixed content width                                                                                                 
-  - r: refresh now                                                                                                                                              
-  - n: open another PR or issue in a resource tab                                                                                                               
-  - o: open a PR or issue in the current tab                                                                                                                    
-  - x: close the current resource tab                                                                                                                           
-  - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
-  - y: copy first visible URL, or current resource URL                                                                                                          
-  - Tab / Shift-Tab / Left / Right: switch tabs                                                                                                                 
-  - 1-6: jump to the visible tab in that position                                                                                                               
-  - v: reverse chronological feed order                                                                                                                         
-  - a: expand or collapse all rows in the current tab                                                                                                           
-  - Up / Down / PageUp / PageDown / Home / End: scroll                                                                                                          
-  - e: expand or collapse the main body                                                                                                                         
-  - Backspace: return after following a link                                                                                                                    
-                                                                                                                                                                
-  Refresh                                                                                                                                                       
-  - Live mode refreshes automatically on the configured interval.                                                                                               
-  - The status band shows the last refresh time and whether content changed.                                                                                    
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                                                                                                  
-                                                                                                                                                                
+
+  https://github.com/openclaw/openclaw/issues/88499 [Issue CLOSED] updated 1d                                                                              [+]
+  openai-responses provider: 404 on previous_response_id when store=false (default)
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ❌ CLOSED  👤 @xneone
+
+
+   🏠 Overview  💬 Activity [🔗 Links]
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Help
+
+  Mouse
+  - Plus opens resources; resource tabs switch or close them.
+  - Click tabs to switch sections.
+  - Click [➕ more] / [➖ less] or [➕ expand ] / [➖ collapse] to expand or collapse long text, checks, and files.
+  - Click visible GitHub issue or PR references to navigate.
+  - Use the mouse wheel to scroll the current view.
+  Keyboard
+  - q: close overlays, then ask before quitting
+  - ?: toggle this help
+  - s: open or close settings
+  - t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar
+  - - / + in settings: decrease or increase fixed content width
+  - r: refresh now
+  - n: open another PR or issue in a resource tab
+  - o: open a PR or issue in the current tab
+  - x: close the current resource tab
+  - f: load full GitHub pages when a partial-depth warning is shown
+  - y: copy first visible URL, or current resource URL
+  - Left / Right or h / l: switch Overview, Activity, and other content tabs
+  - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs
+  - 1-6: jump to the visible tab in that position
+  - v: reverse chronological feed order
+  - a: expand or collapse all rows in the current tab
+  - Up / Down or k / j, PageUp / PageDown / Home / End: scroll
+  - e: expand or collapse the main body
+  - Backspace: return after following a link
+
+  Refresh
+  - Live mode refreshes automatically on the configured interval.
+  - The status band shows the last refresh time and whether content changed.
+
+
+
+
+
+  [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]
+
