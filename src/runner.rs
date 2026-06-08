@@ -55,7 +55,7 @@ async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32
 }
 
 async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
-    if args.iter().any(|value| is_help_arg(value)) {
+    if has_command_help_arg(args) {
         print_open_usage();
         return Ok(0);
     }
@@ -123,7 +123,7 @@ async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Resul
 }
 
 async fn run_set_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
-    if args.iter().any(|value| is_help_arg(value)) {
+    if has_command_help_arg(args) {
         print_set_usage();
         return Ok(0);
     }
@@ -243,6 +243,10 @@ fn parse_resource_args(args: &[String]) -> anyhow::Result<Vec<ResourceId>> {
 
 fn is_help_arg(value: &str) -> bool {
     matches!(value, "help" | "--help" | "-h")
+}
+
+fn has_command_help_arg(args: &[String]) -> bool {
+    args.len() == 1 && is_help_arg(&args[0])
 }
 
 fn print_sessions_usage() {
@@ -1218,25 +1222,48 @@ fn maybe_refresh_loading_active_resource(
     fetch_tx: &UnboundedSender<FetchOutcome>,
     last_refresh: &mut Instant,
 ) -> bool {
-    if !is_loading_resource(&state.resource) || is_empty_launch_resource(&state.resource) {
-        return false;
-    }
     if state.loading_message().is_some() {
-        return false;
-    }
-    if state.last_error.is_some() {
         return false;
     }
     if !(fetch_source.is_live_github() || fetch_source.is_offline_fixture()) {
         return false;
     }
-    let id = state.resource.id.clone();
-    if start_background_fetch(state, FetchAction::Refresh { id }, fetch_source, fetch_tx) {
+    let Some((tab_id, id)) = loading_resource_refresh_candidate(state) else {
+        return false;
+    };
+    let mut started = false;
+    state.apply_to_resource_tab(tab_id, |state| {
+        started = start_background_fetch(
+            state,
+            FetchAction::Refresh { id },
+            fetch_source.clone(),
+            fetch_tx,
+        );
+    });
+    if started {
         *last_refresh = Instant::now();
-        true
-    } else {
-        false
     }
+    started
+}
+
+fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, ResourceId)> {
+    if is_refreshable_loading_resource(&state.resource, state.last_error.as_deref()) {
+        return Some((state.active_resource_tab_id(), state.resource.id.clone()));
+    }
+    let active_tab_id = state.active_resource_tab_id();
+    state
+        .resource_tabs
+        .iter()
+        .filter(|tab| tab.id != active_tab_id)
+        .find(|tab| is_refreshable_loading_resource(&tab.resource, tab.last_error.as_deref()))
+        .map(|tab| (tab.id, tab.resource.id.clone()))
+}
+
+fn is_refreshable_loading_resource(
+    resource: &crate::domain::Resource,
+    last_error: Option<&str>,
+) -> bool {
+    is_loading_resource(resource) && !is_empty_launch_resource(resource) && last_error.is_none()
 }
 
 fn maybe_load_file_patches_for_active_files_tab(
@@ -1556,7 +1583,7 @@ mod tests {
 
     use super::{
         apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
-        handle_control_open, handle_intent, maybe_auto_refresh_with_start,
+        handle_control_open, handle_intent, has_command_help_arg, maybe_auto_refresh_with_start,
         maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
         navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
         resource_count_label, save_open_commands_to_session, session_state_persistable,
@@ -1896,6 +1923,16 @@ mod tests {
     }
 
     #[test]
+    fn control_help_parser_does_not_consume_session_name() {
+        assert!(has_command_help_arg(&["--help".to_string()]));
+        assert!(!has_command_help_arg(&[
+            "--session".to_string(),
+            "help".to_string(),
+            "owner/repo#2".to_string(),
+        ]));
+    }
+
+    #[test]
     fn session_resource_count_label_uses_singular_and_plural() {
         assert_eq!(resource_count_label(1), "1 resource");
         assert_eq!(resource_count_label(2), "2 resources");
@@ -1976,6 +2013,80 @@ mod tests {
             Some("still loading: refreshing owner/repo#1 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn pending_loading_tabs_refresh_after_active_placeholder_loads() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Second issue");
+        let third = issue_resource(3, "Third issue");
+        let mut state = AppState::new(initial.clone());
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+        let fetch_source = FetchSource::OfflineFixtures(OfflineFixtureSource::new([
+            initial.clone(),
+            second.clone(),
+            third.clone(),
+        ]));
+
+        assert!(
+            handle_control_open(
+                &mut state,
+                second.id.clone(),
+                fetch_source.clone(),
+                &fetch_tx,
+                None,
+                &mut last_refresh,
+            )
+            .ok
+        );
+        assert!(
+            handle_control_open(
+                &mut state,
+                third.id.clone(),
+                fetch_source.clone(),
+                &fetch_tx,
+                None,
+                &mut last_refresh,
+            )
+            .ok
+        );
+        assert_eq!(state.resource.id.canonical_name(), "owner/repo#3");
+        assert_eq!(state.resource_tabs.len(), 3);
+
+        state.finish_loading();
+        state.clear_transient_loading_status_messages();
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#3 from GitHub")
+        );
+
+        for _ in 0..10 {
+            if apply_completed_fetches(&mut state, &mut fetch_rx) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(state.resource.title, "Third issue");
+
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source,
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+        assert_eq!(state.resource.id.canonical_name(), "owner/repo#3");
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#2 from GitHub")
+        );
     }
 
     #[test]
