@@ -1017,6 +1017,7 @@ fn event_to_app_event(event: Event) -> Option<AppEvent> {
     match event {
         Event::Key(key) => Some(AppEvent::Key(key)),
         Event::Mouse(mouse) => Some(AppEvent::Mouse(mouse)),
+        Event::Resize(_, _) => Some(AppEvent::Tick),
         _ => None,
     }
 }
