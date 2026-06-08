@@ -1247,7 +1247,11 @@ fn maybe_refresh_loading_active_resource(
 }
 
 fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, ResourceId)> {
-    if is_refreshable_loading_resource(&state.resource, state.last_error.as_deref()) {
+    if is_refreshable_loading_resource(
+        &state.resource,
+        state.last_error.as_deref(),
+        state.status_message.as_deref(),
+    ) {
         return Some((state.active_resource_tab_id(), state.resource.id.clone()));
     }
     let active_tab_id = state.active_resource_tab_id();
@@ -1255,15 +1259,28 @@ fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, Resource
         .resource_tabs
         .iter()
         .filter(|tab| tab.id != active_tab_id)
-        .find(|tab| is_refreshable_loading_resource(&tab.resource, tab.last_error.as_deref()))
+        .find(|tab| {
+            is_refreshable_loading_resource(
+                &tab.resource,
+                tab.last_error.as_deref(),
+                tab.status_message.as_deref(),
+            )
+        })
         .map(|tab| (tab.id, tab.resource.id.clone()))
 }
 
 fn is_refreshable_loading_resource(
     resource: &crate::domain::Resource,
     last_error: Option<&str>,
+    status_message: Option<&str>,
 ) -> bool {
-    is_loading_resource(resource) && !is_empty_launch_resource(resource) && last_error.is_none()
+    !is_empty_launch_resource(resource)
+        && last_error.is_none()
+        && (is_loading_resource(resource) || status_message.is_some_and(is_deferred_refresh_status))
+}
+
+fn is_deferred_refresh_status(message: &str) -> bool {
+    message.starts_with("still loading: ")
 }
 
 fn maybe_load_file_patches_for_active_files_tab(
@@ -2013,6 +2030,49 @@ mod tests {
             Some("still loading: refreshing owner/repo#1 from GitHub")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn cached_control_open_refreshes_after_blocking_load_finishes() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Cached issue");
+        let mut state = AppState::new(initial.clone());
+        state.open_resource_in_tab(second.clone());
+        state.switch_resource_tab(0);
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+        let fetch_source =
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([initial, second.clone()]));
+
+        let reply = handle_control_open(
+            &mut state,
+            second.id.clone(),
+            fetch_source.clone(),
+            &fetch_tx,
+            None,
+            &mut last_refresh,
+        );
+
+        assert!(reply.ok);
+        assert_eq!(state.resource.title, "Cached issue");
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
+
+        state.finish_loading();
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source,
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#2 from GitHub")
+        );
     }
 
     #[tokio::test]
