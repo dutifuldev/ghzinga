@@ -712,10 +712,15 @@ async fn run_tui(
             &fetch_tx,
         );
         let app_events = read_pending_app_events()?;
-        if !app_events.is_empty() {
+        if app_events.requires_pre_event_redraw {
+            let scrollbar_was_fading = should_advance_scrollbar_fade(state);
+            terminal.draw(|frame| render_app(frame, state))?;
+            needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
+        }
+        if !app_events.events.is_empty() {
             needs_redraw = true;
         }
-        for app_event in app_events {
+        for app_event in app_events.events {
             let intent = apply_event(state, app_event);
             if handle_intent(
                 state,
@@ -1033,9 +1038,22 @@ enum OpenResourceMode {
     ReplaceCurrent,
 }
 
-fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
+struct PendingAppEvents {
+    events: Vec<AppEvent>,
+    requires_pre_event_redraw: bool,
+}
+
+struct PendingAppEvent {
+    event: AppEvent,
+    requires_pre_event_redraw: bool,
+}
+
+fn read_pending_app_events() -> anyhow::Result<PendingAppEvents> {
     if !event::poll(EVENT_POLL_TIMEOUT)? {
-        return Ok(Vec::new());
+        return Ok(PendingAppEvents {
+            events: Vec::new(),
+            requires_pre_event_redraw: false,
+        });
     }
 
     let mut events = Vec::with_capacity(MAX_PENDING_EVENTS_PER_FRAME);
@@ -1043,14 +1061,35 @@ fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
     while events.len() < MAX_PENDING_EVENTS_PER_FRAME && event::poll(Duration::ZERO)? {
         events.push(event_to_app_event(event::read()?));
     }
-    Ok(events.into_iter().flatten().collect())
+    let mut requires_pre_event_redraw = false;
+    let events = events
+        .into_iter()
+        .flatten()
+        .map(|pending| {
+            requires_pre_event_redraw |= pending.requires_pre_event_redraw;
+            pending.event
+        })
+        .collect();
+    Ok(PendingAppEvents {
+        events,
+        requires_pre_event_redraw,
+    })
 }
 
-fn event_to_app_event(event: Event) -> Option<AppEvent> {
+fn event_to_app_event(event: Event) -> Option<PendingAppEvent> {
     match event {
-        Event::Key(key) => Some(AppEvent::Key(key)),
-        Event::Mouse(mouse) => Some(AppEvent::Mouse(mouse)),
-        Event::Resize(_, _) => Some(AppEvent::Tick),
+        Event::Key(key) => Some(PendingAppEvent {
+            event: AppEvent::Key(key),
+            requires_pre_event_redraw: false,
+        }),
+        Event::Mouse(mouse) => Some(PendingAppEvent {
+            event: AppEvent::Mouse(mouse),
+            requires_pre_event_redraw: false,
+        }),
+        Event::Resize(_, _) => Some(PendingAppEvent {
+            event: AppEvent::Tick,
+            requires_pre_event_redraw: true,
+        }),
         _ => None,
     }
 }
@@ -1645,7 +1684,7 @@ mod tests {
     };
 
     use crate::{
-        app::{loading_resource_placeholder, AppIntent, AppState, Tab},
+        app::{loading_resource_placeholder, AppEvent, AppIntent, AppState, Tab},
         domain::{
             Resource, ResourceId, ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
             FULL_DEPTH_WARNING_HINT,
@@ -1664,13 +1703,13 @@ mod tests {
 
     use super::{
         apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
-        handle_control_open, handle_intent, has_command_help_arg, maybe_auto_refresh_with_start,
-        maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
-        navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
-        resource_count_label, save_open_commands_to_session, session_state_persistable,
-        should_advance_loading_frame, should_advance_scrollbar_fade,
-        should_redraw_after_scrollbar_frame, should_replace_empty_launch_tab, url_open_command,
-        ClipboardPlatform,
+        event_to_app_event, handle_control_open, handle_intent, has_command_help_arg,
+        maybe_auto_refresh_with_start, maybe_load_file_patches_with_start,
+        maybe_refresh_loading_active_resource, navigate_back, navigate_to_resource,
+        parse_resource_args, prepare_restored_initial_fetch, resource_count_label,
+        save_open_commands_to_session, session_state_persistable, should_advance_loading_frame,
+        should_advance_scrollbar_fade, should_redraw_after_scrollbar_frame,
+        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -2016,6 +2055,14 @@ mod tests {
         assert!(!should_advance_scrollbar_fade(&state));
         assert!(should_redraw_after_scrollbar_frame(true, &state));
         assert!(!should_redraw_after_scrollbar_frame(false, &state));
+    }
+
+    #[test]
+    fn resize_event_requires_pre_event_redraw() {
+        let pending = event_to_app_event(crossterm::event::Event::Resize(120, 40)).unwrap();
+
+        assert!(matches!(pending.event, AppEvent::Tick));
+        assert!(pending.requires_pre_event_redraw);
     }
 
     #[test]
