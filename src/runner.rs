@@ -1274,9 +1274,10 @@ fn is_refreshable_loading_resource(
     last_error: Option<&str>,
     refresh_requested: bool,
 ) -> bool {
-    !is_empty_launch_resource(resource)
-        && last_error.is_none()
-        && (is_loading_resource(resource) || refresh_requested)
+    if is_empty_launch_resource(resource) {
+        return false;
+    }
+    refresh_requested || (last_error.is_none() && is_loading_resource(resource))
 }
 
 fn maybe_load_file_patches_for_active_files_tab(
@@ -1586,7 +1587,10 @@ mod tests {
             ChangedFile, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
             FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
         },
-        fetch::{apply_completed_fetches, FetchAction, FetchSource, OfflineFixtureSource},
+        fetch::{
+            apply_completed_fetches, start_background_fetch, FetchAction, FetchSource,
+            OfflineFixtureSource,
+        },
         github::api::GithubGateway,
         session::{
             self, BlockIdSnapshot, LaunchContext, LaunchSnapshot, ResourceTabSnapshot,
@@ -2076,6 +2080,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cached_control_open_with_stale_error_refreshes_after_blocking_load_finishes() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Cached issue");
+        let mut state = AppState::new(initial.clone());
+        state.open_resource_in_tab(second.clone());
+        state.last_error = Some("older error".into());
+        state.switch_resource_tab(0);
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+        let fetch_source =
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([initial, second.clone()]));
+
+        let reply = handle_control_open(
+            &mut state,
+            second.id.clone(),
+            fetch_source.clone(),
+            &fetch_tx,
+            None,
+            &mut last_refresh,
+        );
+
+        assert!(reply.ok);
+        assert_eq!(state.last_error.as_deref(), Some("older error"));
+        assert!(state.refresh_requested);
+        assert!(fetch_rx.try_recv().is_err());
+
+        state.finish_loading();
+        state.clear_transient_loading_status_messages();
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source,
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#2 from GitHub")
+        );
+    }
+
+    #[tokio::test]
     async fn pending_loading_tabs_refresh_after_active_placeholder_loads() {
         let initial = issue_resource(1, "Initial issue");
         let second = issue_resource(2, "Second issue");
@@ -2363,6 +2409,43 @@ mod tests {
 
         assert!(fetch_rx.try_recv().is_err());
         assert_eq!(state.last_error.as_deref(), Some("network down"));
+        assert!(state.loading.is_none());
+    }
+
+    #[test]
+    fn blocked_non_refresh_fetch_does_not_queue_plain_refresh() {
+        let mut resource = issue_resource(1, "Initial issue");
+        resource.warnings.push(format!(
+            "normal API depth shows the first 100 only for comments; {FULL_DEPTH_WARNING_HINT} for exhaustive pagination"
+        ));
+        let mut state = AppState::new(resource.clone());
+        state.begin_loading(resource.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        assert!(!start_background_fetch(
+            &mut state,
+            FetchAction::LoadFull {
+                id: resource.id.clone(),
+            },
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([resource])),
+            &fetch_tx,
+        ));
+        assert!(!state.refresh_requested);
+
+        state.finish_loading();
+        state.clear_transient_loading_status_messages();
+        assert!(!maybe_refresh_loading_active_resource(
+            &mut state,
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([issue_resource(
+                1,
+                "Fetched issue"
+            )])),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+
+        assert!(fetch_rx.try_recv().is_err());
         assert!(state.loading.is_none());
     }
 
