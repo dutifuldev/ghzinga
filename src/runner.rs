@@ -754,12 +754,24 @@ async fn run_tui(
 }
 
 fn should_advance_loading_frame(state: &AppState) -> bool {
-    state.loading_message().is_some()
-        || state.file_patch_loading_message().is_some()
-        || state
-            .resource_tabs
-            .iter()
-            .any(|tab| is_loading_resource(&tab.resource))
+    if state.loading_message().is_some() || state.file_patch_loading_message().is_some() {
+        return true;
+    }
+    if is_animating_loading_resource(&state.resource, state.last_error.as_deref()) {
+        return true;
+    }
+    let active_tab_id = state.active_resource_tab_id();
+    state.resource_tabs.iter().any(|tab| {
+        tab.id != active_tab_id
+            && is_animating_loading_resource(&tab.resource, tab.last_error.as_deref())
+    })
+}
+
+fn is_animating_loading_resource(
+    resource: &crate::domain::Resource,
+    last_error: Option<&str>,
+) -> bool {
+    last_error.is_none() && is_loading_resource(resource)
 }
 
 fn should_advance_scrollbar_fade(state: &AppState) -> bool {
@@ -1973,6 +1985,16 @@ mod tests {
         );
 
         assert!(should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn failed_loading_resource_does_not_advance_loading_frame() {
+        let mut state = AppState::new(loading_resource_placeholder(
+            ResourceId::parse("owner/repo#1").unwrap(),
+        ));
+        state.last_error = Some("network down".into());
+
+        assert!(!should_advance_loading_frame(&state));
     }
 
     #[test]
