@@ -688,7 +688,7 @@ async fn run_tui(
         }
         if needs_redraw || state_changed {
             terminal.draw(|frame| render_app(frame, state))?;
-            needs_redraw = should_finish_scrollbar_fade_redraw(scrollbar_was_fading, state);
+            needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
         }
         if state.should_quit {
             if let Some(runtime) = &mut session_runtime {
@@ -766,8 +766,8 @@ fn should_advance_scrollbar_fade(state: &AppState) -> bool {
     state.scrollbar_visible_frames > 0
 }
 
-fn should_finish_scrollbar_fade_redraw(scrollbar_was_fading: bool, state: &AppState) -> bool {
-    scrollbar_was_fading && !should_advance_scrollbar_fade(state)
+fn should_redraw_after_scrollbar_frame(scrollbar_was_fading: bool, state: &AppState) -> bool {
+    scrollbar_was_fading || should_advance_scrollbar_fade(state)
 }
 
 fn handle_pending_control_requests(
@@ -1657,7 +1657,7 @@ mod tests {
         navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
         resource_count_label, save_open_commands_to_session, session_state_persistable,
         should_advance_loading_frame, should_advance_scrollbar_fade,
-        should_finish_scrollbar_fade_redraw, should_replace_empty_launch_tab, url_open_command,
+        should_redraw_after_scrollbar_frame, should_replace_empty_launch_tab, url_open_command,
         ClipboardPlatform,
     };
 
@@ -1985,14 +1985,15 @@ mod tests {
         state.scroll_down(1);
 
         assert!(should_advance_scrollbar_fade(&state));
+        assert!(should_redraw_after_scrollbar_frame(false, &state));
 
         while should_advance_scrollbar_fade(&state) {
             state.advance_scrollbar_visibility();
         }
 
         assert!(!should_advance_scrollbar_fade(&state));
-        assert!(should_finish_scrollbar_fade_redraw(true, &state));
-        assert!(!should_finish_scrollbar_fade_redraw(false, &state));
+        assert!(should_redraw_after_scrollbar_frame(true, &state));
+        assert!(!should_redraw_after_scrollbar_frame(false, &state));
     }
 
     #[test]
