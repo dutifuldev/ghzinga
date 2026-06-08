@@ -1206,6 +1206,10 @@ pub(crate) fn maybe_auto_refresh_with_start(
     ) {
         return false;
     }
+    if state.loading_message().is_some() {
+        *last_refresh = now;
+        return false;
+    }
 
     let id = state.resource.id.clone();
     *last_refresh = now;
@@ -2526,7 +2530,7 @@ mod tests {
     }
 
     #[test]
-    fn automatic_refresh_throttles_due_attempt_while_fetch_is_in_progress() {
+    fn automatic_refresh_skips_due_attempt_while_fetch_is_in_progress() {
         let initial = issue_resource(1, "Initial issue");
         let mut state = AppState::new(initial);
         state.begin_loading(
@@ -2545,21 +2549,16 @@ mod tests {
             now,
             |state, _| {
                 attempts += 1;
-                state.status_message = Some(format!(
-                    "still loading: {}",
-                    state.loading_message().unwrap()
-                ));
+                state.refresh_requested = true;
                 false
             },
         );
 
         assert!(!refreshed);
-        assert_eq!(attempts, 1);
+        assert_eq!(attempts, 0);
         assert_eq!(last_refresh, now);
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("still loading: refreshing owner/repo#1 from GitHub")
-        );
+        assert!(!state.refresh_requested);
+        assert!(state.status_message.is_none());
 
         let next_frame = now + Duration::from_millis(250);
         let refreshed = maybe_auto_refresh_with_start(
@@ -2575,7 +2574,7 @@ mod tests {
         );
 
         assert!(!refreshed);
-        assert_eq!(attempts, 1);
+        assert_eq!(attempts, 0);
         assert_eq!(last_refresh, now);
     }
 
