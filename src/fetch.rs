@@ -216,7 +216,10 @@ pub(crate) fn start_background_fetch(
         return true;
     }
 
-    if let Some(message) = state.loading_message() {
+    if let Some(message) = state.loading_message().map(str::to_string) {
+        if matches!(action, FetchAction::Refresh { .. }) {
+            state.refresh_requested = true;
+        }
         state.status_message = Some(format!("still loading: {message}"));
         return false;
     }
