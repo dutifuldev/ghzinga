@@ -682,9 +682,13 @@ async fn run_tui(
             state.advance_loading_frame();
             state_changed = true;
         }
+        let scrollbar_was_fading = should_advance_scrollbar_fade(state);
+        if scrollbar_was_fading {
+            state_changed = true;
+        }
         if needs_redraw || state_changed {
             terminal.draw(|frame| render_app(frame, state))?;
-            needs_redraw = false;
+            needs_redraw = should_finish_scrollbar_fade_redraw(scrollbar_was_fading, state);
         }
         if state.should_quit {
             if let Some(runtime) = &mut session_runtime {
@@ -756,6 +760,14 @@ fn should_advance_loading_frame(state: &AppState) -> bool {
             .resource_tabs
             .iter()
             .any(|tab| is_loading_resource(&tab.resource))
+}
+
+fn should_advance_scrollbar_fade(state: &AppState) -> bool {
+    state.scrollbar_visible_frames > 0
+}
+
+fn should_finish_scrollbar_fade_redraw(scrollbar_was_fading: bool, state: &AppState) -> bool {
+    scrollbar_was_fading && !should_advance_scrollbar_fade(state)
 }
 
 fn handle_pending_control_requests(
@@ -1635,7 +1647,8 @@ mod tests {
         maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
         navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
         resource_count_label, save_open_commands_to_session, session_state_persistable,
-        should_advance_loading_frame, should_replace_empty_launch_tab, url_open_command,
+        should_advance_loading_frame, should_advance_scrollbar_fade,
+        should_finish_scrollbar_fade_redraw, should_replace_empty_launch_tab, url_open_command,
         ClipboardPlatform,
     };
 
@@ -1951,6 +1964,26 @@ mod tests {
         );
 
         assert!(should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn scrollbar_fade_keeps_redrawing_until_hidden() {
+        let mut state = AppState::new(issue_resource(1, "Scrollable issue"));
+
+        assert!(!should_advance_scrollbar_fade(&state));
+
+        state.set_scroll_limit(10);
+        state.scroll_down(1);
+
+        assert!(should_advance_scrollbar_fade(&state));
+
+        while should_advance_scrollbar_fade(&state) {
+            state.advance_scrollbar_visibility();
+        }
+
+        assert!(!should_advance_scrollbar_fade(&state));
+        assert!(should_finish_scrollbar_fade_redraw(true, &state));
+        assert!(!should_finish_scrollbar_fade_redraw(false, &state));
     }
 
     #[test]
