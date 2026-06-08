@@ -116,8 +116,31 @@ fn runtime_dir_from_env(
     let suffix = uid
         .and_then(|value| value.into_string().ok())
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| std::process::id().to_string());
+        .unwrap_or_else(stable_runtime_suffix);
     PathBuf::from("/tmp").join(format!("ghzinga-{suffix}"))
+}
+
+fn stable_runtime_suffix() -> String {
+    #[cfg(unix)]
+    {
+        effective_user_id().to_string()
+    }
+    #[cfg(not(unix))]
+    {
+        std::process::id().to_string()
+    }
+}
+
+#[cfg(unix)]
+fn effective_user_id() -> u32 {
+    use std::os::raw::c_uint;
+
+    extern "C" {
+        fn geteuid() -> c_uint;
+    }
+
+    // `geteuid` has no preconditions and returns the effective uid for this process.
+    unsafe { geteuid() as u32 }
 }
 
 pub fn socket_path(session_id: &str) -> PathBuf {
@@ -380,6 +403,15 @@ mod tests {
         assert_eq!(
             runtime_dir_from_env(None, None, Some("1000".into())),
             PathBuf::from("/tmp/ghzinga-1000")
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn runtime_dir_uses_stable_effective_uid_when_uid_env_is_missing() {
+        assert_eq!(
+            runtime_dir_from_env(None, None, None),
+            PathBuf::from("/tmp").join(format!("ghzinga-{}", effective_user_id()))
         );
     }
 
