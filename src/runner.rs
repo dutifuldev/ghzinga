@@ -655,19 +655,22 @@ async fn run_tui(
             last_refresh = Instant::now();
         }
     }
+    let mut needs_redraw = true;
     loop {
+        let mut state_changed = false;
         if apply_completed_fetches(state, &mut fetch_rx) {
+            state_changed = true;
             if let Some(runtime) = &mut session_runtime {
                 persist_session_now(state, runtime);
             }
         }
-        maybe_load_file_patches_for_active_files_tab(
+        state_changed |= maybe_load_file_patches_for_active_files_tab(
             state,
             fetch_source.clone(),
             &fetch_tx,
             &mut last_refresh,
         );
-        handle_pending_control_requests(
+        state_changed |= handle_pending_control_requests(
             state,
             fetch_source.clone(),
             &fetch_tx,
@@ -675,21 +678,27 @@ async fn run_tui(
             &mut session_runtime,
             &mut last_refresh,
         );
-        state.advance_loading_frame();
-        terminal.draw(|frame| render_app(frame, state))?;
+        if should_advance_loading_frame(state) {
+            state.advance_loading_frame();
+            state_changed = true;
+        }
+        if needs_redraw || state_changed {
+            terminal.draw(|frame| render_app(frame, state))?;
+            needs_redraw = false;
+        }
         if state.should_quit {
             if let Some(runtime) = &mut session_runtime {
                 persist_session_now(state, runtime);
             }
             return Ok(());
         }
-        maybe_refresh_loading_active_resource(
+        needs_redraw |= maybe_refresh_loading_active_resource(
             state,
             fetch_source.clone(),
             &fetch_tx,
             &mut last_refresh,
         );
-        maybe_auto_refresh(
+        needs_redraw |= maybe_auto_refresh(
             state,
             fetch_source.is_live_github(),
             refresh_interval,
@@ -698,7 +707,11 @@ async fn run_tui(
             fetch_source.clone(),
             &fetch_tx,
         );
-        for app_event in read_pending_app_events()? {
+        let app_events = read_pending_app_events()?;
+        if !app_events.is_empty() {
+            needs_redraw = true;
+        }
+        for app_event in app_events {
             let intent = apply_event(state, app_event);
             if handle_intent(
                 state,
@@ -714,13 +727,13 @@ async fn run_tui(
                 }
                 return Ok(());
             }
-            maybe_refresh_loading_active_resource(
+            needs_redraw |= maybe_refresh_loading_active_resource(
                 state,
                 fetch_source.clone(),
                 &fetch_tx,
                 &mut last_refresh,
             );
-            maybe_load_file_patches_for_active_files_tab(
+            needs_redraw |= maybe_load_file_patches_for_active_files_tab(
                 state,
                 fetch_source.clone(),
                 &fetch_tx,
@@ -736,6 +749,15 @@ async fn run_tui(
     }
 }
 
+fn should_advance_loading_frame(state: &AppState) -> bool {
+    state.loading_message().is_some()
+        || state.file_patch_loading_message().is_some()
+        || state
+            .resource_tabs
+            .iter()
+            .any(|tab| is_loading_resource(&tab.resource))
+}
+
 fn handle_pending_control_requests(
     state: &mut AppState,
     fetch_source: FetchSource,
@@ -743,7 +765,8 @@ fn handle_pending_control_requests(
     control_rx: &mut UnboundedReceiver<RuntimeRequest>,
     session_runtime: &mut Option<SessionRuntime>,
     last_refresh: &mut Instant,
-) {
+) -> bool {
+    let mut handled = false;
     while let Ok(request) = control_rx.try_recv() {
         let reply = handle_control_command(
             state,
@@ -760,7 +783,9 @@ fn handle_pending_control_requests(
                 persist_session_now(state, runtime);
             }
         }
+        handled = true;
     }
+    handled
 }
 
 fn handle_control_command(
@@ -1609,7 +1634,8 @@ mod tests {
         maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
         navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
         resource_count_label, save_open_commands_to_session, session_state_persistable,
-        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
+        should_advance_loading_frame, should_replace_empty_launch_tab, url_open_command,
+        ClipboardPlatform,
     };
 
     struct FakeGateway {
@@ -1900,6 +1926,30 @@ mod tests {
             "help".to_string(),
             "owner/repo#2".to_string(),
         ]));
+    }
+
+    #[test]
+    fn idle_resource_does_not_advance_loading_frame() {
+        let state = AppState::new(issue_resource(1, "Idle issue"));
+
+        assert!(!should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn loading_resource_advances_loading_frame() {
+        let mut state = AppState::new(loading_resource_placeholder(
+            ResourceId::parse("owner/repo#1").unwrap(),
+        ));
+
+        assert!(should_advance_loading_frame(&state));
+
+        state.replace_resource_reset_view(issue_resource(1, "Loaded issue"));
+        state.begin_loading(
+            ResourceId::parse("owner/repo#1").unwrap(),
+            "refreshing owner/repo#1 from GitHub",
+        );
+
+        assert!(should_advance_loading_frame(&state));
     }
 
     #[test]
