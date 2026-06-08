@@ -199,6 +199,7 @@ Control a running session from another shell:
 ```sh
 gzg open dutifuldev/ghzinga#29
 gzg open --session <id-or-name> dutifuldev/ghzinga#29
+gzg open --session <id-or-name> dutifuldev/ghzinga#29 dutifuldev/ghzinga#32
 gzg set --session <id-or-name> theme solarized
 gzg set --session <id-or-name> symbols emoji
 gzg set --session <id-or-name> spacing comfortable
@@ -207,10 +208,12 @@ gzg set --session <id-or-name> fixed-width 118
 gzg set --session <id-or-name> scrollbar on-scroll
 ```
 
-If the session is running, these commands update the live TUI without stealing
-terminal focus. `gzg open` adds or focuses a resource tab in that session. If
-the target session is not running, `gzg open` updates the saved session so the
-resource appears on the next restore.
+`gzg sessions` includes each session's running/saved status, active resource,
+and resource count. If the session is running, control commands update the live
+TUI without stealing terminal focus. `gzg open` adds or focuses resource tabs in
+that session, including while another resource is still loading. If the target
+session is not running, `gzg open` updates the saved session so the resources
+appear on the next restore.
 
 ## Refresh
 

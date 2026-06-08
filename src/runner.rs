@@ -36,8 +36,12 @@ async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32
     };
     match command {
         "sessions" => {
+            if args.get(2).is_some_and(|value| is_help_arg(value)) && args.len() == 3 {
+                print_sessions_usage();
+                return Ok(Some(0));
+            }
             if args.len() != 2 {
-                eprintln!("usage: gzg sessions");
+                print_sessions_usage_to_stderr();
                 return Ok(Some(2));
             }
             print_sessions()?;
@@ -51,12 +55,16 @@ async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32
 }
 
 async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    if args.iter().any(|value| is_help_arg(value)) {
+        print_open_usage();
+        return Ok(0);
+    }
     let (session_ref, resource_args) = parse_control_session_option(args)?;
     if resource_args.is_empty() {
-        eprintln!("usage: gzg open [--session <id-or-name>] <resource>");
+        print_open_usage_to_stderr();
         return Ok(2);
     }
-    let resource = parse_resource_args(&resource_args)?;
+    let resources = parse_resource_args(&resource_args)?;
     let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
     let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd.clone()) {
         Ok(plan) => plan,
@@ -73,47 +81,55 @@ async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Resul
         eprintln!("no persistent ghzinga session available");
         return Ok(1);
     };
-    match control::send_open(&handle.id, &resource).await {
-        Ok(reply) if reply.ok => {
-            println!(
-                "{}",
-                reply
-                    .result
-                    .unwrap_or_else(|| format!("opened {}", resource.canonical_name()))
-            );
-            Ok(0)
-        }
-        Ok(reply) => {
-            eprintln!(
-                "{}",
-                reply
-                    .error
-                    .unwrap_or_else(|| "control command failed".into())
-            );
-            Ok(1)
-        }
-        Err(error) => {
-            save_open_command_to_session(
-                &handle,
-                plan.snapshot,
-                raw_args.to_vec(),
-                cwd,
-                &resource,
-            )?;
-            println!(
-                "queued {} for session {} ({error})",
-                resource.canonical_name(),
-                handle.id
-            );
-            Ok(0)
+    for resource in &resources {
+        match control::send_open(&handle.id, resource).await {
+            Ok(reply) if reply.ok => {
+                println!(
+                    "{}",
+                    reply
+                        .result
+                        .unwrap_or_else(|| format!("opened {}", resource.canonical_name()))
+                );
+            }
+            Ok(reply) => {
+                eprintln!(
+                    "{}",
+                    reply
+                        .error
+                        .unwrap_or_else(|| "control command failed".into())
+                );
+                return Ok(1);
+            }
+            Err(error) => {
+                save_open_commands_to_session(
+                    &handle,
+                    plan.snapshot,
+                    raw_args.to_vec(),
+                    cwd,
+                    &resources,
+                )?;
+                for resource in &resources {
+                    println!(
+                        "saved {} for next restore in session {} ({error})",
+                        resource.canonical_name(),
+                        handle.id
+                    );
+                }
+                return Ok(0);
+            }
         }
     }
+    Ok(0)
 }
 
 async fn run_set_command(raw_args: &[String], args: &[String]) -> anyhow::Result<i32> {
+    if args.iter().any(|value| is_help_arg(value)) {
+        print_set_usage();
+        return Ok(0);
+    }
     let (session_ref, rest) = parse_control_session_option(args)?;
     if rest.len() != 2 {
-        eprintln!("usage: gzg set [--session <id-or-name>] <setting> <value>");
+        print_set_usage_to_stderr();
         return Ok(2);
     }
     let key = &rest[0];
@@ -164,7 +180,10 @@ async fn run_set_command(raw_args: &[String], args: &[String]) -> anyhow::Result
             match session::apply_ui_setting_to_snapshot(&mut snapshot, key, value) {
                 Ok(()) => {
                     session::save_snapshot(&handle.session_path(), &snapshot)?;
-                    println!("queued {key}={value} for session {} ({error})", handle.id);
+                    println!(
+                        "saved {key}={value} for next restore in session {} ({error})",
+                        handle.id
+                    );
                     Ok(0)
                 }
                 Err(error) => {
@@ -205,16 +224,56 @@ fn parse_control_session_option(args: &[String]) -> anyhow::Result<(Option<Strin
     Ok((session_ref, rest))
 }
 
-fn parse_resource_args(args: &[String]) -> anyhow::Result<ResourceId> {
+fn parse_resource_args(args: &[String]) -> anyhow::Result<Vec<ResourceId>> {
     match args {
-        [single] => ResourceId::parse(single).map_err(anyhow::Error::new),
-        [owner_repo, number] => {
-            ResourceId::from_owner_repo_number(owner_repo, number).map_err(anyhow::Error::new)
+        [] => anyhow::bail!("expected at least one GitHub PR/issue resource"),
+        [single] => Ok(vec![ResourceId::parse(single).map_err(anyhow::Error::new)?]),
+        [owner_repo, number]
+            if ResourceId::parse(owner_repo).is_err() && number.parse::<u64>().is_ok() =>
+        {
+            Ok(vec![ResourceId::from_owner_repo_number(owner_repo, number)
+                .map_err(anyhow::Error::new)?])
         }
-        _ => {
-            anyhow::bail!("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")
-        }
+        many => many
+            .iter()
+            .map(|value| ResourceId::parse(value).map_err(anyhow::Error::new))
+            .collect(),
     }
+}
+
+fn is_help_arg(value: &str) -> bool {
+    matches!(value, "help" | "--help" | "-h")
+}
+
+fn print_sessions_usage() {
+    println!("usage: gzg sessions");
+    println!();
+    println!("List saved ghzinga sessions with live/saved status, active resource, and tab count.");
+}
+
+fn print_sessions_usage_to_stderr() {
+    eprintln!("usage: gzg sessions");
+}
+
+fn print_open_usage() {
+    println!("usage: gzg open [--session <id-or-name>] <resource> [resource...]");
+    println!();
+    println!("Resources may be GitHub URLs or owner/repo#number values.");
+    println!("The owner/repo number form is supported for one resource at a time.");
+}
+
+fn print_open_usage_to_stderr() {
+    eprintln!("usage: gzg open [--session <id-or-name>] <resource> [resource...]");
+}
+
+fn print_set_usage() {
+    println!("usage: gzg set [--session <id-or-name>] <setting> <value>");
+    println!();
+    println!("Settings: theme, symbols, spacing, width-mode, fixed-width, scrollbar");
+}
+
+fn print_set_usage_to_stderr() {
+    eprintln!("usage: gzg set [--session <id-or-name>] <setting> <value>");
 }
 
 fn print_control_warnings(warnings: &[String]) {
@@ -223,18 +282,20 @@ fn print_control_warnings(warnings: &[String]) {
     }
 }
 
-fn save_open_command_to_session(
+fn save_open_commands_to_session(
     handle: &SessionHandle,
     snapshot: Option<SessionSnapshot>,
     argv: Vec<String>,
     cwd: std::path::PathBuf,
-    resource: &ResourceId,
+    resources: &[ResourceId],
 ) -> anyhow::Result<()> {
-    let mut snapshot = if let Some(mut snapshot) = snapshot {
-        session::upsert_resource_in_snapshot(&mut snapshot, resource);
+    let Some(first_resource) = resources.first() else {
+        anyhow::bail!("expected at least one resource to save");
+    };
+    let mut snapshot = if let Some(snapshot) = snapshot {
         snapshot
     } else {
-        let mut state = AppState::new(loading_resource_placeholder(resource.clone()));
+        let mut state = AppState::new(loading_resource_placeholder(first_resource.clone()));
         SessionSnapshot::from_state(
             handle.id.clone(),
             None,
@@ -244,7 +305,9 @@ fn save_open_command_to_session(
             &mut state,
         )
     };
-    session::upsert_resource_in_snapshot(&mut snapshot, resource);
+    for resource in resources {
+        session::upsert_resource_in_snapshot(&mut snapshot, resource);
+    }
     session::save_snapshot(&handle.session_path(), &snapshot)?;
     Ok(())
 }
@@ -348,21 +411,42 @@ fn print_sessions() -> anyhow::Result<()> {
             .or_else(|| snapshot.resources.tabs.first())
             .map(|tab| tab.resource.as_str())
             .unwrap_or("-");
-        rows.push((id, snapshot.name.unwrap_or_default(), active.to_string()));
+        rows.push((
+            id.clone(),
+            session_live_status(&id),
+            snapshot.name.unwrap_or_default(),
+            active.to_string(),
+            resource_count_label(snapshot.resources.tabs.len()),
+        ));
     }
     rows.sort_by(|a, b| a.0.cmp(&b.0));
     if rows.is_empty() {
         println!("no ghzinga sessions");
     } else {
-        for (id, name, active) in rows {
+        for (id, status, name, active, resource_count) in rows {
             if name.is_empty() {
-                println!("{id}\t{active}");
+                println!("{id}\t{status}\t{active}\t{resource_count}");
             } else {
-                println!("{id}\t{name}\t{active}");
+                println!("{id}\t{status}\t{name}\t{active}\t{resource_count}");
             }
         }
     }
     Ok(())
+}
+
+fn session_live_status(id: &str) -> &'static str {
+    if std::os::unix::net::UnixStream::connect(control::socket_path(id)).is_ok() {
+        "running"
+    } else {
+        "saved"
+    }
+}
+
+fn resource_count_label(count: usize) -> String {
+    match count {
+        1 => "1 resource".into(),
+        count => format!("{count} resources"),
+    }
 }
 
 pub async fn run_from_cli() -> anyhow::Result<()> {
@@ -715,9 +799,6 @@ fn handle_control_open(
     session_runtime: Option<&SessionRuntime>,
     last_refresh: &mut Instant,
 ) -> ControlReply {
-    if let Some(message) = state.loading_message() {
-        return ControlReply::error(format!("still loading: {message}"));
-    }
     let canonical = resource.canonical_name();
     if state.focus_resource_tab(&resource) {
         if start_background_fetch(
@@ -1475,9 +1556,10 @@ mod tests {
 
     use super::{
         apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
-        handle_intent, maybe_auto_refresh_with_start, maybe_load_file_patches_with_start,
-        maybe_refresh_loading_active_resource, navigate_back, navigate_to_resource,
-        prepare_restored_initial_fetch, save_open_command_to_session, session_state_persistable,
+        handle_control_open, handle_intent, maybe_auto_refresh_with_start,
+        maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
+        navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
+        resource_count_label, save_open_commands_to_session, session_state_persistable,
         should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
     };
 
@@ -1777,12 +1859,12 @@ mod tests {
             kind_hint: Some(ResourceKind::Issue),
         };
 
-        save_open_command_to_session(
+        save_open_commands_to_session(
             &handle,
             None,
             vec!["gzg".into(), "open".into(), "owner/repo#2".into()],
             std::path::PathBuf::from("/repo"),
-            &id,
+            &[id],
         )
         .unwrap();
 
@@ -1790,6 +1872,110 @@ mod tests {
         assert_eq!(snapshot.resources.tabs.len(), 1);
         assert_eq!(snapshot.resources.tabs[0].resource, "owner/repo#2");
         assert_eq!(snapshot.resources.active_index, 0);
+    }
+
+    #[test]
+    fn open_parser_accepts_multiple_single_token_resources() {
+        let resources = parse_resource_args(&[
+            "owner/repo#2".to_string(),
+            "https://github.com/owner/repo/issues/3".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(resources.len(), 2);
+        assert_eq!(resources[0].canonical_name(), "owner/repo#2");
+        assert_eq!(resources[1].canonical_name(), "owner/repo#3");
+    }
+
+    #[test]
+    fn open_parser_keeps_owner_repo_number_single_resource_form() {
+        let resources = parse_resource_args(&["owner/repo".to_string(), "4".to_string()]).unwrap();
+
+        assert_eq!(resources.len(), 1);
+        assert_eq!(resources[0].canonical_name(), "owner/repo#4");
+    }
+
+    #[test]
+    fn session_resource_count_label_uses_singular_and_plural() {
+        assert_eq!(resource_count_label(1), "1 resource");
+        assert_eq!(resource_count_label(2), "2 resources");
+    }
+
+    #[test]
+    fn control_open_focuses_existing_tab_while_fetch_is_loading() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Second issue");
+        let second_id = second.id.clone();
+        let mut state = AppState::new(initial.clone());
+        state.open_resource_in_tab(second.clone());
+        state.switch_resource_tab(0);
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let reply = handle_control_open(
+            &mut state,
+            second_id.clone(),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([initial, second])),
+            &fetch_tx,
+            None,
+            &mut last_refresh,
+        );
+
+        assert!(reply.ok);
+        assert_eq!(reply.result.as_deref(), Some("focused owner/repo#2"));
+        assert_eq!(
+            state.resource.id.canonical_name(),
+            second_id.canonical_name()
+        );
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#1 from GitHub")
+        );
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn control_open_adds_tab_while_fetch_is_loading() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Second issue");
+        let second_id = second.id.clone();
+        let mut state = AppState::new(initial.clone());
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let reply = handle_control_open(
+            &mut state,
+            second_id.clone(),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([initial, second])),
+            &fetch_tx,
+            None,
+            &mut last_refresh,
+        );
+
+        assert!(reply.ok);
+        assert_eq!(reply.result.as_deref(), Some("opening owner/repo#2"));
+        assert_eq!(
+            state.resource.id.canonical_name(),
+            second_id.canonical_name()
+        );
+        assert_eq!(state.resource.state, "LOADING");
+        assert_eq!(state.resource_tabs.len(), 2);
+        assert_eq!(
+            state.loading_message(),
+            Some("refreshing owner/repo#1 from GitHub")
+        );
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("still loading: refreshing owner/repo#1 from GitHub")
+        );
+        assert!(fetch_rx.try_recv().is_err());
     }
 
     #[test]
