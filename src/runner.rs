@@ -2077,6 +2077,7 @@ mod tests {
             state.loading_message(),
             Some("refreshing owner/repo#2 from GitHub")
         );
+        assert!(!state.refresh_requested);
     }
 
     #[tokio::test]
@@ -2119,6 +2120,56 @@ mod tests {
             state.loading_message(),
             Some("refreshing owner/repo#2 from GitHub")
         );
+    }
+
+    #[tokio::test]
+    async fn failed_deferred_control_open_refresh_does_not_retry_indefinitely() {
+        let initial = issue_resource(1, "Initial issue");
+        let second = issue_resource(2, "Cached issue");
+        let mut state = AppState::new(initial.clone());
+        state.open_resource_in_tab(second.clone());
+        state.switch_resource_tab(0);
+        state.begin_loading(initial.id.clone(), "refreshing owner/repo#1 from GitHub");
+        let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+        let fetch_source = FetchSource::OfflineFixtures(OfflineFixtureSource::new([initial]));
+
+        assert!(
+            handle_control_open(
+                &mut state,
+                second.id.clone(),
+                fetch_source.clone(),
+                &fetch_tx,
+                None,
+                &mut last_refresh,
+            )
+            .ok
+        );
+        assert!(state.refresh_requested);
+
+        state.finish_loading();
+        state.clear_transient_loading_status_messages();
+        assert!(maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source.clone(),
+            &fetch_tx,
+            &mut last_refresh,
+        ));
+        assert!(!state.refresh_requested);
+
+        for _ in 0..10 {
+            if apply_completed_fetches(&mut state, &mut fetch_rx) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert!(state.last_error.is_some());
+        assert!(!maybe_refresh_loading_active_resource(
+            &mut state,
+            fetch_source,
+            &fetch_tx,
+            &mut last_refresh,
+        ));
     }
 
     #[tokio::test]

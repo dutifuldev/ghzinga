@@ -796,6 +796,7 @@ impl AppState {
         let request_id = self.allocate_loading_request_id();
         let origin_tab_id = self.active_resource_tab_id();
         self.latest_fetch_request_id = request_id;
+        self.refresh_requested = false;
         self.pending_file_patch_request_id = None;
         if self.status_message.as_deref() == Some("loading file diffs") {
             self.status_message = None;
