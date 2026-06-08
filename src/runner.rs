@@ -1250,7 +1250,7 @@ fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, Resource
     if is_refreshable_loading_resource(
         &state.resource,
         state.last_error.as_deref(),
-        state.status_message.as_deref(),
+        state.refresh_requested,
     ) {
         return Some((state.active_resource_tab_id(), state.resource.id.clone()));
     }
@@ -1263,7 +1263,7 @@ fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, Resource
             is_refreshable_loading_resource(
                 &tab.resource,
                 tab.last_error.as_deref(),
-                tab.status_message.as_deref(),
+                tab.deferred_refresh_requested,
             )
         })
         .map(|tab| (tab.id, tab.resource.id.clone()))
@@ -1272,15 +1272,11 @@ fn loading_resource_refresh_candidate(state: &AppState) -> Option<(u64, Resource
 fn is_refreshable_loading_resource(
     resource: &crate::domain::Resource,
     last_error: Option<&str>,
-    status_message: Option<&str>,
+    refresh_requested: bool,
 ) -> bool {
     !is_empty_launch_resource(resource)
         && last_error.is_none()
-        && (is_loading_resource(resource) || status_message.is_some_and(is_deferred_refresh_status))
-}
-
-fn is_deferred_refresh_status(message: &str) -> bool {
-    message.starts_with("still loading: ")
+        && (is_loading_resource(resource) || refresh_requested)
 }
 
 fn maybe_load_file_patches_for_active_files_tab(
@@ -2060,9 +2056,13 @@ mod tests {
             state.status_message.as_deref(),
             Some("still loading: refreshing owner/repo#1 from GitHub")
         );
+        assert!(state.refresh_requested);
         assert!(fetch_rx.try_recv().is_err());
 
         state.finish_loading();
+        state.clear_transient_loading_status_messages();
+        assert!(state.status_message.is_none());
+        assert!(state.refresh_requested);
         assert!(maybe_refresh_loading_active_resource(
             &mut state,
             fetch_source,

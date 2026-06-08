@@ -108,6 +108,7 @@ pub struct ResourceTabState {
     pub id: u64,
     pub resource: Resource,
     pub latest_fetch_request_id: u64,
+    pub deferred_refresh_requested: bool,
     pub pending_file_patch_request_id: Option<u64>,
     pub active_tab: Tab,
     pub scroll: u16,
@@ -128,6 +129,7 @@ impl ResourceTabState {
             id,
             resource,
             latest_fetch_request_id: 0,
+            deferred_refresh_requested: false,
             pending_file_patch_request_id: None,
             active_tab: Tab::Overview,
             scroll: 0,
@@ -155,6 +157,7 @@ impl ResourceTabState {
             id,
             resource,
             latest_fetch_request_id: 0,
+            deferred_refresh_requested: false,
             pending_file_patch_request_id: None,
             active_tab,
             scroll,
@@ -845,7 +848,6 @@ impl AppState {
 
     pub fn finish_loading(&mut self) {
         self.loading = None;
-        self.refresh_requested = false;
     }
 
     pub fn clear_transient_loading_status_messages(&mut self) {
@@ -1134,6 +1136,7 @@ impl AppState {
         if let Some(tab) = self.resource_tabs.get_mut(self.active_resource_tab) {
             tab.resource = self.resource.clone();
             tab.latest_fetch_request_id = self.latest_fetch_request_id;
+            tab.deferred_refresh_requested = self.refresh_requested;
             tab.pending_file_patch_request_id = self.pending_file_patch_request_id;
             tab.active_tab = self.active_tab;
             tab.scroll = self.scroll;
@@ -1157,6 +1160,7 @@ impl AppState {
         self.resource_tab_scroll = index;
         self.resource = tab.resource;
         self.latest_fetch_request_id = tab.latest_fetch_request_id;
+        self.refresh_requested = tab.deferred_refresh_requested;
         self.pending_file_patch_request_id = tab.pending_file_patch_request_id;
         self.active_tab = if self.tabs().contains(&tab.active_tab) {
             tab.active_tab
