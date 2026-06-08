@@ -748,7 +748,7 @@ async fn run_tui(
             }
         }
         if let Some(runtime) = &mut session_runtime {
-            persist_session_when_due(state, runtime, Instant::now());
+            needs_redraw |= persist_session_when_due(state, runtime, Instant::now());
         }
     }
 }
@@ -900,9 +900,9 @@ fn apply_control_setting(state: &mut AppState, key: &str, value: &str) -> Result
     }
 }
 
-fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
+fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) -> bool {
     if !session_state_persistable(state) {
-        return;
+        return false;
     }
     match session::save_session(
         &runtime.handle,
@@ -915,23 +915,32 @@ fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
             runtime.snapshot = Some(snapshot);
             runtime.dirty = false;
             runtime.dirty_since = None;
+            false
         }
         Err(error) => {
-            state.last_error = Some(format!("failed to save ghzinga session: {error}"));
+            let message = format!("failed to save ghzinga session: {error}");
+            let changed = state.last_error.as_deref() != Some(message.as_str());
+            state.last_error = Some(message);
+            changed
         }
     }
 }
 
-fn persist_session_when_due(state: &mut AppState, runtime: &mut SessionRuntime, now: Instant) {
+fn persist_session_when_due(
+    state: &mut AppState,
+    runtime: &mut SessionRuntime,
+    now: Instant,
+) -> bool {
     if !runtime.dirty {
-        return;
+        return false;
     }
     let Some(dirty_since) = runtime.dirty_since else {
-        return;
+        return false;
     };
     if now.duration_since(dirty_since) >= SESSION_SAVE_DEBOUNCE {
-        persist_session_now(state, runtime);
+        return persist_session_now(state, runtime);
     }
+    false
 }
 
 fn session_state_persistable(state: &AppState) -> bool {
