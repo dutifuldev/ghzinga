@@ -234,8 +234,14 @@ fn ci_workflow_delegates_to_full_local_gate() {
 
     for expected_check in [
         "cargo fmt --check",
+        "cargo check",
         "cargo test",
         "cargo clippy --all-targets --all-features -- -D warnings",
+        "cargo llvm-cov --fail-under-lines 85",
+        "cargo audit",
+        "cargo mutants --list",
+        "slophammer-rs dry . --format json",
+        "slophammer-rs check . --format json",
         "scripts/verify-install.sh",
         "sh -n scripts/live-smoke.sh",
         "GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh",

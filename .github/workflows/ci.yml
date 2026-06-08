@@ -7,6 +7,7 @@ on:
       - .github/workflows/ci.yml
       - Cargo.lock
       - Cargo.toml
+      - slophammer.yml
       - fixtures/**
       - captures/**
       - scripts/**
@@ -19,6 +20,7 @@ on:
       - .github/workflows/ci.yml
       - Cargo.lock
       - Cargo.toml
+      - slophammer.yml
       - fixtures/**
       - captures/**
       - scripts/**
@@ -42,6 +44,17 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
+
+      - name: Install Rust quality tools
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --locked
+          cargo install cargo-audit --locked
+          cargo install cargo-mutants --locked
+          cargo install --git https://github.com/dutifuldev/slophammer \
+            --rev 5586beee32c3f2d692ccf4fb80422cd7bb683c80 \
+            slophammer-rs \
+            --locked
 
       - name: Install Node
         uses: actions/setup-node@v5

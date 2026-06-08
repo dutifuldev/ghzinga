@@ -99,6 +99,7 @@ pub fn runtime_dir() -> PathBuf {
         env::var_os(GZG_RUNTIME_HOME_ENV),
         env::var_os("XDG_RUNTIME_DIR"),
         env::var_os("UID"),
+        env::var_os("USER").or_else(|| env::var_os("USERNAME")),
     )
 }
 
@@ -106,6 +107,7 @@ fn runtime_dir_from_env(
     override_dir: Option<std::ffi::OsString>,
     xdg_runtime: Option<std::ffi::OsString>,
     uid: Option<std::ffi::OsString>,
+    user: Option<std::ffi::OsString>,
 ) -> PathBuf {
     if let Some(path) = override_dir {
         return PathBuf::from(path);
@@ -114,33 +116,31 @@ fn runtime_dir_from_env(
         return PathBuf::from(path).join("ghzinga");
     }
     let suffix = uid
-        .and_then(|value| value.into_string().ok())
-        .filter(|value| !value.trim().is_empty())
+        .and_then(runtime_suffix)
+        .or_else(|| user.and_then(runtime_suffix))
         .unwrap_or_else(stable_runtime_suffix);
     PathBuf::from("/tmp").join(format!("ghzinga-{suffix}"))
 }
 
-fn stable_runtime_suffix() -> String {
-    #[cfg(unix)]
-    {
-        effective_user_id().to_string()
+fn runtime_suffix(value: std::ffi::OsString) -> Option<String> {
+    let value = value.into_string().ok()?;
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
     }
-    #[cfg(not(unix))]
-    {
-        std::process::id().to_string()
-    }
+    Some(
+        trimmed
+            .chars()
+            .map(|ch| match ch {
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | '_' | '-' => ch,
+                _ => '_',
+            })
+            .collect(),
+    )
 }
 
-#[cfg(unix)]
-fn effective_user_id() -> u32 {
-    use std::os::raw::c_uint;
-
-    extern "C" {
-        fn geteuid() -> c_uint;
-    }
-
-    // `geteuid` has no preconditions and returns the effective uid for this process.
-    unsafe { geteuid() }
+fn stable_runtime_suffix() -> String {
+    std::process::id().to_string()
 }
 
 pub fn socket_path(session_id: &str) -> PathBuf {
@@ -393,25 +393,24 @@ mod tests {
     #[test]
     fn runtime_dir_uses_override_then_xdg_then_tmp() {
         assert_eq!(
-            runtime_dir_from_env(Some("/tmp/custom".into()), None, None),
+            runtime_dir_from_env(Some("/tmp/custom".into()), None, None, None),
             PathBuf::from("/tmp/custom")
         );
         assert_eq!(
-            runtime_dir_from_env(None, Some("/run/user/1000".into()), None),
+            runtime_dir_from_env(None, Some("/run/user/1000".into()), None, None),
             PathBuf::from("/run/user/1000/ghzinga")
         );
         assert_eq!(
-            runtime_dir_from_env(None, None, Some("1000".into())),
+            runtime_dir_from_env(None, None, Some("1000".into()), None),
             PathBuf::from("/tmp/ghzinga-1000")
         );
     }
 
     #[test]
-    #[cfg(unix)]
-    fn runtime_dir_uses_stable_effective_uid_when_uid_env_is_missing() {
+    fn runtime_dir_uses_stable_user_when_uid_env_is_missing() {
         assert_eq!(
-            runtime_dir_from_env(None, None, None),
-            PathBuf::from("/tmp").join(format!("ghzinga-{}", effective_user_id()))
+            runtime_dir_from_env(None, None, None, Some("alice@example.com".into())),
+            PathBuf::from("/tmp/ghzinga-alice_example.com")
         );
     }
 

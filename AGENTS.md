@@ -8,8 +8,14 @@ Run these before finishing code changes:
 
 ```sh
 cargo fmt --check
+cargo check
 cargo test
 cargo clippy --all-targets --all-features -- -D warnings
+cargo llvm-cov --fail-under-lines 85 --summary-only
+cargo audit
+cargo mutants --list
+slophammer-rs dry . --format json
+slophammer-rs check . --format json
 npx -y @simpledoc/simpledoc check
 python3 captures/ghzinga-pr-81834/capture_ghzinga.py --validate-only
 python3 captures/ghzinga-pr-81834/capture_ghzinga.py --root captures/ghzinga-issue-88499 --mode issue --validate-only
