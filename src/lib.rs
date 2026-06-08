@@ -10,3 +10,7 @@ pub mod render;
 pub mod runner;
 pub mod session;
 pub mod terminal;
+
+#[cfg(test)]
+#[path = "../tests/support/resource_fixtures.rs"]
+mod test_fixtures;

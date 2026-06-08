@@ -505,69 +505,18 @@ mod tests {
     use crate::{
         app::{loading_resource_placeholder, AppState, Tab},
         domain::{
-            ChangedFile, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
-            FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
+            ResourceId, ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
+            FULL_DEPTH_WARNING_HINT,
         },
         github::api::GithubApiGateway,
         runner::maybe_auto_refresh_with_start,
+        test_fixtures::{issue_resource, pr_resource_with_patch},
     };
 
     use super::{
         apply_fetch_outcome, should_enqueue_enrichment, start_background_fetch, FetchAction,
         FetchOutcome, FetchOwner, FetchSource, FetchStage, OfflineFixtureSource,
     };
-
-    fn issue_resource(number: u64, title: &str) -> Resource {
-        Resource {
-            id: ResourceId {
-                owner: "owner".into(),
-                repo: "repo".into(),
-                number,
-                kind_hint: Some(ResourceKind::Issue),
-            },
-            title: title.into(),
-            url: format!("https://github.com/owner/repo/issues/{number}"),
-            state: "OPEN".into(),
-            author: "alice".into(),
-            created_at: "now".into(),
-            updated_at: "now".into(),
-            labels: vec![],
-            assignees: vec![],
-            reactions: ReactionCounts::default(),
-            body: "Body".into(),
-            activity: vec![],
-            related_resources: vec![],
-            metadata: vec![],
-            warnings: vec![],
-            pull_request: None,
-        }
-    }
-
-    fn pr_resource_with_patch(patch: Option<&str>) -> Resource {
-        let mut resource = issue_resource(1, "Pull request");
-        resource.id.kind_hint = Some(ResourceKind::PullRequest);
-        resource.url = "https://github.com/owner/repo/pull/1".into();
-        resource.pull_request = Some(PullRequest {
-            base_ref: "main".into(),
-            head_ref: "feature".into(),
-            requested_reviewers: vec![],
-            review_decision: None,
-            merge_state: None,
-            additions: 1,
-            deletions: 0,
-            commits: vec![],
-            checks: vec![],
-            files: vec![ChangedFile {
-                path: "src/lib.rs".into(),
-                additions: 1,
-                deletions: 0,
-                change_type: "MODIFIED".into(),
-                patch: patch.map(str::to_string),
-            }],
-            metadata: vec![],
-        });
-        resource
-    }
 
     fn begin_test_fetch(state: &mut AppState, action: &FetchAction) -> (u64, u64) {
         let origin_tab_id = state.active_resource_tab_id();

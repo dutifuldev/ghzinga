@@ -1,0 +1,46 @@
+rust:
+  coverage:
+    threshold: 85
+    paths:
+      - src
+    exclude:
+      - "target/**"
+      - "tests/**"
+      - "fixtures/**"
+      - "captures/**"
+  complexity:
+    cognitive_max: 8
+  targets:
+    - src
+  exclude:
+    - "target/**"
+    - "tests/**"
+    - "fixtures/**"
+    - "captures/**"
+  dry:
+    max_findings: 0
+    paths:
+      - src
+    exclude:
+      - "src/test_fixtures.rs"
+      - "**/*_test.rs"
+      - "target/**"
+      - "tests/**"
+      - "fixtures/**"
+      - "captures/**"
+    copied_blocks:
+      enabled: true
+      min_tokens: 100
+  unsafe:
+    policy: forbid
+  mutation:
+    targets:
+      - src/app
+      - src/domain
+      - src/fetch.rs
+      - src/render
+      - src/runner.rs
+      - src/session.rs
+  dependency_boundaries:
+    - from: .
+      allow: []

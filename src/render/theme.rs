@@ -565,4 +565,29 @@ mod tests {
         assert_eq!(palette.accent, Color::Rgb(38, 139, 210));
         assert_eq!(palette.red, Color::Rgb(220, 50, 47));
     }
+
+    #[test]
+    fn every_builtin_theme_defines_complete_palette_roles() {
+        for theme in ThemeName::ALL {
+            let palette = theme.palette();
+
+            if *theme != ThemeName::Terminal {
+                assert_ne!(palette.text, palette.panel_bg, "{theme} text is visible");
+            }
+            assert_ne!(
+                palette.accent, palette.panel_bg,
+                "{theme} accent is visible"
+            );
+            assert_ne!(palette.red, palette.green, "{theme} status colors differ");
+            assert_ne!(palette.yellow, palette.blue, "{theme} signal colors differ");
+            assert_ne!(
+                palette.teal, palette.peach,
+                "{theme} secondary colors differ"
+            );
+            assert_ne!(
+                palette.surface0, palette.overlay1,
+                "{theme} depth roles differ"
+            );
+        }
+    }
 }

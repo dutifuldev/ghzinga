@@ -5,8 +5,14 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
 cargo fmt --check
+cargo check
 cargo test
 cargo clippy --all-targets --all-features -- -D warnings
+cargo llvm-cov --fail-under-lines 85 --summary-only
+cargo audit
+cargo mutants --list
+slophammer-rs dry . --format json
+slophammer-rs check . --format json
 
 scripts/verify-install.sh
 sh -n scripts/live-smoke.sh
