@@ -140,7 +140,7 @@ fn effective_user_id() -> u32 {
     }
 
     // `geteuid` has no preconditions and returns the effective uid for this process.
-    unsafe { geteuid() as u32 }
+    unsafe { geteuid() }
 }
 
 pub fn socket_path(session_id: &str) -> PathBuf {
