@@ -4,7 +4,7 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "target/debug/gzg",
-  "git_commit": "79b504ea6e2ab4d768a3abf0aed9ab4903057f46",
+  "git_commit": "d1c4c23a3cc65a3dd83871080ad6fcf19be99d14",
   "config_path": "captures/ghzinga-issue-88499/capture-empty-config.toml",
   "requested_columns": 120,
   "requested_rows": 36,
@@ -113,5 +113,5 @@
     }
   ],
   "actual_tmux_size": "120x36",
-  "app_tree_hash": "3d0ff248f59a801cfca8d8049b68091d5ade6f392d024eb3cb07ec1ffd4fd358"
+  "app_tree_hash": "6ae1209dc8e8616c4c3261c38aa550b693d11b9c6052ad724339380e053c3813"
 }
