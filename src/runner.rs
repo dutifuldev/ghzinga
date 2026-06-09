@@ -719,7 +719,7 @@ async fn run_tui(
             if pending_event.requires_pre_event_redraw {
                 let scrollbar_was_fading = should_advance_scrollbar_fade(state);
                 terminal.draw(|frame| render_app(frame, state))?;
-                needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
+                needs_redraw |= should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
             }
             let intent = apply_event(state, pending_event.event);
             if handle_intent(
