@@ -1,10 +1,18 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::LazyLock};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub const FULL_DEPTH_WARNING_HINT: &str = "set --api-depth full or GZG_API_DEPTH=full";
+
+static GITHUB_RESOURCE_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^https://github\.com/([^/\s]+)/([^/\s]+)/(pull|issues)/([0-9]+)(?:[/?#].*)?$")
+        .expect("valid GitHub URL regex")
+});
+static OWNER_REPO_HASH_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^([^/\s#]+)/([^/\s#]+)#([0-9]+)$").expect("valid owner repo hash regex")
+});
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResourceIdError {
@@ -107,11 +115,7 @@ impl ResourceId {
     }
 
     fn parse_url(input: &str) -> Result<Option<Self>, ResourceIdError> {
-        let re = Regex::new(
-            r"^https://github\.com/([^/\s]+)/([^/\s]+)/(pull|issues)/([0-9]+)(?:[/?#].*)?$",
-        )
-        .expect("valid GitHub URL regex");
-        let Some(caps) = re.captures(input) else {
+        let Some(caps) = GITHUB_RESOURCE_URL_RE.captures(input) else {
             return Ok(None);
         };
         let kind_hint = match &caps[3] {
@@ -128,9 +132,7 @@ impl ResourceId {
     }
 
     fn parse_owner_repo_hash(input: &str) -> Result<Option<Self>, ResourceIdError> {
-        let re =
-            Regex::new(r"^([^/\s#]+)/([^/\s#]+)#([0-9]+)$").expect("valid owner repo hash regex");
-        let Some(caps) = re.captures(input) else {
+        let Some(caps) = OWNER_REPO_HASH_RE.captures(input) else {
             return Ok(None);
         };
         Ok(Some(Self {

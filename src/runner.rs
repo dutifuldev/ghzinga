@@ -655,19 +655,22 @@ async fn run_tui(
             last_refresh = Instant::now();
         }
     }
+    let mut needs_redraw = true;
     loop {
+        let mut state_changed = false;
         if apply_completed_fetches(state, &mut fetch_rx) {
+            state_changed = true;
             if let Some(runtime) = &mut session_runtime {
                 persist_session_now(state, runtime);
             }
         }
-        maybe_load_file_patches_for_active_files_tab(
+        state_changed |= maybe_load_file_patches_for_active_files_tab(
             state,
             fetch_source.clone(),
             &fetch_tx,
             &mut last_refresh,
         );
-        handle_pending_control_requests(
+        state_changed |= handle_pending_control_requests(
             state,
             fetch_source.clone(),
             &fetch_tx,
@@ -675,21 +678,31 @@ async fn run_tui(
             &mut session_runtime,
             &mut last_refresh,
         );
-        state.advance_loading_frame();
-        terminal.draw(|frame| render_app(frame, state))?;
+        if should_advance_loading_frame(state) {
+            state.advance_loading_frame();
+            state_changed = true;
+        }
+        let scrollbar_was_fading = should_advance_scrollbar_fade(state);
+        if scrollbar_was_fading {
+            state_changed = true;
+        }
+        if needs_redraw || state_changed {
+            terminal.draw(|frame| render_app(frame, state))?;
+            needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
+        }
         if state.should_quit {
             if let Some(runtime) = &mut session_runtime {
                 persist_session_now(state, runtime);
             }
             return Ok(());
         }
-        maybe_refresh_loading_active_resource(
+        needs_redraw |= maybe_refresh_loading_active_resource(
             state,
             fetch_source.clone(),
             &fetch_tx,
             &mut last_refresh,
         );
-        maybe_auto_refresh(
+        needs_redraw |= maybe_auto_refresh(
             state,
             fetch_source.is_live_github(),
             refresh_interval,
@@ -698,8 +711,17 @@ async fn run_tui(
             fetch_source.clone(),
             &fetch_tx,
         );
-        for app_event in read_pending_app_events()? {
-            let intent = apply_event(state, app_event);
+        let app_events = read_pending_app_events()?;
+        if !app_events.events.is_empty() {
+            needs_redraw = true;
+        }
+        for pending_event in app_events.events {
+            if pending_event.requires_pre_event_redraw {
+                let scrollbar_was_fading = should_advance_scrollbar_fade(state);
+                terminal.draw(|frame| render_app(frame, state))?;
+                needs_redraw |= should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
+            }
+            let intent = apply_event(state, pending_event.event);
             if handle_intent(
                 state,
                 intent,
@@ -714,13 +736,13 @@ async fn run_tui(
                 }
                 return Ok(());
             }
-            maybe_refresh_loading_active_resource(
+            needs_redraw |= maybe_refresh_loading_active_resource(
                 state,
                 fetch_source.clone(),
                 &fetch_tx,
                 &mut last_refresh,
             );
-            maybe_load_file_patches_for_active_files_tab(
+            needs_redraw |= maybe_load_file_patches_for_active_files_tab(
                 state,
                 fetch_source.clone(),
                 &fetch_tx,
@@ -731,9 +753,38 @@ async fn run_tui(
             }
         }
         if let Some(runtime) = &mut session_runtime {
-            persist_session_when_due(state, runtime, Instant::now());
+            needs_redraw |= persist_session_when_due(state, runtime, Instant::now());
         }
     }
+}
+
+fn should_advance_loading_frame(state: &AppState) -> bool {
+    if state.loading_message().is_some() || state.file_patch_loading_message().is_some() {
+        return true;
+    }
+    if is_animating_loading_resource(&state.resource, state.last_error.as_deref()) {
+        return true;
+    }
+    let active_tab_id = state.active_resource_tab_id();
+    state.resource_tabs.iter().any(|tab| {
+        tab.id != active_tab_id
+            && is_animating_loading_resource(&tab.resource, tab.last_error.as_deref())
+    })
+}
+
+fn is_animating_loading_resource(
+    resource: &crate::domain::Resource,
+    last_error: Option<&str>,
+) -> bool {
+    last_error.is_none() && is_loading_resource(resource)
+}
+
+fn should_advance_scrollbar_fade(state: &AppState) -> bool {
+    state.scrollbar_visible_frames > 0
+}
+
+fn should_redraw_after_scrollbar_frame(scrollbar_was_fading: bool, state: &AppState) -> bool {
+    scrollbar_was_fading || should_advance_scrollbar_fade(state)
 }
 
 fn handle_pending_control_requests(
@@ -743,7 +794,8 @@ fn handle_pending_control_requests(
     control_rx: &mut UnboundedReceiver<RuntimeRequest>,
     session_runtime: &mut Option<SessionRuntime>,
     last_refresh: &mut Instant,
-) {
+) -> bool {
+    let mut handled = false;
     while let Ok(request) = control_rx.try_recv() {
         let reply = handle_control_command(
             state,
@@ -760,7 +812,9 @@ fn handle_pending_control_requests(
                 persist_session_now(state, runtime);
             }
         }
+        handled = true;
     }
+    handled
 }
 
 fn handle_control_command(
@@ -863,9 +917,9 @@ fn apply_control_setting(state: &mut AppState, key: &str, value: &str) -> Result
     }
 }
 
-fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
+fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) -> bool {
     if !session_state_persistable(state) {
-        return;
+        return false;
     }
     match session::save_session(
         &runtime.handle,
@@ -878,23 +932,32 @@ fn persist_session_now(state: &mut AppState, runtime: &mut SessionRuntime) {
             runtime.snapshot = Some(snapshot);
             runtime.dirty = false;
             runtime.dirty_since = None;
+            false
         }
         Err(error) => {
-            state.last_error = Some(format!("failed to save ghzinga session: {error}"));
+            let message = format!("failed to save ghzinga session: {error}");
+            let changed = state.last_error.as_deref() != Some(message.as_str());
+            state.last_error = Some(message);
+            changed
         }
     }
 }
 
-fn persist_session_when_due(state: &mut AppState, runtime: &mut SessionRuntime, now: Instant) {
+fn persist_session_when_due(
+    state: &mut AppState,
+    runtime: &mut SessionRuntime,
+    now: Instant,
+) -> bool {
     if !runtime.dirty {
-        return;
+        return false;
     }
     let Some(dirty_since) = runtime.dirty_since else {
-        return;
+        return false;
     };
     if now.duration_since(dirty_since) >= SESSION_SAVE_DEBOUNCE {
-        persist_session_now(state, runtime);
+        return persist_session_now(state, runtime);
     }
+    false
 }
 
 fn session_state_persistable(state: &AppState) -> bool {
@@ -975,9 +1038,18 @@ enum OpenResourceMode {
     ReplaceCurrent,
 }
 
-fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
+struct PendingAppEvents {
+    events: Vec<PendingAppEvent>,
+}
+
+struct PendingAppEvent {
+    event: AppEvent,
+    requires_pre_event_redraw: bool,
+}
+
+fn read_pending_app_events() -> anyhow::Result<PendingAppEvents> {
     if !event::poll(EVENT_POLL_TIMEOUT)? {
-        return Ok(Vec::new());
+        return Ok(PendingAppEvents { events: Vec::new() });
     }
 
     let mut events = Vec::with_capacity(MAX_PENDING_EVENTS_PER_FRAME);
@@ -985,13 +1057,24 @@ fn read_pending_app_events() -> anyhow::Result<Vec<AppEvent>> {
     while events.len() < MAX_PENDING_EVENTS_PER_FRAME && event::poll(Duration::ZERO)? {
         events.push(event_to_app_event(event::read()?));
     }
-    Ok(events.into_iter().flatten().collect())
+    let events = events.into_iter().flatten().collect();
+    Ok(PendingAppEvents { events })
 }
 
-fn event_to_app_event(event: Event) -> Option<AppEvent> {
+fn event_to_app_event(event: Event) -> Option<PendingAppEvent> {
     match event {
-        Event::Key(key) => Some(AppEvent::Key(key)),
-        Event::Mouse(mouse) => Some(AppEvent::Mouse(mouse)),
+        Event::Key(key) => Some(PendingAppEvent {
+            event: AppEvent::Key(key),
+            requires_pre_event_redraw: false,
+        }),
+        Event::Mouse(mouse) => Some(PendingAppEvent {
+            event: AppEvent::Mouse(mouse),
+            requires_pre_event_redraw: false,
+        }),
+        Event::Resize(_, _) => Some(PendingAppEvent {
+            event: AppEvent::Tick,
+            requires_pre_event_redraw: true,
+        }),
         _ => None,
     }
 }
@@ -1586,7 +1669,7 @@ mod tests {
     };
 
     use crate::{
-        app::{loading_resource_placeholder, AppIntent, AppState, Tab},
+        app::{loading_resource_placeholder, AppEvent, AppIntent, AppState, Tab},
         domain::{
             Resource, ResourceId, ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
             FULL_DEPTH_WARNING_HINT,
@@ -1605,10 +1688,12 @@ mod tests {
 
     use super::{
         apply_control_setting, auto_refresh_due, clipboard_command, empty_launch_resource,
-        handle_control_open, handle_intent, has_command_help_arg, maybe_auto_refresh_with_start,
-        maybe_load_file_patches_with_start, maybe_refresh_loading_active_resource, navigate_back,
-        navigate_to_resource, parse_resource_args, prepare_restored_initial_fetch,
-        resource_count_label, save_open_commands_to_session, session_state_persistable,
+        event_to_app_event, handle_control_open, handle_intent, has_command_help_arg,
+        maybe_auto_refresh_with_start, maybe_load_file_patches_with_start,
+        maybe_refresh_loading_active_resource, navigate_back, navigate_to_resource,
+        parse_resource_args, prepare_restored_initial_fetch, resource_count_label,
+        save_open_commands_to_session, session_state_persistable, should_advance_loading_frame,
+        should_advance_scrollbar_fade, should_redraw_after_scrollbar_frame,
         should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
     };
 
@@ -1900,6 +1985,69 @@ mod tests {
             "help".to_string(),
             "owner/repo#2".to_string(),
         ]));
+    }
+
+    #[test]
+    fn idle_resource_does_not_advance_loading_frame() {
+        let state = AppState::new(issue_resource(1, "Idle issue"));
+
+        assert!(!should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn loading_resource_advances_loading_frame() {
+        let mut state = AppState::new(loading_resource_placeholder(
+            ResourceId::parse("owner/repo#1").unwrap(),
+        ));
+
+        assert!(should_advance_loading_frame(&state));
+
+        state.replace_resource_reset_view(issue_resource(1, "Loaded issue"));
+        state.begin_loading(
+            ResourceId::parse("owner/repo#1").unwrap(),
+            "refreshing owner/repo#1 from GitHub",
+        );
+
+        assert!(should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn failed_loading_resource_does_not_advance_loading_frame() {
+        let mut state = AppState::new(loading_resource_placeholder(
+            ResourceId::parse("owner/repo#1").unwrap(),
+        ));
+        state.last_error = Some("network down".into());
+
+        assert!(!should_advance_loading_frame(&state));
+    }
+
+    #[test]
+    fn scrollbar_fade_keeps_redrawing_until_hidden() {
+        let mut state = AppState::new(issue_resource(1, "Scrollable issue"));
+
+        assert!(!should_advance_scrollbar_fade(&state));
+
+        state.set_scroll_limit(10);
+        state.scroll_down(1);
+
+        assert!(should_advance_scrollbar_fade(&state));
+        assert!(should_redraw_after_scrollbar_frame(false, &state));
+
+        while should_advance_scrollbar_fade(&state) {
+            state.advance_scrollbar_visibility();
+        }
+
+        assert!(!should_advance_scrollbar_fade(&state));
+        assert!(should_redraw_after_scrollbar_frame(true, &state));
+        assert!(!should_redraw_after_scrollbar_frame(false, &state));
+    }
+
+    #[test]
+    fn resize_event_requires_pre_event_redraw() {
+        let pending = event_to_app_event(crossterm::event::Event::Resize(120, 40)).unwrap();
+
+        assert!(matches!(pending.event, AppEvent::Tick));
+        assert!(pending.requires_pre_event_redraw);
     }
 
     #[test]
