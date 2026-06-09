@@ -712,16 +712,16 @@ async fn run_tui(
             &fetch_tx,
         );
         let app_events = read_pending_app_events()?;
-        if app_events.requires_pre_event_redraw {
-            let scrollbar_was_fading = should_advance_scrollbar_fade(state);
-            terminal.draw(|frame| render_app(frame, state))?;
-            needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
-        }
         if !app_events.events.is_empty() {
             needs_redraw = true;
         }
-        for app_event in app_events.events {
-            let intent = apply_event(state, app_event);
+        for pending_event in app_events.events {
+            if pending_event.requires_pre_event_redraw {
+                let scrollbar_was_fading = should_advance_scrollbar_fade(state);
+                terminal.draw(|frame| render_app(frame, state))?;
+                needs_redraw = should_redraw_after_scrollbar_frame(scrollbar_was_fading, state);
+            }
+            let intent = apply_event(state, pending_event.event);
             if handle_intent(
                 state,
                 intent,
@@ -1039,8 +1039,7 @@ enum OpenResourceMode {
 }
 
 struct PendingAppEvents {
-    events: Vec<AppEvent>,
-    requires_pre_event_redraw: bool,
+    events: Vec<PendingAppEvent>,
 }
 
 struct PendingAppEvent {
@@ -1050,10 +1049,7 @@ struct PendingAppEvent {
 
 fn read_pending_app_events() -> anyhow::Result<PendingAppEvents> {
     if !event::poll(EVENT_POLL_TIMEOUT)? {
-        return Ok(PendingAppEvents {
-            events: Vec::new(),
-            requires_pre_event_redraw: false,
-        });
+        return Ok(PendingAppEvents { events: Vec::new() });
     }
 
     let mut events = Vec::with_capacity(MAX_PENDING_EVENTS_PER_FRAME);
@@ -1061,19 +1057,8 @@ fn read_pending_app_events() -> anyhow::Result<PendingAppEvents> {
     while events.len() < MAX_PENDING_EVENTS_PER_FRAME && event::poll(Duration::ZERO)? {
         events.push(event_to_app_event(event::read()?));
     }
-    let mut requires_pre_event_redraw = false;
-    let events = events
-        .into_iter()
-        .flatten()
-        .map(|pending| {
-            requires_pre_event_redraw |= pending.requires_pre_event_redraw;
-            pending.event
-        })
-        .collect();
-    Ok(PendingAppEvents {
-        events,
-        requires_pre_event_redraw,
-    })
+    let events = events.into_iter().flatten().collect();
+    Ok(PendingAppEvents { events })
 }
 
 fn event_to_app_event(event: Event) -> Option<PendingAppEvent> {
