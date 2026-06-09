@@ -468,20 +468,58 @@ pub fn collect_launch_contexts(explicit_session: Option<&str>, cwd: &Path) -> Ve
 }
 
 fn git_remote_context(cwd: &Path) -> Option<LaunchContext> {
+    let remote = github_remote_url_from_cwd(cwd)?;
+    let key = github_repo_key_from_remote(&remote)?;
+    Some(LaunchContext::new("git", key, ContextConfidence::Weak).with_metadata("remote", remote))
+}
+
+pub fn github_repo_name_from_cwd(cwd: &Path) -> Option<String> {
+    github_repo_name_from_remote(&github_remote_url_from_cwd(cwd)?)
+}
+
+fn github_remote_url_from_cwd(cwd: &Path) -> Option<String> {
+    if let Some(remote) = git_remote_url(cwd, "origin")
+        .filter(|remote| github_repo_name_from_remote(remote).is_some())
+    {
+        return Some(remote);
+    }
+
     let output = Command::new("git")
-        .args(["remote", "get-url", "origin"])
+        .arg("remote")
         .current_dir(cwd)
         .output()
         .ok()?;
     if !output.status.success() {
         return None;
     }
-    let remote = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let key = github_repo_key_from_remote(&remote)?;
-    Some(LaunchContext::new("git", key, ContextConfidence::Weak).with_metadata("remote", remote))
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|name| !name.is_empty() && *name != "origin")
+        .find_map(|name| {
+            git_remote_url(cwd, name)
+                .filter(|remote| github_repo_name_from_remote(remote).is_some())
+        })
+}
+
+fn git_remote_url(cwd: &Path, name: &str) -> Option<String> {
+    let output = Command::new("git")
+        .args(["remote", "get-url", name])
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .filter(|remote| !remote.is_empty())
 }
 
 fn github_repo_key_from_remote(remote: &str) -> Option<String> {
+    github_repo_name_from_remote(remote).map(|repo| format!("github.com/{repo}"))
+}
+
+fn github_repo_name_from_remote(remote: &str) -> Option<String> {
     let mut value = remote.trim().trim_end_matches(".git").to_string();
     if let Some(rest) = value.strip_prefix("git@github.com:") {
         value = rest.to_string();
@@ -494,7 +532,7 @@ fn github_repo_key_from_remote(remote: &str) -> Option<String> {
     }
     let parts = value.split('/').collect::<Vec<_>>();
     (parts.len() >= 2 && !parts[0].is_empty() && !parts[1].is_empty())
-        .then(|| format!("github.com/{}/{}", parts[0], parts[1]))
+        .then(|| format!("{}/{}", parts[0], parts[1]))
 }
 
 fn current_tty() -> Option<String> {
@@ -1301,6 +1339,39 @@ mod tests {
         assert_eq!(
             github_repo_key_from_remote("git@github.com:dutifuldev/ghzinga.git"),
             Some("github.com/dutifuldev/ghzinga".into())
+        );
+        assert_eq!(
+            github_repo_name_from_remote("ssh://git@github.com/dutifuldev/ghzinga.git"),
+            Some("dutifuldev/ghzinga".into())
+        );
+    }
+
+    #[test]
+    fn github_repo_name_from_cwd_uses_available_github_remote() {
+        let dir = tempdir().unwrap();
+        assert!(Command::new("git")
+            .arg("init")
+            .current_dir(dir.path())
+            .output()
+            .unwrap()
+            .status
+            .success());
+        assert!(Command::new("git")
+            .args([
+                "remote",
+                "add",
+                "upstream",
+                "git@github.com:dutifuldev/ghzinga.git",
+            ])
+            .current_dir(dir.path())
+            .output()
+            .unwrap()
+            .status
+            .success());
+
+        assert_eq!(
+            github_repo_name_from_cwd(dir.path()),
+            Some("dutifuldev/ghzinga".into())
         );
     }
 

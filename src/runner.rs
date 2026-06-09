@@ -64,8 +64,9 @@ async fn run_open_command(raw_args: &[String], args: &[String]) -> anyhow::Resul
         print_open_usage_to_stderr();
         return Ok(2);
     }
-    let resources = parse_resource_args(&resource_args)?;
     let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let repo_context = session::github_repo_name_from_cwd(&cwd);
+    let resources = parse_resource_args(&resource_args, repo_context.as_deref())?;
     let plan = match session::resolve_control_plan(session_ref, raw_args.to_vec(), cwd.clone()) {
         Ok(plan) => plan,
         Err(session::ControlResolveError::Ambiguous(matches)) => {
@@ -224,19 +225,31 @@ fn parse_control_session_option(args: &[String]) -> anyhow::Result<(Option<Strin
     Ok((session_ref, rest))
 }
 
-fn parse_resource_args(args: &[String]) -> anyhow::Result<Vec<ResourceId>> {
+fn parse_resource_args(
+    args: &[String],
+    repo_name_with_owner: Option<&str>,
+) -> anyhow::Result<Vec<ResourceId>> {
     match args {
         [] => anyhow::bail!("expected at least one GitHub PR/issue resource"),
-        [single] => Ok(vec![ResourceId::parse(single).map_err(anyhow::Error::new)?]),
+        [single] => Ok(vec![ResourceId::parse_with_repo_context(
+            single,
+            repo_name_with_owner,
+        )
+        .map_err(anyhow::Error::new)?]),
         [owner_repo, number]
-            if ResourceId::parse(owner_repo).is_err() && number.parse::<u64>().is_ok() =>
+            if owner_repo.contains('/')
+                && ResourceId::parse(owner_repo).is_err()
+                && number.parse::<u64>().is_ok() =>
         {
             Ok(vec![ResourceId::from_owner_repo_number(owner_repo, number)
                 .map_err(anyhow::Error::new)?])
         }
         many => many
             .iter()
-            .map(|value| ResourceId::parse(value).map_err(anyhow::Error::new))
+            .map(|value| {
+                ResourceId::parse_with_repo_context(value, repo_name_with_owner)
+                    .map_err(anyhow::Error::new)
+            })
             .collect(),
     }
 }
@@ -262,7 +275,7 @@ fn print_sessions_usage_to_stderr() {
 fn print_open_usage() {
     println!("usage: gzg open [--session <id-or-name>] <resource> [resource...]");
     println!();
-    println!("Resources may be GitHub URLs or owner/repo#number values.");
+    println!("Resources may be GitHub URLs, owner/repo#number values, or bare numbers from inside a GitHub repo.");
     println!("The owner/repo number form is supported for one resource at a time.");
 }
 
@@ -460,8 +473,9 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     }
     let cli = Cli::parse();
     let loaded_config = config::load();
-    let resource_id = cli.parse_optional_resource_id()?;
     let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let repo_context = session::github_repo_name_from_cwd(&cwd);
+    let resource_id = cli.parse_optional_resource_id_with_repo_context(repo_context.as_deref())?;
     let restore_plan = if cli.once {
         RestorePlan {
             handle: None,
@@ -480,64 +494,65 @@ pub async fn run_from_cli() -> anyhow::Result<()> {
     let api_depth = cli
         .api_depth
         .unwrap_or_else(crate::github::api::ApiDepth::from_env);
-    let (mut state, fetch_source, initial_fetch, restored_ui) =
-        if let Some(path) = &cli.offline_fixture {
-            let resource = load_fixture(path)?;
-            let fixture_source = OfflineFixtureSource::from_primary_and_paths(
-                resource.clone(),
-                &cli.offline_resource_fixture,
-            )?;
+    let (mut state, fetch_source, initial_fetch, restored_ui) = if let Some(path) =
+        &cli.offline_fixture
+    {
+        let resource = load_fixture(path)?;
+        let fixture_source = OfflineFixtureSource::from_primary_and_paths(
+            resource.clone(),
+            &cli.offline_resource_fixture,
+        )?;
+        (
+            AppState::new(resource),
+            FetchSource::OfflineFixtures(fixture_source),
+            None,
+            false,
+        )
+    } else {
+        let gateway = GithubApiGateway::new(api_depth);
+        let fetch_source = FetchSource::Github(gateway);
+        if cli.once {
+            let Some(resource_id) = resource_id.clone() else {
+                anyhow::bail!(
+                        "expected a GitHub PR/issue URL, owner/repo#number, owner/repo number, or a number from inside a GitHub repo"
+                    );
+            };
             (
-                AppState::new(resource),
-                FetchSource::OfflineFixtures(fixture_source),
+                AppState::new(fetch_source.fetch_resource(&resource_id).await?),
+                fetch_source,
                 None,
                 false,
             )
+        } else if let Some(snapshot) = &restore_plan.snapshot {
+            let mut state = session::restore_state_from_snapshot(
+                snapshot,
+                &restore_plan
+                    .handle
+                    .as_ref()
+                    .map(|handle| handle.cache_dir.clone())
+                    .unwrap_or_else(session::cache_dir),
+            )
+            .unwrap_or_else(empty_launch_state);
+            let initial_fetch =
+                prepare_restored_initial_fetch(&mut state, snapshot, resource_id.clone());
+            (state, fetch_source, initial_fetch, true)
         } else {
-            let gateway = GithubApiGateway::new(api_depth);
-            let fetch_source = FetchSource::Github(gateway);
-            if cli.once {
-                let Some(resource_id) = resource_id.clone() else {
-                    anyhow::bail!(
-                        "expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number"
-                    );
-                };
-                (
-                    AppState::new(fetch_source.fetch_resource(&resource_id).await?),
-                    fetch_source,
-                    None,
-                    false,
-                )
-            } else if let Some(snapshot) = &restore_plan.snapshot {
-                let mut state = session::restore_state_from_snapshot(
-                    snapshot,
-                    &restore_plan
-                        .handle
-                        .as_ref()
-                        .map(|handle| handle.cache_dir.clone())
-                        .unwrap_or_else(session::cache_dir),
-                )
-                .unwrap_or_else(empty_launch_state);
-                let initial_fetch =
-                    prepare_restored_initial_fetch(&mut state, snapshot, resource_id.clone());
-                (state, fetch_source, initial_fetch, true)
-            } else {
-                let initial_resource = resource_id
-                    .clone()
-                    .map(loading_resource_placeholder)
-                    .unwrap_or_else(empty_launch_resource);
-                let mut state = AppState::new(initial_resource);
-                if resource_id.is_none() {
-                    state.open_add_resource_prompt();
-                }
-                (
-                    state,
-                    fetch_source,
-                    resource_id.map(|id| FetchAction::Initial { id }),
-                    false,
-                )
+            let initial_resource = resource_id
+                .clone()
+                .map(loading_resource_placeholder)
+                .unwrap_or_else(empty_launch_resource);
+            let mut state = AppState::new(initial_resource);
+            if resource_id.is_none() {
+                state.open_add_resource_prompt();
             }
-        };
+            (
+                state,
+                fetch_source,
+                resource_id.map(|id| FetchAction::Initial { id }),
+                false,
+            )
+        }
+    };
 
     state.config_path = loaded_config.path.clone();
     if !restored_ui {
@@ -1958,10 +1973,13 @@ mod tests {
 
     #[test]
     fn open_parser_accepts_multiple_single_token_resources() {
-        let resources = parse_resource_args(&[
-            "owner/repo#2".to_string(),
-            "https://github.com/owner/repo/issues/3".to_string(),
-        ])
+        let resources = parse_resource_args(
+            &[
+                "owner/repo#2".to_string(),
+                "https://github.com/owner/repo/issues/3".to_string(),
+            ],
+            None,
+        )
         .unwrap();
 
         assert_eq!(resources.len(), 2);
@@ -1971,10 +1989,21 @@ mod tests {
 
     #[test]
     fn open_parser_keeps_owner_repo_number_single_resource_form() {
-        let resources = parse_resource_args(&["owner/repo".to_string(), "4".to_string()]).unwrap();
+        let resources =
+            parse_resource_args(&["owner/repo".to_string(), "4".to_string()], None).unwrap();
 
         assert_eq!(resources.len(), 1);
         assert_eq!(resources[0].canonical_name(), "owner/repo#4");
+    }
+
+    #[test]
+    fn open_parser_accepts_relative_numbers_with_repo_context() {
+        let resources =
+            parse_resource_args(&["2".to_string(), "#3".to_string()], Some("owner/repo")).unwrap();
+
+        assert_eq!(resources.len(), 2);
+        assert_eq!(resources[0].canonical_name(), "owner/repo#2");
+        assert_eq!(resources[1].canonical_name(), "owner/repo#3");
     }
 
     #[test]
