@@ -16,7 +16,7 @@ static OWNER_REPO_HASH_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResourceIdError {
-    #[error("expected a GitHub PR/issue URL, owner/repo#number, or owner/repo number")]
+    #[error("expected a GitHub PR/issue URL, owner/repo#number, owner/repo number, or a number from inside a GitHub repo")]
     Invalid,
     #[error("resource number must be positive")]
     InvalidNumber,
@@ -48,6 +48,13 @@ pub struct ResourceId {
 
 impl ResourceId {
     pub fn parse(input: &str) -> Result<Self, ResourceIdError> {
+        Self::parse_with_repo_context(input, None)
+    }
+
+    pub fn parse_with_repo_context(
+        input: &str,
+        repo_name_with_owner: Option<&str>,
+    ) -> Result<Self, ResourceIdError> {
         let trimmed = input.trim();
         if trimmed.is_empty() {
             return Err(ResourceIdError::Invalid);
@@ -59,6 +66,13 @@ impl ResourceId {
 
         if let Some(parsed) = Self::parse_owner_repo_hash(trimmed)? {
             return Ok(parsed);
+        }
+
+        if let Some(repo_name_with_owner) = repo_name_with_owner {
+            let number = trimmed.strip_prefix('#').unwrap_or(trimmed);
+            if !number.is_empty() && number.chars().all(|ch| ch.is_ascii_digit()) {
+                return Self::from_owner_repo_number(repo_name_with_owner, number);
+            }
         }
 
         Err(ResourceIdError::Invalid)
@@ -741,6 +755,27 @@ mod tests {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap();
 
         assert_eq!(id.canonical_name(), "openclaw/openclaw#81834");
+    }
+
+    #[test]
+    fn parses_relative_numbers_with_repo_context() {
+        let id = ResourceId::parse_with_repo_context("81834", Some("openclaw/openclaw")).unwrap();
+
+        assert_eq!(id.canonical_name(), "openclaw/openclaw#81834");
+        assert_eq!(id.kind_hint, None);
+
+        let hash_id =
+            ResourceId::parse_with_repo_context("#88499", Some("openclaw/openclaw")).unwrap();
+
+        assert_eq!(hash_id.canonical_name(), "openclaw/openclaw#88499");
+    }
+
+    #[test]
+    fn rejects_relative_numbers_without_repo_context() {
+        assert_eq!(
+            ResourceId::parse_with_repo_context("81834", None).unwrap_err(),
+            ResourceIdError::Invalid
+        );
     }
 
     #[test]

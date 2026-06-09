@@ -48,7 +48,12 @@ Open a pull request or issue:
 gzg openclaw/openclaw#81834
 gzg https://github.com/openclaw/openclaw/pull/81834
 gzg https://github.com/openclaw/openclaw/issues/88499
+gzg 81834
 ```
+
+When you run `gzg` from inside a git checkout with a GitHub remote, a bare
+number uses that repository. For example, `gzg 81834` inside a checkout of
+`openclaw/openclaw` opens `openclaw/openclaw#81834`.
 
 Run `gzg` again from the same terminal context to restore the last ghzinga
 dashboard for that pane, tmux pane, Herdr pane, working tree, or named session.

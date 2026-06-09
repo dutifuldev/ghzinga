@@ -17,7 +17,7 @@ pub const DEFAULT_REFRESH_SECONDS: u64 = 300;
     about = "Monitor a GitHub PR or issue in a terminal UI"
 )]
 pub struct Cli {
-    /// GitHub resource as URL, owner/repo#number, or owner/repo number.
+    /// GitHub resource as URL, owner/repo#number, owner/repo number, or bare number in a GitHub repo.
     #[arg(value_name = "RESOURCE")]
     pub resource: Vec<String>,
 
@@ -102,18 +102,33 @@ impl Cli {
     }
 
     pub fn parse_resource_id(&self) -> Result<ResourceId, ResourceIdError> {
+        self.parse_resource_id_with_repo_context(None)
+    }
+
+    pub fn parse_resource_id_with_repo_context(
+        &self,
+        repo_name_with_owner: Option<&str>,
+    ) -> Result<ResourceId, ResourceIdError> {
         match self.resource.as_slice() {
-            [single] => ResourceId::parse(single),
+            [single] => ResourceId::parse_with_repo_context(single, repo_name_with_owner),
             [owner_repo, number] => ResourceId::from_owner_repo_number(owner_repo, number),
             _ => Err(ResourceIdError::Invalid),
         }
     }
 
     pub fn parse_optional_resource_id(&self) -> Result<Option<ResourceId>, ResourceIdError> {
+        self.parse_optional_resource_id_with_repo_context(None)
+    }
+
+    pub fn parse_optional_resource_id_with_repo_context(
+        &self,
+        repo_name_with_owner: Option<&str>,
+    ) -> Result<Option<ResourceId>, ResourceIdError> {
         if self.resource.is_empty() {
             Ok(None)
         } else {
-            self.parse_resource_id().map(Some)
+            self.parse_resource_id_with_repo_context(repo_name_with_owner)
+                .map(Some)
         }
     }
 }
@@ -171,6 +186,19 @@ mod tests {
             cli.parse_resource_id().unwrap().canonical_name(),
             "openclaw/openclaw#81834"
         );
+    }
+
+    #[test]
+    fn parses_relative_resource_from_repo_context() {
+        let cli = Cli::parse_from(["ghzinga", "81834"]);
+
+        assert_eq!(
+            cli.parse_resource_id_with_repo_context(Some("openclaw/openclaw"))
+                .unwrap()
+                .canonical_name(),
+            "openclaw/openclaw#81834"
+        );
+        assert!(cli.parse_resource_id().is_err());
     }
 
     #[test]
