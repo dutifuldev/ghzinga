@@ -51,7 +51,7 @@ jobs:
           cargo install cargo-llvm-cov --locked
           cargo install cargo-audit --locked
           cargo install cargo-mutants --locked
-          cargo install slophammer-rs --version 0.1.0 --locked
+          cargo install slophammer-rs --version 0.3.0 --locked
 
       - name: Install Node
         uses: actions/setup-node@v5

@@ -7,7 +7,8 @@ rust:
       - "target/**"
       - "tests/**"
       - "fixtures/**"
-      - "captures/**"
+      - pattern: "captures/**"
+        reason: recorded terminal captures and capture tooling, not shipped code
   complexity:
     cognitive_max: 8
   targets:
@@ -16,18 +17,21 @@ rust:
     - "target/**"
     - "tests/**"
     - "fixtures/**"
-    - "captures/**"
+    - pattern: "captures/**"
+      reason: recorded terminal captures and capture tooling, not shipped code
   dry:
     max_findings: 0
     paths:
       - src
     exclude:
-      - "src/test_fixtures.rs"
+      - pattern: "src/test_fixtures.rs"
+        reason: shared test fixture data exercised only from tests
       - "**/*_test.rs"
       - "target/**"
       - "tests/**"
       - "fixtures/**"
-      - "captures/**"
+      - pattern: "captures/**"
+        reason: recorded terminal captures and capture tooling, not shipped code
     copied_blocks:
       enabled: true
       min_tokens: 100
