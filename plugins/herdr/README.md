@@ -27,13 +27,14 @@ https://github.com/dutifuldev/ghzinga/issues/32
 ```
 
 The plugin opens a right-side ghzinga pane next to the pane that contained the
-link. Later Ctrl-clicks from the same source pane reuse that side pane by
-running `gzg open --session ...`.
+link. Later Ctrl-clicks from the same source pane in the same Herdr session
+reuse that side pane by running `gzg open --session ...`.
 
 ## Requirements
 
 - Herdr 0.7.0 or newer.
-- `gzg` or `ghzinga` installed on `PATH`.
+- `gzg` or `ghzinga` installed on `PATH`. The plugin prefers `gzg`, then
+  falls back to `ghzinga`.
 - GitHub credentials through `gh auth token`, `GH_TOKEN`, or `GITHUB_TOKEN` for
   private repositories.
 

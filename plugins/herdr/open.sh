@@ -47,6 +47,22 @@ state_key_for_pane() {
   printf '%s\n' "$1" | sed 's/[^A-Za-z0-9_-]/_/g'
 }
 
+stable_key_for_text() {
+  printf '%s\n' "$1" | cksum | sed 's/[[:space:]].*//'
+}
+
+herdr_scope_key() {
+  if [ -n "${HERDR_SOCKET_PATH:-}" ]; then
+    printf 'socket_%s\n' "$(stable_key_for_text "$HERDR_SOCKET_PATH")"
+    return
+  fi
+  if [ -n "${HERDR_SESSION:-}" ]; then
+    printf 'session_%s\n' "$(stable_key_for_text "$HERDR_SESSION")"
+    return
+  fi
+  printf 'default\n'
+}
+
 json_pane_id() {
   sed -n 's/.*"pane_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1
 }
@@ -55,6 +71,22 @@ plugin_focuses_viewer() {
   response=$1
   printf '%s\n' "$response" | grep -F "\"plugin_id\":\"$plugin_id\"" >/dev/null 2>&1 || return 1
   printf '%s\n' "$response" | grep -F '"entrypoint":"viewer"' >/dev/null 2>&1
+}
+
+ghzinga_bin() {
+  if [ -n "${GHZINGA_BIN:-}" ]; then
+    printf '%s\n' "$GHZINGA_BIN"
+    return
+  fi
+  if command -v gzg >/dev/null 2>&1; then
+    printf '%s\n' 'gzg'
+    return
+  fi
+  if command -v ghzinga >/dev/null 2>&1; then
+    printf '%s\n' 'ghzinga'
+    return
+  fi
+  printf '%s\n' 'gzg'
 }
 
 clicked_url=${HERDR_PLUGIN_CLICKED_URL:-}
@@ -66,12 +98,13 @@ source_pane=${HERDR_PANE_ID:-}
 target=$(normalize_github_url "$clicked_url") || die "unsupported GitHub issue/PR URL: $clicked_url"
 
 herdr=${HERDR_BIN_PATH:-herdr}
-gzg=${GHZINGA_BIN:-gzg}
+gzg=$(ghzinga_bin)
 plugin_id=${HERDR_PLUGIN_ID:-dutifuldev.ghzinga}
 state_dir=${HERDR_PLUGIN_STATE_DIR:-${TMPDIR:-/tmp}/ghzinga-herdr-plugin}
 mkdir -p "$state_dir"
 
-source_key=$(state_key_for_pane "$source_pane")
+scope_key=$(herdr_scope_key)
+source_key="${scope_key}_$(state_key_for_pane "$source_pane")"
 session="herdr-ghzinga-${source_key}"
 state_file="${state_dir}/${source_key}.pane"
 

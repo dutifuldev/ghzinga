@@ -84,6 +84,14 @@ def run_herdr(args, *, check=True, timeout=20):
     return result
 
 
+def herdr_socket_path():
+    status = run_herdr(["status", "server"]).stdout
+    for line in status.splitlines():
+        if line.startswith("socket: "):
+            return line.removeprefix("socket: ").strip()
+    raise RuntimeError(f"could not find Herdr socket path in status output: {status}")
+
+
 def stop_session():
     subprocess.run(
         ["herdr", "session", "stop", SESSION, "--json"],
@@ -207,6 +215,7 @@ def main():
                 "HERDR_PLUGIN_LIVE_SESSION_NAME": SESSION,
                 "HERDR_PLUGIN_CLICKED_URL": TARGET_URL,
                 "HERDR_PANE_ID": source_pane,
+                "HERDR_SOCKET_PATH": herdr_socket_path(),
                 "HERDR_PLUGIN_ID": "dutifuldev.ghzinga",
                 "HERDR_PLUGIN_STATE_DIR": str(state_dir),
                 "HERDR_BIN_PATH": str(herdr_wrapper),
