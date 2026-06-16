@@ -32,6 +32,8 @@ reuse that side pane by running `gzg open --session ...`.
 
 Ctrl-clicks from inside that ghzinga side pane also stay in the same ghzinga
 pane, so following related issue/PR links does not create nested ghzinga panes.
+When a new ghzinga side pane is created, it starts from the clicked resource
+rather than restoring tabs from a previous closed plugin pane.
 
 Herdr currently routes plugin link handlers through Ctrl-click. Plain left-click
 link handling would need Herdr itself to expose that behavior to plugins.
@@ -52,7 +54,9 @@ ghzinga's Rust parser, and opens a right-side Herdr plugin pane beside the sourc
 pane.
 
 `gzg herdr-plugin viewer` runs inside that side pane. It starts the normal
-ghzinga TUI for the selected issue or PR.
+ghzinga TUI for the selected issue or PR with `--new --session`, so the pane has
+a fresh initial resource while still exposing a stable session for later
+`gzg open --session ...` updates.
 
 The Rust entrypoint also keeps pane reuse state scoped by Herdr session/socket
 and source pane. On later Ctrl-clicks from the same source pane, it focuses the

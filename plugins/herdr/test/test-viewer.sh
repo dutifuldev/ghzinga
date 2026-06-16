@@ -32,7 +32,7 @@ env \
   GHZINGA_BIN="${script_dir}/fake-gzg.sh" \
   GZG_FAKE_LOG="$gzg_log" \
   "$gzg_bin" herdr-plugin viewer >/dev/null
-assert_contains "$gzg_log" "--session herdr-ghzinga-w1_p1 https://github.com/dutifuldev/ghzinga/pull/29"
+assert_contains "$gzg_log" "--new --session herdr-ghzinga-w1_p1 https://github.com/dutifuldev/ghzinga/pull/29"
 
 missing_err="${work_dir}/missing.err"
 if env \

@@ -4,6 +4,7 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 session=${HERDR_PLUGIN_LIVE_SESSION:-gzgplug}
 target_url=${HERDR_PLUGIN_LIVE_URL:-https://github.com/openclaw/openclaw/pull/81834}
+internal_url=${HERDR_PLUGIN_LIVE_INTERNAL_URL:-https://github.com/openclaw/openclaw/issues/88499}
 
 if [ "${HERDR_PLUGIN_LIVE_SELF_TEST:-0}" = "1" ]; then
   printf 'OK: herdr plugin live smoke self-test passed.\n'
@@ -24,6 +25,7 @@ cargo build --manifest-path "${repo_root}/Cargo.toml" --bin gzg >/dev/null
 HERDR_PLUGIN_LIVE_REPO_ROOT=$repo_root \
 HERDR_PLUGIN_LIVE_SESSION_NAME=$session \
 HERDR_PLUGIN_LIVE_TARGET_URL=$target_url \
+HERDR_PLUGIN_LIVE_INTERNAL_URL=$internal_url \
 python3 - <<'PY'
 import json
 import os
@@ -45,6 +47,7 @@ import termios
 REPO = Path(os.environ["HERDR_PLUGIN_LIVE_REPO_ROOT"])
 SESSION = os.environ["HERDR_PLUGIN_LIVE_SESSION_NAME"]
 TARGET_URL = os.environ["HERDR_PLUGIN_LIVE_TARGET_URL"]
+INTERNAL_URL = os.environ["HERDR_PLUGIN_LIVE_INTERNAL_URL"]
 ROWS = 40
 COLS = 140
 ISOLATED_ENV = {}
@@ -207,7 +210,8 @@ def main():
             "fi\n"
             f"exec {str(REPO / 'target' / 'debug' / 'gzg')!r} \"$@\" "
             f"--offline-fixture {str(REPO / 'fixtures' / 'pr-81834.json')!r} "
-            "--no-restore --refresh-seconds 0\n",
+            f"--offline-resource-fixture {str(REPO / 'fixtures' / 'issue-88499.json')!r} "
+            "--refresh-seconds 0\n",
         )
 
         child_pid, fd = pty.fork()
@@ -270,7 +274,7 @@ def main():
         self_env = clean_env(
             {
                 "HERDR_PLUGIN_LIVE_SESSION_NAME": SESSION,
-                "HERDR_PLUGIN_CLICKED_URL": TARGET_URL,
+                "HERDR_PLUGIN_CLICKED_URL": INTERNAL_URL,
                 "HERDR_PANE_ID": neighbor_pane,
                 "HERDR_SOCKET_PATH": herdr_socket_path(),
                 "HERDR_PLUGIN_ID": "dutifuldev.ghzinga",
@@ -296,11 +300,15 @@ def main():
                 "ghzinga viewer link opened a nested plugin pane; "
                 f"before={pane_count}, after={len(panes_after_self_open)}"
             )
-        wait_for_visible(neighbor_pane, ["Overview", "Activity", "Files"], timeout=15)
+        wait_for_visible(
+            neighbor_pane,
+            ["openai-responses provider", "Bug Description"],
+            timeout=15,
+        )
 
         print(f"OK: linked Herdr plugin {link['plugin']['plugin_id']}")
         print(f"OK: source pane {source_pane} opened right-side ghzinga pane {neighbor_pane}")
-        print(f"OK: ghzinga pane {neighbor_pane} reused itself for an internal link")
+        print(f"OK: ghzinga pane {neighbor_pane} reused itself for {INTERNAL_URL}")
         print(f"OK: ghzinga rendered fixture content for {TARGET_URL}")
     finally:
         if child_pid is not None:

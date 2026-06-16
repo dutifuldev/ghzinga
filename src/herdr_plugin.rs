@@ -113,7 +113,11 @@ fn run_viewer_entrypoint() -> anyhow::Result<i32> {
     let session = env::var("GHZINGA_SESSION").unwrap_or_else(|_| "herdr-ghzinga".into());
     let bin = ghzinga_viewer_bin();
     let mut command = StdCommand::new(&bin);
-    command.arg("--session").arg(&session).arg(&target);
+    command
+        .arg("--new")
+        .arg("--session")
+        .arg(&session)
+        .arg(&target);
 
     #[cfg(unix)]
     {
