@@ -266,8 +266,41 @@ def main():
         if "openclaw" not in visible.lower():
             raise RuntimeError(f"ghzinga pane did not show the expected fixture:\n{visible}")
 
+        pane_count = len(panes)
+        self_env = clean_env(
+            {
+                "HERDR_PLUGIN_LIVE_SESSION_NAME": SESSION,
+                "HERDR_PLUGIN_CLICKED_URL": TARGET_URL,
+                "HERDR_PANE_ID": neighbor_pane,
+                "HERDR_SOCKET_PATH": herdr_socket_path(),
+                "HERDR_PLUGIN_ID": "dutifuldev.ghzinga",
+                "HERDR_PLUGIN_STATE_DIR": str(state_dir),
+                "HERDR_BIN_PATH": str(herdr_wrapper),
+                "GHZINGA_BIN": str(gzg_wrapper),
+            }
+        )
+        self_opened = subprocess.run(
+            [str(REPO / "target" / "debug" / "gzg"), "herdr-plugin", "open"],
+            cwd=REPO,
+            env=self_env,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        if self_opened.returncode != 0:
+            detail = self_opened.stderr.strip() or self_opened.stdout.strip()
+            raise RuntimeError(f"plugin self-open entrypoint failed: {detail}")
+        panes_after_self_open = wait_for_panes(fd, count=pane_count, timeout=10)
+        if len(panes_after_self_open) != pane_count:
+            raise RuntimeError(
+                "ghzinga viewer link opened a nested plugin pane; "
+                f"before={pane_count}, after={len(panes_after_self_open)}"
+            )
+        wait_for_visible(neighbor_pane, ["Overview", "Activity", "Files"], timeout=15)
+
         print(f"OK: linked Herdr plugin {link['plugin']['plugin_id']}")
         print(f"OK: source pane {source_pane} opened right-side ghzinga pane {neighbor_pane}")
+        print(f"OK: ghzinga pane {neighbor_pane} reused itself for an internal link")
         print(f"OK: ghzinga rendered fixture content for {TARGET_URL}")
     finally:
         if child_pid is not None:

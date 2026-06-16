@@ -126,6 +126,14 @@ reuse_initial_gzg="${work_dir}/reuse-initial-gzg.log"
 run_open "https://github.com/dutifuldev/ghzinga/pull/32" "$reuse_state" "$reuse_initial_herdr" "$reuse_initial_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p9
 reuse_session=$(session_from_herdr_log "$reuse_initial_herdr")
+self_herdr="${work_dir}/self-herdr.log"
+self_gzg="${work_dir}/self-gzg.log"
+run_open "https://github.com/dutifuldev/ghzinga/issues/37" "$reuse_state" "$self_herdr" "$self_gzg" \
+  HERDR_PANE_ID=w1:p9 \
+  HERDR_FAKE_PLUGIN_PANE=w1:p9
+assert_contains "$self_herdr" "plugin pane focus w1:p9"
+assert_not_contains "$self_herdr" "plugin pane open"
+assert_contains "$self_gzg" "open --session $reuse_session https://github.com/dutifuldev/ghzinga/issues/37"
 reuse_herdr="${work_dir}/reuse-herdr.log"
 reuse_gzg="${work_dir}/reuse-gzg.log"
 run_open "https://github.com/dutifuldev/ghzinga/pull/33" "$reuse_state" "$reuse_herdr" "$reuse_gzg" \

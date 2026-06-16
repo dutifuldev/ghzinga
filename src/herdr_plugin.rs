@@ -44,11 +44,17 @@ fn run_open_entrypoint() -> anyhow::Result<i32> {
     fs::create_dir_all(&state_dir)
         .with_context(|| format!("failed to create {}", state_dir.display()))?;
 
+    if let Some(session) = read_stored_line(&viewer_session_file(&state_dir, &source_pane))? {
+        if focus_is_our_viewer(&herdr, &source_pane, &plugin_id)? {
+            return run_ghzinga_open(&session, &target);
+        }
+    }
+
     let source_key = herdr_source_key(&source_pane);
     let session = format!("herdr-ghzinga-{source_key}");
     let state_file = state_dir.join(format!("{source_key}.pane"));
 
-    if let Some(stored_pane) = read_stored_pane(&state_file)? {
+    if let Some(stored_pane) = read_stored_line(&state_file)? {
         if herdr_command_succeeds(&herdr, ["pane", "get", stored_pane.as_str()])
             && focus_is_our_viewer(&herdr, &stored_pane, &plugin_id)?
         {
@@ -90,6 +96,9 @@ fn run_open_entrypoint() -> anyhow::Result<i32> {
     if let Some(opened_pane) = plugin_pane_id_from_response(&response) {
         fs::write(&state_file, format!("{opened_pane}\n"))
             .with_context(|| format!("failed to write {}", state_file.display()))?;
+        let session_file = viewer_session_file(&state_dir, &opened_pane);
+        fs::write(&session_file, format!("{session}\n"))
+            .with_context(|| format!("failed to write {}", session_file.display()))?;
     } else {
         eprintln!("ghzinga-herdr: warning: could not find opened pane id in Herdr response");
     }
@@ -159,6 +168,10 @@ fn plugin_state_dir() -> PathBuf {
         .unwrap_or_else(|| env::temp_dir().join("ghzinga-herdr-plugin"))
 }
 
+fn viewer_session_file(state_dir: &Path, pane_id: &str) -> PathBuf {
+    state_dir.join(format!("{}.session", herdr_source_key(pane_id)))
+}
+
 fn herdr_source_key(source_pane: &str) -> String {
     format!("{}_{}", herdr_scope_key(), state_key_for_pane(source_pane))
 }
@@ -199,7 +212,7 @@ fn stable_key_for_text(input: &str) -> String {
     format!("{hash:016x}")
 }
 
-fn read_stored_pane(path: &Path) -> anyhow::Result<Option<String>> {
+fn read_stored_line(path: &Path) -> anyhow::Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(raw) => Ok(raw
             .lines()
@@ -349,6 +362,16 @@ mod tests {
         "HERDR_SOCKET_PATH",
     ];
 
+    fn first_file_with_extension(dir: &std::path::Path, extension: &str) -> PathBuf {
+        let mut files = fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().and_then(|value| value.to_str()) == Some(extension))
+            .collect::<Vec<_>>();
+        files.sort();
+        files.into_iter().next().unwrap()
+    }
+
     struct EnvRestore {
         values: Vec<(&'static str, Option<OsString>)>,
     }
@@ -479,13 +502,15 @@ mod tests {
         assert!(herdr_log.contains("--env GHZINGA_SESSION=herdr-ghzinga-socket_"));
         assert!(herdr_log.contains("_w1_p1"));
 
-        let state_file = fs::read_dir(&state_dir)
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .path();
-        assert_eq!(fs::read_to_string(state_file).unwrap(), "w1:p9\n");
+        assert_eq!(
+            fs::read_to_string(first_file_with_extension(&state_dir, "pane")).unwrap(),
+            "w1:p9\n"
+        );
+        assert!(
+            fs::read_to_string(first_file_with_extension(&state_dir, "session"))
+                .unwrap()
+                .starts_with("herdr-ghzinga-socket_")
+        );
         assert!(!gzg_log.exists());
     }
 
@@ -529,6 +554,58 @@ mod tests {
 
         let gzg_log = fs::read_to_string(gzg_log).unwrap();
         assert!(gzg_log.contains(&format!(
+            "open --session herdr-ghzinga-{source_key} https://github.com/dutifuldev/ghzinga/issues/32"
+        )));
+    }
+
+    #[test]
+    fn open_entrypoint_reuses_current_viewer_when_link_originates_inside_ghzinga() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let _env = EnvRestore::clear();
+        let temp = tempfile::tempdir().unwrap();
+        let state_dir = temp.path().join("state");
+        let initial_herdr_log = temp.path().join("initial-herdr.log");
+        let initial_gzg_log = temp.path().join("initial-gzg.log");
+        let self_herdr_log = temp.path().join("self-herdr.log");
+        let self_gzg_log = temp.path().join("self-gzg.log");
+        let socket = temp.path().join("herdr.sock");
+
+        env::set_var(
+            "HERDR_PLUGIN_CLICKED_URL",
+            "https://github.com/dutifuldev/ghzinga/pull/29",
+        );
+        env::set_var("HERDR_PANE_ID", "w1:p1");
+        env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
+        env::set_var("HERDR_SOCKET_PATH", &socket);
+        env::set_var(
+            "HERDR_BIN_PATH",
+            repo_file("plugins/herdr/test/fake-herdr.sh"),
+        );
+        env::set_var("HERDR_FAKE_LOG", &initial_herdr_log);
+        env::set_var("HERDR_FAKE_OPENED_PANE", "w1:p9");
+        env::set_var("GHZINGA_BIN", repo_file("plugins/herdr/test/fake-gzg.sh"));
+        env::set_var("GZG_FAKE_LOG", &initial_gzg_log);
+
+        assert_eq!(run_open_entrypoint().unwrap(), 0);
+
+        env::set_var(
+            "HERDR_PLUGIN_CLICKED_URL",
+            "https://github.com/dutifuldev/ghzinga/issues/32",
+        );
+        env::set_var("HERDR_PANE_ID", "w1:p9");
+        env::set_var("HERDR_FAKE_LOG", &self_herdr_log);
+        env::set_var("HERDR_FAKE_PLUGIN_PANE", "w1:p9");
+        env::set_var("GZG_FAKE_LOG", &self_gzg_log);
+
+        assert_eq!(run_open_entrypoint().unwrap(), 0);
+
+        let source_key = herdr_source_key("w1:p1");
+        let self_herdr_log = fs::read_to_string(self_herdr_log).unwrap();
+        assert!(self_herdr_log.contains("plugin pane focus w1:p9"));
+        assert!(!self_herdr_log.contains("plugin pane open"));
+
+        let self_gzg_log = fs::read_to_string(self_gzg_log).unwrap();
+        assert!(self_gzg_log.contains(&format!(
             "open --session herdr-ghzinga-{source_key} https://github.com/dutifuldev/ghzinga/issues/32"
         )));
     }
