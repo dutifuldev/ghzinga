@@ -2,7 +2,7 @@
 set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-session=${HERDR_PLUGIN_LIVE_SESSION:-ghzinga-plugin-test}
+session=${HERDR_PLUGIN_LIVE_SESSION:-gzgplug}
 target_url=${HERDR_PLUGIN_LIVE_URL:-https://github.com/openclaw/openclaw/pull/81834}
 
 if [ "${HERDR_PLUGIN_LIVE_SELF_TEST:-0}" = "1" ]; then
@@ -47,6 +47,7 @@ SESSION = os.environ["HERDR_PLUGIN_LIVE_SESSION_NAME"]
 TARGET_URL = os.environ["HERDR_PLUGIN_LIVE_TARGET_URL"]
 ROWS = 40
 COLS = 140
+ISOLATED_ENV = {}
 
 
 def clean_env(extra=None):
@@ -58,22 +59,21 @@ def clean_env(extra=None):
         "HERDR_TAB_ID",
         "HERDR_WORKSPACE_ID",
         "HERDR_SESSION",
+        "HERDR_CONFIG_PATH",
     ):
         env.pop(key, None)
     env.setdefault("TERM", "xterm-256color")
+    env.update(ISOLATED_ENV)
     if extra:
         env.update(extra)
     return env
-
-
-CLEAN_ENV = clean_env()
 
 
 def run_herdr(args, *, check=True, timeout=20):
     result = subprocess.run(
         ["herdr", "--session", SESSION, *args],
         cwd=REPO,
-        env=CLEAN_ENV,
+        env=clean_env(),
         text=True,
         capture_output=True,
         timeout=timeout,
@@ -96,7 +96,7 @@ def stop_session():
     subprocess.run(
         ["herdr", "session", "stop", SESSION, "--json"],
         cwd=REPO,
-        env=CLEAN_ENV,
+        env=clean_env(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -104,7 +104,7 @@ def stop_session():
     subprocess.run(
         ["herdr", "session", "delete", SESSION, "--json"],
         cwd=REPO,
-        env=CLEAN_ENV,
+        env=clean_env(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -169,9 +169,23 @@ def write_executable(path, contents):
 
 
 def main():
-    tmp = Path(tempfile.mkdtemp(prefix="ghzinga-herdr-plugin-"))
+    global ISOLATED_ENV
+    tmp_parent = Path(os.environ.get("HERDR_PLUGIN_LIVE_TMPDIR", "/tmp"))
+    tmp = Path(tempfile.mkdtemp(prefix="gzg-hp-", dir=tmp_parent))
     child_pid = None
     try:
+        xdg_config = tmp / "xdg-config"
+        xdg_state = tmp / "xdg-state"
+        xdg_cache = tmp / "xdg-cache"
+        xdg_config.mkdir()
+        xdg_state.mkdir()
+        xdg_cache.mkdir()
+        ISOLATED_ENV = {
+            "XDG_CONFIG_HOME": str(xdg_config),
+            "XDG_STATE_HOME": str(xdg_state),
+            "XDG_CACHE_HOME": str(xdg_cache),
+        }
+
         stop_session()
 
         herdr_wrapper = tmp / "herdr-session.sh"
