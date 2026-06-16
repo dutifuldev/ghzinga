@@ -1,0 +1,24 @@
+id = "dutifuldev.ghzinga"
+name = "Ghzinga for Herdr"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Open GitHub issue and pull request links in a ghzinga side pane from Herdr."
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "open"
+title = "Open in ghzinga"
+contexts = ["pane"]
+command = ["gzg", "herdr-plugin", "open"]
+
+[[panes]]
+id = "viewer"
+title = "ghzinga"
+placement = "split"
+command = ["gzg", "herdr-plugin", "viewer"]
+
+[[link_handlers]]
+id = "github-issue-pr"
+title = "Open GitHub issue or PR in ghzinga"
+pattern = "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(issues|pull)/[0-9]+([/?#].*)?$"
+action = "open"

@@ -48,6 +48,7 @@ async fn maybe_run_session_command(args: &[String]) -> anyhow::Result<Option<i32
             Ok(Some(0))
         }
         "session" => run_session_subcommand(&args[2..]).map(Some),
+        "herdr-plugin" => crate::herdr_plugin::run_command(&args[2..]).map(Some),
         "open" => run_open_command(args, &args[2..]).await.map(Some),
         "set" => run_set_command(args, &args[2..]).await.map(Some),
         _ => Ok(None),
