@@ -119,6 +119,18 @@ issue_gzg="${work_dir}/issue-gzg.log"
 run_open "https://github.com/dutifuldev/ghzinga/issues/32/?utm_source=test#note" "$issue_state" "$issue_herdr" "$issue_gzg"
 assert_contains "$issue_herdr" "--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/issues/32"
 
+legacy_viewer_state="${work_dir}/legacy-viewer-state"
+mkdir -p "$legacy_viewer_state"
+legacy_viewer_herdr="${work_dir}/legacy-viewer-herdr.log"
+legacy_viewer_gzg="${work_dir}/legacy-viewer-gzg.log"
+run_open "https://github.com/dutifuldev/ghzinga/pull/38" "$legacy_viewer_state" "$legacy_viewer_herdr" "$legacy_viewer_gzg" \
+  HERDR_PANE_ID=w1:p9 \
+  HERDR_FAKE_PLUGIN_PANE=w1:p9
+assert_contains "$legacy_viewer_herdr" "plugin pane focus w1:p9"
+assert_not_contains "$legacy_viewer_herdr" "plugin pane open"
+assert_contains "$legacy_viewer_gzg" "open https://github.com/dutifuldev/ghzinga/pull/38"
+assert_not_contains "$legacy_viewer_gzg" "--session"
+
 reuse_state="${work_dir}/reuse-state"
 mkdir -p "$reuse_state"
 reuse_initial_herdr="${work_dir}/reuse-initial-herdr.log"

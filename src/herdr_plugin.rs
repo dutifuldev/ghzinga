@@ -48,6 +48,8 @@ fn run_open_entrypoint() -> anyhow::Result<i32> {
         if focus_is_our_viewer(&herdr, &source_pane, &plugin_id)? {
             return run_ghzinga_open(&session, &target);
         }
+    } else if focus_is_our_viewer(&herdr, &source_pane, &plugin_id)? {
+        return run_ghzinga_open_for_current_context(&target);
     }
 
     let source_key = herdr_source_key(&source_pane);
@@ -135,6 +137,16 @@ fn run_ghzinga_open(session: &str, target: &str) -> anyhow::Result<i32> {
         .arg("open")
         .arg("--session")
         .arg(session)
+        .arg(target)
+        .status()
+        .with_context(|| format!("failed to run {}", bin.display()))?;
+    Ok(status.code().unwrap_or(1))
+}
+
+fn run_ghzinga_open_for_current_context(target: &str) -> anyhow::Result<i32> {
+    let bin = ghzinga_control_bin();
+    let status = StdCommand::new(&bin)
+        .arg("open")
         .arg(target)
         .status()
         .with_context(|| format!("failed to run {}", bin.display()))?;
@@ -608,6 +620,43 @@ mod tests {
         assert!(self_gzg_log.contains(&format!(
             "open --session herdr-ghzinga-{source_key} https://github.com/dutifuldev/ghzinga/issues/32"
         )));
+    }
+
+    #[test]
+    fn open_entrypoint_uses_current_viewer_context_when_reverse_state_is_missing() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let _env = EnvRestore::clear();
+        let temp = tempfile::tempdir().unwrap();
+        let state_dir = temp.path().join("state");
+        let herdr_log = temp.path().join("herdr.log");
+        let gzg_log = temp.path().join("gzg.log");
+        let socket = temp.path().join("herdr.sock");
+
+        env::set_var(
+            "HERDR_PLUGIN_CLICKED_URL",
+            "https://github.com/dutifuldev/ghzinga/pull/38",
+        );
+        env::set_var("HERDR_PANE_ID", "w1:p9");
+        env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
+        env::set_var("HERDR_SOCKET_PATH", &socket);
+        env::set_var(
+            "HERDR_BIN_PATH",
+            repo_file("plugins/herdr/test/fake-herdr.sh"),
+        );
+        env::set_var("HERDR_FAKE_LOG", &herdr_log);
+        env::set_var("HERDR_FAKE_PLUGIN_PANE", "w1:p9");
+        env::set_var("GHZINGA_BIN", repo_file("plugins/herdr/test/fake-gzg.sh"));
+        env::set_var("GZG_FAKE_LOG", &gzg_log);
+
+        assert_eq!(run_open_entrypoint().unwrap(), 0);
+
+        let herdr_log = fs::read_to_string(herdr_log).unwrap();
+        assert!(herdr_log.contains("plugin pane focus w1:p9"));
+        assert!(!herdr_log.contains("plugin pane open"));
+
+        let gzg_log = fs::read_to_string(gzg_log).unwrap();
+        assert!(gzg_log.contains("open https://github.com/dutifuldev/ghzinga/pull/38"));
+        assert!(!gzg_log.contains("--session"));
     }
 
     #[test]

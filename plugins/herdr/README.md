@@ -62,7 +62,9 @@ pane is gone or belongs to something else, it opens a fresh side pane.
 
 When the source pane is already a ghzinga plugin viewer, the entrypoint uses the
 viewer-pane-to-session state written at pane creation time and opens the link in
-that same ghzinga session.
+that same ghzinga session. If that reverse state is missing, for example for a
+pane opened by an older plugin build, it falls back to ghzinga's Herdr pane
+context resolution and still updates the current viewer.
 
 ## Requirements
 
