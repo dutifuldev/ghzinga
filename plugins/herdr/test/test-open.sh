@@ -67,7 +67,7 @@ first_herdr="${work_dir}/first-herdr.log"
 first_gzg="${work_dir}/first-gzg.log"
 run_open "https://github.com/dutifuldev/ghzinga/pull/29" "$first_state" "$first_herdr" "$first_gzg"
 assert_contains "$first_herdr" "plugin pane open --plugin dutifuldev.ghzinga --entrypoint viewer --placement split --target-pane w1:p1 --direction right"
-assert_contains "$first_herdr" "--env GHZINGA_TARGET=dutifuldev/ghzinga#29"
+assert_contains "$first_herdr" "--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/pull/29"
 assert_contains "$first_herdr" "--env GHZINGA_SESSION=$herdr_session"
 assert_contains "$first_herdr" "--env GHZINGA_BIN=${script_dir}/fake-gzg.sh"
 assert_contains "$(state_file_for "$first_state")" "w1:p9"
@@ -94,7 +94,7 @@ mkdir -p "$issue_state"
 issue_herdr="${work_dir}/issue-herdr.log"
 issue_gzg="${work_dir}/issue-gzg.log"
 run_open "https://github.com/dutifuldev/ghzinga/issues/32/?utm_source=test#note" "$issue_state" "$issue_herdr" "$issue_gzg"
-assert_contains "$issue_herdr" "--env GHZINGA_TARGET=dutifuldev/ghzinga#32"
+assert_contains "$issue_herdr" "--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/issues/32"
 
 reuse_state="${work_dir}/reuse-state"
 mkdir -p "$reuse_state"
@@ -107,7 +107,7 @@ run_open "https://github.com/dutifuldev/ghzinga/pull/33" "$reuse_state" "$reuse_
 assert_contains "$reuse_herdr" "pane get w1:p9"
 assert_contains "$reuse_herdr" "plugin pane focus w1:p9"
 assert_not_contains "$reuse_herdr" "plugin pane open"
-assert_contains "$reuse_gzg" "open --session $herdr_session dutifuldev/ghzinga#33"
+assert_contains "$reuse_gzg" "open --session $herdr_session https://github.com/dutifuldev/ghzinga/pull/33"
 
 fallback_bin="${work_dir}/fallback-bin"
 mkdir -p "$fallback_bin"
@@ -122,7 +122,7 @@ run_open "https://github.com/dutifuldev/ghzinga/pull/36" "$fallback_state" "$fal
   GHZINGA_BIN= \
   HERDR_FAKE_EXISTING_PANE=w1:p6 \
   HERDR_FAKE_PLUGIN_PANE=w1:p6
-assert_contains "$fallback_gzg" "open --session $herdr_session dutifuldev/ghzinga#36"
+assert_contains "$fallback_gzg" "open --session $herdr_session https://github.com/dutifuldev/ghzinga/pull/36"
 
 stale_state="${work_dir}/stale-state"
 mkdir -p "$stale_state"

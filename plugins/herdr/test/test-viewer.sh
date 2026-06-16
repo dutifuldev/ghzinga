@@ -23,12 +23,12 @@ assert_contains() {
 
 gzg_log="${work_dir}/gzg.log"
 env \
-  GHZINGA_TARGET="dutifuldev/ghzinga#29" \
+  GHZINGA_TARGET="https://github.com/dutifuldev/ghzinga/pull/29" \
   GHZINGA_SESSION="herdr-ghzinga-w1_p1" \
   GHZINGA_BIN="${script_dir}/fake-gzg.sh" \
   GZG_FAKE_LOG="$gzg_log" \
   sh "${plugin_dir}/viewer.sh" >/dev/null
-assert_contains "$gzg_log" "--session herdr-ghzinga-w1_p1 dutifuldev/ghzinga#29"
+assert_contains "$gzg_log" "--session herdr-ghzinga-w1_p1 https://github.com/dutifuldev/ghzinga/pull/29"
 
 fallback_bin="${work_dir}/fallback-bin"
 mkdir -p "$fallback_bin"
@@ -36,11 +36,11 @@ ln -s "${script_dir}/fake-gzg.sh" "${fallback_bin}/ghzinga"
 fallback_log="${work_dir}/fallback-gzg.log"
 env \
   PATH="$fallback_bin:/usr/bin:/bin" \
-  GHZINGA_TARGET="dutifuldev/ghzinga#30" \
+  GHZINGA_TARGET="https://github.com/dutifuldev/ghzinga/pull/30" \
   GHZINGA_SESSION="herdr-ghzinga-fallback" \
   GZG_FAKE_LOG="$fallback_log" \
   sh "${plugin_dir}/viewer.sh" >/dev/null
-assert_contains "$fallback_log" "--session herdr-ghzinga-fallback dutifuldev/ghzinga#30"
+assert_contains "$fallback_log" "--session herdr-ghzinga-fallback https://github.com/dutifuldev/ghzinga/pull/30"
 
 missing_err="${work_dir}/missing.err"
 if env \

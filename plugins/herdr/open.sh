@@ -40,7 +40,7 @@ normalize_github_url() {
     '' | *[!0-9]*) return 1 ;;
   esac
 
-  printf '%s/%s#%s\n' "$owner" "$repo" "$number"
+  printf 'https://github.com/%s/%s/%s/%s\n' "$owner" "$repo" "$kind" "$number"
 }
 
 state_key_for_pane() {
