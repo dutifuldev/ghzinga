@@ -51,6 +51,12 @@ json_pane_id() {
   sed -n 's/.*"pane_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1
 }
 
+plugin_focuses_viewer() {
+  response=$1
+  printf '%s\n' "$response" | grep -F "\"plugin_id\":\"$plugin_id\"" >/dev/null 2>&1 || return 1
+  printf '%s\n' "$response" | grep -F '"entrypoint":"viewer"' >/dev/null 2>&1
+}
+
 clicked_url=${HERDR_PLUGIN_CLICKED_URL:-}
 [ -n "$clicked_url" ] || die 'HERDR_PLUGIN_CLICKED_URL is not set'
 
@@ -75,9 +81,11 @@ if [ -f "$state_file" ]; then
 fi
 
 if [ -n "$stored_pane" ] && "$herdr" pane get "$stored_pane" >/dev/null 2>&1; then
-  "$gzg" open --session "$session" "$target"
-  "$herdr" plugin pane focus "$stored_pane" >/dev/null 2>&1 || true
-  exit 0
+  if focus_response=$("$herdr" plugin pane focus "$stored_pane" 2>/dev/null) &&
+    plugin_focuses_viewer "$focus_response"; then
+    "$gzg" open --session "$session" "$target"
+    exit 0
+  fi
 fi
 
 set -- "$herdr" plugin pane open \

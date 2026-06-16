@@ -14,8 +14,12 @@ if [ "$#" -ge 3 ] && [ "$1" = "pane" ] && [ "$2" = "get" ]; then
 fi
 
 if [ "$#" -ge 4 ] && [ "$1" = "plugin" ] && [ "$2" = "pane" ] && [ "$3" = "focus" ]; then
-  printf '{"id":"fake","result":{"type":"plugin_pane_focused","plugin_pane":{"plugin_id":"dutifuldev.ghzinga","entrypoint":"viewer","pane":{"pane_id":"%s"}}}}\n' "$4"
-  exit 0
+  if [ "${HERDR_FAKE_PLUGIN_PANE:-}" = "$4" ]; then
+    printf '{"id":"fake","result":{"type":"plugin_pane_focused","plugin_pane":{"plugin_id":"%s","entrypoint":"%s","pane":{"pane_id":"%s"}}}}\n' "${HERDR_FAKE_PLUGIN_ID:-dutifuldev.ghzinga}" "${HERDR_FAKE_PLUGIN_ENTRYPOINT:-viewer}" "$4"
+    exit 0
+  fi
+  printf 'plugin pane not found\n' >&2
+  exit 1
 fi
 
 if [ "$#" -ge 4 ] && [ "$1" = "plugin" ] && [ "$2" = "pane" ] && [ "$3" = "open" ]; then
