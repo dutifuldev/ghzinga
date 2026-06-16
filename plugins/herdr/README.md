@@ -33,10 +33,10 @@ reuse that side pane by running `gzg open --session ...`.
 ## Requirements
 
 - Herdr 0.7.0 or newer.
-- `gzg` or `ghzinga` installed on `PATH`. The plugin prefers `gzg`, then
-  falls back to `ghzinga`.
+- `gzg` installed on `PATH`. The Herdr entrypoints call
+  `gzg herdr-plugin open` and `gzg herdr-plugin viewer`.
 - GitHub credentials through `gh auth token`, `GH_TOKEN`, or `GITHUB_TOKEN` for
   private repositories.
 
 Set `GHZINGA_BIN` before launching Herdr if you need to use a non-default
-ghzinga binary path.
+ghzinga binary path for the viewer process. Normal installs do not need this.

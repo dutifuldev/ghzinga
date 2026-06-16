@@ -63,6 +63,7 @@ def clean_env(extra=None):
     ):
         env.pop(key, None)
     env.setdefault("TERM", "xterm-256color")
+    env["PATH"] = f"{REPO / 'target' / 'debug'}:{env.get('PATH', '')}"
     env.update(ISOLATED_ENV)
     if extra:
         env.update(extra)
@@ -201,6 +202,9 @@ def main():
         write_executable(
             gzg_wrapper,
             "#!/bin/sh\n"
+            "if [ \"${1:-}\" = open ]; then\n"
+            f"  exec {str(REPO / 'target' / 'debug' / 'gzg')!r} \"$@\"\n"
+            "fi\n"
             f"exec {str(REPO / 'target' / 'debug' / 'gzg')!r} \"$@\" "
             f"--offline-fixture {str(REPO / 'fixtures' / 'pr-81834.json')!r} "
             "--no-restore --refresh-seconds 0\n",
@@ -237,7 +241,7 @@ def main():
             }
         )
         opened = subprocess.run(
-            ["sh", str(REPO / "plugins" / "herdr" / "open.sh")],
+            [str(REPO / "target" / "debug" / "gzg"), "herdr-plugin", "open"],
             cwd=REPO,
             env=action_env,
             text=True,

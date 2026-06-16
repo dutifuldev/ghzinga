@@ -9,13 +9,13 @@ platforms = ["linux", "macos"]
 id = "open"
 title = "Open in ghzinga"
 contexts = ["pane"]
-command = ["sh", "open.sh"]
+command = ["gzg", "herdr-plugin", "open"]
 
 [[panes]]
 id = "viewer"
 title = "ghzinga"
 placement = "split"
-command = ["sh", "viewer.sh"]
+command = ["gzg", "herdr-plugin", "viewer"]
 
 [[link_handlers]]
 id = "github-issue-pr"

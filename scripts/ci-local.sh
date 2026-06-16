@@ -19,7 +19,7 @@ sh -n scripts/live-smoke.sh
 GZG_LIVE_SELF_TEST=1 scripts/live-smoke.sh
 sh -n scripts/herdr-plugin-live-smoke.sh
 HERDR_PLUGIN_LIVE_SELF_TEST=1 scripts/herdr-plugin-live-smoke.sh
-for script in plugins/herdr/open.sh plugins/herdr/viewer.sh plugins/herdr/test/*.sh; do
+for script in plugins/herdr/test/*.sh; do
   sh -n "$script"
 done
 plugins/herdr/test/test-open.sh

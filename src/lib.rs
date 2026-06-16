@@ -5,6 +5,7 @@ pub mod control;
 pub mod domain;
 pub mod fetch;
 pub mod github;
+mod herdr_plugin;
 pub mod input;
 pub mod render;
 pub mod runner;
