@@ -10,6 +10,7 @@ on:
       - slophammer.yml
       - fixtures/**
       - captures/**
+      - plugins/**
       - scripts/**
       - src/**
       - tests/**
@@ -23,6 +24,7 @@ on:
       - slophammer.yml
       - fixtures/**
       - captures/**
+      - plugins/**
       - scripts/**
       - src/**
       - tests/**

@@ -232,6 +232,24 @@ fn ci_workflow_delegates_to_full_local_gate() {
     assert!(workflow.contains("workflow_dispatch:"));
     assert!(workflow.contains("scripts/ci-local.sh"));
 
+    for expected_path in [
+        ".github/workflows/ci.yml",
+        "Cargo.lock",
+        "Cargo.toml",
+        "slophammer.yml",
+        "fixtures/**",
+        "captures/**",
+        "plugins/**",
+        "scripts/**",
+        "src/**",
+        "tests/**",
+    ] {
+        assert!(
+            workflow.contains(expected_path),
+            "CI workflow path filters are missing `{expected_path}`"
+        );
+    }
+
     for expected_check in [
         "cargo fmt --check",
         "cargo check",
