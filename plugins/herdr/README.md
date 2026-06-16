@@ -5,10 +5,16 @@ pane.
 
 ## Install
 
-From the `ghzinga` repository:
+Install `ghzinga` 0.4.0 or newer first:
 
 ```sh
-herdr plugin install dutifuldev/ghzinga/plugins/herdr
+cargo install ghzinga --locked --force
+```
+
+Then install the Herdr plugin:
+
+```sh
+herdr plugin install dutifuldev/ghzinga/plugins/herdr --yes
 ```
 
 For local development:
@@ -73,13 +79,36 @@ context resolution and still updates the current viewer.
 ## Requirements
 
 - Herdr 0.7.0 or newer.
-- `gzg` installed on `PATH`. The Herdr entrypoints call
+- `ghzinga` 0.4.0 or newer, with `gzg` installed on `PATH`. The Herdr entrypoints call
   `gzg herdr-plugin open` and `gzg herdr-plugin viewer`.
 - GitHub credentials through `gh auth token`, `GH_TOKEN`, or `GITHUB_TOKEN` for
   private repositories.
 
 Set `GHZINGA_BIN` before launching Herdr if you need to use a non-default
 ghzinga binary path for the viewer process. Normal installs do not need this.
+
+## Troubleshooting
+
+Check that Herdr can find a new enough ghzinga binary:
+
+```sh
+gzg --version
+```
+
+Check that Herdr has the plugin installed and enabled:
+
+```sh
+herdr plugin list --json
+```
+
+Inspect plugin command failures:
+
+```sh
+herdr plugin log list --plugin dutifuldev.ghzinga
+```
+
+If Herdr still runs an older `gzg`, reinstall ghzinga and restart Herdr so its
+plugin environment sees the updated `PATH`.
 
 ## Verification
 
