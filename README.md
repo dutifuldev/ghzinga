@@ -220,6 +220,20 @@ that session, including while another resource is still loading. If the target
 session is not running, `gzg open` updates the saved session so the resources
 appear on the next restore.
 
+## Herdr Plugin
+
+`ghzinga` includes a Herdr plugin for opening GitHub issue and pull request links
+from Herdr panes.
+
+Install it with:
+
+```sh
+herdr plugin install dutifuldev/ghzinga/plugins/herdr
+```
+
+Then Ctrl-click a GitHub issue or pull request URL inside Herdr. The plugin opens
+or reuses a right-side ghzinga pane next to the clicked pane.
+
 ## Refresh
 
 `ghzinga` refreshes automatically every 300 seconds by default. Use
