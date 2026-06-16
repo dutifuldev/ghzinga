@@ -234,6 +234,11 @@ herdr plugin install dutifuldev/ghzinga/plugins/herdr
 Then Ctrl-click a GitHub issue or pull request URL inside Herdr. The plugin opens
 or reuses a right-side ghzinga pane next to the clicked pane.
 
+The plugin is intentionally thin: Herdr calls `gzg herdr-plugin open/viewer`,
+and ghzinga owns the URL parsing, pane reuse, and session control in Rust. See
+[`plugins/herdr/README.md`](plugins/herdr/README.md) for the install and
+architecture details.
+
 ## Refresh
 
 `ghzinga` refreshes automatically every 300 seconds by default. Use
