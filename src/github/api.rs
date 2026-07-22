@@ -5982,7 +5982,7 @@ mod tests {
             vec![
                 " openclaw/openclaw:feature/status ".into(),
                 "openclaw/openclaw:feature/status".into(),
-                "dutifuldev/ghzinga:issue-branch".into(),
+                "osolmaz/ghzinga:issue-branch".into(),
                 "".into(),
             ],
         );
@@ -5991,7 +5991,7 @@ mod tests {
         assert_eq!(metadata[1].label, "Linked branches");
         assert_eq!(
             metadata[1].value,
-            "openclaw/openclaw:feature/status, dutifuldev/ghzinga:issue-branch"
+            "openclaw/openclaw:feature/status, osolmaz/ghzinga:issue-branch"
         );
     }
 

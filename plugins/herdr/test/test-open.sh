@@ -80,10 +80,10 @@ first_state="${work_dir}/first-state"
 mkdir -p "$first_state"
 first_herdr="${work_dir}/first-herdr.log"
 first_gzg="${work_dir}/first-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/29" "$first_state" "$first_herdr" "$first_gzg"
+run_open "https://github.com/osolmaz/ghzinga/pull/29" "$first_state" "$first_herdr" "$first_gzg"
 herdr_session=$(session_from_herdr_log "$first_herdr")
 assert_contains "$first_herdr" "plugin pane open --plugin dutifuldev.ghzinga --entrypoint viewer --placement split --target-pane w1:p1 --direction right"
-assert_contains "$first_herdr" "--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/pull/29"
+assert_contains "$first_herdr" "--env GHZINGA_TARGET=https://github.com/osolmaz/ghzinga/pull/29"
 assert_contains "$first_herdr" "--env GHZINGA_SESSION=$herdr_session"
 assert_contains "$first_herdr" "--env GHZINGA_BIN=${script_dir}/fake-gzg.sh"
 assert_contains "$(first_state_file "$first_state")" "w1:p9"
@@ -95,9 +95,9 @@ shared_first_herdr="${work_dir}/shared-first-herdr.log"
 shared_first_gzg="${work_dir}/shared-first-gzg.log"
 shared_second_herdr="${work_dir}/shared-second-herdr.log"
 shared_second_gzg="${work_dir}/shared-second-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/30" "$shared_state" "$shared_first_herdr" "$shared_first_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/30" "$shared_state" "$shared_first_herdr" "$shared_first_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p9
-run_open "https://github.com/dutifuldev/ghzinga/pull/31" "$shared_state" "$shared_second_herdr" "$shared_second_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/31" "$shared_state" "$shared_second_herdr" "$shared_second_gzg" \
   HERDR_SOCKET_PATH="$second_socket" \
   HERDR_FAKE_OPENED_PANE=w1:p8
 shared_first_session=$(session_from_herdr_log "$shared_first_herdr")
@@ -116,45 +116,45 @@ issue_state="${work_dir}/issue-state"
 mkdir -p "$issue_state"
 issue_herdr="${work_dir}/issue-herdr.log"
 issue_gzg="${work_dir}/issue-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/issues/32/?utm_source=test#note" "$issue_state" "$issue_herdr" "$issue_gzg"
-assert_contains "$issue_herdr" "--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/issues/32"
+run_open "https://github.com/osolmaz/ghzinga/issues/32/?utm_source=test#note" "$issue_state" "$issue_herdr" "$issue_gzg"
+assert_contains "$issue_herdr" "--env GHZINGA_TARGET=https://github.com/osolmaz/ghzinga/issues/32"
 
 legacy_viewer_state="${work_dir}/legacy-viewer-state"
 mkdir -p "$legacy_viewer_state"
 legacy_viewer_herdr="${work_dir}/legacy-viewer-herdr.log"
 legacy_viewer_gzg="${work_dir}/legacy-viewer-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/38" "$legacy_viewer_state" "$legacy_viewer_herdr" "$legacy_viewer_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/38" "$legacy_viewer_state" "$legacy_viewer_herdr" "$legacy_viewer_gzg" \
   HERDR_PANE_ID=w1:p9 \
   HERDR_FAKE_PLUGIN_PANE=w1:p9
 assert_contains "$legacy_viewer_herdr" "plugin pane focus w1:p9"
 assert_not_contains "$legacy_viewer_herdr" "plugin pane open"
-assert_contains "$legacy_viewer_gzg" "open https://github.com/dutifuldev/ghzinga/pull/38"
+assert_contains "$legacy_viewer_gzg" "open https://github.com/osolmaz/ghzinga/pull/38"
 assert_not_contains "$legacy_viewer_gzg" "--session"
 
 reuse_state="${work_dir}/reuse-state"
 mkdir -p "$reuse_state"
 reuse_initial_herdr="${work_dir}/reuse-initial-herdr.log"
 reuse_initial_gzg="${work_dir}/reuse-initial-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/32" "$reuse_state" "$reuse_initial_herdr" "$reuse_initial_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/32" "$reuse_state" "$reuse_initial_herdr" "$reuse_initial_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p9
 reuse_session=$(session_from_herdr_log "$reuse_initial_herdr")
 self_herdr="${work_dir}/self-herdr.log"
 self_gzg="${work_dir}/self-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/issues/37" "$reuse_state" "$self_herdr" "$self_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/issues/37" "$reuse_state" "$self_herdr" "$self_gzg" \
   HERDR_PANE_ID=w1:p9 \
   HERDR_FAKE_PLUGIN_PANE=w1:p9
 assert_contains "$self_herdr" "plugin pane focus w1:p9"
 assert_not_contains "$self_herdr" "plugin pane open"
-assert_contains "$self_gzg" "open --session $reuse_session https://github.com/dutifuldev/ghzinga/issues/37"
+assert_contains "$self_gzg" "open --session $reuse_session https://github.com/osolmaz/ghzinga/issues/37"
 reuse_herdr="${work_dir}/reuse-herdr.log"
 reuse_gzg="${work_dir}/reuse-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/33" "$reuse_state" "$reuse_herdr" "$reuse_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/33" "$reuse_state" "$reuse_herdr" "$reuse_gzg" \
   HERDR_FAKE_EXISTING_PANE=w1:p9 \
   HERDR_FAKE_PLUGIN_PANE=w1:p9
 assert_contains "$reuse_herdr" "pane get w1:p9"
 assert_contains "$reuse_herdr" "plugin pane focus w1:p9"
 assert_not_contains "$reuse_herdr" "plugin pane open"
-assert_contains "$reuse_gzg" "open --session $reuse_session https://github.com/dutifuldev/ghzinga/pull/33"
+assert_contains "$reuse_gzg" "open --session $reuse_session https://github.com/osolmaz/ghzinga/pull/33"
 
 fallback_bin="${work_dir}/fallback-bin"
 mkdir -p "$fallback_bin"
@@ -163,27 +163,27 @@ fallback_state="${work_dir}/fallback-state"
 mkdir -p "$fallback_state"
 fallback_initial_herdr="${work_dir}/fallback-initial-herdr.log"
 fallback_initial_gzg="${work_dir}/fallback-initial-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/36" "$fallback_state" "$fallback_initial_herdr" "$fallback_initial_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/36" "$fallback_state" "$fallback_initial_herdr" "$fallback_initial_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p6
 fallback_session=$(session_from_herdr_log "$fallback_initial_herdr")
 fallback_herdr="${work_dir}/fallback-herdr.log"
 fallback_gzg="${work_dir}/fallback-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/36" "$fallback_state" "$fallback_herdr" "$fallback_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/36" "$fallback_state" "$fallback_herdr" "$fallback_gzg" \
   PATH="$fallback_bin:/usr/bin:/bin" \
   GHZINGA_BIN= \
   HERDR_FAKE_EXISTING_PANE=w1:p6 \
   HERDR_FAKE_PLUGIN_PANE=w1:p6
-assert_contains "$fallback_gzg" "open --session $fallback_session https://github.com/dutifuldev/ghzinga/pull/36"
+assert_contains "$fallback_gzg" "open --session $fallback_session https://github.com/osolmaz/ghzinga/pull/36"
 
 stale_state="${work_dir}/stale-state"
 mkdir -p "$stale_state"
 stale_initial_herdr="${work_dir}/stale-initial-herdr.log"
 stale_initial_gzg="${work_dir}/stale-initial-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/issues/34" "$stale_state" "$stale_initial_herdr" "$stale_initial_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/issues/34" "$stale_state" "$stale_initial_herdr" "$stale_initial_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p8
 stale_herdr="${work_dir}/stale-herdr.log"
 stale_gzg="${work_dir}/stale-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/issues/34" "$stale_state" "$stale_herdr" "$stale_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/issues/34" "$stale_state" "$stale_herdr" "$stale_gzg" \
   HERDR_FAKE_EXISTING_PANE=w1:p8
 assert_contains "$stale_herdr" "pane get w1:p8"
 assert_contains "$stale_herdr" "plugin pane focus w1:p8"
@@ -194,11 +194,11 @@ other_plugin_state="${work_dir}/other-plugin-state"
 mkdir -p "$other_plugin_state"
 other_plugin_initial_herdr="${work_dir}/other-plugin-initial-herdr.log"
 other_plugin_initial_gzg="${work_dir}/other-plugin-initial-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/35" "$other_plugin_state" "$other_plugin_initial_herdr" "$other_plugin_initial_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/35" "$other_plugin_state" "$other_plugin_initial_herdr" "$other_plugin_initial_gzg" \
   HERDR_FAKE_OPENED_PANE=w1:p7
 other_plugin_herdr="${work_dir}/other-plugin-herdr.log"
 other_plugin_gzg="${work_dir}/other-plugin-gzg.log"
-run_open "https://github.com/dutifuldev/ghzinga/pull/35" "$other_plugin_state" "$other_plugin_herdr" "$other_plugin_gzg" \
+run_open "https://github.com/osolmaz/ghzinga/pull/35" "$other_plugin_state" "$other_plugin_herdr" "$other_plugin_gzg" \
   HERDR_FAKE_EXISTING_PANE=w1:p7 \
   HERDR_FAKE_PLUGIN_PANE=w1:p7 \
   HERDR_FAKE_PLUGIN_ID=example.other
@@ -209,7 +209,7 @@ assert_not_contains "$other_plugin_gzg" "open --session"
 
 invalid_err="${work_dir}/invalid.err"
 if env \
-  HERDR_PLUGIN_CLICKED_URL="https://github.com/dutifuldev/ghzinga/tree/main" \
+  HERDR_PLUGIN_CLICKED_URL="https://github.com/osolmaz/ghzinga/tree/main" \
   HERDR_PANE_ID="w1:p1" \
   HERDR_PLUGIN_STATE_DIR="${work_dir}/invalid-state" \
   HERDR_BIN_PATH="${script_dir}/fake-herdr.sh" \

@@ -14,7 +14,7 @@ cargo install ghzinga --locked --force
 Then install the Herdr plugin:
 
 ```sh
-herdr plugin install dutifuldev/ghzinga/plugins/herdr --yes
+herdr plugin install osolmaz/ghzinga/plugins/herdr --yes
 ```
 
 For local development:
@@ -28,8 +28,8 @@ herdr plugin link /path/to/ghzinga/plugins/herdr
 Inside Herdr, Ctrl-click a GitHub issue or pull request URL:
 
 ```text
-https://github.com/dutifuldev/ghzinga/pull/29
-https://github.com/dutifuldev/ghzinga/issues/32
+https://github.com/osolmaz/ghzinga/pull/29
+https://github.com/osolmaz/ghzinga/issues/32
 ```
 
 The plugin opens a right-side ghzinga pane next to the pane that contained the

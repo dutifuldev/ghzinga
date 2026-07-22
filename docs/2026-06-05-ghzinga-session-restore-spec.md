@@ -83,10 +83,10 @@ Each session owns one `session.json`:
       },
       {
         "provider": "git",
-        "key": "github.com/dutifuldev/ghzinga",
+        "key": "github.com/osolmaz/ghzinga",
         "confidence": "weak",
         "metadata": {
-          "remote": "https://github.com/dutifuldev/ghzinga.git"
+          "remote": "https://github.com/osolmaz/ghzinga.git"
         }
       }
     ]
@@ -104,7 +104,7 @@ Each session owns one `session.json`:
     "tabs": [
       {
         "id": "r_1",
-        "resource": "dutifuldev/ghzinga#28",
+        "resource": "osolmaz/ghzinga#28",
         "kind_hint": "pull_request",
         "view": "overview",
         "scroll": 0,
@@ -150,7 +150,7 @@ Rules:
     },
     {
       "provider": "git",
-      "key": "github.com/dutifuldev/ghzinga",
+      "key": "github.com/osolmaz/ghzinga",
       "session_id": "s_8x9k2m",
       "confidence": "weak",
       "last_seen_at": "2026-06-05T11:42:00Z"
@@ -219,7 +219,7 @@ call Herdr's existing socket API to set a pane label that includes the ghzinga
 session id:
 
 ```text
-gzg:s_8x9k2m dutifuldev/ghzinga#28
+gzg:s_8x9k2m osolmaz/ghzinga#28
 ```
 
 This is still not Herdr-specific storage. It is only a provider marker that
@@ -382,14 +382,14 @@ Rules:
 Initial command shapes:
 
 ```json
-{"schema_version":1,"id":"c_1","method":"open","resource":"dutifuldev/ghzinga#29"}
+{"schema_version":1,"id":"c_1","method":"open","resource":"osolmaz/ghzinga#29"}
 {"schema_version":1,"id":"c_2","method":"set","key":"theme","value":"solarized"}
 ```
 
 Initial reply shapes:
 
 ```json
-{"schema_version":1,"id":"c_1","ok":true,"result":"opened dutifuldev/ghzinga#29"}
+{"schema_version":1,"id":"c_1","ok":true,"result":"opened osolmaz/ghzinga#29"}
 {"schema_version":1,"id":"c_2","ok":false,"error":"unknown theme"}
 ```
 
@@ -398,7 +398,7 @@ Initial reply shapes:
 Cache normalized GitHub resources separately from session files:
 
 ```text
-$XDG_CACHE_HOME/ghzinga/resources/dutifuldev/ghzinga/28.json
+$XDG_CACHE_HOME/ghzinga/resources/osolmaz/ghzinga/28.json
 ```
 
 Cache metadata should include:
@@ -509,7 +509,7 @@ because they depend on auth, rate limits, terminal state, and installed tools.
   - restart with the same state dir
   - verify restored tabs and active view from a test backend frame
 - Real GitHub smoke test:
-  - run `gzg dutifuldev/ghzinga#28` with normal auth
+  - run `gzg osolmaz/ghzinga#28` with normal auth
   - open another real PR or issue tab from a link
   - quit
   - restart plain `gzg` from the same launch context
@@ -521,7 +521,7 @@ because they depend on auth, rate limits, terminal state, and installed tools.
   - run plain `gzg`
   - open multiple PR/issue tabs
   - from another shell, run `gzg open --session <id-or-name>
-    dutifuldev/ghzinga#29`
+    osolmaz/ghzinga#29`
   - verify the running Herdr-pane TUI opens or focuses that resource without
     restarting
   - from another shell, run a `gzg set --session <id-or-name> ...` command and
@@ -536,7 +536,7 @@ because they depend on auth, rate limits, terminal state, and installed tools.
 - Real tmux smoke test:
   - run plain `gzg` inside a tmux pane
   - from outside the pane, run `gzg open --session <id-or-name>
-    dutifuldev/ghzinga#29`
+    osolmaz/ghzinga#29`
   - verify the running tmux-pane TUI opens or focuses that resource
   - open tabs, quit, and relaunch in the same pane
   - verify it resolves the session from `TMUX` and `TMUX_PANE`

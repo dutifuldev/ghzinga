@@ -4368,7 +4368,7 @@ mod tests {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
-        resource.body = "Cross repo follow-up dutifuldev/ghzinga#12.".into();
+        resource.body = "Cross repo follow-up osolmaz/ghzinga#12.".into();
         resource.related_resources.clear();
         let mut state = AppState::new(resource);
 
@@ -4378,7 +4378,7 @@ mod tests {
 
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "dutifuldev/ghzinga#12"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "osolmaz/ghzinga#12"
         )));
     }
 
@@ -4429,7 +4429,7 @@ mod tests {
         let backend = TestBackend::new(120, 36);
         let mut terminal = Terminal::new(backend).unwrap();
         let mut resource = pr_resource();
-        resource.body = "Cross repo follow-up dutifuldev/ghzinga#12.".into();
+        resource.body = "Cross repo follow-up osolmaz/ghzinga#12.".into();
         resource.related_resources.clear();
         let mut state = AppState::new(resource);
         state.set_tab(Tab::Links);
@@ -4439,10 +4439,10 @@ mod tests {
             .unwrap();
         let content = format!("{:?}", terminal.backend().buffer());
 
-        assert!(content.contains("dutifuldev/ghzinga#12"));
+        assert!(content.contains("osolmaz/ghzinga#12"));
         assert!(state.hit_areas.iter().any(|area| matches!(
             &area.target,
-            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "dutifuldev/ghzinga#12"
+            HitTarget::ResourceLink { id, .. } if id.canonical_name() == "osolmaz/ghzinga#12"
         )));
     }
 

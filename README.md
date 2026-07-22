@@ -202,9 +202,9 @@ gzg session delete <id-or-name>
 Control a running session from another shell:
 
 ```sh
-gzg open dutifuldev/ghzinga#29
-gzg open --session <id-or-name> dutifuldev/ghzinga#29
-gzg open --session <id-or-name> dutifuldev/ghzinga#29 dutifuldev/ghzinga#32
+gzg open osolmaz/ghzinga#29
+gzg open --session <id-or-name> osolmaz/ghzinga#29
+gzg open --session <id-or-name> osolmaz/ghzinga#29 osolmaz/ghzinga#32
 gzg set --session <id-or-name> theme solarized
 gzg set --session <id-or-name> symbols emoji
 gzg set --session <id-or-name> spacing comfortable
@@ -229,7 +229,7 @@ Install it with:
 
 ```sh
 cargo install ghzinga --locked --force
-herdr plugin install dutifuldev/ghzinga/plugins/herdr --yes
+herdr plugin install osolmaz/ghzinga/plugins/herdr --yes
 ```
 
 Then Ctrl-click a GitHub issue or pull request URL inside Herdr. The plugin opens

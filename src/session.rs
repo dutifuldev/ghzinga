@@ -1333,16 +1333,16 @@ mod tests {
     #[test]
     fn github_remote_context_parses_common_urls() {
         assert_eq!(
-            github_repo_key_from_remote("https://github.com/dutifuldev/ghzinga.git"),
-            Some("github.com/dutifuldev/ghzinga".into())
+            github_repo_key_from_remote("https://github.com/osolmaz/ghzinga.git"),
+            Some("github.com/osolmaz/ghzinga".into())
         );
         assert_eq!(
-            github_repo_key_from_remote("git@github.com:dutifuldev/ghzinga.git"),
-            Some("github.com/dutifuldev/ghzinga".into())
+            github_repo_key_from_remote("git@github.com:osolmaz/ghzinga.git"),
+            Some("github.com/osolmaz/ghzinga".into())
         );
         assert_eq!(
-            github_repo_name_from_remote("ssh://git@github.com/dutifuldev/ghzinga.git"),
-            Some("dutifuldev/ghzinga".into())
+            github_repo_name_from_remote("ssh://git@github.com/osolmaz/ghzinga.git"),
+            Some("osolmaz/ghzinga".into())
         );
     }
 
@@ -1361,7 +1361,7 @@ mod tests {
                 "remote",
                 "add",
                 "upstream",
-                "git@github.com:dutifuldev/ghzinga.git",
+                "git@github.com:osolmaz/ghzinga.git",
             ])
             .current_dir(dir.path())
             .output()
@@ -1371,7 +1371,7 @@ mod tests {
 
         assert_eq!(
             github_repo_name_from_cwd(dir.path()),
-            Some("dutifuldev/ghzinga".into())
+            Some("osolmaz/ghzinga".into())
         );
     }
 

@@ -422,24 +422,24 @@ mod tests {
     fn normalize_github_issue_or_pr_url_strips_suffixes_and_preserves_kind() {
         assert_eq!(
             normalize_github_issue_or_pr_url(
-                "https://github.com/dutifuldev/ghzinga/pull/29/files#diff"
+                "https://github.com/osolmaz/ghzinga/pull/29/files#diff"
             )
             .unwrap(),
-            "https://github.com/dutifuldev/ghzinga/pull/29"
+            "https://github.com/osolmaz/ghzinga/pull/29"
         );
         assert_eq!(
             normalize_github_issue_or_pr_url(
-                "https://github.com/dutifuldev/ghzinga/issues/32/?utm_source=test#note"
+                "https://github.com/osolmaz/ghzinga/issues/32/?utm_source=test#note"
             )
             .unwrap(),
-            "https://github.com/dutifuldev/ghzinga/issues/32"
+            "https://github.com/osolmaz/ghzinga/issues/32"
         );
     }
 
     #[test]
     fn normalize_github_issue_or_pr_url_rejects_other_github_paths() {
         let error =
-            normalize_github_issue_or_pr_url("https://github.com/dutifuldev/ghzinga/tree/main")
+            normalize_github_issue_or_pr_url("https://github.com/osolmaz/ghzinga/tree/main")
                 .unwrap_err();
         assert!(error
             .to_string()
@@ -494,7 +494,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/pull/29/files#diff",
+            "https://github.com/osolmaz/ghzinga/pull/29/files#diff",
         );
         env::set_var("HERDR_PANE_ID", "w1:p1");
         env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
@@ -514,7 +514,7 @@ mod tests {
             "plugin pane open --plugin dutifuldev.ghzinga --entrypoint viewer --placement split"
         ));
         assert!(herdr_log
-            .contains("--env GHZINGA_TARGET=https://github.com/dutifuldev/ghzinga/pull/29"));
+            .contains("--env GHZINGA_TARGET=https://github.com/osolmaz/ghzinga/pull/29"));
         assert!(herdr_log.contains("--env GHZINGA_SESSION=herdr-ghzinga-socket_"));
         assert!(herdr_log.contains("_w1_p1"));
 
@@ -543,7 +543,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/issues/32/?utm_source=test#note",
+            "https://github.com/osolmaz/ghzinga/issues/32/?utm_source=test#note",
         );
         env::set_var("HERDR_PANE_ID", "w1:p1");
         env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
@@ -570,7 +570,7 @@ mod tests {
 
         let gzg_log = fs::read_to_string(gzg_log).unwrap();
         assert!(gzg_log.contains(&format!(
-            "open --session herdr-ghzinga-{source_key} https://github.com/dutifuldev/ghzinga/issues/32"
+            "open --session herdr-ghzinga-{source_key} https://github.com/osolmaz/ghzinga/issues/32"
         )));
     }
 
@@ -588,7 +588,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/pull/29",
+            "https://github.com/osolmaz/ghzinga/pull/29",
         );
         env::set_var("HERDR_PANE_ID", "w1:p1");
         env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
@@ -606,7 +606,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/issues/32",
+            "https://github.com/osolmaz/ghzinga/issues/32",
         );
         env::set_var("HERDR_PANE_ID", "w1:p9");
         env::set_var("HERDR_FAKE_LOG", &self_herdr_log);
@@ -622,7 +622,7 @@ mod tests {
 
         let self_gzg_log = fs::read_to_string(self_gzg_log).unwrap();
         assert!(self_gzg_log.contains(&format!(
-            "open --session herdr-ghzinga-{source_key} https://github.com/dutifuldev/ghzinga/issues/32"
+            "open --session herdr-ghzinga-{source_key} https://github.com/osolmaz/ghzinga/issues/32"
         )));
     }
 
@@ -638,7 +638,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/pull/38",
+            "https://github.com/osolmaz/ghzinga/pull/38",
         );
         env::set_var("HERDR_PANE_ID", "w1:p9");
         env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);
@@ -659,7 +659,7 @@ mod tests {
         assert!(!herdr_log.contains("plugin pane open"));
 
         let gzg_log = fs::read_to_string(gzg_log).unwrap();
-        assert!(gzg_log.contains("open https://github.com/dutifuldev/ghzinga/pull/38"));
+        assert!(gzg_log.contains("open https://github.com/osolmaz/ghzinga/pull/38"));
         assert!(!gzg_log.contains("--session"));
     }
 
@@ -676,7 +676,7 @@ mod tests {
 
         env::set_var(
             "HERDR_PLUGIN_CLICKED_URL",
-            "https://github.com/dutifuldev/ghzinga/pull/35",
+            "https://github.com/osolmaz/ghzinga/pull/35",
         );
         env::set_var("HERDR_PANE_ID", "w1:p1");
         env::set_var("HERDR_PLUGIN_STATE_DIR", &state_dir);

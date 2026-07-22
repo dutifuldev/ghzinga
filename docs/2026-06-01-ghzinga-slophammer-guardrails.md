@@ -6,7 +6,7 @@ date: 2026-06-01
 
 # ghzinga Slophammer Guardrails
 
-The original goal asks for code quality inspired by `dutifuldev/slophammer` and
+The original goal asks for code quality inspired by `osolmaz/slophammer` and
 Uncle Bob conventions. `slophammer` does not currently ship a Rust checker, so
 `ghzinga` applies the documented standards manually and enforces the parts that
 fit this Rust TUI through local tests and CI.

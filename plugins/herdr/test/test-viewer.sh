@@ -27,12 +27,12 @@ assert_contains() {
 
 gzg_log="${work_dir}/gzg.log"
 env \
-  GHZINGA_TARGET="https://github.com/dutifuldev/ghzinga/pull/29" \
+  GHZINGA_TARGET="https://github.com/osolmaz/ghzinga/pull/29" \
   GHZINGA_SESSION="herdr-ghzinga-w1_p1" \
   GHZINGA_BIN="${script_dir}/fake-gzg.sh" \
   GZG_FAKE_LOG="$gzg_log" \
   "$gzg_bin" herdr-plugin viewer >/dev/null
-assert_contains "$gzg_log" "--new --session herdr-ghzinga-w1_p1 https://github.com/dutifuldev/ghzinga/pull/29"
+assert_contains "$gzg_log" "--new --session herdr-ghzinga-w1_p1 https://github.com/osolmaz/ghzinga/pull/29"
 
 missing_err="${work_dir}/missing.err"
 if env \

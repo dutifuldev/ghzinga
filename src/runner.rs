@@ -1008,13 +1008,13 @@ fn empty_launch_resource() -> crate::domain::Resource {
 
     Resource {
         id: ResourceId {
-            owner: "dutifuldev".into(),
+            owner: "osolmaz".into(),
             repo: "ghzinga".into(),
             number: 1,
             kind_hint: Some(ResourceKind::Issue),
         },
         title: "Open a PR or issue".into(),
-        url: "https://github.com/dutifuldev/ghzinga/issues/1".into(),
+        url: "https://github.com/osolmaz/ghzinga/issues/1".into(),
         state: "READY".into(),
         author: "ghzinga".into(),
         created_at: "now".into(),
@@ -1035,7 +1035,7 @@ fn empty_launch_resource() -> crate::domain::Resource {
 }
 
 fn is_empty_launch_resource(resource: &crate::domain::Resource) -> bool {
-    resource.id.owner == "dutifuldev"
+    resource.id.owner == "osolmaz"
         && resource.id.repo == "ghzinga"
         && resource.id.number == 1
         && resource.title == "Open a PR or issue"
