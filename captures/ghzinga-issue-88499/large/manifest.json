@@ -4,7 +4,8 @@
   "title": "openai-responses provider: 404 on previous_response_id when store=false (default)",
   "mode": "issue",
   "binary": "target/debug/gzg",
-  "git_commit": "90b1f21011d01597c43773dca3047fe4d9445b04",
+  "git_commit": "8ecf1b53c9a6856a9598e8ac5effa8be5c981138",
+  "app_tree_hash": "8a61c564d876c85b96d5cdec793986cc7c71061c8d59439da5866ed31877ea51",
   "config_path": "captures/ghzinga-issue-88499/capture-empty-config.toml",
   "requested_columns": 160,
   "requested_rows": 50,
@@ -17,7 +18,7 @@
       "ansi": "00_overview_top.ansi",
       "history_txt": "00_overview_top.history.txt",
       "history_ansi": "00_overview_top.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "overview",
       "keys": [],
@@ -30,7 +31,7 @@
       "ansi": "01_overview_expanded.ansi",
       "history_txt": "01_overview_expanded.history.txt",
       "history_ansi": "01_overview_expanded.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "overview",
       "keys": [
@@ -45,7 +46,7 @@
       "ansi": "02_overview_pagedown.ansi",
       "history_txt": "02_overview_pagedown.history.txt",
       "history_ansi": "02_overview_pagedown.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "overview",
       "keys": [
@@ -61,7 +62,7 @@
       "ansi": "10_activity_top.ansi",
       "history_txt": "10_activity_top.history.txt",
       "history_ansi": "10_activity_top.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "activity",
       "keys": [],
@@ -74,7 +75,7 @@
       "ansi": "11_activity_pagedown.ansi",
       "history_txt": "11_activity_pagedown.history.txt",
       "history_ansi": "11_activity_pagedown.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab activity --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "activity",
       "keys": [
@@ -89,7 +90,7 @@
       "ansi": "20_links_top.ansi",
       "history_txt": "20_links_top.history.txt",
       "history_ansi": "20_links_top.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "links",
       "keys": [],
@@ -102,7 +103,7 @@
       "ansi": "30_help.ansi",
       "history_txt": "30_help.history.txt",
       "history_ansi": "30_help.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/bob/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/bob/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture /home/bob/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
+      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-issue-88499/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture /home/onur/repos/ghzinga/fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-issue-88499/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-issue-88499/.capture-state GZG_CACHE_HOME=./captures/ghzinga-issue-88499/.capture-cache ./target/debug/gzg https://github.com/openclaw/openclaw/issues/88499 --tab links --offline-fixture ./fixtures/issue-88499.json --no-restore --refresh-seconds 0",
       "tab": "links",
       "keys": [
@@ -112,6 +113,5 @@
       "config_path": "captures/ghzinga-issue-88499/capture-empty-config.toml"
     }
   ],
-  "actual_tmux_size": "160x50",
-  "app_tree_hash": "fd6e09ae2205f9081c43c8f9cfa3b638fbb9945625b93c6e54ed689f26d1e36a"
+  "actual_tmux_size": "160x50"
 }
