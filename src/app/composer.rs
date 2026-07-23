@@ -219,7 +219,7 @@ fn wrap_line_into(rows: &mut Vec<VisualRow>, line_index: usize, line: &str, widt
     let mut column = 0;
     let mut current = 0;
     for (char_index, ch) in line.chars().enumerate() {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0).max(1);
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
         if column + ch_width > width && column > 0 {
             rows.push(VisualRow {
                 line: line_index,
@@ -245,7 +245,7 @@ fn position_in_row(lines: &[String], row: &VisualRow, x: usize) -> (usize, usize
         .chars()
         .enumerate()
     {
-        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0).max(1);
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
         if column + ch_width > x {
             return (row.line, row.start + offset);
         }
@@ -269,7 +269,7 @@ fn char_to_byte(line: &str, char_index: usize) -> usize {
 
 fn display_width(text: &str) -> usize {
     text.chars()
-        .map(|ch| UnicodeWidthChar::width(ch).unwrap_or(0).max(1))
+        .map(|ch| UnicodeWidthChar::width(ch).unwrap_or(0))
         .sum()
 }
 
@@ -548,6 +548,17 @@ mod tests {
         let composer = composer_with("aa日");
         assert_eq!(composer.visual_rows(4).len(), 1);
         assert_eq!(composer.visual_rows(3).len(), 2);
+    }
+
+    #[test]
+    fn combining_marks_occupy_no_display_column() {
+        let composer = composer_with("e\u{301}x");
+        assert_eq!(
+            composer.visual_rows(2).len(),
+            1,
+            "a decomposed accent must not consume a column when wrapping"
+        );
+        assert_eq!(composer.cursor_visual(4), (0, 2));
     }
 
     #[test]

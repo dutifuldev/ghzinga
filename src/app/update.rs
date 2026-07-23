@@ -379,6 +379,9 @@ fn comment_is_posting(state: &AppState) -> bool {
 }
 
 fn apply_composer_control_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return AppIntent::None;
+    }
     match key.code {
         KeyCode::Char('s') => submit_composer_comment(state),
         KeyCode::Char('c') => {
@@ -3062,6 +3065,20 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::ALT)),
         );
         assert_eq!(composer_body(&state), "seed");
+    }
+
+    #[test]
+    fn ctrl_alt_s_does_not_post_a_comment() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "draft", (40, 5));
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(
+                KeyCode::Char('s'),
+                KeyModifiers::CONTROL | KeyModifiers::ALT,
+            )),
+        );
+        assert_eq!(intent, AppIntent::None);
     }
 
     #[test]
