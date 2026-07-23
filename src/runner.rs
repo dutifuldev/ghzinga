@@ -12,8 +12,8 @@ use crate::{
     domain::{Resource, ResourceId, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING},
     fetch::{
         apply_completed_fetches, apply_completed_mutations, start_background_fetch,
-        start_background_mutation, FetchAction, FetchOutcome, FetchSource, MutationOutcome,
-        OfflineFixtureSource,
+        start_background_mutation, start_pending_action_refreshes, FetchAction, FetchOutcome,
+        FetchSource, MutationOutcome, OfflineFixtureSource,
     },
     github::{api::GithubApiGateway, load_fixture},
     render::render_app,
@@ -686,6 +686,10 @@ async fn run_tui(
             apply_completed_mutations(state, &mut mutation_rx, &fetch_source, &fetch_tx);
         state_changed |= mutation_application.changed;
         if mutation_application.refresh_started {
+            last_refresh = Instant::now();
+        }
+        if start_pending_action_refreshes(state, &fetch_source, &fetch_tx) {
+            state_changed = true;
             last_refresh = Instant::now();
         }
         state_changed |= maybe_load_file_patches_for_active_files_tab(

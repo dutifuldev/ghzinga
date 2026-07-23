@@ -554,6 +554,7 @@ pub(crate) fn apply_completed_mutations(
         let action = outcome.action;
         let target = outcome.target;
         let mut refresh_started = false;
+        let mut refresh_deferred = false;
         let applied = state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
             state.finish_action_submission(&action, error);
             if succeeded && resource_matches_target(&state.resource, &target) {
@@ -563,15 +564,55 @@ pub(crate) fn apply_completed_mutations(
                     fetch_source.clone(),
                     fetch_tx,
                 );
+                refresh_deferred = !refresh_started;
             }
         });
         if !applied {
             // The originating tab is gone; never leave the app locked.
             state.pending_action = None;
         }
+        if refresh_deferred {
+            // An older fetch is still running and its completion wipes the
+            // deferred-refresh flag, so remember this refresh explicitly.
+            let entry = (outcome.origin_tab_id, target);
+            if !state.pending_action_refreshes.contains(&entry) {
+                state.pending_action_refreshes.push(entry);
+            }
+        }
         application.refresh_started |= refresh_started;
     }
     application
+}
+
+/// Start post-action refreshes that had to wait for an in-flight fetch.
+/// Returns true when a refresh was started.
+pub(crate) fn start_pending_action_refreshes(
+    state: &mut AppState,
+    fetch_source: &FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> bool {
+    if state.pending_action_refreshes.is_empty() || state.loading_message().is_some() {
+        return false;
+    }
+    let mut started = false;
+    let entries = std::mem::take(&mut state.pending_action_refreshes);
+    for (tab_id, target) in entries {
+        if started {
+            state.pending_action_refreshes.push((tab_id, target));
+            continue;
+        }
+        state.apply_to_resource_tab(tab_id, |state| {
+            if resource_matches_target(&state.resource, &target) {
+                started = start_background_fetch(
+                    state,
+                    FetchAction::Refresh { id: target.clone() },
+                    fetch_source.clone(),
+                    fetch_tx,
+                );
+            }
+        });
+    }
+    started
 }
 
 fn current_refresh_label() -> String {
@@ -603,8 +644,9 @@ mod tests {
 
     use super::{
         apply_completed_mutations, apply_fetch_outcome, should_enqueue_enrichment,
-        start_background_fetch, start_background_mutation, FetchAction, FetchOutcome, FetchOwner,
-        FetchSource, FetchStage, MutationOutcome, OfflineFixtureSource,
+        start_background_fetch, start_background_mutation, start_pending_action_refreshes,
+        FetchAction, FetchOutcome, FetchOwner, FetchSource, FetchStage, MutationOutcome,
+        OfflineFixtureSource,
     };
     use crate::domain::ResourceAction;
 
@@ -1758,6 +1800,47 @@ mod tests {
             state.comment_composer.as_ref().map(|c| c.body()),
             Some("unsent draft on tab two".into()),
             "a completed comment on one tab must not clear another tab's draft"
+        );
+    }
+
+    #[tokio::test]
+    async fn deferred_post_action_refresh_survives_an_in_flight_fetch() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.begin_loading(target.clone(), "refreshing older data");
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target: target.clone(),
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(!application.refresh_started);
+        assert_eq!(
+            state.pending_action_refreshes,
+            vec![(origin_tab_id, target.clone())],
+            "the refresh must be remembered while the older fetch runs"
+        );
+
+        // The older fetch completes and wipes the deferred-refresh flag.
+        state.finish_loading();
+        state.refresh_requested = false;
+
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let source = offline_source(&state);
+        assert!(start_pending_action_refreshes(
+            &mut state, &source, &fetch_tx
+        ));
+        assert!(state.pending_action_refreshes.is_empty());
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(target)
         );
     }
 

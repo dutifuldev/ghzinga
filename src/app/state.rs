@@ -244,6 +244,9 @@ pub struct AppState {
     pub action_confirm: Option<ActionConfirmState>,
     pub comment_composer: Option<CommentComposer>,
     pub pending_action: Option<ResourceAction>,
+    /// Post-action refreshes that could not start immediately because a
+    /// fetch was already in flight; drained by the runner once idle.
+    pub pending_action_refreshes: Vec<(u64, ResourceId)>,
     pending_activity_focus: Option<String>,
     pub active_tab: Tab,
     pub scroll: u16,
@@ -293,6 +296,7 @@ impl AppState {
             action_confirm: None,
             comment_composer: None,
             pending_action: None,
+            pending_action_refreshes: Vec::new(),
             pending_activity_focus: None,
             scroll: 0,
             scroll_limit: u16::MAX,

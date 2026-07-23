@@ -538,6 +538,10 @@ fn render_comment_composer_modal(
     palette: &Palette,
 ) {
     let title = format!("Comment on {}", state.resource.id.canonical_name());
+    let posting = matches!(
+        state.pending_action,
+        Some(crate::domain::ResourceAction::Comment { .. })
+    );
     let Some(inner) = open_action_modal_frame(
         frame,
         area,
@@ -571,7 +575,7 @@ fn render_comment_composer_modal(
             Style::default().bg(palette.panel_bg),
         )));
     }
-    rows.push(composer_hint_line(layout.confirm_discard, palette));
+    rows.push(composer_hint_line(layout.confirm_discard, posting, palette));
     let buttons = vec![
         (
             "[comment  ctrl+s]".to_string(),
@@ -643,7 +647,16 @@ fn layout_composer_text(state: &mut AppState, text_rect: Rect) -> Option<Compose
     })
 }
 
-fn composer_hint_line(confirm_discard: bool, palette: &Palette) -> Line<'static> {
+fn composer_hint_line(confirm_discard: bool, posting: bool, palette: &Palette) -> Line<'static> {
+    if posting {
+        return Line::from(Span::styled(
+            "posting comment, draft is locked until GitHub responds".to_string(),
+            Style::default()
+                .fg(palette.accent)
+                .bg(palette.surface0)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
     if confirm_discard {
         Line::from(Span::styled(
             "press esc again to discard this comment".to_string(),

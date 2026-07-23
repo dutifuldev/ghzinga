@@ -41,8 +41,12 @@ pub fn apply_event(state: &mut AppState, event: AppEvent) -> AppIntent {
 }
 
 fn apply_paste(state: &mut AppState, text: &str) -> AppIntent {
-    if let Some(composer) = &mut state.comment_composer {
-        composer.insert_str(text);
+    if state.comment_composer.is_some() {
+        if !comment_is_posting(state) {
+            if let Some(composer) = &mut state.comment_composer {
+                composer.insert_str(text);
+            }
+        }
     } else if let Some(input) = state.add_resource_input_mut() {
         let single_line: String = text
             .chars()
@@ -356,10 +360,23 @@ fn apply_composer_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         return apply_composer_control_key(state, key);
     }
+    // While the comment is posting the draft is frozen: edits made now would
+    // be silently lost when the posted snapshot closes the composer.
+    if comment_is_posting(state) {
+        if key.code == KeyCode::Esc {
+            state.cancel_comment_composer();
+        }
+        return AppIntent::None;
+    }
     if let Some(intent) = apply_composer_edit_key(state, key) {
         return intent;
     }
     AppIntent::None
+}
+
+fn comment_is_posting(state: &AppState) -> bool {
+    matches!(state.pending_action, Some(ResourceAction::Comment { .. }))
+        && state.comment_composer.is_some()
 }
 
 fn apply_composer_control_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
@@ -2868,6 +2885,29 @@ mod tests {
         assert_eq!(
             state.comment_composer.as_ref().map(|c| c.cursor()),
             Some((0, 2))
+        );
+    }
+
+    #[test]
+    fn composer_draft_is_frozen_while_a_comment_is_posting() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("submitted".into()));
+        state.pending_action = Some(ResourceAction::Comment {
+            body: "submitted".into(),
+        });
+        press(&mut state, KeyCode::Char('!'));
+        apply_event(&mut state, AppEvent::Paste("more".into()));
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("submitted".into()),
+            "edits during posting would be silently lost, so they are blocked"
+        );
+        press(&mut state, KeyCode::Esc);
+        press(&mut state, KeyCode::Esc);
+        assert!(
+            state.comment_composer.is_none(),
+            "escape still cancels while posting"
         );
     }
 
