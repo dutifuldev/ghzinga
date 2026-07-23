@@ -1,0 +1,15 @@
+# Mutants excluded because their behavior only exists at real terminal or
+# network boundaries that `cargo test` cannot observe:
+# - run_tui drives the live crossterm event loop; it is exercised by the
+#   tmux capture suite (captures/*/capture_ghzinga.py) and live smoke
+#   scripts, not by unit tests.
+# - restore_snapshot writes escape sequences to the real stdout on exit and
+#   panic; the tmux capture runs depend on it restoring the terminal.
+# - submit_resource_action is the thin authenticated wrapper around the
+#   GraphQL transport; its request construction and error handling are unit
+#   tested through submit_resource_action_with.
+exclude_re = [
+    "replace run_tui .* with Ok\\(\\(\\)\\)",
+    "replace restore_snapshot with \\(\\)",
+    "replace submit_resource_action .* with Ok\\(\\(\\)\\)",
+]

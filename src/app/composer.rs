@@ -200,14 +200,12 @@ impl CommentComposer {
         (rows.len().saturating_sub(1), 0)
     }
 
-    /// Keep the cursor row inside a viewport of `height` rows.
+    /// Keep the cursor row inside a viewport of `height` rows: scroll may
+    /// be at most the cursor row and at least one viewport above it.
     pub fn scroll_cursor_into_view(&mut self, width: usize, height: usize) {
         let (row, _) = self.cursor_visual(width);
-        if row < self.scroll {
-            self.scroll = row;
-        } else if height > 0 && row >= self.scroll + height {
-            self.scroll = row + 1 - height;
-        }
+        let min_scroll = row.saturating_add(1).saturating_sub(height.max(1));
+        self.scroll = self.scroll.clamp(min_scroll, row.max(min_scroll));
     }
 
     pub fn scroll_by(&mut self, width: usize, height: usize, delta: isize) {
@@ -436,6 +434,123 @@ mod tests {
         assert_eq!(composer.scroll, 2);
         composer.scroll_by(10, 2, -10);
         assert_eq!(composer.scroll, 0);
+    }
+
+    #[test]
+    fn backspace_at_the_origin_is_a_no_op() {
+        let mut composer = composer_with("ab");
+        composer.move_home();
+        composer.backspace();
+        assert_eq!(composer.body(), "ab");
+        assert_eq!(composer.cursor(), (0, 0));
+    }
+
+    #[test]
+    fn delete_at_the_end_of_the_buffer_is_a_no_op() {
+        let mut composer = composer_with("ab");
+        composer.delete();
+        assert_eq!(composer.body(), "ab");
+        assert_eq!(composer.cursor(), (0, 2));
+    }
+
+    #[test]
+    fn delete_joins_exactly_the_next_line() {
+        let mut composer = composer_with("aa\nbb\ncc");
+        composer.click(80, 1, 2);
+        composer.delete();
+        assert_eq!(composer.body(), "aa\nbbcc");
+        assert_eq!(composer.cursor(), (1, 2));
+    }
+
+    #[test]
+    fn move_left_at_the_origin_stays_put() {
+        let mut composer = composer_with("ab");
+        composer.move_home();
+        composer.move_left();
+        assert_eq!(composer.cursor(), (0, 0));
+    }
+
+    #[test]
+    fn move_left_steps_back_exactly_one_column() {
+        let mut composer = composer_with("abc");
+        composer.move_left();
+        assert_eq!(composer.cursor(), (0, 2));
+        composer.move_left();
+        assert_eq!(composer.cursor(), (0, 1));
+    }
+
+    #[test]
+    fn move_right_at_the_end_of_the_buffer_stays_put() {
+        let mut composer = composer_with("ab\ncd");
+        composer.move_right();
+        assert_eq!(composer.cursor(), (1, 2));
+    }
+
+    #[test]
+    fn move_home_and_end_hit_the_line_bounds() {
+        let mut composer = composer_with("hello");
+        composer.move_home();
+        assert_eq!(composer.cursor(), (0, 0));
+        composer.move_end();
+        assert_eq!(composer.cursor(), (0, 5));
+    }
+
+    #[test]
+    fn move_vertical_clamps_below_the_last_row() {
+        let mut composer = composer_with("a\nb");
+        composer.click(10, 0, 1);
+        composer.move_vertical(10, 15);
+        assert_eq!(composer.cursor(), (1, 1));
+    }
+
+    #[test]
+    fn click_below_the_content_lands_on_the_last_row() {
+        let mut composer = composer_with("abcdefgh");
+        composer.click(4, 9, 1);
+        assert_eq!(composer.cursor(), (0, 5));
+    }
+
+    #[test]
+    fn cursor_at_an_exact_wrap_boundary_belongs_to_the_next_row() {
+        let mut composer = composer_with("abcdefgh");
+        composer.click(4, 1, 0);
+        assert_eq!(composer.cursor(), (0, 4));
+        assert_eq!(composer.cursor_visual(4), (1, 0));
+    }
+
+    #[test]
+    fn cursor_on_a_full_final_row_clamps_to_the_last_cell() {
+        let composer = {
+            let mut composer = composer_with("abcd\nef");
+            composer.click(4, 0, 4);
+            composer
+        };
+        assert_eq!(composer.cursor(), (0, 4));
+        assert_eq!(composer.cursor_visual(4), (0, 3));
+    }
+
+    #[test]
+    fn cursor_visual_tracks_a_short_line_end_exactly() {
+        let composer = composer_with("ab");
+        assert_eq!(composer.cursor_visual(4), (0, 2));
+    }
+
+    #[test]
+    fn scroll_moves_one_step_when_cursor_crosses_the_bottom_edge() {
+        let mut composer = composer_with("a\nb\nc\nd");
+        composer.scroll = 0;
+        composer.scroll_cursor_into_view(10, 3);
+        assert_eq!(composer.scroll, 1, "cursor on row 3 with height 3");
+        composer.click(10, 1, 0);
+        composer.scroll_cursor_into_view(10, 3);
+        assert_eq!(composer.scroll, 1, "cursor already visible keeps scroll");
+    }
+
+    #[test]
+    fn wide_char_exactly_filling_the_width_does_not_wrap_early() {
+        let composer = composer_with("aa日");
+        assert_eq!(composer.visual_rows(4).len(), 1);
+        assert_eq!(composer.visual_rows(3).len(), 2);
     }
 
     #[test]

@@ -2922,4 +2922,12 @@ mod tests {
             [2, 1]
         );
     }
+
+    #[test]
+    fn paste_events_reach_the_reducer() {
+        let pending = event_to_app_event(crossterm::event::Event::Paste("multi\nline".into()))
+            .expect("paste maps to an app event");
+        assert_eq!(pending.event, AppEvent::Paste("multi\nline".into()));
+        assert!(!pending.requires_pre_event_redraw);
+    }
 }

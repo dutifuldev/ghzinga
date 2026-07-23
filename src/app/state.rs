@@ -514,12 +514,6 @@ impl AppState {
         self.show_settings = false;
     }
 
-    pub fn any_action_modal_open(&self) -> bool {
-        self.action_menu.is_some()
-            || self.action_confirm.is_some()
-            || self.comment_composer.is_some()
-    }
-
     pub fn begin_action_submission(&mut self, action: &ResourceAction) {
         self.pending_action = Some(action.clone());
         self.status_message = Some(format!("{}\u{2026}", action.progress_label()));
@@ -2149,5 +2143,50 @@ mod tests {
         assert!(state.status_message.is_none());
         assert_eq!(state.resource.id.number, 1);
         assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn select_merge_method_ignores_out_of_range_indexes() {
+        let mut resource = crate::test_fixtures::pr_resource_with_patch(None);
+        resource.actions.node_id = "PR_node".into();
+        resource.actions.viewer_can_update = true;
+        resource
+            .pull_request
+            .as_mut()
+            .expect("pr fixture")
+            .allowed_merge_methods = vec![
+            crate::domain::MergeMethod::Merge,
+            crate::domain::MergeMethod::Squash,
+        ];
+        let mut state = AppState::new(resource);
+        state.open_action_confirm(crate::domain::ActionKind::Merge);
+        state.select_merge_method(1);
+        state.select_merge_method(2);
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "an out-of-range index must not move the selection"
+        );
+    }
+
+    #[test]
+    fn close_comment_composer_discards_the_draft() {
+        let mut state = AppState::new(crate::test_fixtures::issue_resource(1, "Issue"));
+        state.open_comment_composer();
+        state.close_comment_composer();
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn begin_action_submission_marks_progress_and_clears_errors() {
+        let mut state = AppState::new(crate::test_fixtures::issue_resource(1, "Issue"));
+        state.last_error = Some("stale error".into());
+        state.begin_action_submission(&crate::domain::ResourceAction::Close);
+        assert_eq!(
+            state.pending_action,
+            Some(crate::domain::ResourceAction::Close)
+        );
+        assert_eq!(state.status_message.as_deref(), Some("closing\u{2026}"));
+        assert!(state.last_error.is_none());
     }
 }

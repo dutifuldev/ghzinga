@@ -2977,6 +2977,267 @@ mod tests {
         );
     }
 
+    fn composer_body(state: &AppState) -> String {
+        state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.body())
+            .unwrap_or_default()
+    }
+
+    fn composer_cursor(state: &AppState) -> (usize, usize) {
+        state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.cursor())
+            .expect("composer open")
+    }
+
+    fn open_sized_composer(state: &mut AppState, text: &str, viewport: (u16, u16)) {
+        state.open_comment_composer();
+        apply_event(state, AppEvent::Paste(text.into()));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.viewport = viewport;
+        }
+    }
+
+    #[test]
+    fn composer_edit_keys_each_do_their_job() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "ab", (40, 5));
+        press(&mut state, KeyCode::Backspace);
+        assert_eq!(composer_body(&state), "a");
+        press(&mut state, KeyCode::Home);
+        press(&mut state, KeyCode::Delete);
+        assert_eq!(composer_body(&state), "");
+        apply_event(&mut state, AppEvent::Paste("xy".into()));
+        press(&mut state, KeyCode::Left);
+        assert_eq!(composer_cursor(&state), (0, 1));
+        press(&mut state, KeyCode::Right);
+        assert_eq!(composer_cursor(&state), (0, 2));
+        press(&mut state, KeyCode::Home);
+        assert_eq!(composer_cursor(&state), (0, 0));
+        press(&mut state, KeyCode::End);
+        assert_eq!(composer_cursor(&state), (0, 2));
+        press(&mut state, KeyCode::Tab);
+        assert_eq!(composer_body(&state), "xy    ");
+    }
+
+    #[test]
+    fn composer_vertical_keys_move_through_rows() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "a\nb\nc\nd\ne\nf\ng\nh", (10, 3));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.click(10, 0, 1);
+        }
+        press(&mut state, KeyCode::Down);
+        assert_eq!(composer_cursor(&state).0, 1);
+        press(&mut state, KeyCode::Up);
+        assert_eq!(composer_cursor(&state).0, 0);
+        press(&mut state, KeyCode::PageDown);
+        assert_eq!(
+            composer_cursor(&state).0,
+            3,
+            "page down moves by exactly the viewport height"
+        );
+        press(&mut state, KeyCode::PageUp);
+        assert_eq!(composer_cursor(&state).0, 0);
+    }
+
+    #[test]
+    fn composer_ignores_alt_modified_characters() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "seed", (40, 5));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::ALT)),
+        );
+        assert_eq!(composer_body(&state), "seed");
+    }
+
+    #[test]
+    fn composer_ctrl_c_cancels_like_escape() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "draft", (40, 5));
+        press_ctrl(&mut state, 'c');
+        assert!(
+            state
+                .comment_composer
+                .as_ref()
+                .is_some_and(|composer| composer.confirm_discard),
+            "first ctrl-c asks for discard confirmation"
+        );
+        press_ctrl(&mut state, 'c');
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn ctrl_a_does_not_open_the_action_menu() {
+        let mut state = actionable_issue_state();
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::CONTROL)),
+        );
+        assert!(state.action_menu.is_none());
+    }
+
+    #[test]
+    fn menu_k_and_j_move_the_selection_both_ways() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('j'));
+        assert_eq!(state.action_menu.as_ref().map(|m| m.selected), Some(1));
+        press(&mut state, KeyCode::Char('k'));
+        assert_eq!(state.action_menu.as_ref().map(|m| m.selected), Some(0));
+    }
+
+    #[test]
+    fn menu_ctrl_c_closes_but_modified_q_does_not() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_menu.is_some(), "alt-q must not close the menu");
+        press_ctrl(&mut state, 'c');
+        assert!(state.action_menu.is_none(), "ctrl-c closes the menu");
+    }
+
+    #[test]
+    fn menu_close_and_reopen_shortcuts_open_their_confirms() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('x'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.kind),
+            Some(ActionKind::Close)
+        );
+
+        let mut state = actionable_issue_state();
+        state.resource.state = "CLOSED".into();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('o'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.kind),
+            Some(ActionKind::Reopen)
+        );
+    }
+
+    #[test]
+    fn menu_ignores_shortcuts_for_unavailable_actions() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('m'));
+        assert!(
+            state.action_confirm.is_none(),
+            "merge is not offered on an issue, so 'm' must do nothing"
+        );
+        assert!(state.action_menu.is_some());
+    }
+
+    #[test]
+    fn confirm_ctrl_c_closes_but_plain_c_does_not() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        press(&mut state, KeyCode::Char('c'));
+        assert!(
+            state.action_confirm.is_some(),
+            "plain c is not a cancel key in the confirm modal"
+        );
+        press_ctrl(&mut state, 'c');
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn confirm_ignores_modified_cancel_keys() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_confirm.is_some());
+    }
+
+    #[test]
+    fn merge_number_one_selects_the_first_method() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(ActionKind::Merge);
+        state.select_merge_method(1);
+        press(&mut state, KeyCode::Char('1'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn wheel_up_scrolls_the_composer_back() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "1\n2\n3\n4\n5\n6\n7\n8", (10, 2));
+        let wheel = |state: &mut AppState, kind: MouseEventKind| {
+            apply_event(
+                state,
+                AppEvent::Mouse(MouseEvent {
+                    kind,
+                    column: 0,
+                    row: 0,
+                    modifiers: KeyModifiers::empty(),
+                }),
+            );
+        };
+        wheel(&mut state, MouseEventKind::ScrollDown);
+        wheel(&mut state, MouseEventKind::ScrollDown);
+        assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(6));
+        wheel(&mut state, MouseEventKind::ScrollUp);
+        assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(3));
+    }
+
+    #[test]
+    fn wheel_does_not_scroll_content_behind_the_action_menu() {
+        let mut state = actionable_issue_state();
+        state.scroll_limit = 100;
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 0,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.scroll, 0);
+    }
+
+    #[test]
+    fn composer_click_accounts_for_scroll_offset() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "a\nb\nc\nd\ne\nf", (10, 2));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.scroll = 2;
+        }
+        state.hit_areas.push(HitArea::new(
+            Rect::new(5, 8, 10, 2),
+            HitTarget::ComposerText { x: 5, y: 8 },
+        ));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 5,
+                row: 9,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(
+            composer_cursor(&state),
+            (3, 0),
+            "clicked visual row 1 plus scroll 2 lands on line 3"
+        );
+    }
+
     #[test]
     fn wheel_scrolls_composer_instead_of_content() {
         let mut state = actionable_issue_state();

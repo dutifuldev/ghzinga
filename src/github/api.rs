@@ -8429,4 +8429,23 @@ diff --git a/docs/two.md b/docs/two.md\n\
         assert_eq!(files[0].change_type, "MODIFIED");
         assert_eq!(files[1].change_type, "ADDED");
     }
+
+    #[test]
+    fn repository_flags_select_the_allowed_merge_methods() {
+        let value = serde_json::json!({
+            "data": {
+                "repository": {
+                    "mergeCommitAllowed": false,
+                    "squashMergeAllowed": true,
+                    "rebaseMergeAllowed": true,
+                }
+            }
+        });
+        assert_eq!(
+            allowed_merge_methods_from_repository(&value),
+            vec![MergeMethod::Squash, MergeMethod::Rebase]
+        );
+        let all_off = serde_json::json!({"data": {"repository": {}}});
+        assert!(allowed_merge_methods_from_repository(&all_off).is_empty());
+    }
 }
