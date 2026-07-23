@@ -555,9 +555,16 @@ pub(crate) fn apply_completed_mutations(
         let target = outcome.target;
         let mut refresh_started = false;
         let mut refresh_deferred = false;
-        let applied = state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+        let mut applied = false;
+        let tab_found = state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+            if !resource_matches_target(&state.resource, &target) {
+                // The tab navigated to another resource mid-flight; its
+                // messages and drafts belong to that resource now.
+                return;
+            }
+            applied = true;
             state.finish_action_submission(&action, error);
-            if succeeded && resource_matches_target(&state.resource, &target) {
+            if succeeded {
                 refresh_started = start_background_fetch(
                     state,
                     FetchAction::Refresh { id: target.clone() },
@@ -567,8 +574,8 @@ pub(crate) fn apply_completed_mutations(
                 refresh_deferred = !refresh_started;
             }
         });
-        if !applied {
-            // The originating tab is gone; never leave the app locked.
+        if !tab_found || !applied {
+            // The originating view is gone; never leave the app locked.
             state.pending_action = None;
         }
         if refresh_deferred {
@@ -1869,6 +1876,7 @@ mod tests {
         let target = state.resource.id.clone();
         state.begin_action_submission(&ResourceAction::Close);
         state.resource = issue_resource(500, "Navigated elsewhere");
+        state.status_message = None;
 
         let application = deliver_outcome(
             &mut state,
@@ -1884,5 +1892,9 @@ mod tests {
         assert!(!application.refresh_started);
         assert!(state.pending_action.is_none());
         assert!(state.loading.is_none());
+        assert_eq!(
+            state.status_message, None,
+            "completion messages must not leak onto the navigated-to resource"
+        );
     }
 }
