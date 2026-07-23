@@ -1030,6 +1030,7 @@ fn empty_launch_resource() -> crate::domain::Resource {
             value: "no restored resource yet".into(),
         }],
         warnings: vec![],
+        actions: crate::domain::ActionContext::default(),
         pull_request: None,
     }
 }

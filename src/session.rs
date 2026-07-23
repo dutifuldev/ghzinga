@@ -1258,6 +1258,7 @@ mod tests {
 
     fn resource(number: u64) -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "owner".into(),
                 repo: "repo".into(),

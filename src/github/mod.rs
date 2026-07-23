@@ -6,6 +6,7 @@ use crate::domain::Resource;
 
 pub mod api;
 mod auth;
+pub mod mutations;
 mod public_rest;
 mod queries;
 mod transport;

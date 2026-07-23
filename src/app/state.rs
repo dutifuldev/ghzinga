@@ -1326,6 +1326,7 @@ mod tests {
 
     fn issue_resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "owner".into(),
                 repo: "repo".into(),
@@ -1375,6 +1376,7 @@ mod tests {
         let mut resource = issue_resource();
         resource.id.kind_hint = Some(ResourceKind::PullRequest);
         resource.pull_request = Some(PullRequest {
+            allowed_merge_methods: Vec::new(),
             base_ref: "main".into(),
             head_ref: "topic".into(),
             requested_reviewers: vec![],

@@ -3470,6 +3470,7 @@ mod tests {
 
     fn pr_resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "openclaw".into(),
                 repo: "openclaw".into(),
@@ -3526,6 +3527,7 @@ mod tests {
             ],
             warnings: vec![],
             pull_request: Some(PullRequest {
+                allowed_merge_methods: Vec::new(),
                 base_ref: "main".into(),
                 head_ref: "feat/senseaudio-tts".into(),
                 requested_reviewers: vec!["maintainer".into()],

@@ -597,6 +597,7 @@ mod tests {
 
     fn resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "owner".into(),
                 repo: "repo".into(),
@@ -641,6 +642,7 @@ mod tests {
         resource.id.kind_hint = Some(ResourceKind::PullRequest);
         resource.url = "https://github.com/owner/repo/pull/1".into();
         resource.pull_request = Some(PullRequest {
+            allowed_merge_methods: Vec::new(),
             base_ref: "main".into(),
             head_ref: "topic".into(),
             requested_reviewers: vec![],

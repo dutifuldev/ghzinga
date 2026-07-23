@@ -4,7 +4,12 @@ pub(crate) fn base_pr_query() -> &'static str {
     r#"
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
+    mergeCommitAllowed
+    squashMergeAllowed
+    rebaseMergeAllowed
     pullRequest(number: $number) {
+      id
+      viewerCanUpdate
       number
       title
       url
@@ -142,6 +147,8 @@ pub(crate) fn base_issue_query() -> &'static str {
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
+      id
+      viewerCanUpdate
       number
       title
       url

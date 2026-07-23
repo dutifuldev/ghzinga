@@ -10,9 +10,9 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::domain::{
-    ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit, Deployment,
-    MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId, ResourceKind,
-    FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
+    ActionContext, ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit,
+    Deployment, MergeMethod, MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId,
+    ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 use crate::github::{
@@ -1836,6 +1836,12 @@ struct PrView {
     merge_state_status: Option<String>,
     mergeable: Option<String>,
     #[serde(default)]
+    id: String,
+    #[serde(default)]
+    viewer_can_update: bool,
+    #[serde(default)]
+    allowed_merge_methods: Vec<MergeMethod>,
+    #[serde(default)]
     is_draft: bool,
     #[serde(default)]
     is_cross_repository: bool,
@@ -1902,6 +1908,11 @@ impl PrView {
             ),
             metadata: resource_metadata,
             warnings: Vec::new(),
+            actions: ActionContext {
+                node_id: self.id,
+                viewer_can_update: self.viewer_can_update,
+                locked: self.locked,
+            },
             pull_request: Some(PullRequest {
                 base_ref: self.base_ref_name,
                 head_ref: self.head_ref_name,
@@ -1918,6 +1929,7 @@ impl PrView {
                     .collect(),
                 files: self.files.into_iter().map(file_from_dto).collect(),
                 metadata: pull_request_metadata,
+                allowed_merge_methods: self.allowed_merge_methods,
             }),
         }
     }
@@ -1930,6 +1942,10 @@ struct IssueView {
     title: String,
     url: String,
     state: String,
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    viewer_can_update: bool,
     author: Option<UserDto>,
     created_at: String,
     updated_at: String,
@@ -1992,6 +2008,11 @@ impl IssueView {
             ),
             metadata,
             warnings: Vec::new(),
+            actions: ActionContext {
+                node_id: self.id,
+                viewer_can_update: self.viewer_can_update,
+                locked: self.locked,
+            },
             pull_request: None,
         }
     }
@@ -2000,12 +2021,36 @@ impl IssueView {
 fn pr_view_from_graphql(raw: &[u8]) -> anyhow::Result<PrView> {
     let mut value: Value =
         serde_json::from_slice(raw).context("failed to parse base PR GraphQL JSON")?;
+    let allowed_merge_methods = allowed_merge_methods_from_repository(&value);
     let mut pr = value
         .pointer_mut("/data/repository/pullRequest")
         .and_then(Value::take_non_null)
         .context("base PR GraphQL response did not include a pull request")?;
     normalize_base_pr_value(&mut pr);
-    serde_json::from_value(pr).context("failed to normalize base PR GraphQL JSON")
+    let mut view: PrView =
+        serde_json::from_value(pr).context("failed to normalize base PR GraphQL JSON")?;
+    view.allowed_merge_methods = allowed_merge_methods;
+    Ok(view)
+}
+
+/// Repository-level merge settings arrive next to the pull request node, so
+/// they are lifted onto the view before the node itself is deserialized.
+fn allowed_merge_methods_from_repository(value: &Value) -> Vec<MergeMethod> {
+    let flags = [
+        ("mergeCommitAllowed", MergeMethod::Merge),
+        ("squashMergeAllowed", MergeMethod::Squash),
+        ("rebaseMergeAllowed", MergeMethod::Rebase),
+    ];
+    flags
+        .into_iter()
+        .filter(|(flag, _)| {
+            value
+                .pointer(&format!("/data/repository/{flag}"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .map(|(_, method)| method)
+        .collect()
 }
 
 fn issue_view_from_graphql(raw: &[u8]) -> anyhow::Result<IssueView> {
@@ -5998,6 +6043,7 @@ mod tests {
     #[test]
     fn append_related_resources_dedupes_existing_targets() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::parse("https://github.com/openclaw/openclaw/issues/1").unwrap(),
             title: "Issue".into(),
             url: "https://github.com/openclaw/openclaw/issues/1".into(),
@@ -6258,6 +6304,7 @@ mod tests {
     #[test]
     fn replace_comment_activity_keeps_other_activity() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
             title: "title".into(),
             url: "https://github.com/openclaw/openclaw/pull/81834".into(),
@@ -6371,6 +6418,7 @@ mod tests {
         }
 
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
             title: "title".into(),
             url: "https://github.com/openclaw/openclaw/pull/81834".into(),
@@ -6431,6 +6479,7 @@ mod tests {
     #[test]
     fn enrichment_warning_records_label_and_error() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("openclaw/openclaw", "81834").unwrap(),
             title: "title".into(),
             url: "https://github.com/openclaw/openclaw/pull/81834".into(),
@@ -6860,6 +6909,7 @@ mod tests {
     #[test]
     fn replace_pr_commits_keeps_base_commits_when_paginated_list_is_empty() {
         let mut pr = PullRequest {
+            allowed_merge_methods: Vec::new(),
             base_ref: "main".into(),
             head_ref: "feature".into(),
             requested_reviewers: Vec::new(),
@@ -7457,6 +7507,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     #[test]
     fn missing_file_patch_warning_preserves_pr_resource() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
             title: "Pull request".into(),
             url: "https://github.com/owner/repo/pull/1".into(),
@@ -7473,6 +7524,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
             metadata: vec![],
             warnings: vec![],
             pull_request: Some(PullRequest {
+                allowed_merge_methods: Vec::new(),
                 base_ref: "main".into(),
                 head_ref: "feature".into(),
                 requested_reviewers: vec![],
@@ -7505,6 +7557,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     #[test]
     fn public_rest_fallback_warning_marks_resource_as_rest_fallback() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
             title: "Issue".into(),
             url: "https://github.com/owner/repo/issues/1".into(),
@@ -7534,6 +7587,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     #[test]
     fn public_rest_fallback_pr_skips_authenticated_diff_enrichment() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId::from_owner_repo_number("owner/repo", "1").unwrap(),
             title: "Pull request".into(),
             url: "https://github.com/owner/repo/pull/1".into(),
@@ -7552,6 +7606,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
                 "using public REST fallback after GitHub auth/API error: rate limited".into(),
             ],
             pull_request: Some(PullRequest {
+                allowed_merge_methods: Vec::new(),
                 base_ref: "main".into(),
                 head_ref: "feature".into(),
                 requested_reviewers: vec![],

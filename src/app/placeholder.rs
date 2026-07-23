@@ -20,6 +20,7 @@ pub(crate) fn loading_resource_placeholder(id: ResourceId) -> Resource {
             checks: vec![],
             files: vec![],
             metadata: vec![],
+            allowed_merge_methods: vec![],
         })
     } else {
         None
@@ -46,6 +47,7 @@ pub(crate) fn loading_resource_placeholder(id: ResourceId) -> Resource {
             value: "loading GitHub data".into(),
         }],
         warnings: vec![],
+        actions: crate::domain::ActionContext::default(),
         pull_request,
     }
 }
