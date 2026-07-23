@@ -556,7 +556,7 @@ pub(crate) fn apply_completed_mutations(
         let mut refresh_started = false;
         let mut refresh_deferred = false;
         let mut applied = false;
-        let tab_found = state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+        state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
             if !resource_matches_target(&state.resource, &target) {
                 // The tab navigated to another resource mid-flight; its
                 // messages and drafts belong to that resource now.
@@ -574,7 +574,7 @@ pub(crate) fn apply_completed_mutations(
                 refresh_deferred = !refresh_started;
             }
         });
-        if !tab_found || !applied {
+        if !applied {
             // The originating view is gone; never leave the app locked.
             state.pending_action = None;
         }
@@ -592,22 +592,26 @@ pub(crate) fn apply_completed_mutations(
 }
 
 /// Start post-action refreshes that had to wait for an in-flight fetch.
-/// Returns true when a refresh was started.
+/// Entries whose tab is gone or shows a different resource are dropped;
+/// entries that still cannot start (another fetch raced in) are kept for
+/// the next idle cycle. Returns true when a refresh was started.
 pub(crate) fn start_pending_action_refreshes(
     state: &mut AppState,
     fetch_source: &FetchSource,
     fetch_tx: &UnboundedSender<FetchOutcome>,
 ) -> bool {
-    if state.pending_action_refreshes.is_empty() || state.loading_message().is_some() {
+    if state.loading_message().is_some() {
         return false;
     }
     let mut started = false;
     let entries = std::mem::take(&mut state.pending_action_refreshes);
+    let mut remaining = Vec::new();
     for (tab_id, target) in entries {
         if started {
-            state.pending_action_refreshes.push((tab_id, target));
+            remaining.push((tab_id, target));
             continue;
         }
+        let mut still_waiting = false;
         state.apply_to_resource_tab(tab_id, |state| {
             if resource_matches_target(&state.resource, &target) {
                 started = start_background_fetch(
@@ -616,9 +620,14 @@ pub(crate) fn start_pending_action_refreshes(
                     fetch_source.clone(),
                     fetch_tx,
                 );
+                still_waiting = !started;
             }
         });
+        if still_waiting {
+            remaining.push((tab_id, target));
+        }
     }
+    state.pending_action_refreshes = remaining;
     started
 }
 
@@ -1868,12 +1877,22 @@ mod tests {
             "the refresh must be remembered while the older fetch runs"
         );
 
+        // While the older fetch is still running, the queue must survive
+        // untouched instead of being drained into a fetch that cannot start.
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let source = offline_source(&state);
+        assert!(!start_pending_action_refreshes(
+            &mut state, &source, &fetch_tx
+        ));
+        assert_eq!(
+            state.pending_action_refreshes,
+            vec![(origin_tab_id, target.clone())]
+        );
+
         // The older fetch completes and wipes the deferred-refresh flag.
         state.finish_loading();
         state.refresh_requested = false;
 
-        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
-        let source = offline_source(&state);
         assert!(start_pending_action_refreshes(
             &mut state, &source, &fetch_tx
         ));

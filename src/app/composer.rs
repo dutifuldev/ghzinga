@@ -181,23 +181,22 @@ impl CommentComposer {
         self.cursor_visual_in(&rows, width)
     }
 
+    /// The cursor lives on the last row of its line that starts at or
+    /// before the cursor column; a cursor exactly on a wrap boundary
+    /// therefore lands at column 0 of the following row.
     fn cursor_visual_in(&self, rows: &[VisualRow], width: usize) -> (usize, usize) {
         let width = width.max(1);
-        for (index, row) in rows.iter().enumerate() {
-            if row.line != self.cursor_line || !row_holds_cursor(row, self.cursor_col, rows, index)
-            {
-                continue;
-            }
-            let x = display_width(chars_slice(
-                &self.lines[row.line],
-                row.start,
-                self.cursor_col,
-            ));
-            if x < width || index + 1 == rows.len() || rows[index + 1].line != row.line {
-                return (index, x.min(width.saturating_sub(1)));
-            }
-        }
-        (rows.len().saturating_sub(1), 0)
+        let (index, row) = rows
+            .iter()
+            .enumerate()
+            .rfind(|(_, row)| row.line == self.cursor_line && row.start <= self.cursor_col)
+            .expect("every line, including empty ones, wraps to at least one row");
+        let x = display_width(chars_slice(
+            &self.lines[row.line],
+            row.start,
+            self.cursor_col,
+        ));
+        (index, x.min(width.saturating_sub(1)))
     }
 
     /// Keep the cursor row inside a viewport of `height` rows: scroll may
@@ -213,17 +212,6 @@ impl CommentComposer {
         let max_scroll = total.saturating_sub(height.max(1));
         self.scroll = self.scroll.saturating_add_signed(delta).min(max_scroll);
     }
-}
-
-fn row_holds_cursor(row: &VisualRow, cursor_col: usize, rows: &[VisualRow], index: usize) -> bool {
-    if cursor_col < row.start || cursor_col > row.end {
-        return false;
-    }
-    // A cursor exactly at a wrap boundary belongs to the next row's start.
-    let has_next_row_of_same_line = rows
-        .get(index + 1)
-        .is_some_and(|next| next.line == row.line);
-    cursor_col < row.end || !has_next_row_of_same_line
 }
 
 fn wrap_line_into(rows: &mut Vec<VisualRow>, line_index: usize, line: &str, width: usize) {
@@ -536,6 +524,15 @@ mod tests {
     }
 
     #[test]
+    fn cursor_visual_stays_on_the_cursor_line_in_multiline_text() {
+        let mut composer = composer_with("ab\ncd");
+        composer.click(8, 0, 1);
+        assert_eq!(composer.cursor_visual(8), (0, 1));
+        composer.click(8, 1, 2);
+        assert_eq!(composer.cursor_visual(8), (1, 2));
+    }
+
+    #[test]
     fn scroll_moves_one_step_when_cursor_crosses_the_bottom_edge() {
         let mut composer = composer_with("a\nb\nc\nd");
         composer.scroll = 0;
@@ -551,6 +548,14 @@ mod tests {
         let composer = composer_with("aa日");
         assert_eq!(composer.visual_rows(4).len(), 1);
         assert_eq!(composer.visual_rows(3).len(), 2);
+    }
+
+    #[test]
+    fn a_char_wider_than_the_viewport_still_gets_a_single_row() {
+        let composer = composer_with("日");
+        let rows = composer.visual_rows(1);
+        assert_eq!(rows.len(), 1);
+        assert_eq!((rows[0].start, rows[0].end), (0, 1));
     }
 
     #[test]

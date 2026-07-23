@@ -585,11 +585,11 @@ fn numbered_tab(ch: char, tabs: &[crate::app::Tab]) -> Option<crate::app::Tab> {
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
-            apply_mouse_scroll(state, 1);
+            apply_mouse_scroll(state, ScrollDirection::Down);
             AppIntent::None
         }
         MouseEventKind::ScrollUp => {
-            apply_mouse_scroll(state, -1);
+            apply_mouse_scroll(state, ScrollDirection::Up);
             AppIntent::None
         }
         MouseEventKind::Down(MouseButton::Left) => {
@@ -622,11 +622,21 @@ fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     }
 }
 
-fn apply_mouse_scroll(state: &mut AppState, direction: isize) {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ScrollDirection {
+    Up,
+    Down,
+}
+
+fn apply_mouse_scroll(state: &mut AppState, direction: ScrollDirection) {
     if let Some(composer) = &mut state.comment_composer {
         let width = composer.viewport_width();
         let height = composer.viewport_height();
-        composer.scroll_by(width, height, direction * 3);
+        let delta = match direction {
+            ScrollDirection::Down => 3,
+            ScrollDirection::Up => -3,
+        };
+        composer.scroll_by(width, height, delta);
         return;
     }
     if state.add_resource_prompt.is_some()
@@ -636,10 +646,9 @@ fn apply_mouse_scroll(state: &mut AppState, direction: isize) {
     {
         return;
     }
-    if direction > 0 {
-        state.scroll_down(3);
-    } else {
-        state.scroll_up(3);
+    match direction {
+        ScrollDirection::Down => state.scroll_down(3),
+        ScrollDirection::Up => state.scroll_up(3),
     }
 }
 
@@ -3105,6 +3114,31 @@ mod tests {
     }
 
     #[test]
+    fn menu_ignores_modified_navigation_and_activation_keys() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('j')));
+        assert_eq!(
+            state.action_menu.as_ref().map(|m| m.selected),
+            Some(0),
+            "alt-j must not move the menu selection"
+        );
+        state.move_action_menu_selection(1);
+        apply_event(&mut state, alt(KeyCode::Char('k')));
+        assert_eq!(
+            state.action_menu.as_ref().map(|m| m.selected),
+            Some(1),
+            "alt-k must not move the menu selection"
+        );
+        apply_event(&mut state, alt(KeyCode::Enter));
+        assert!(
+            state.action_menu.is_some() && state.action_confirm.is_none(),
+            "alt-enter must not activate a menu item"
+        );
+    }
+
+    #[test]
     fn menu_close_and_reopen_shortcuts_open_their_confirms() {
         let mut state = actionable_issue_state();
         press(&mut state, KeyCode::Char('A'));
@@ -3158,6 +3192,32 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::ALT)),
         );
         assert!(state.action_confirm.is_some());
+    }
+
+    #[test]
+    fn merge_confirm_ignores_modified_selection_keys() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(ActionKind::Merge);
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('j')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(0),
+            "alt-j must not move the merge method selection"
+        );
+        state.select_merge_method(1);
+        apply_event(&mut state, alt(KeyCode::Char('k')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "alt-k must not move the merge method selection"
+        );
+        apply_event(&mut state, alt(KeyCode::Char('1')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "alt-1 must not select a merge method"
+        );
     }
 
     #[test]

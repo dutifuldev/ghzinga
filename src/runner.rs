@@ -684,7 +684,9 @@ async fn run_tui(
         }
         let mutation_application =
             apply_completed_mutations(state, &mut mutation_rx, &fetch_source, &fetch_tx);
-        state_changed |= mutation_application.changed;
+        if mutation_application.changed {
+            state_changed = true;
+        }
         if mutation_application.refresh_started {
             last_refresh = Instant::now();
         }

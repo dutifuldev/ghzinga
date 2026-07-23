@@ -261,7 +261,7 @@ fn open_action_modal_frame(
     height_bounds: (u16, u16),
     border: ratatui::style::Color,
 ) -> Option<Rect> {
-    if area.width == 0 || area.height == 0 {
+    if area.area() == 0 {
         return None;
     }
     let modal_width = area.width.min(
@@ -419,9 +419,7 @@ fn render_action_menu_modal(
             HitTarget::ActionMenuItem(index),
         ));
     }
-    while rows.len() + 1 < inner.height as usize {
-        rows.push(Line::from(""));
-    }
+    // The modal height is exact: title, one row per action, hint.
     rows.push(modal_hint_line(
         "up/down move  enter select  esc close",
         palette,
@@ -7140,6 +7138,14 @@ mod tests {
         let content = draw_actionable(&mut state);
         assert!(content.contains("Close PR #81834?"));
         assert!(content.contains("[close  y]"));
+        let confirm_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::ConfirmAction)
+                .expect("confirm button hit area");
+        let button_row = draw_row_text(&mut state, 120, 36, confirm_rect.y);
+        assert!(
+            button_row.contains("[close  y]"),
+            "confirm button must be drawn on its hit row: {button_row}"
+        );
         let intent =
             click_rendered_target(&mut state, |target| *target == HitTarget::ConfirmAction);
         assert_eq!(
