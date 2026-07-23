@@ -10,6 +10,9 @@ pub struct CommentComposer {
     cursor_col: usize,
     pub scroll: usize,
     pub confirm_discard: bool,
+    /// Text viewport (columns, rows) recorded by the renderer so key and
+    /// click handling wrap text exactly like the last drawn frame.
+    pub viewport: (u16, u16),
 }
 
 /// One display row of the wrapped composer text: a char range of a logical
@@ -39,6 +42,14 @@ impl CommentComposer {
 
     pub fn cursor(&self) -> (usize, usize) {
         (self.cursor_line, self.cursor_col)
+    }
+
+    pub fn viewport_width(&self) -> usize {
+        usize::from(self.viewport.0).max(1)
+    }
+
+    pub fn viewport_height(&self) -> usize {
+        usize::from(self.viewport.1).max(1)
     }
 
     fn current_line(&self) -> &str {
@@ -147,6 +158,11 @@ impl CommentComposer {
         let (line, col) = position_in_row(&self.lines, &rows[target], x);
         self.cursor_line = line;
         self.cursor_col = col;
+    }
+
+    /// The text shown on one wrapped display row.
+    pub fn row_text(&self, row: &VisualRow) -> &str {
+        chars_slice(&self.lines[row.line], row.start, row.end)
     }
 
     /// Wrap every logical line into display rows of at most `width` columns.

@@ -11,7 +11,8 @@ use crate::{
     control::{self, ControlReply, RuntimeCommand, RuntimeRequest},
     domain::{Resource, ResourceId, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING},
     fetch::{
-        apply_completed_fetches, start_background_fetch, FetchAction, FetchOutcome, FetchSource,
+        apply_completed_fetches, apply_completed_mutations, start_background_fetch,
+        start_background_mutation, FetchAction, FetchOutcome, FetchSource, MutationOutcome,
         OfflineFixtureSource,
     },
     github::{api::GithubApiGateway, load_fixture},
@@ -654,6 +655,7 @@ async fn run_tui(
 ) -> anyhow::Result<()> {
     let (_guard, mut terminal) = TerminalGuard::enter(mouse_enabled)?;
     let (fetch_tx, mut fetch_rx) = mpsc::unbounded_channel();
+    let (mutation_tx, mut mutation_rx) = mpsc::unbounded_channel();
     let (control_tx, mut control_rx) = mpsc::unbounded_channel();
     let _control_server = match &session_runtime {
         Some(runtime) => match control::start_server(&runtime.handle.id, control_tx) {
@@ -678,6 +680,17 @@ async fn run_tui(
             state_changed = true;
             if let Some(runtime) = &mut session_runtime {
                 persist_session_now(state, runtime);
+            }
+        }
+        for target in apply_completed_mutations(state, &mut mutation_rx) {
+            state_changed = true;
+            if start_background_fetch(
+                state,
+                FetchAction::Refresh { id: target },
+                fetch_source.clone(),
+                &fetch_tx,
+            ) {
+                last_refresh = Instant::now();
             }
         }
         state_changed |= maybe_load_file_patches_for_active_files_tab(
@@ -744,6 +757,7 @@ async fn run_tui(
                 fetch_source.clone(),
                 &mut last_refresh,
                 &fetch_tx,
+                &mutation_tx,
             )
             .await
             {
@@ -1092,6 +1106,10 @@ fn event_to_app_event(event: Event) -> Option<PendingAppEvent> {
             event: AppEvent::Tick,
             requires_pre_event_redraw: true,
         }),
+        Event::Paste(text) => Some(PendingAppEvent {
+            event: AppEvent::Paste(text),
+            requires_pre_event_redraw: false,
+        }),
         _ => None,
     }
 }
@@ -1102,9 +1120,19 @@ async fn handle_intent(
     fetch_source: FetchSource,
     last_refresh: &mut Instant,
     fetch_tx: &UnboundedSender<FetchOutcome>,
+    mutation_tx: &UnboundedSender<MutationOutcome>,
 ) -> bool {
     match intent {
         AppIntent::Quit => true,
+        AppIntent::SubmitAction(action) => {
+            if fetch_source.is_live_github() {
+                start_background_mutation(state, action, mutation_tx);
+            } else {
+                state.status_message =
+                    Some("offline fixture mode: GitHub actions are disabled".into());
+            }
+            false
+        }
         AppIntent::Refresh => {
             if fetch_source.is_live_github() {
                 let id = state.resource.id.clone();
@@ -2425,12 +2453,14 @@ mod tests {
         let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut last_refresh = Instant::now();
 
+        let (mutation_tx, _mutation_rx) = tokio::sync::mpsc::unbounded_channel();
         let should_quit = handle_intent(
             &mut state,
             AppIntent::LoadFullDepth,
             FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture])),
             &mut last_refresh,
             &fetch_tx,
+            &mutation_tx,
         )
         .await;
 
@@ -2440,6 +2470,33 @@ mod tests {
             Some("offline fixture mode: full-depth load skipped")
         );
         assert!(fetch_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn submit_action_intent_is_disabled_in_offline_fixture_mode() {
+        let fixture = issue_resource(1, "Initial issue");
+        let mut state = AppState::new(fixture.clone());
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (mutation_tx, mut mutation_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut last_refresh = Instant::now();
+
+        let should_quit = handle_intent(
+            &mut state,
+            AppIntent::SubmitAction(crate::domain::ResourceAction::Close),
+            FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture])),
+            &mut last_refresh,
+            &fetch_tx,
+            &mutation_tx,
+        )
+        .await;
+
+        assert!(!should_quit);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("offline fixture mode: GitHub actions are disabled")
+        );
+        assert!(state.pending_action.is_none());
+        assert!(mutation_rx.try_recv().is_err());
     }
 
     #[tokio::test]
@@ -2458,6 +2515,7 @@ mod tests {
         let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut last_refresh = Instant::now();
 
+        let (mutation_tx, _mutation_rx) = tokio::sync::mpsc::unbounded_channel();
         let should_quit = handle_intent(
             &mut state,
             AppIntent::OpenResource(ResourceId {
@@ -2469,6 +2527,7 @@ mod tests {
             FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture])),
             &mut last_refresh,
             &fetch_tx,
+            &mutation_tx,
         )
         .await;
 
@@ -2492,12 +2551,14 @@ mod tests {
         let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut last_refresh = Instant::now();
 
+        let (mutation_tx, _mutation_rx) = tokio::sync::mpsc::unbounded_channel();
         let should_quit = handle_intent(
             &mut state,
             AppIntent::OpenResource(id.clone()),
             FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture, fetched])),
             &mut last_refresh,
             &fetch_tx,
+            &mutation_tx,
         )
         .await;
 
@@ -2519,12 +2580,14 @@ mod tests {
         let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut last_refresh = Instant::now();
 
+        let (mutation_tx, _mutation_rx) = tokio::sync::mpsc::unbounded_channel();
         let should_quit = handle_intent(
             &mut state,
             AppIntent::ReplaceResource(id.clone()),
             FetchSource::OfflineFixtures(OfflineFixtureSource::new([fixture, fetched])),
             &mut last_refresh,
             &fetch_tx,
+            &mutation_tx,
         )
         .await;
 

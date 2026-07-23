@@ -1,6 +1,10 @@
 use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
-use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
+use crate::app::composer::CommentComposer;
+use crate::domain::{
+    available_actions, ActionKind, MergeMethod, PullRequest, Resource, ResourceAction, ResourceId,
+    ResourceIdError, ResourceKind,
+};
 use crate::input::HitArea;
 use crate::render::{
     normalize_fixed_width, ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName,
@@ -194,6 +198,33 @@ pub struct ResourceLinkPrompt {
     pub url: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionMenuState {
+    pub actions: Vec<ActionKind>,
+    pub selected: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionConfirmState {
+    pub kind: ActionKind,
+    pub merge_methods: Vec<MergeMethod>,
+    pub selected_method: usize,
+}
+
+impl ActionConfirmState {
+    pub fn chosen_action(&self) -> Option<ResourceAction> {
+        match self.kind {
+            ActionKind::Close => Some(ResourceAction::Close),
+            ActionKind::Reopen => Some(ResourceAction::Reopen),
+            ActionKind::Merge => self
+                .merge_methods
+                .get(self.selected_method)
+                .map(|method| ResourceAction::Merge { method: *method }),
+            ActionKind::Comment => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
@@ -206,6 +237,10 @@ pub struct AppState {
     pending_file_patch_request_id: Option<u64>,
     pub add_resource_prompt: Option<AddResourcePrompt>,
     pub resource_link_prompt: Option<ResourceLinkPrompt>,
+    pub action_menu: Option<ActionMenuState>,
+    pub action_confirm: Option<ActionConfirmState>,
+    pub comment_composer: Option<CommentComposer>,
+    pub pending_action: Option<ResourceAction>,
     pending_activity_focus: Option<String>,
     pub active_tab: Tab,
     pub scroll: u16,
@@ -251,6 +286,10 @@ impl AppState {
             pending_file_patch_request_id: None,
             add_resource_prompt: None,
             resource_link_prompt: None,
+            action_menu: None,
+            action_confirm: None,
+            comment_composer: None,
+            pending_action: None,
             pending_activity_focus: None,
             scroll: 0,
             scroll_limit: u16::MAX,
@@ -330,18 +369,13 @@ impl AppState {
             self.scroll = 0;
             self.scroll_limit = u16::MAX;
         }
-        self.hit_areas.clear();
-        self.scrollbar_drag = None;
-        self.resource_link_prompt = None;
-        self.quit_confirmation = false;
+        self.close_all_prompts();
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
             fallback_repo: self.resource.id.clone(),
             mode,
         });
-        self.show_help = false;
-        self.show_settings = false;
     }
 
     pub fn close_add_resource_prompt(&mut self) {
@@ -361,26 +395,148 @@ impl AppState {
     }
 
     pub fn open_resource_link_prompt(&mut self, id: ResourceId, url: Option<String>) {
-        self.hit_areas.clear();
-        self.scrollbar_drag = None;
-        self.add_resource_prompt = None;
-        self.quit_confirmation = false;
+        self.close_all_prompts();
         self.resource_link_prompt = Some(ResourceLinkPrompt { id, url });
-        self.show_help = false;
-        self.show_settings = false;
     }
 
     pub fn close_resource_link_prompt(&mut self) {
         self.resource_link_prompt = None;
     }
 
-    pub fn request_quit_confirmation(&mut self) {
+    pub fn open_action_menu(&mut self) {
+        let actions = available_actions(&self.resource);
+        if actions.is_empty() {
+            self.status_message = Some("no actions available for this resource".into());
+            return;
+        }
+        self.close_all_prompts();
+        self.action_menu = Some(ActionMenuState {
+            actions,
+            selected: 0,
+        });
+    }
+
+    pub fn close_action_menu(&mut self) {
+        self.action_menu = None;
+    }
+
+    pub fn move_action_menu_selection(&mut self, delta: isize) {
+        if let Some(menu) = &mut self.action_menu {
+            let last = menu.actions.len().saturating_sub(1);
+            menu.selected = menu.selected.saturating_add_signed(delta).min(last);
+        }
+    }
+
+    pub fn selected_action_kind(&self) -> Option<ActionKind> {
+        let menu = self.action_menu.as_ref()?;
+        menu.actions.get(menu.selected).copied()
+    }
+
+    pub fn open_action_confirm(&mut self, kind: ActionKind) {
+        let merge_methods = match kind {
+            ActionKind::Merge => self
+                .resource
+                .pull_request
+                .as_ref()
+                .map(|pr| pr.allowed_merge_methods.clone())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        self.close_all_prompts();
+        self.action_confirm = Some(ActionConfirmState {
+            kind,
+            merge_methods,
+            selected_method: 0,
+        });
+    }
+
+    pub fn close_action_confirm(&mut self) {
+        self.action_confirm = None;
+    }
+
+    pub fn move_merge_method_selection(&mut self, delta: isize) {
+        if let Some(confirm) = &mut self.action_confirm {
+            let last = confirm.merge_methods.len().saturating_sub(1);
+            confirm.selected_method = confirm
+                .selected_method
+                .saturating_add_signed(delta)
+                .min(last);
+        }
+    }
+
+    pub fn select_merge_method(&mut self, index: usize) {
+        if let Some(confirm) = &mut self.action_confirm {
+            if index < confirm.merge_methods.len() {
+                confirm.selected_method = index;
+            }
+        }
+    }
+
+    pub fn open_comment_composer(&mut self) {
+        self.close_all_prompts();
+        self.comment_composer = Some(CommentComposer::new());
+    }
+
+    pub fn close_comment_composer(&mut self) {
+        self.comment_composer = None;
+    }
+
+    /// Esc/cancel semantics for the composer: an empty composer closes,
+    /// a dirty one asks once for discard confirmation.
+    pub fn cancel_comment_composer(&mut self) {
+        let Some(composer) = &mut self.comment_composer else {
+            return;
+        };
+        if composer.is_empty() || composer.confirm_discard {
+            self.comment_composer = None;
+        } else {
+            composer.confirm_discard = true;
+        }
+    }
+
+    fn close_all_prompts(&mut self) {
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.add_resource_prompt = None;
         self.resource_link_prompt = None;
+        self.action_menu = None;
+        self.action_confirm = None;
+        self.comment_composer = None;
+        self.quit_confirmation = false;
         self.show_help = false;
         self.show_settings = false;
+    }
+
+    pub fn any_action_modal_open(&self) -> bool {
+        self.action_menu.is_some()
+            || self.action_confirm.is_some()
+            || self.comment_composer.is_some()
+    }
+
+    pub fn begin_action_submission(&mut self, action: &ResourceAction) {
+        self.pending_action = Some(action.clone());
+        self.status_message = Some(format!("{}\u{2026}", action.progress_label()));
+        self.last_error = None;
+    }
+
+    pub fn finish_action_submission(&mut self, action: &ResourceAction, error: Option<String>) {
+        self.pending_action = None;
+        match error {
+            None => {
+                self.status_message = Some(format!("{}, refreshing", action.success_label()));
+                if matches!(action, ResourceAction::Comment { .. }) {
+                    self.comment_composer = None;
+                }
+            }
+            Some(error) => {
+                self.status_message = None;
+                self.last_error = Some(format!("{} failed: {error}", action.progress_label()));
+            }
+        }
+    }
+
+    pub fn request_quit_confirmation(&mut self) {
+        self.close_all_prompts();
         self.quit_confirmation = true;
     }
 

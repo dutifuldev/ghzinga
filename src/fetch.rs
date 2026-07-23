@@ -11,10 +11,10 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::{
     app::AppState,
     domain::FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
-    domain::{Resource, ResourceId},
+    domain::{Resource, ResourceAction, ResourceId},
     github::{
         api::{ApiDepth, GithubApiGateway, GithubGateway},
-        load_fixture,
+        load_fixture, mutations,
     },
 };
 
@@ -486,6 +486,70 @@ fn should_enqueue_enrichment(resource: &Resource) -> bool {
     !resource.uses_public_rest_fallback()
 }
 
+/// Result of a background GitHub write action, delivered back to the main
+/// loop over its own channel so it can never be confused with fetch results.
+pub(crate) struct MutationOutcome {
+    action: ResourceAction,
+    target: ResourceId,
+    origin_tab_id: u64,
+    result: anyhow::Result<()>,
+}
+
+/// Spawn a GitHub write action. Mirrors `start_background_fetch`: state is
+/// marked pending on the way out and only ever finalized on the main thread
+/// by `apply_completed_mutations`.
+pub(crate) fn start_background_mutation(
+    state: &mut AppState,
+    action: ResourceAction,
+    mutation_tx: &UnboundedSender<MutationOutcome>,
+) -> bool {
+    if state.pending_action.is_some() {
+        state.status_message = Some("an action is already in flight".into());
+        return false;
+    }
+    let node_id = state.resource.actions.node_id.clone();
+    if node_id.is_empty() {
+        state.last_error = Some("this resource does not support actions".into());
+        return false;
+    }
+    let kind = state.resource.kind();
+    let target = state.resource.id.clone();
+    let origin_tab_id = state.active_resource_tab_id();
+    state.begin_action_submission(&action);
+    let tx = mutation_tx.clone();
+    tokio::spawn(async move {
+        let result = mutations::submit_resource_action(&node_id, kind, &action).await;
+        let _ = tx.send(MutationOutcome {
+            action,
+            target,
+            origin_tab_id,
+            result,
+        });
+    });
+    true
+}
+
+/// Apply finished write actions and return the resources that now need a
+/// refresh so the UI reflects the server's post-action state.
+pub(crate) fn apply_completed_mutations(
+    state: &mut AppState,
+    mutation_rx: &mut UnboundedReceiver<MutationOutcome>,
+) -> Vec<ResourceId> {
+    let mut refresh_targets = Vec::new();
+    while let Ok(outcome) = mutation_rx.try_recv() {
+        let succeeded = outcome.result.is_ok();
+        let error = outcome.result.err().map(|error| format!("{error:#}"));
+        let action = outcome.action;
+        state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+            state.finish_action_submission(&action, error);
+        });
+        if succeeded {
+            refresh_targets.push(outcome.target);
+        }
+    }
+    refresh_targets
+}
+
 fn current_refresh_label() -> String {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -514,9 +578,11 @@ mod tests {
     };
 
     use super::{
-        apply_fetch_outcome, should_enqueue_enrichment, start_background_fetch, FetchAction,
-        FetchOutcome, FetchOwner, FetchSource, FetchStage, OfflineFixtureSource,
+        apply_completed_mutations, apply_fetch_outcome, should_enqueue_enrichment,
+        start_background_fetch, start_background_mutation, FetchAction, FetchOutcome, FetchOwner,
+        FetchSource, FetchStage, MutationOutcome, OfflineFixtureSource,
     };
+    use crate::domain::ResourceAction;
 
     fn begin_test_fetch(state: &mut AppState, action: &FetchAction) -> (u64, u64) {
         let origin_tab_id = state.active_resource_tab_id();
@@ -1469,5 +1535,122 @@ mod tests {
         assert_eq!(state.history, [previous.id]);
         assert_eq!(state.last_error.as_deref(), Some("network down"));
         assert!(state.loading.is_none());
+    }
+
+    fn actionable_state() -> AppState {
+        let mut resource = issue_resource(9, "Actionable");
+        resource.actions.node_id = "I_node".into();
+        resource.actions.viewer_can_update = true;
+        AppState::new(resource)
+    }
+
+    #[test]
+    fn mutation_is_rejected_while_another_is_pending() {
+        let mut state = actionable_state();
+        state.pending_action = Some(ResourceAction::Close);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(!start_background_mutation(
+            &mut state,
+            ResourceAction::Reopen,
+            &tx
+        ));
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("an action is already in flight")
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn mutation_is_rejected_without_a_node_id() {
+        let mut state = AppState::new(issue_resource(9, "No node id"));
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(!start_background_mutation(
+            &mut state,
+            ResourceAction::Close,
+            &tx
+        ));
+        assert_eq!(
+            state.last_error.as_deref(),
+            Some("this resource does not support actions")
+        );
+        assert!(rx.try_recv().is_err());
+        assert!(state.pending_action.is_none());
+    }
+
+    #[tokio::test]
+    async fn successful_mutation_clears_pending_and_requests_refresh() {
+        let mut state = actionable_state();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.open_comment_composer();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send(MutationOutcome {
+            action: ResourceAction::Close,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        })
+        .expect("send outcome");
+
+        let targets = apply_completed_mutations(&mut state, &mut rx);
+
+        assert_eq!(targets, vec![state.resource.id.clone()]);
+        assert!(state.pending_action.is_none());
+        assert_eq!(state.status_message.as_deref(), Some("closed, refreshing"));
+        assert!(state.last_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn failed_mutation_surfaces_the_error_and_keeps_the_composer() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "hello".into(),
+        };
+        state.begin_action_submission(&action);
+        state.comment_composer = Some(crate::app::CommentComposer::new());
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send(MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Err(anyhow::anyhow!("Pull request is not mergeable")),
+        })
+        .expect("send outcome");
+
+        let targets = apply_completed_mutations(&mut state, &mut rx);
+
+        assert!(targets.is_empty());
+        assert!(state.pending_action.is_none());
+        assert!(state
+            .last_error
+            .as_deref()
+            .expect("error surfaced")
+            .contains("commenting failed"));
+        assert!(
+            state.comment_composer.is_some(),
+            "failed comment keeps the draft so nothing is lost"
+        );
+    }
+
+    #[tokio::test]
+    async fn successful_comment_closes_the_composer() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "hello".into(),
+        };
+        state.begin_action_submission(&action);
+        state.comment_composer = Some(crate::app::CommentComposer::new());
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send(MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        })
+        .expect("send outcome");
+
+        apply_completed_mutations(&mut state, &mut rx);
+
+        assert!(state.comment_composer.is_none());
     }
 }
