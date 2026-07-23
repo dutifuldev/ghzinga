@@ -13,7 +13,8 @@ cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 cargo llvm-cov --fail-under-lines 85 --summary-only
 cargo audit
-cargo mutants --list
+git diff origin/main...HEAD > /tmp/change.diff
+cargo mutants --timeout 120 --in-diff /tmp/change.diff
 slophammer-rs dry . --format json
 slophammer-rs check . --format json
 npx -y @simpledoc/simpledoc check
