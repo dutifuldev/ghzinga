@@ -682,16 +682,11 @@ async fn run_tui(
                 persist_session_now(state, runtime);
             }
         }
-        for target in apply_completed_mutations(state, &mut mutation_rx) {
-            state_changed = true;
-            if start_background_fetch(
-                state,
-                FetchAction::Refresh { id: target },
-                fetch_source.clone(),
-                &fetch_tx,
-            ) {
-                last_refresh = Instant::now();
-            }
+        let mutation_application =
+            apply_completed_mutations(state, &mut mutation_rx, &fetch_source, &fetch_tx);
+        state_changed |= mutation_application.changed;
+        if mutation_application.refresh_started {
+            last_refresh = Instant::now();
         }
         state_changed |= maybe_load_file_patches_for_active_files_tab(
             state,

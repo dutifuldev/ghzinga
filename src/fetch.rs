@@ -529,25 +529,49 @@ pub(crate) fn start_background_mutation(
     true
 }
 
-/// Apply finished write actions and return the resources that now need a
-/// refresh so the UI reflects the server's post-action state.
+pub(crate) struct MutationApplication {
+    pub changed: bool,
+    pub refresh_started: bool,
+}
+
+/// Apply finished write actions in their originating tab and refresh that
+/// tab from GitHub on success. A tab that was closed or navigated to a
+/// different resource mid-flight is left untouched.
 pub(crate) fn apply_completed_mutations(
     state: &mut AppState,
     mutation_rx: &mut UnboundedReceiver<MutationOutcome>,
-) -> Vec<ResourceId> {
-    let mut refresh_targets = Vec::new();
+    fetch_source: &FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> MutationApplication {
+    let mut application = MutationApplication {
+        changed: false,
+        refresh_started: false,
+    };
     while let Ok(outcome) = mutation_rx.try_recv() {
+        application.changed = true;
         let succeeded = outcome.result.is_ok();
         let error = outcome.result.err().map(|error| format!("{error:#}"));
         let action = outcome.action;
-        state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+        let target = outcome.target;
+        let mut refresh_started = false;
+        let applied = state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
             state.finish_action_submission(&action, error);
+            if succeeded && resource_matches_target(&state.resource, &target) {
+                refresh_started = start_background_fetch(
+                    state,
+                    FetchAction::Refresh { id: target.clone() },
+                    fetch_source.clone(),
+                    fetch_tx,
+                );
+            }
         });
-        if succeeded {
-            refresh_targets.push(outcome.target);
+        if !applied {
+            // The originating tab is gone; never leave the app locked.
+            state.pending_action = None;
         }
+        application.refresh_started |= refresh_started;
     }
-    refresh_targets
+    application
 }
 
 fn current_refresh_label() -> String {
@@ -1578,26 +1602,42 @@ mod tests {
         assert!(state.pending_action.is_none());
     }
 
+    fn offline_source(state: &AppState) -> FetchSource {
+        FetchSource::OfflineFixtures(OfflineFixtureSource::new([state.resource.clone()]))
+    }
+
+    fn deliver_outcome(
+        state: &mut AppState,
+        outcome: MutationOutcome,
+    ) -> super::MutationApplication {
+        let (mutation_tx, mut mutation_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        mutation_tx.send(outcome).expect("send outcome");
+        let source = offline_source(state);
+        apply_completed_mutations(state, &mut mutation_rx, &source, &fetch_tx)
+    }
+
     #[tokio::test]
-    async fn successful_mutation_clears_pending_and_requests_refresh() {
+    async fn successful_mutation_clears_pending_and_starts_a_refresh() {
         let mut state = actionable_state();
         state.begin_action_submission(&ResourceAction::Close);
-        state.open_comment_composer();
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tx.send(MutationOutcome {
+        let outcome = MutationOutcome {
             action: ResourceAction::Close,
             target: state.resource.id.clone(),
             origin_tab_id: state.active_resource_tab_id(),
             result: Ok(()),
-        })
-        .expect("send outcome");
+        };
 
-        let targets = apply_completed_mutations(&mut state, &mut rx);
+        let application = deliver_outcome(&mut state, outcome);
 
-        assert_eq!(targets, vec![state.resource.id.clone()]);
+        assert!(application.changed);
+        assert!(application.refresh_started);
         assert!(state.pending_action.is_none());
-        assert_eq!(state.status_message.as_deref(), Some("closed, refreshing"));
         assert!(state.last_error.is_none());
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(state.resource.id.clone())
+        );
     }
 
     #[tokio::test]
@@ -1608,18 +1648,17 @@ mod tests {
         };
         state.begin_action_submission(&action);
         state.comment_composer = Some(crate::app::CommentComposer::new());
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tx.send(MutationOutcome {
+        let outcome = MutationOutcome {
             action,
             target: state.resource.id.clone(),
             origin_tab_id: state.active_resource_tab_id(),
             result: Err(anyhow::anyhow!("Pull request is not mergeable")),
-        })
-        .expect("send outcome");
+        };
 
-        let targets = apply_completed_mutations(&mut state, &mut rx);
+        let application = deliver_outcome(&mut state, outcome);
 
-        assert!(targets.is_empty());
+        assert!(application.changed);
+        assert!(!application.refresh_started);
         assert!(state.pending_action.is_none());
         assert!(state
             .last_error
@@ -1640,17 +1679,92 @@ mod tests {
         };
         state.begin_action_submission(&action);
         state.comment_composer = Some(crate::app::CommentComposer::new());
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tx.send(MutationOutcome {
+        let outcome = MutationOutcome {
             action,
             target: state.resource.id.clone(),
             origin_tab_id: state.active_resource_tab_id(),
             result: Ok(()),
-        })
-        .expect("send outcome");
+        };
 
-        apply_completed_mutations(&mut state, &mut rx);
+        deliver_outcome(&mut state, outcome);
 
         assert!(state.comment_composer.is_none());
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_lands_in_its_origin_tab_not_the_active_one() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.open_resource_in_tab(issue_resource(99, "Other tab"));
+        let active_before = state.resource.clone();
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target: target.clone(),
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(application.refresh_started);
+        assert_eq!(
+            state.resource, active_before,
+            "the active tab's resource must stay untouched"
+        );
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.origin_tab_id),
+            Some(origin_tab_id),
+            "the refresh must be owned by the tab that submitted the action"
+        );
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(target)
+        );
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_for_a_closed_tab_clears_pending_without_refresh() {
+        let mut state = actionable_state();
+        state.begin_action_submission(&ResourceAction::Close);
+        let outcome = MutationOutcome {
+            action: ResourceAction::Close,
+            target: state.resource.id.clone(),
+            origin_tab_id: 424_242,
+            result: Ok(()),
+        };
+
+        let application = deliver_outcome(&mut state, outcome);
+
+        assert!(application.changed);
+        assert!(!application.refresh_started);
+        assert!(state.pending_action.is_none());
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_skips_refresh_when_the_tab_navigated_away() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.resource = issue_resource(500, "Navigated elsewhere");
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target,
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(application.changed);
+        assert!(!application.refresh_started);
+        assert!(state.pending_action.is_none());
+        assert!(state.loading.is_none());
     }
 }
