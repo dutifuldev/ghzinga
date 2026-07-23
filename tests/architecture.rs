@@ -257,7 +257,7 @@ fn ci_workflow_delegates_to_full_local_gate() {
         "cargo clippy --all-targets --all-features -- -D warnings",
         "cargo llvm-cov --fail-under-lines 85",
         "cargo audit",
-        "cargo mutants --list",
+        "cargo mutants --timeout 120 --in-diff",
         "slophammer-rs dry . --format json",
         "slophammer-rs check . --format json",
         "scripts/verify-install.sh",
