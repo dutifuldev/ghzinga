@@ -427,16 +427,16 @@ fn apply_action_menu_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.close_action_menu();
             AppIntent::None
         }
-        KeyCode::Up | KeyCode::Char('k') => {
+        KeyCode::Up | KeyCode::Char('k') if is_plain_shortcut(key) => {
             state.move_action_menu_selection(-1);
             AppIntent::None
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('j') if is_plain_shortcut(key) => {
             state.move_action_menu_selection(1);
             AppIntent::None
         }
-        KeyCode::Enter => activate_selected_action(state),
-        KeyCode::Char(ch) => activate_action_by_shortcut(state, ch),
+        KeyCode::Enter if is_plain_shortcut(key) => activate_selected_action(state),
+        KeyCode::Char(ch) if is_plain_shortcut(key) => activate_action_by_shortcut(state, ch),
         _ => AppIntent::None,
     }
 }
@@ -487,11 +487,11 @@ fn apply_action_confirm_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.close_action_confirm();
             AppIntent::None
         }
-        KeyCode::Up | KeyCode::Char('k') => {
+        KeyCode::Up | KeyCode::Char('k') if is_plain_shortcut(key) => {
             state.move_merge_method_selection(-1);
             AppIntent::None
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Down | KeyCode::Char('j') if is_plain_shortcut(key) => {
             state.move_merge_method_selection(1);
             AppIntent::None
         }
@@ -499,7 +499,9 @@ fn apply_action_confirm_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
             state.select_merge_method(ch as usize - '1' as usize);
             AppIntent::None
         }
-        KeyCode::Enter | KeyCode::Char('y') => submit_confirmed_action(state),
+        KeyCode::Enter | KeyCode::Char('y') if is_plain_shortcut(key) => {
+            submit_confirmed_action(state)
+        }
         _ => AppIntent::None,
     }
 }
@@ -2866,6 +2868,57 @@ mod tests {
         assert_eq!(
             state.comment_composer.as_ref().map(|c| c.cursor()),
             Some((0, 2))
+        );
+    }
+
+    #[test]
+    fn modified_keys_do_not_submit_a_confirmation() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(intent, AppIntent::None);
+        assert!(
+            state.action_confirm.is_some(),
+            "ctrl-modified keys must not confirm a destructive action"
+        );
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT)),
+        );
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_confirm.is_some());
+    }
+
+    #[test]
+    fn modified_letters_do_not_activate_menu_items() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_menu.is_some());
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn tab_switch_keeps_each_tabs_comment_draft() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("draft for tab one".into()));
+        state.open_resource_in_tab(resource_with_number(2));
+        assert!(
+            state.comment_composer.is_none(),
+            "the new tab starts without a composer"
+        );
+        state.switch_resource_tab(0);
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("draft for tab one".into()),
+            "returning to the first tab restores its draft"
         );
     }
 

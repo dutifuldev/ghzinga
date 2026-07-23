@@ -1727,6 +1727,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn completed_comment_never_discards_another_tabs_draft() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        let action = ResourceAction::Comment {
+            body: "sent from tab one".into(),
+        };
+        state.begin_action_submission(&action);
+        state.comment_composer = None;
+        state.open_resource_in_tab(issue_resource(99, "Other tab"));
+        state.open_comment_composer();
+        state
+            .comment_composer
+            .as_mut()
+            .expect("second tab composer")
+            .insert_str("unsent draft on tab two");
+
+        deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action,
+                target,
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("unsent draft on tab two".into()),
+            "a completed comment on one tab must not clear another tab's draft"
+        );
+    }
+
+    #[tokio::test]
     async fn mutation_outcome_for_a_closed_tab_clears_pending_without_refresh() {
         let mut state = actionable_state();
         state.begin_action_submission(&ResourceAction::Close);

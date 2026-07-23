@@ -125,6 +125,7 @@ pub struct ResourceTabState {
     pub last_refresh_changed_sections: Vec<String>,
     pub last_error: Option<String>,
     pub status_message: Option<String>,
+    pub comment_composer: Option<CommentComposer>,
 }
 
 impl ResourceTabState {
@@ -146,6 +147,7 @@ impl ResourceTabState {
             last_refresh_changed_sections: Vec::new(),
             last_error: None,
             status_message: None,
+            comment_composer: None,
         }
     }
 
@@ -174,6 +176,7 @@ impl ResourceTabState {
             last_refresh_changed_sections: Vec::new(),
             last_error: None,
             status_message: None,
+            comment_composer: None,
         }
     }
 }
@@ -1306,6 +1309,7 @@ impl AppState {
             tab.last_refresh_changed_sections = self.last_refresh_changed_sections.clone();
             tab.last_error = self.last_error.clone();
             tab.status_message = self.status_message.clone();
+            tab.comment_composer = self.comment_composer.clone();
         }
     }
 
@@ -1334,6 +1338,7 @@ impl AppState {
         self.last_refresh_changed_sections = tab.last_refresh_changed_sections;
         self.last_error = tab.last_error;
         self.status_message = tab.status_message;
+        self.comment_composer = tab.comment_composer;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.pending_activity_focus = None;
