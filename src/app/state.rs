@@ -531,8 +531,16 @@ impl AppState {
         match error {
             None => {
                 self.status_message = Some(format!("{}, refreshing", action.success_label()));
-                if matches!(action, ResourceAction::Comment { .. }) {
-                    self.comment_composer = None;
+                if let ResourceAction::Comment { body } = action {
+                    // Close only the composer whose draft was posted; a
+                    // replacement draft opened meanwhile must survive.
+                    let holds_posted_draft = self
+                        .comment_composer
+                        .as_ref()
+                        .is_some_and(|composer| composer.body() == *body);
+                    if holds_posted_draft {
+                        self.comment_composer = None;
+                    }
                 }
             }
             Some(error) => {

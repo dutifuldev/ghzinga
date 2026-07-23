@@ -1727,7 +1727,9 @@ mod tests {
             body: "hello".into(),
         };
         state.begin_action_submission(&action);
-        state.comment_composer = Some(crate::app::CommentComposer::new());
+        let mut composer = crate::app::CommentComposer::new();
+        composer.insert_str("hello");
+        state.comment_composer = Some(composer);
         let outcome = MutationOutcome {
             action,
             target: state.resource.id.clone(),
@@ -1738,6 +1740,37 @@ mod tests {
         deliver_outcome(&mut state, outcome);
 
         assert!(state.comment_composer.is_none());
+    }
+
+    #[tokio::test]
+    async fn completed_comment_spares_a_replacement_draft_in_the_same_tab() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "posted text".into(),
+        };
+        state.begin_action_submission(&action);
+        // The user dismissed the frozen composer and opened a new draft
+        // in the same tab while the first comment was still posting.
+        state.comment_composer = Some(crate::app::CommentComposer::new());
+        state
+            .comment_composer
+            .as_mut()
+            .expect("replacement composer")
+            .insert_str("replacement draft");
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        };
+
+        deliver_outcome(&mut state, outcome);
+
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("replacement draft".into()),
+            "a replacement draft must survive the earlier comment completing"
+        );
     }
 
     #[tokio::test]
