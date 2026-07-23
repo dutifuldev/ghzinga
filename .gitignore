@@ -1,4 +1,5 @@
 /target
+/mutants.out*
 __pycache__/
 *.pyc
 

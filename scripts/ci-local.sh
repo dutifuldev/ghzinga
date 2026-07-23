@@ -10,7 +10,27 @@ cargo test
 cargo clippy --all-targets --all-features -- -D warnings
 cargo llvm-cov --fail-under-lines 85 --summary-only
 cargo audit
-cargo mutants --list
+# Mutation testing on code changed relative to main. Listing forms cannot
+# fail on a surviving mutant, so only an executing run counts as evidence.
+if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+  git fetch --no-tags --unshallow origin "+main:refs/remotes/origin/main"
+else
+  git fetch --no-tags origin "+main:refs/remotes/origin/main" \
+    || git rev-parse --verify --quiet origin/main >/dev/null
+fi
+mutation_base="$(git merge-base origin/main HEAD)"
+if [ "$mutation_base" = "$(git rev-parse HEAD)" ]; then
+  echo "HEAD is at the main merge base; no changed code to mutate"
+else
+  mutation_diff="$(mktemp)"
+  git -c diff.mnemonicPrefix=false diff "$mutation_base"...HEAD > "$mutation_diff"
+  if [ -s "$mutation_diff" ]; then
+    cargo mutants --timeout 120 --in-diff "$mutation_diff"
+  else
+    echo "no changed code to mutate"
+  fi
+  rm -f "$mutation_diff"
+fi
 slophammer-rs dry . --format json
 slophammer-rs check . --format json
 
