@@ -1,6 +1,10 @@
 use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
-use crate::domain::{PullRequest, Resource, ResourceId, ResourceIdError, ResourceKind};
+use crate::app::composer::CommentComposer;
+use crate::domain::{
+    available_actions, ActionKind, MergeMethod, PullRequest, Resource, ResourceAction, ResourceId,
+    ResourceIdError, ResourceKind,
+};
 use crate::input::HitArea;
 use crate::render::{
     normalize_fixed_width, ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName,
@@ -121,6 +125,7 @@ pub struct ResourceTabState {
     pub last_refresh_changed_sections: Vec<String>,
     pub last_error: Option<String>,
     pub status_message: Option<String>,
+    pub comment_composer: Option<CommentComposer>,
 }
 
 impl ResourceTabState {
@@ -142,6 +147,7 @@ impl ResourceTabState {
             last_refresh_changed_sections: Vec::new(),
             last_error: None,
             status_message: None,
+            comment_composer: None,
         }
     }
 
@@ -170,6 +176,7 @@ impl ResourceTabState {
             last_refresh_changed_sections: Vec::new(),
             last_error: None,
             status_message: None,
+            comment_composer: None,
         }
     }
 }
@@ -194,6 +201,33 @@ pub struct ResourceLinkPrompt {
     pub url: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionMenuState {
+    pub actions: Vec<ActionKind>,
+    pub selected: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionConfirmState {
+    pub kind: ActionKind,
+    pub merge_methods: Vec<MergeMethod>,
+    pub selected_method: usize,
+}
+
+impl ActionConfirmState {
+    pub fn chosen_action(&self) -> Option<ResourceAction> {
+        match self.kind {
+            ActionKind::Close => Some(ResourceAction::Close),
+            ActionKind::Reopen => Some(ResourceAction::Reopen),
+            ActionKind::Merge => self
+                .merge_methods
+                .get(self.selected_method)
+                .map(|method| ResourceAction::Merge { method: *method }),
+            ActionKind::Comment => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     pub resource: Resource,
@@ -206,6 +240,13 @@ pub struct AppState {
     pending_file_patch_request_id: Option<u64>,
     pub add_resource_prompt: Option<AddResourcePrompt>,
     pub resource_link_prompt: Option<ResourceLinkPrompt>,
+    pub action_menu: Option<ActionMenuState>,
+    pub action_confirm: Option<ActionConfirmState>,
+    pub comment_composer: Option<CommentComposer>,
+    pub pending_action: Option<ResourceAction>,
+    /// Post-action refreshes that could not start immediately because a
+    /// fetch was already in flight; drained by the runner once idle.
+    pub pending_action_refreshes: Vec<(u64, ResourceId)>,
     pending_activity_focus: Option<String>,
     pub active_tab: Tab,
     pub scroll: u16,
@@ -251,6 +292,11 @@ impl AppState {
             pending_file_patch_request_id: None,
             add_resource_prompt: None,
             resource_link_prompt: None,
+            action_menu: None,
+            action_confirm: None,
+            comment_composer: None,
+            pending_action: None,
+            pending_action_refreshes: Vec::new(),
             pending_activity_focus: None,
             scroll: 0,
             scroll_limit: u16::MAX,
@@ -330,18 +376,13 @@ impl AppState {
             self.scroll = 0;
             self.scroll_limit = u16::MAX;
         }
-        self.hit_areas.clear();
-        self.scrollbar_drag = None;
-        self.resource_link_prompt = None;
-        self.quit_confirmation = false;
+        self.close_all_prompts();
         self.add_resource_prompt = Some(AddResourcePrompt {
             input: String::new(),
             error: None,
             fallback_repo: self.resource.id.clone(),
             mode,
         });
-        self.show_help = false;
-        self.show_settings = false;
     }
 
     pub fn close_add_resource_prompt(&mut self) {
@@ -361,26 +402,159 @@ impl AppState {
     }
 
     pub fn open_resource_link_prompt(&mut self, id: ResourceId, url: Option<String>) {
-        self.hit_areas.clear();
-        self.scrollbar_drag = None;
-        self.add_resource_prompt = None;
-        self.quit_confirmation = false;
+        self.close_all_prompts();
         self.resource_link_prompt = Some(ResourceLinkPrompt { id, url });
-        self.show_help = false;
-        self.show_settings = false;
     }
 
     pub fn close_resource_link_prompt(&mut self) {
         self.resource_link_prompt = None;
     }
 
-    pub fn request_quit_confirmation(&mut self) {
+    pub fn open_action_menu(&mut self) {
+        let actions = available_actions(&self.resource);
+        if actions.is_empty() {
+            self.status_message = Some("no actions available for this resource".into());
+            return;
+        }
+        self.close_all_prompts();
+        self.action_menu = Some(ActionMenuState {
+            actions,
+            selected: 0,
+        });
+    }
+
+    pub fn close_action_menu(&mut self) {
+        self.action_menu = None;
+    }
+
+    pub fn move_action_menu_selection(&mut self, delta: isize) {
+        if let Some(menu) = &mut self.action_menu {
+            let last = menu.actions.len().saturating_sub(1);
+            menu.selected = menu.selected.saturating_add_signed(delta).min(last);
+        }
+    }
+
+    pub fn selected_action_kind(&self) -> Option<ActionKind> {
+        let menu = self.action_menu.as_ref()?;
+        menu.actions.get(menu.selected).copied()
+    }
+
+    pub fn open_action_confirm(&mut self, kind: ActionKind) {
+        let merge_methods = match kind {
+            ActionKind::Merge => self
+                .resource
+                .pull_request
+                .as_ref()
+                .map(|pr| pr.allowed_merge_methods.clone())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        self.close_all_prompts();
+        self.action_confirm = Some(ActionConfirmState {
+            kind,
+            merge_methods,
+            selected_method: 0,
+        });
+    }
+
+    pub fn close_action_confirm(&mut self) {
+        self.action_confirm = None;
+    }
+
+    pub fn move_merge_method_selection(&mut self, delta: isize) {
+        if let Some(confirm) = &mut self.action_confirm {
+            let last = confirm.merge_methods.len().saturating_sub(1);
+            confirm.selected_method = confirm
+                .selected_method
+                .saturating_add_signed(delta)
+                .min(last);
+        }
+    }
+
+    pub fn select_merge_method(&mut self, index: usize) {
+        if let Some(confirm) = &mut self.action_confirm {
+            if index < confirm.merge_methods.len() {
+                confirm.selected_method = index;
+            }
+        }
+    }
+
+    pub fn open_comment_composer(&mut self) {
+        self.close_all_prompts();
+        self.comment_composer = Some(CommentComposer::new());
+    }
+
+    pub fn close_comment_composer(&mut self) {
+        self.comment_composer = None;
+    }
+
+    /// Esc/cancel semantics for the composer: an empty composer closes,
+    /// a dirty one asks once for discard confirmation.
+    pub fn cancel_comment_composer(&mut self) {
+        let Some(composer) = &mut self.comment_composer else {
+            return;
+        };
+        if composer.is_empty() || composer.confirm_discard {
+            self.comment_composer = None;
+        } else {
+            composer.confirm_discard = true;
+        }
+    }
+
+    fn close_all_prompts(&mut self) {
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.add_resource_prompt = None;
         self.resource_link_prompt = None;
+        self.action_menu = None;
+        self.action_confirm = None;
+        self.comment_composer = None;
+        self.quit_confirmation = false;
         self.show_help = false;
         self.show_settings = false;
+    }
+
+    pub fn begin_action_submission(&mut self, action: &ResourceAction) {
+        self.pending_action = Some(action.clone());
+        self.status_message = Some(format!("{}\u{2026}", action.progress_label()));
+        self.last_error = None;
+    }
+
+    /// True only for the composer whose draft is currently posting; an
+    /// unrelated draft (another tab, or a replacement) stays editable.
+    pub fn composer_is_posting(&self) -> bool {
+        match (&self.pending_action, &self.comment_composer) {
+            (Some(ResourceAction::Comment { body }), Some(composer)) => composer.body() == *body,
+            _ => false,
+        }
+    }
+
+    pub fn finish_action_submission(&mut self, action: &ResourceAction, error: Option<String>) {
+        self.pending_action = None;
+        match error {
+            None => {
+                self.status_message = Some(format!("{}, refreshing", action.success_label()));
+                if let ResourceAction::Comment { body } = action {
+                    // Close only the composer whose draft was posted; a
+                    // replacement draft opened meanwhile must survive.
+                    let holds_posted_draft = self
+                        .comment_composer
+                        .as_ref()
+                        .is_some_and(|composer| composer.body() == *body);
+                    if holds_posted_draft {
+                        self.comment_composer = None;
+                    }
+                }
+            }
+            Some(error) => {
+                self.status_message = None;
+                self.last_error = Some(format!("{} failed: {error}", action.progress_label()));
+            }
+        }
+    }
+
+    pub fn request_quit_confirmation(&mut self) {
+        self.close_all_prompts();
         self.quit_confirmation = true;
     }
 
@@ -1150,6 +1324,7 @@ impl AppState {
             tab.last_refresh_changed_sections = self.last_refresh_changed_sections.clone();
             tab.last_error = self.last_error.clone();
             tab.status_message = self.status_message.clone();
+            tab.comment_composer = self.comment_composer.clone();
         }
     }
 
@@ -1178,6 +1353,7 @@ impl AppState {
         self.last_refresh_changed_sections = tab.last_refresh_changed_sections;
         self.last_error = tab.last_error;
         self.status_message = tab.status_message;
+        self.comment_composer = tab.comment_composer;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.pending_activity_focus = None;
@@ -1326,6 +1502,7 @@ mod tests {
 
     fn issue_resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "owner".into(),
                 repo: "repo".into(),
@@ -1375,6 +1552,7 @@ mod tests {
         let mut resource = issue_resource();
         resource.id.kind_hint = Some(ResourceKind::PullRequest);
         resource.pull_request = Some(PullRequest {
+            allowed_merge_methods: Vec::new(),
             base_ref: "main".into(),
             head_ref: "topic".into(),
             requested_reviewers: vec![],
@@ -1965,5 +2143,50 @@ mod tests {
         assert!(state.status_message.is_none());
         assert_eq!(state.resource.id.number, 1);
         assert_eq!(state.resource_tabs.len(), 1);
+    }
+
+    #[test]
+    fn select_merge_method_ignores_out_of_range_indexes() {
+        let mut resource = crate::test_fixtures::pr_resource_with_patch(None);
+        resource.actions.node_id = "PR_node".into();
+        resource.actions.viewer_can_update = true;
+        resource
+            .pull_request
+            .as_mut()
+            .expect("pr fixture")
+            .allowed_merge_methods = vec![
+            crate::domain::MergeMethod::Merge,
+            crate::domain::MergeMethod::Squash,
+        ];
+        let mut state = AppState::new(resource);
+        state.open_action_confirm(crate::domain::ActionKind::Merge);
+        state.select_merge_method(1);
+        state.select_merge_method(2);
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "an out-of-range index must not move the selection"
+        );
+    }
+
+    #[test]
+    fn close_comment_composer_discards_the_draft() {
+        let mut state = AppState::new(crate::test_fixtures::issue_resource(1, "Issue"));
+        state.open_comment_composer();
+        state.close_comment_composer();
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn begin_action_submission_marks_progress_and_clears_errors() {
+        let mut state = AppState::new(crate::test_fixtures::issue_resource(1, "Issue"));
+        state.last_error = Some("stale error".into());
+        state.begin_action_submission(&crate::domain::ResourceAction::Close);
+        assert_eq!(
+            state.pending_action,
+            Some(crate::domain::ResourceAction::Close)
+        );
+        assert_eq!(state.status_message.as_deref(), Some("closing\u{2026}"));
+        assert!(state.last_error.is_none());
     }
 }

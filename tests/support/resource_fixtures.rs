@@ -2,6 +2,7 @@ use crate::domain::{ChangedFile, PullRequest, ReactionCounts, Resource, Resource
 
 pub(crate) fn issue_resource(number: u64, title: &str) -> Resource {
     Resource {
+        actions: crate::domain::ActionContext::default(),
         id: ResourceId {
             owner: "owner".into(),
             repo: "repo".into(),
@@ -31,6 +32,7 @@ pub(crate) fn pr_resource_with_patch(patch: Option<&str>) -> Resource {
     resource.id.kind_hint = Some(ResourceKind::PullRequest);
     resource.url = "https://github.com/owner/repo/pull/1".into();
     resource.pull_request = Some(PullRequest {
+        allowed_merge_methods: Vec::new(),
         base_ref: "main".into(),
         head_ref: "feature".into(),
         requested_reviewers: vec![],

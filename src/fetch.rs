@@ -11,10 +11,10 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::{
     app::AppState,
     domain::FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING,
-    domain::{Resource, ResourceId},
+    domain::{Resource, ResourceAction, ResourceId},
     github::{
         api::{ApiDepth, GithubApiGateway, GithubGateway},
-        load_fixture,
+        load_fixture, mutations,
     },
 };
 
@@ -486,6 +486,151 @@ fn should_enqueue_enrichment(resource: &Resource) -> bool {
     !resource.uses_public_rest_fallback()
 }
 
+/// Result of a background GitHub write action, delivered back to the main
+/// loop over its own channel so it can never be confused with fetch results.
+pub(crate) struct MutationOutcome {
+    action: ResourceAction,
+    target: ResourceId,
+    origin_tab_id: u64,
+    result: anyhow::Result<()>,
+}
+
+/// Spawn a GitHub write action. Mirrors `start_background_fetch`: state is
+/// marked pending on the way out and only ever finalized on the main thread
+/// by `apply_completed_mutations`.
+pub(crate) fn start_background_mutation(
+    state: &mut AppState,
+    action: ResourceAction,
+    mutation_tx: &UnboundedSender<MutationOutcome>,
+) -> bool {
+    if state.pending_action.is_some() {
+        state.status_message = Some("an action is already in flight".into());
+        return false;
+    }
+    let node_id = state.resource.actions.node_id.clone();
+    if node_id.is_empty() {
+        state.last_error = Some("this resource does not support actions".into());
+        return false;
+    }
+    let kind = state.resource.kind();
+    let target = state.resource.id.clone();
+    let origin_tab_id = state.active_resource_tab_id();
+    state.begin_action_submission(&action);
+    let tx = mutation_tx.clone();
+    tokio::spawn(async move {
+        let result = mutations::submit_resource_action(&node_id, kind, &action).await;
+        let _ = tx.send(MutationOutcome {
+            action,
+            target,
+            origin_tab_id,
+            result,
+        });
+    });
+    true
+}
+
+pub(crate) struct MutationApplication {
+    pub changed: bool,
+    pub refresh_started: bool,
+}
+
+/// Apply finished write actions in their originating tab and refresh that
+/// tab from GitHub on success. A tab that was closed or navigated to a
+/// different resource mid-flight is left untouched.
+pub(crate) fn apply_completed_mutations(
+    state: &mut AppState,
+    mutation_rx: &mut UnboundedReceiver<MutationOutcome>,
+    fetch_source: &FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> MutationApplication {
+    let mut application = MutationApplication {
+        changed: false,
+        refresh_started: false,
+    };
+    while let Ok(outcome) = mutation_rx.try_recv() {
+        application.changed = true;
+        let succeeded = outcome.result.is_ok();
+        let error = outcome.result.err().map(|error| format!("{error:#}"));
+        let action = outcome.action;
+        let target = outcome.target;
+        let mut refresh_started = false;
+        let mut refresh_deferred = false;
+        let mut applied = false;
+        state.apply_to_resource_tab(outcome.origin_tab_id, |state| {
+            if !resource_matches_target(&state.resource, &target) {
+                // The tab navigated to another resource mid-flight; its
+                // messages and drafts belong to that resource now.
+                return;
+            }
+            applied = true;
+            state.finish_action_submission(&action, error);
+            if succeeded {
+                refresh_started = start_background_fetch(
+                    state,
+                    FetchAction::Refresh { id: target.clone() },
+                    fetch_source.clone(),
+                    fetch_tx,
+                );
+                refresh_deferred = !refresh_started;
+            }
+        });
+        if !applied {
+            // The originating view is gone; never leave the app locked.
+            state.pending_action = None;
+        }
+        if refresh_deferred {
+            // An older fetch is still running and its completion wipes the
+            // deferred-refresh flag, so remember this refresh explicitly.
+            let entry = (outcome.origin_tab_id, target);
+            if !state.pending_action_refreshes.contains(&entry) {
+                state.pending_action_refreshes.push(entry);
+            }
+        }
+        application.refresh_started |= refresh_started;
+    }
+    application
+}
+
+/// Start post-action refreshes that had to wait for an in-flight fetch.
+/// Entries whose tab is gone or shows a different resource are dropped;
+/// entries that still cannot start (another fetch raced in) are kept for
+/// the next idle cycle. Returns true when a refresh was started.
+pub(crate) fn start_pending_action_refreshes(
+    state: &mut AppState,
+    fetch_source: &FetchSource,
+    fetch_tx: &UnboundedSender<FetchOutcome>,
+) -> bool {
+    if state.loading_message().is_some() {
+        return false;
+    }
+    let mut started = false;
+    let entries = std::mem::take(&mut state.pending_action_refreshes);
+    let mut remaining = Vec::new();
+    for (tab_id, target) in entries {
+        if started {
+            remaining.push((tab_id, target));
+            continue;
+        }
+        let mut still_waiting = false;
+        state.apply_to_resource_tab(tab_id, |state| {
+            if resource_matches_target(&state.resource, &target) {
+                started = start_background_fetch(
+                    state,
+                    FetchAction::Refresh { id: target.clone() },
+                    fetch_source.clone(),
+                    fetch_tx,
+                );
+                still_waiting = !started;
+            }
+        });
+        if still_waiting {
+            remaining.push((tab_id, target));
+        }
+    }
+    state.pending_action_refreshes = remaining;
+    started
+}
+
 fn current_refresh_label() -> String {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -514,9 +659,12 @@ mod tests {
     };
 
     use super::{
-        apply_fetch_outcome, should_enqueue_enrichment, start_background_fetch, FetchAction,
-        FetchOutcome, FetchOwner, FetchSource, FetchStage, OfflineFixtureSource,
+        apply_completed_mutations, apply_fetch_outcome, should_enqueue_enrichment,
+        start_background_fetch, start_background_mutation, start_pending_action_refreshes,
+        FetchAction, FetchOutcome, FetchOwner, FetchSource, FetchStage, MutationOutcome,
+        OfflineFixtureSource,
     };
+    use crate::domain::ResourceAction;
 
     fn begin_test_fetch(state: &mut AppState, action: &FetchAction) -> (u64, u64) {
         let origin_tab_id = state.active_resource_tab_id();
@@ -1469,5 +1617,336 @@ mod tests {
         assert_eq!(state.history, [previous.id]);
         assert_eq!(state.last_error.as_deref(), Some("network down"));
         assert!(state.loading.is_none());
+    }
+
+    fn actionable_state() -> AppState {
+        let mut resource = issue_resource(9, "Actionable");
+        resource.actions.node_id = "I_node".into();
+        resource.actions.viewer_can_update = true;
+        AppState::new(resource)
+    }
+
+    #[test]
+    fn mutation_is_rejected_while_another_is_pending() {
+        let mut state = actionable_state();
+        state.pending_action = Some(ResourceAction::Close);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(!start_background_mutation(
+            &mut state,
+            ResourceAction::Reopen,
+            &tx
+        ));
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("an action is already in flight")
+        );
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn mutation_is_rejected_without_a_node_id() {
+        let mut state = AppState::new(issue_resource(9, "No node id"));
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        assert!(!start_background_mutation(
+            &mut state,
+            ResourceAction::Close,
+            &tx
+        ));
+        assert_eq!(
+            state.last_error.as_deref(),
+            Some("this resource does not support actions")
+        );
+        assert!(rx.try_recv().is_err());
+        assert!(state.pending_action.is_none());
+    }
+
+    fn offline_source(state: &AppState) -> FetchSource {
+        FetchSource::OfflineFixtures(OfflineFixtureSource::new([state.resource.clone()]))
+    }
+
+    fn deliver_outcome(
+        state: &mut AppState,
+        outcome: MutationOutcome,
+    ) -> super::MutationApplication {
+        let (mutation_tx, mut mutation_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        mutation_tx.send(outcome).expect("send outcome");
+        let source = offline_source(state);
+        apply_completed_mutations(state, &mut mutation_rx, &source, &fetch_tx)
+    }
+
+    #[tokio::test]
+    async fn successful_mutation_clears_pending_and_starts_a_refresh() {
+        let mut state = actionable_state();
+        state.begin_action_submission(&ResourceAction::Close);
+        let outcome = MutationOutcome {
+            action: ResourceAction::Close,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        };
+
+        let application = deliver_outcome(&mut state, outcome);
+
+        assert!(application.changed);
+        assert!(application.refresh_started);
+        assert!(state.pending_action.is_none());
+        assert!(state.last_error.is_none());
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(state.resource.id.clone())
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_mutation_surfaces_the_error_and_keeps_the_composer() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "hello".into(),
+        };
+        state.begin_action_submission(&action);
+        state.comment_composer = Some(crate::app::CommentComposer::new());
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Err(anyhow::anyhow!("Pull request is not mergeable")),
+        };
+
+        let application = deliver_outcome(&mut state, outcome);
+
+        assert!(application.changed);
+        assert!(!application.refresh_started);
+        assert!(state.pending_action.is_none());
+        assert!(state
+            .last_error
+            .as_deref()
+            .expect("error surfaced")
+            .contains("commenting failed"));
+        assert!(
+            state.comment_composer.is_some(),
+            "failed comment keeps the draft so nothing is lost"
+        );
+    }
+
+    #[tokio::test]
+    async fn successful_comment_closes_the_composer() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "hello".into(),
+        };
+        state.begin_action_submission(&action);
+        let mut composer = crate::app::CommentComposer::new();
+        composer.insert_str("hello");
+        state.comment_composer = Some(composer);
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        };
+
+        deliver_outcome(&mut state, outcome);
+
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[tokio::test]
+    async fn completed_comment_spares_a_replacement_draft_in_the_same_tab() {
+        let mut state = actionable_state();
+        let action = ResourceAction::Comment {
+            body: "posted text".into(),
+        };
+        state.begin_action_submission(&action);
+        // The user dismissed the frozen composer and opened a new draft
+        // in the same tab while the first comment was still posting.
+        state.comment_composer = Some(crate::app::CommentComposer::new());
+        state
+            .comment_composer
+            .as_mut()
+            .expect("replacement composer")
+            .insert_str("replacement draft");
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        };
+
+        deliver_outcome(&mut state, outcome);
+
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("replacement draft".into()),
+            "a replacement draft must survive the earlier comment completing"
+        );
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_lands_in_its_origin_tab_not_the_active_one() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.open_resource_in_tab(issue_resource(99, "Other tab"));
+        let active_before = state.resource.clone();
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target: target.clone(),
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(application.refresh_started);
+        assert_eq!(
+            state.resource, active_before,
+            "the active tab's resource must stay untouched"
+        );
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.origin_tab_id),
+            Some(origin_tab_id),
+            "the refresh must be owned by the tab that submitted the action"
+        );
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(target)
+        );
+    }
+
+    #[tokio::test]
+    async fn completed_comment_never_discards_another_tabs_draft() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        let action = ResourceAction::Comment {
+            body: "sent from tab one".into(),
+        };
+        state.begin_action_submission(&action);
+        state.comment_composer = None;
+        state.open_resource_in_tab(issue_resource(99, "Other tab"));
+        state.open_comment_composer();
+        state
+            .comment_composer
+            .as_mut()
+            .expect("second tab composer")
+            .insert_str("unsent draft on tab two");
+
+        deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action,
+                target,
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("unsent draft on tab two".into()),
+            "a completed comment on one tab must not clear another tab's draft"
+        );
+    }
+
+    #[tokio::test]
+    async fn deferred_post_action_refresh_survives_an_in_flight_fetch() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.begin_loading(target.clone(), "refreshing older data");
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target: target.clone(),
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(!application.refresh_started);
+        assert_eq!(
+            state.pending_action_refreshes,
+            vec![(origin_tab_id, target.clone())],
+            "the refresh must be remembered while the older fetch runs"
+        );
+
+        // While the older fetch is still running, the queue must survive
+        // untouched instead of being drained into a fetch that cannot start.
+        let (fetch_tx, _fetch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let source = offline_source(&state);
+        assert!(!start_pending_action_refreshes(
+            &mut state, &source, &fetch_tx
+        ));
+        assert_eq!(
+            state.pending_action_refreshes,
+            vec![(origin_tab_id, target.clone())]
+        );
+
+        // The older fetch completes and wipes the deferred-refresh flag.
+        state.finish_loading();
+        state.refresh_requested = false;
+
+        assert!(start_pending_action_refreshes(
+            &mut state, &source, &fetch_tx
+        ));
+        assert!(state.pending_action_refreshes.is_empty());
+        assert_eq!(
+            state.loading.as_ref().map(|loading| loading.target.clone()),
+            Some(target)
+        );
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_for_a_closed_tab_clears_pending_without_refresh() {
+        let mut state = actionable_state();
+        state.begin_action_submission(&ResourceAction::Close);
+        let outcome = MutationOutcome {
+            action: ResourceAction::Close,
+            target: state.resource.id.clone(),
+            origin_tab_id: 424_242,
+            result: Ok(()),
+        };
+
+        let application = deliver_outcome(&mut state, outcome);
+
+        assert!(application.changed);
+        assert!(!application.refresh_started);
+        assert!(state.pending_action.is_none());
+    }
+
+    #[tokio::test]
+    async fn mutation_outcome_skips_refresh_when_the_tab_navigated_away() {
+        let mut state = actionable_state();
+        let origin_tab_id = state.active_resource_tab_id();
+        let target = state.resource.id.clone();
+        state.begin_action_submission(&ResourceAction::Close);
+        state.resource = issue_resource(500, "Navigated elsewhere");
+        state.status_message = None;
+
+        let application = deliver_outcome(
+            &mut state,
+            MutationOutcome {
+                action: ResourceAction::Close,
+                target,
+                origin_tab_id,
+                result: Ok(()),
+            },
+        );
+
+        assert!(application.changed);
+        assert!(!application.refresh_started);
+        assert!(state.pending_action.is_none());
+        assert!(state.loading.is_none());
+        assert_eq!(
+            state.status_message, None,
+            "completion messages must not leak onto the navigated-to resource"
+        );
     }
 }

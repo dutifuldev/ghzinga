@@ -191,6 +191,18 @@ impl ReactionCounts {
     }
 }
 
+/// Write-capability context fetched alongside the resource. Menu visibility
+/// only; the server stays the final authority on every mutation.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActionContext {
+    #[serde(default)]
+    pub node_id: String,
+    #[serde(default)]
+    pub viewer_can_update: bool,
+    #[serde(default)]
+    pub locked: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Resource {
     pub id: ResourceId,
@@ -212,6 +224,8 @@ pub struct Resource {
     pub metadata: Vec<MetadataItem>,
     #[serde(default)]
     pub warnings: Vec<String>,
+    #[serde(default)]
+    pub actions: ActionContext,
     pub pull_request: Option<PullRequest>,
 }
 
@@ -524,6 +538,8 @@ pub struct PullRequest {
     pub files: Vec<ChangedFile>,
     #[serde(default)]
     pub metadata: Vec<MetadataItem>,
+    #[serde(default)]
+    pub allowed_merge_methods: Vec<crate::domain::action::MergeMethod>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -831,6 +847,7 @@ mod tests {
     #[test]
     fn resource_web_url_ignores_non_github_url_values() {
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "huggingface".into(),
                 repo: "huggingface.js".into(),
@@ -852,6 +869,7 @@ mod tests {
             metadata: Vec::new(),
             warnings: Vec::new(),
             pull_request: Some(PullRequest {
+                allowed_merge_methods: Vec::new(),
                 base_ref: "main".into(),
                 head_ref: "topic".into(),
                 requested_reviewers: Vec::new(),
@@ -882,6 +900,7 @@ mod tests {
     fn fingerprint_changes_when_activity_content_or_metadata_changes() {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "1").unwrap();
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id,
             title: "title".into(),
             url: "https://github.com/openclaw/openclaw/issues/1".into(),
@@ -933,6 +952,7 @@ mod tests {
     fn detects_partial_depth_warning_marker() {
         let id = ResourceId::from_owner_repo_number("openclaw/openclaw", "1").unwrap();
         let mut resource = Resource {
+            actions: crate::domain::ActionContext::default(),
             id,
             title: "title".into(),
             url: "https://github.com/openclaw/openclaw/issues/1".into(),

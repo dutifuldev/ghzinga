@@ -129,6 +129,24 @@ Common keys:
 - `s`: settings
 - `?`: help
 
+## Actions
+
+When you are authenticated and allowed to act on the open PR or issue, an
+`[actions]` footer button and the `A` key open a small menu with the actions
+that apply right now:
+
+- comment on the PR or issue in a multiline in-app composer
+  (`Ctrl-S` or the `[comment]` button submits, paste works, click to move the
+  cursor)
+- merge an open PR, picking from the repository's allowed merge methods
+- close or reopen the PR or issue after a short confirmation
+
+Everything works with the mouse alone or the keyboard alone. ghzinga refreshes
+the resource right after an action succeeds, so the view always shows GitHub's
+state, and API errors appear in the status line. Actions are hidden when
+ghzinga runs on the unauthenticated fallback or when your account lacks
+permission.
+
 ## Configuration
 
 The config file is:

@@ -12,7 +12,10 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::{
     app::{AppState, BlockId, Tab},
-    domain::{ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem, Resource, ResourceId},
+    domain::{
+        available_actions, ActionKind, ActivityEntry, CheckRun, CheckStatus, Commit, MetadataItem,
+        Resource, ResourceId,
+    },
     input::{HitArea, HitTarget},
     render::{
         markdown, time::relative_time_phrase, ContentWidthMode, Palette, ScrollbarMode,
@@ -238,6 +241,426 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         render_add_resource_modal(frame, rects.area, state, &palette);
     } else if state.resource_link_prompt.is_some() {
         render_resource_link_modal(frame, rects.area, state, &palette);
+    } else if state.comment_composer.is_some() {
+        render_comment_composer_modal(frame, rects.area, state, &palette);
+    } else if state.action_confirm.is_some() {
+        render_action_confirm_modal(frame, rects.area, state, &palette);
+    } else if state.action_menu.is_some() {
+        render_action_menu_modal(frame, rects.area, state, &palette);
+    }
+}
+
+/// Centered cleared box with border for the action modals; registers the
+/// full-screen overlay hit area and returns the usable inner rect.
+fn open_action_modal_frame(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+    width_bounds: (u16, u16),
+    height_bounds: (u16, u16),
+    border: ratatui::style::Color,
+) -> Option<Rect> {
+    if area.area() == 0 {
+        return None;
+    }
+    let modal_width = area.width.min(
+        area.width
+            .saturating_sub(4)
+            .clamp(width_bounds.0, width_bounds.1),
+    );
+    let modal_height = area.height.min(
+        area.height
+            .saturating_sub(2)
+            .clamp(height_bounds.0, height_bounds.1),
+    );
+    let modal = Rect::new(
+        area.x
+            .saturating_add(area.width.saturating_sub(modal_width) / 2),
+        area.y
+            .saturating_add(area.height.saturating_sub(modal_height) / 2),
+        modal_width,
+        modal_height,
+    );
+    frame.render_widget(Clear, modal);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border).bg(palette.surface0))
+        .style(Style::default().fg(palette.text).bg(palette.surface0));
+    frame.render_widget(block, modal);
+    let inner = Rect::new(
+        modal.x.saturating_add(1),
+        modal.y.saturating_add(1),
+        modal.width.saturating_sub(2),
+        modal.height.saturating_sub(2),
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return None;
+    }
+    state
+        .hit_areas
+        .push(HitArea::new(area, HitTarget::ModalOverlay));
+    Some(inner)
+}
+
+#[derive(Clone, Copy)]
+enum ModalButtonTone {
+    Primary,
+    Danger,
+    Neutral,
+}
+
+fn modal_button_style(tone: ModalButtonTone, palette: &Palette) -> Style {
+    let style = match tone {
+        ModalButtonTone::Primary => Style::default().fg(palette.panel_bg).bg(palette.accent),
+        ModalButtonTone::Danger => Style::default().fg(palette.panel_bg).bg(palette.red),
+        ModalButtonTone::Neutral => Style::default().fg(palette.text).bg(palette.surface1),
+    };
+    style.add_modifier(Modifier::BOLD)
+}
+
+/// Build the bottom button line and register one hit area per button at the
+/// modal's last inner row, walking x by rendered label width.
+fn modal_button_line(
+    state: &mut AppState,
+    inner: Rect,
+    palette: &Palette,
+    buttons: &[(String, HitTarget, ModalButtonTone)],
+) -> Line<'static> {
+    let mut spans = Vec::new();
+    let button_y = inner.y.saturating_add(inner.height.saturating_sub(1));
+    let mut x = inner.x;
+    for (index, (label, target, tone)) in buttons.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::styled("  ", Style::default().bg(palette.surface0)));
+            x = x.saturating_add(2);
+        }
+        let width = UnicodeWidthStr::width(label.as_str()) as u16;
+        spans.push(Span::styled(
+            label.clone(),
+            modal_button_style(*tone, palette),
+        ));
+        if x < inner.x.saturating_add(inner.width) {
+            state.hit_areas.push(HitArea::new(
+                Rect::new(x, button_y, width.min(inner.width), 1),
+                target.clone(),
+            ));
+        }
+        x = x.saturating_add(width);
+    }
+    Line::from(spans)
+}
+
+fn modal_title_line(text: String, palette: &Palette) -> Line<'static> {
+    Line::from(Span::styled(
+        text,
+        Style::default()
+            .fg(palette.text)
+            .bg(palette.surface0)
+            .add_modifier(Modifier::BOLD),
+    ))
+}
+
+fn modal_hint_line(text: &str, palette: &Palette) -> Line<'static> {
+    Line::from(Span::styled(
+        text.to_string(),
+        dim_style(palette).bg(palette.surface0),
+    ))
+}
+
+fn action_kind_shortcut(kind: ActionKind) -> char {
+    match kind {
+        ActionKind::Comment => 'c',
+        ActionKind::Merge => 'm',
+        ActionKind::Close => 'x',
+        ActionKind::Reopen => 'o',
+    }
+}
+
+fn render_action_menu_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(menu) = state.action_menu.clone() else {
+        return;
+    };
+    let height = (menu.actions.len() as u16).saturating_add(4);
+    let Some(inner) = open_action_modal_frame(
+        frame,
+        area,
+        state,
+        palette,
+        (30, 44),
+        (height, height),
+        palette.accent,
+    ) else {
+        return;
+    };
+    let mut rows = vec![modal_title_line("Actions".to_string(), palette)];
+    for (index, kind) in menu.actions.iter().enumerate() {
+        let label = format!(" {:<18}{} ", kind.to_string(), action_kind_shortcut(*kind));
+        let style = if index == menu.selected {
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(palette.text).bg(palette.surface0)
+        };
+        rows.push(Line::from(Span::styled(
+            fit_label_to_width(&label, inner.width),
+            style,
+        )));
+        let row_y = inner.y.saturating_add(1).saturating_add(index as u16);
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x, row_y, inner.width, 1),
+            HitTarget::ActionMenuItem(index),
+        ));
+    }
+    // The modal height is exact: title, one row per action, hint.
+    rows.push(modal_hint_line(
+        "up/down move  enter select  esc close",
+        palette,
+    ));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+}
+
+fn render_action_confirm_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(confirm) = state.action_confirm.clone() else {
+        return;
+    };
+    let method_rows = confirm.merge_methods.len() as u16;
+    let height = 7_u16.saturating_add(method_rows);
+    let border = match confirm.kind {
+        ActionKind::Close => palette.red,
+        _ => palette.accent,
+    };
+    let Some(inner) = open_action_modal_frame(
+        frame,
+        area,
+        state,
+        palette,
+        (34, 60),
+        (height, height),
+        border,
+    ) else {
+        return;
+    };
+    let mut rows = vec![modal_title_line(
+        format!(
+            "{} {} #{}?",
+            confirm.kind,
+            state.resource.kind(),
+            state.resource.id.number
+        ),
+        palette,
+    )];
+    rows.push(modal_hint_line(
+        &fit_label_to_width(&state.resource.title, inner.width),
+        palette,
+    ));
+    push_merge_method_rows(&mut rows, state, &confirm, inner, palette);
+    while rows.len() + 1 < inner.height as usize {
+        rows.push(Line::from(""));
+    }
+    let (confirm_label, tone) = match confirm.kind {
+        ActionKind::Close => ("[close  y]".to_string(), ModalButtonTone::Danger),
+        ActionKind::Reopen => ("[reopen  y]".to_string(), ModalButtonTone::Primary),
+        _ => ("[merge  y]".to_string(), ModalButtonTone::Primary),
+    };
+    let buttons = vec![
+        (confirm_label, HitTarget::ConfirmAction, tone),
+        (
+            "[cancel  esc]".to_string(),
+            HitTarget::CancelAction,
+            ModalButtonTone::Neutral,
+        ),
+    ];
+    rows.push(modal_button_line(state, inner, palette, &buttons));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+}
+
+fn push_merge_method_rows(
+    rows: &mut Vec<Line<'static>>,
+    state: &mut AppState,
+    confirm: &crate::app::state::ActionConfirmState,
+    inner: Rect,
+    palette: &Palette,
+) {
+    if confirm.merge_methods.is_empty() {
+        return;
+    }
+    rows.push(Line::from(""));
+    let base_y = inner.y.saturating_add(rows.len() as u16);
+    for (index, method) in confirm.merge_methods.iter().enumerate() {
+        let marker = if index == confirm.selected_method {
+            "(x)"
+        } else {
+            "( )"
+        };
+        let label = format!(" {marker} {:<14}{}", method.to_string(), index + 1);
+        let style = if index == confirm.selected_method {
+            Style::default()
+                .fg(palette.text)
+                .bg(palette.surface1)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(palette.text).bg(palette.surface0)
+        };
+        rows.push(Line::from(Span::styled(
+            fit_label_to_width(&label, inner.width),
+            style,
+        )));
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x, base_y.saturating_add(index as u16), inner.width, 1),
+            HitTarget::SelectMergeMethod(index),
+        ));
+    }
+}
+
+fn render_comment_composer_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let title = format!("Comment on {}", state.resource.id.canonical_name());
+    let posting = state.composer_is_posting();
+    let Some(inner) = open_action_modal_frame(
+        frame,
+        area,
+        state,
+        palette,
+        (44, 78),
+        (10, 18),
+        palette.accent,
+    ) else {
+        return;
+    };
+    let text_rect = Rect::new(
+        inner.x,
+        inner.y.saturating_add(1),
+        inner.width,
+        inner.height.saturating_sub(3),
+    );
+    let Some(layout) = layout_composer_text(state, text_rect) else {
+        return;
+    };
+    let mut rows = vec![modal_title_line(title, palette)];
+    for text in &layout.visible {
+        rows.push(Line::from(Span::styled(
+            format!("{text:<width$}", width = text_rect.width as usize),
+            Style::default().fg(palette.text).bg(palette.panel_bg),
+        )));
+    }
+    while (rows.len() as u16) < inner.height.saturating_sub(2) {
+        rows.push(Line::from(Span::styled(
+            " ".repeat(text_rect.width as usize),
+            Style::default().bg(palette.panel_bg),
+        )));
+    }
+    rows.push(composer_hint_line(layout.confirm_discard, posting, palette));
+    let buttons = vec![
+        (
+            "[comment  ctrl+s]".to_string(),
+            HitTarget::ComposerSubmit,
+            ModalButtonTone::Primary,
+        ),
+        (
+            "[cancel  esc]".to_string(),
+            HitTarget::ComposerCancel,
+            ModalButtonTone::Neutral,
+        ),
+    ];
+    rows.push(modal_button_line(state, inner, palette, &buttons));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+    state.hit_areas.push(HitArea::new(
+        text_rect,
+        HitTarget::ComposerText {
+            x: text_rect.x,
+            y: text_rect.y,
+        },
+    ));
+    frame.set_cursor_position(layout.cursor);
+}
+
+struct ComposerLayout {
+    visible: Vec<String>,
+    cursor: (u16, u16),
+    confirm_discard: bool,
+}
+
+/// Record the viewport on the composer, follow the cursor, and slice out the
+/// rows that fit. Mutates only composer scroll/viewport bookkeeping.
+fn layout_composer_text(state: &mut AppState, text_rect: Rect) -> Option<ComposerLayout> {
+    let composer = state.comment_composer.as_mut()?;
+    if text_rect.area() == 0 {
+        return None;
+    }
+    composer.viewport = (text_rect.width, text_rect.height);
+    let width = composer.viewport_width();
+    let height = composer.viewport_height();
+    composer.scroll_cursor_into_view(width, height);
+    let scroll = composer.scroll;
+    let visible = composer
+        .visual_rows(width)
+        .iter()
+        .skip(scroll)
+        .take(height)
+        .map(|row| composer.row_text(row).to_string())
+        .collect();
+    // scroll_cursor_into_view keeps the cursor row inside the viewport, so
+    // the offset below is always within `height`.
+    let (cursor_row, cursor_x) = composer.cursor_visual(width);
+    let cursor = (
+        text_rect.x.saturating_add(cursor_x as u16),
+        text_rect
+            .y
+            .saturating_add(cursor_row.saturating_sub(scroll) as u16),
+    );
+    Some(ComposerLayout {
+        visible,
+        cursor,
+        confirm_discard: composer.confirm_discard,
+    })
+}
+
+fn composer_hint_line(confirm_discard: bool, posting: bool, palette: &Palette) -> Line<'static> {
+    if posting {
+        return Line::from(Span::styled(
+            "posting comment, draft is locked until GitHub responds".to_string(),
+            Style::default()
+                .fg(palette.accent)
+                .bg(palette.surface0)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    if confirm_discard {
+        Line::from(Span::styled(
+            "press esc again to discard this comment".to_string(),
+            Style::default()
+                .fg(palette.red)
+                .bg(palette.surface0)
+                .add_modifier(Modifier::BOLD),
+        ))
+    } else {
+        Line::from(Span::styled(
+            "enter newline  ctrl+s comment  esc cancel".to_string(),
+            Style::default().fg(palette.subtext0).bg(palette.surface0),
+        ))
     }
 }
 
@@ -1684,6 +2107,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- t / y / p / w / b in settings: cycle theme / symbols / spacing / width mode / scrollbar",
             "- - / + in settings: decrease or increase fixed content width",
             "- r: refresh now",
+            "- A: open the actions menu (comment, merge, close, reopen)",
             "- n: open another PR or issue in a resource tab",
             "- o: open a PR or issue in the current tab",
             "- x: close the current resource tab",
@@ -3025,6 +3449,13 @@ fn render_footer(
         palette,
     )];
     if !state.show_help && !state.show_settings {
+        if !available_actions(&state.resource).is_empty() {
+            controls.push(footer_control(
+                symbols.footer_actions,
+                HitTarget::OpenActionMenu,
+                palette,
+            ));
+        }
         if let Some(control) = expand_all_control(
             footer_expandable_blocks(state, content_width, palette),
             &state.expanded_blocks,
@@ -3470,6 +3901,7 @@ mod tests {
 
     fn pr_resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "openclaw".into(),
                 repo: "openclaw".into(),
@@ -3526,6 +3958,7 @@ mod tests {
             ],
             warnings: vec![],
             pull_request: Some(PullRequest {
+                allowed_merge_methods: Vec::new(),
                 base_ref: "main".into(),
                 head_ref: "feat/senseaudio-tts".into(),
                 requested_reviewers: vec!["maintainer".into()],
@@ -6646,5 +7079,459 @@ mod tests {
             truncate_ascii("rating: 🦐 gold shrimp", 13),
             "rating: 🦐..."
         );
+    }
+
+    fn actionable_pr_state() -> AppState {
+        let mut resource = pr_resource();
+        resource.actions.node_id = "PR_node".into();
+        resource.actions.viewer_can_update = true;
+        if let Some(pr) = resource.pull_request.as_mut() {
+            pr.allowed_merge_methods = vec![
+                crate::domain::MergeMethod::Merge,
+                crate::domain::MergeMethod::Squash,
+            ];
+        }
+        AppState::new(resource)
+    }
+
+    fn draw_actionable(state: &mut AppState) -> String {
+        draw(state, 120, 36)
+    }
+
+    #[test]
+    fn footer_shows_actions_button_only_when_actions_are_available() {
+        let mut state = AppState::new(pr_resource());
+        let content = draw_actionable(&mut state);
+        assert!(!content.contains("[actions]"));
+        assert!(!state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::OpenActionMenu));
+
+        let mut state = actionable_pr_state();
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("[actions]"));
+        let intent =
+            click_rendered_target(&mut state, |target| *target == HitTarget::OpenActionMenu);
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_menu.is_some());
+    }
+
+    #[test]
+    fn action_menu_modal_lists_actions_and_click_activates() {
+        let mut state = actionable_pr_state();
+        state.open_action_menu();
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Actions"));
+        assert!(content.contains("Comment"));
+        assert!(content.contains("Merge"));
+        assert!(content.contains("Close"));
+        click_rendered_target(&mut state, |target| *target == HitTarget::ActionMenuItem(0));
+        assert!(state.action_menu.is_none());
+        assert!(state.comment_composer.is_some());
+    }
+
+    #[test]
+    fn close_confirm_modal_click_submits_close() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(crate::domain::ActionKind::Close);
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Close PR #81834?"));
+        assert!(content.contains("[close  y]"));
+        let confirm_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::ConfirmAction)
+                .expect("confirm button hit area");
+        let button_row = draw_row_text(&mut state, 120, 36, confirm_rect.y);
+        assert!(
+            button_row.contains("[close  y]"),
+            "confirm button must be drawn on its hit row: {button_row}"
+        );
+        let intent =
+            click_rendered_target(&mut state, |target| *target == HitTarget::ConfirmAction);
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(crate::domain::ResourceAction::Close)
+        );
+    }
+
+    #[test]
+    fn merge_confirm_modal_lists_methods_and_click_selects() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(crate::domain::ActionKind::Merge);
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Merge PR #81834?"));
+        assert!(content.contains("merge commit"));
+        assert!(content.contains("squash"));
+        click_rendered_target(&mut state, |target| {
+            *target == HitTarget::SelectMergeMethod(1)
+        });
+        assert_eq!(
+            state
+                .action_confirm
+                .as_ref()
+                .map(|confirm| confirm.selected_method),
+            Some(1)
+        );
+        let intent =
+            click_rendered_target(&mut state, |target| *target == HitTarget::ConfirmAction);
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(crate::domain::ResourceAction::Merge {
+                method: crate::domain::MergeMethod::Squash
+            })
+        );
+    }
+
+    #[test]
+    fn cancel_button_closes_the_confirm_modal() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(crate::domain::ActionKind::Close);
+        draw_actionable(&mut state);
+        let intent = click_rendered_target(&mut state, |target| *target == HitTarget::CancelAction);
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn composer_modal_renders_text_buttons_and_viewport() {
+        let mut state = actionable_pr_state();
+        state.open_comment_composer();
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str("first line\nsecond line");
+        }
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Comment on openclaw/openclaw#81834"));
+        assert!(content.contains("first line"));
+        assert!(content.contains("second line"));
+        assert!(content.contains("[comment  ctrl+s]"));
+        let viewport = state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.viewport)
+            .expect("composer open");
+        assert!(viewport.0 > 0 && viewport.1 > 0);
+        let intent =
+            click_rendered_target(&mut state, |target| *target == HitTarget::ComposerSubmit);
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(crate::domain::ResourceAction::Comment {
+                body: "first line\nsecond line".into()
+            })
+        );
+    }
+
+    #[test]
+    fn composer_text_click_moves_the_cursor() {
+        let mut state = actionable_pr_state();
+        state.open_comment_composer();
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str("abcdef");
+        }
+        draw_actionable(&mut state);
+        let text_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ComposerText { .. })
+        })
+        .expect("composer text area");
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: text_rect.x + 3,
+                row: text_rect.y,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(
+            state
+                .comment_composer
+                .as_ref()
+                .map(|composer| composer.cursor()),
+            Some((0, 3))
+        );
+    }
+
+    #[test]
+    fn action_kind_shortcuts_map_each_action() {
+        assert_eq!(
+            action_kind_shortcut(crate::domain::ActionKind::Comment),
+            'c'
+        );
+        assert_eq!(action_kind_shortcut(crate::domain::ActionKind::Merge), 'm');
+        assert_eq!(action_kind_shortcut(crate::domain::ActionKind::Close), 'x');
+        assert_eq!(action_kind_shortcut(crate::domain::ActionKind::Reopen), 'o');
+    }
+
+    #[test]
+    fn modal_hint_line_carries_its_text() {
+        let palette = ThemeName::Default.palette();
+        let line = modal_hint_line("hint text", &palette);
+        let rendered: String = line.spans.iter().map(|span| span.content.clone()).collect();
+        assert_eq!(rendered, "hint text");
+    }
+
+    #[test]
+    fn modal_button_styles_distinguish_the_three_tones() {
+        let palette = ThemeName::Default.palette();
+        let primary = modal_button_style(ModalButtonTone::Primary, &palette);
+        let danger = modal_button_style(ModalButtonTone::Danger, &palette);
+        let neutral = modal_button_style(ModalButtonTone::Neutral, &palette);
+        assert_eq!(primary.bg, Some(palette.accent));
+        assert_eq!(danger.bg, Some(palette.red));
+        assert_eq!(neutral.bg, Some(palette.surface1));
+        for style in [primary, danger, neutral] {
+            assert!(style.add_modifier.contains(Modifier::BOLD));
+        }
+    }
+
+    #[test]
+    fn modal_button_line_lays_buttons_out_with_exact_hit_areas() {
+        let palette = ThemeName::Default.palette();
+        let mut state = AppState::new(pr_resource());
+        state.hit_areas.clear();
+        let inner = Rect::new(2, 1, 40, 4);
+        modal_button_line(
+            &mut state,
+            inner,
+            &palette,
+            &[
+                (
+                    "[ok]".to_string(),
+                    HitTarget::ConfirmAction,
+                    ModalButtonTone::Primary,
+                ),
+                (
+                    "[cancel]".to_string(),
+                    HitTarget::CancelAction,
+                    ModalButtonTone::Neutral,
+                ),
+            ],
+        );
+        let button_y = inner.y + inner.height - 1;
+        assert_eq!(
+            state.hit_areas[0].rect,
+            Rect::new(2, button_y, 4, 1),
+            "first button starts at the inner left edge"
+        );
+        assert_eq!(
+            state.hit_areas[1].rect,
+            Rect::new(2 + 4 + 2, button_y, 8, 1),
+            "second button follows after a two-column gap"
+        );
+    }
+
+    #[test]
+    fn modal_button_line_skips_buttons_that_start_outside_the_modal() {
+        let palette = ThemeName::Default.palette();
+        let mut state = AppState::new(pr_resource());
+        state.hit_areas.clear();
+        // First button is 6 wide; with the 2-column gap the second button
+        // starts exactly at the right edge and must not become clickable.
+        let inner = Rect::new(2, 1, 8, 2);
+        modal_button_line(
+            &mut state,
+            inner,
+            &palette,
+            &[
+                (
+                    "[wide]".to_string(),
+                    HitTarget::ConfirmAction,
+                    ModalButtonTone::Primary,
+                ),
+                (
+                    "[c]".to_string(),
+                    HitTarget::CancelAction,
+                    ModalButtonTone::Neutral,
+                ),
+            ],
+        );
+        assert_eq!(
+            state.hit_areas.len(),
+            1,
+            "a button starting at or past the right edge gets no hit area"
+        );
+    }
+
+    #[test]
+    fn action_menu_modal_is_centered_with_aligned_rows() {
+        let mut state = actionable_pr_state();
+        state.open_action_menu();
+        let content = draw_actionable(&mut state);
+        // 120x36 screen, menu width 44, three actions -> height 7.
+        let item = rendered_target_rect(&state, |target| *target == HitTarget::ActionMenuItem(0))
+            .expect("menu item hit area");
+        assert_eq!(item.x, (120 - 44) / 2 + 1);
+        assert_eq!(item.y, (36 - 7) / 2 + 2);
+        assert_eq!(item.width, 42);
+        let row = draw_row_text(&mut state, 120, 36, item.y);
+        assert!(
+            row.contains("Comment"),
+            "menu row text must sit on its hit area: {row}"
+        );
+        let hint_row = draw_row_text(&mut state, 120, 36, (36 - 7) / 2 + 5);
+        assert!(
+            hint_row.contains("up/down move"),
+            "hint must sit on the last inner row: {hint_row}"
+        );
+        assert!(content.contains("up/down move  enter select  esc close"));
+    }
+
+    #[test]
+    fn action_menu_highlights_only_the_selected_row() {
+        let mut state = actionable_pr_state();
+        state.open_action_menu();
+        state.move_action_menu_selection(1);
+        let palette = state.theme.palette();
+        draw_actionable(&mut state);
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 120, 36, "Merge", 0),
+            Some(palette.accent),
+            "selected row uses the accent background"
+        );
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 120, 36, "Comment", 0),
+            Some(palette.surface0),
+            "unselected rows keep the modal background"
+        );
+    }
+
+    #[test]
+    fn tiny_screens_render_no_action_modal_or_overlay() {
+        let mut state = actionable_pr_state();
+        state.open_action_menu();
+        draw(&mut state, 46, 2);
+        assert!(
+            !state
+                .hit_areas
+                .iter()
+                .any(|area| area.target == HitTarget::ModalOverlay),
+            "a modal too small to draw must not register its overlay"
+        );
+    }
+
+    #[test]
+    fn confirm_modal_border_and_button_reflect_the_action() {
+        let palette = ThemeName::Default.palette();
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(crate::domain::ActionKind::Close);
+        draw_actionable(&mut state);
+        assert_eq!(
+            draw_cell_fg_for_text(&mut state, 120, 36, "┌", 0),
+            Some(palette.red),
+            "closing uses a red border"
+        );
+
+        let mut state = actionable_pr_state();
+        state.resource.state = "CLOSED".into();
+        state.open_action_confirm(crate::domain::ActionKind::Reopen);
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Reopen PR #81834?"));
+        assert!(content.contains("[reopen  y]"));
+        assert_eq!(
+            draw_cell_fg_for_text(&mut state, 120, 36, "┌", 0),
+            Some(palette.accent),
+            "reopen uses the accent border"
+        );
+    }
+
+    #[test]
+    fn merge_methods_render_markers_and_selection_styles() {
+        let palette = ThemeName::Default.palette();
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(crate::domain::ActionKind::Merge);
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("(x) merge commit"));
+        assert!(content.contains("( ) squash"));
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 120, 36, "merge commit", 0),
+            Some(palette.surface1),
+            "the selected method row is highlighted"
+        );
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 120, 36, "squash", 0),
+            Some(palette.surface0)
+        );
+        state.select_merge_method(1);
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("( ) merge commit"));
+        assert!(content.contains("(x) squash"));
+        let method_rect =
+            rendered_target_rect(&state, |target| *target == HitTarget::SelectMergeMethod(1))
+                .expect("squash hit area");
+        let row = draw_row_text(&mut state, 120, 36, method_rect.y);
+        assert!(
+            row.contains("squash"),
+            "method row text must sit on its hit area: {row}"
+        );
+    }
+
+    #[test]
+    fn composer_button_row_and_cursor_sit_where_registered() {
+        let mut state = actionable_pr_state();
+        state.open_comment_composer();
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str("abcdef");
+        }
+        let backend = TestBackend::new(120, 36);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let submit = rendered_target_rect(&state, |target| *target == HitTarget::ComposerSubmit)
+            .expect("submit button");
+        let row = draw_row_text(&mut state, 120, 36, submit.y);
+        assert!(
+            row.contains("[comment  ctrl+s]"),
+            "submit label must sit on its hit row: {row}"
+        );
+        let text_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ComposerText { .. })
+        })
+        .expect("text area");
+        let cursor = terminal.get_cursor_position().expect("cursor position");
+        assert_eq!(cursor.x, text_rect.x + 6);
+        assert_eq!(cursor.y, text_rect.y);
+    }
+
+    #[test]
+    fn composer_cursor_follows_scrolled_rows() {
+        let mut state = actionable_pr_state();
+        state.open_comment_composer();
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str("1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15");
+        }
+        let backend = TestBackend::new(120, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| render_app(frame, &mut state))
+            .unwrap();
+        let text_rect = rendered_target_rect(&state, |target| {
+            matches!(target, HitTarget::ComposerText { .. })
+        })
+        .expect("text area");
+        let scroll = state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.scroll)
+            .expect("composer open");
+        assert!(scroll > 0, "long drafts scroll the composer viewport");
+        let cursor = terminal.get_cursor_position().expect("cursor position");
+        assert_eq!(
+            cursor.y,
+            text_rect.y + (14 - scroll as u16),
+            "cursor row maps through the scroll offset"
+        );
+        assert_eq!(cursor.x, text_rect.x + 2, "after typing '15'");
+    }
+
+    #[test]
+    fn discard_hint_appears_after_first_escape() {
+        let mut state = actionable_pr_state();
+        state.open_comment_composer();
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str("draft");
+        }
+        state.cancel_comment_composer();
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("press esc again to discard this comment"));
     }
 }

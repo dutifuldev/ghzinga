@@ -101,7 +101,7 @@ fn fetch_runtime_boundary_stays_out_of_terminal_and_rendering_layers() {
 
     for expected in [
         "app::AppState",
-        "domain::{Resource, ResourceId}",
+        "domain::{Resource, ResourceAction, ResourceId}",
         "github::{",
     ] {
         assert!(

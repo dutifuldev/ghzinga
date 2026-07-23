@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::app::{AddResourceMode, AppState, BlockId};
+use crate::domain::{ActionKind, ResourceAction};
 use crate::input::{hit_test, HitTarget};
 use crate::render::{ContentWidthMode, ScrollbarMode, SpacingMode, SymbolMode, ThemeName};
 
@@ -14,6 +15,7 @@ pub enum AppIntent {
     Navigate(crate::domain::ResourceId),
     OpenUrl(String),
     CopyUrl(String),
+    SubmitAction(ResourceAction),
     Back,
     SaveSettings,
     Quit,
@@ -23,6 +25,7 @@ pub enum AppIntent {
 pub enum AppEvent {
     Key(KeyEvent),
     Mouse(MouseEvent),
+    Paste(String),
     Activate(HitTarget),
     Tick,
 }
@@ -31,9 +34,28 @@ pub fn apply_event(state: &mut AppState, event: AppEvent) -> AppIntent {
     match event {
         AppEvent::Key(key) => apply_key(state, key),
         AppEvent::Mouse(mouse) => apply_mouse(state, mouse),
+        AppEvent::Paste(text) => apply_paste(state, &text),
         AppEvent::Activate(target) => apply_target(state, target),
         AppEvent::Tick => AppIntent::None,
     }
+}
+
+fn apply_paste(state: &mut AppState, text: &str) -> AppIntent {
+    if state.comment_composer.is_some() {
+        if !comment_is_posting(state) {
+            if let Some(composer) = &mut state.comment_composer {
+                composer.insert_str(text);
+            }
+        }
+    } else if let Some(input) = state.add_resource_input_mut() {
+        let single_line: String = text
+            .chars()
+            .map(|ch| if ch == '\n' || ch == '\r' { ' ' } else { ch })
+            .collect();
+        input.push_str(single_line.trim());
+        state.clear_add_resource_error();
+    }
+    AppIntent::None
 }
 
 fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
@@ -45,6 +67,15 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     }
     if state.resource_link_prompt.is_some() {
         return apply_resource_link_prompt_key(state, key);
+    }
+    if state.comment_composer.is_some() {
+        return apply_composer_key(state, key);
+    }
+    if state.action_confirm.is_some() {
+        return apply_action_confirm_key(state, key);
+    }
+    if state.action_menu.is_some() {
+        return apply_action_menu_key(state, key);
     }
     match key.code {
         KeyCode::Char('q') if is_plain_shortcut(key) => {
@@ -62,6 +93,10 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         KeyCode::Char('r') if is_plain_shortcut(key) => {
             state.refresh_requested = true;
             AppIntent::Refresh
+        }
+        KeyCode::Char('A') if is_plain_shortcut(key) => {
+            state.open_action_menu();
+            AppIntent::None
         }
         KeyCode::Char('n') if is_plain_shortcut(key) => {
             state.open_add_resource_prompt();
@@ -321,6 +356,191 @@ fn apply_resource_link_prompt_key(state: &mut AppState, key: KeyEvent) -> AppInt
     }
 }
 
+fn apply_composer_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        return apply_composer_control_key(state, key);
+    }
+    // While the comment is posting the draft is frozen: edits made now would
+    // be silently lost when the posted snapshot closes the composer.
+    if comment_is_posting(state) {
+        if key.code == KeyCode::Esc {
+            state.cancel_comment_composer();
+        }
+        return AppIntent::None;
+    }
+    if let Some(intent) = apply_composer_edit_key(state, key) {
+        return intent;
+    }
+    AppIntent::None
+}
+
+fn comment_is_posting(state: &AppState) -> bool {
+    state.composer_is_posting()
+}
+
+fn apply_composer_control_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return AppIntent::None;
+    }
+    match key.code {
+        KeyCode::Char('s') => submit_composer_comment(state),
+        KeyCode::Char('c') => {
+            state.cancel_comment_composer();
+            AppIntent::None
+        }
+        _ => AppIntent::None,
+    }
+}
+
+fn apply_composer_edit_key(state: &mut AppState, key: KeyEvent) -> Option<AppIntent> {
+    let composer = state.comment_composer.as_mut()?;
+    let width = composer.viewport_width();
+    match key.code {
+        KeyCode::Esc => state.cancel_comment_composer(),
+        KeyCode::Enter => composer.newline(),
+        KeyCode::Backspace => composer.backspace(),
+        KeyCode::Delete => composer.delete(),
+        KeyCode::Left => composer.move_left(),
+        KeyCode::Right => composer.move_right(),
+        KeyCode::Up => composer.move_vertical(width, -1),
+        KeyCode::Down => composer.move_vertical(width, 1),
+        KeyCode::Home => composer.move_home(),
+        KeyCode::End => composer.move_end(),
+        KeyCode::PageUp => composer.move_vertical(width, -page_step(composer.viewport_height())),
+        KeyCode::PageDown => composer.move_vertical(width, page_step(composer.viewport_height())),
+        KeyCode::Tab => composer.insert_str("    "),
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::ALT) => composer.insert_char(ch),
+        _ => {}
+    }
+    Some(AppIntent::None)
+}
+
+fn page_step(height: usize) -> isize {
+    isize::try_from(height.max(1)).unwrap_or(1)
+}
+
+fn submit_composer_comment(state: &mut AppState) -> AppIntent {
+    let Some(composer) = &state.comment_composer else {
+        return AppIntent::None;
+    };
+    if composer.is_empty() {
+        state.status_message = Some("comment is empty".into());
+        return AppIntent::None;
+    }
+    if state.pending_action.is_some() {
+        state.status_message = Some("an action is already in flight".into());
+        return AppIntent::None;
+    }
+    AppIntent::SubmitAction(ResourceAction::Comment {
+        body: composer.body(),
+    })
+}
+
+fn apply_action_menu_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') if is_plain_shortcut(key) => {
+            state.close_action_menu();
+            AppIntent::None
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.close_action_menu();
+            AppIntent::None
+        }
+        KeyCode::Up | KeyCode::Char('k') if is_plain_shortcut(key) => {
+            state.move_action_menu_selection(-1);
+            AppIntent::None
+        }
+        KeyCode::Down | KeyCode::Char('j') if is_plain_shortcut(key) => {
+            state.move_action_menu_selection(1);
+            AppIntent::None
+        }
+        KeyCode::Enter if is_plain_shortcut(key) => activate_selected_action(state),
+        KeyCode::Char(ch) if is_plain_shortcut(key) => activate_action_by_shortcut(state, ch),
+        _ => AppIntent::None,
+    }
+}
+
+fn activate_selected_action(state: &mut AppState) -> AppIntent {
+    let Some(kind) = state.selected_action_kind() else {
+        return AppIntent::None;
+    };
+    activate_action_kind(state, kind)
+}
+
+fn activate_action_by_shortcut(state: &mut AppState, ch: char) -> AppIntent {
+    let available = state
+        .action_menu
+        .as_ref()
+        .map(|menu| menu.actions.clone())
+        .unwrap_or_default();
+    let kind = match ch {
+        'c' => Some(ActionKind::Comment),
+        'm' => Some(ActionKind::Merge),
+        'x' => Some(ActionKind::Close),
+        'o' => Some(ActionKind::Reopen),
+        _ => None,
+    };
+    match kind {
+        Some(kind) if available.contains(&kind) => activate_action_kind(state, kind),
+        _ => AppIntent::None,
+    }
+}
+
+fn activate_action_kind(state: &mut AppState, kind: ActionKind) -> AppIntent {
+    match kind {
+        ActionKind::Comment => state.open_comment_composer(),
+        ActionKind::Close | ActionKind::Reopen | ActionKind::Merge => {
+            state.open_action_confirm(kind)
+        }
+    }
+    AppIntent::None
+}
+
+fn apply_action_confirm_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('q') if is_plain_shortcut(key) => {
+            state.close_action_confirm();
+            AppIntent::None
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.close_action_confirm();
+            AppIntent::None
+        }
+        KeyCode::Up | KeyCode::Char('k') if is_plain_shortcut(key) => {
+            state.move_merge_method_selection(-1);
+            AppIntent::None
+        }
+        KeyCode::Down | KeyCode::Char('j') if is_plain_shortcut(key) => {
+            state.move_merge_method_selection(1);
+            AppIntent::None
+        }
+        KeyCode::Char(ch @ '1'..='3') if is_plain_shortcut(key) => {
+            state.select_merge_method(ch as usize - '1' as usize);
+            AppIntent::None
+        }
+        KeyCode::Enter | KeyCode::Char('y') if is_plain_shortcut(key) => {
+            submit_confirmed_action(state)
+        }
+        _ => AppIntent::None,
+    }
+}
+
+fn submit_confirmed_action(state: &mut AppState) -> AppIntent {
+    let Some(action) = state
+        .action_confirm
+        .as_ref()
+        .and_then(|confirm| confirm.chosen_action())
+    else {
+        return AppIntent::None;
+    };
+    if state.pending_action.is_some() {
+        state.status_message = Some("an action is already in flight".into());
+        return AppIntent::None;
+    }
+    state.close_action_confirm();
+    AppIntent::SubmitAction(action)
+}
+
 fn confirm_add_resource_prompt(state: &mut AppState) -> AppIntent {
     match state.parse_add_resource_input() {
         Ok(id) => match state
@@ -368,17 +588,11 @@ fn numbered_tab(ch: char, tabs: &[crate::app::Tab]) -> Option<crate::app::Tab> {
 fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
-            if state.add_resource_prompt.is_some() || state.resource_link_prompt.is_some() {
-                return AppIntent::None;
-            }
-            state.scroll_down(3);
+            apply_mouse_scroll(state, ScrollDirection::Down);
             AppIntent::None
         }
         MouseEventKind::ScrollUp => {
-            if state.add_resource_prompt.is_some() || state.resource_link_prompt.is_some() {
-                return AppIntent::None;
-            }
-            state.scroll_up(3);
+            apply_mouse_scroll(state, ScrollDirection::Up);
             AppIntent::None
         }
         MouseEventKind::Down(MouseButton::Left) => {
@@ -387,6 +601,14 @@ fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
             };
             if let HitTarget::Scrollbar { top, height } = target {
                 state.begin_scrollbar_drag(top, height, mouse.row);
+                return AppIntent::None;
+            }
+            if let HitTarget::ComposerText { x, y } = target {
+                place_composer_cursor(
+                    state,
+                    mouse.column.saturating_sub(x),
+                    mouse.row.saturating_sub(y),
+                );
                 return AppIntent::None;
             }
             apply_target(state, target)
@@ -400,6 +622,44 @@ fn apply_mouse(state: &mut AppState, mouse: MouseEvent) -> AppIntent {
             AppIntent::None
         }
         _ => AppIntent::None,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ScrollDirection {
+    Up,
+    Down,
+}
+
+fn apply_mouse_scroll(state: &mut AppState, direction: ScrollDirection) {
+    if let Some(composer) = &mut state.comment_composer {
+        let width = composer.viewport_width();
+        let height = composer.viewport_height();
+        let delta = match direction {
+            ScrollDirection::Down => 3,
+            ScrollDirection::Up => -3,
+        };
+        composer.scroll_by(width, height, delta);
+        return;
+    }
+    if state.add_resource_prompt.is_some()
+        || state.resource_link_prompt.is_some()
+        || state.action_menu.is_some()
+        || state.action_confirm.is_some()
+    {
+        return;
+    }
+    match direction {
+        ScrollDirection::Down => state.scroll_down(3),
+        ScrollDirection::Up => state.scroll_up(3),
+    }
+}
+
+fn place_composer_cursor(state: &mut AppState, column: u16, row: u16) {
+    if let Some(composer) = &mut state.comment_composer {
+        let width = composer.viewport_width();
+        let visual_row = composer.scroll + usize::from(row);
+        composer.click(width, visual_row, usize::from(column));
     }
 }
 
@@ -471,11 +731,45 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             AppIntent::None
         }
         HitTarget::ModalOverlay => {
+            if state.comment_composer.is_some() {
+                state.cancel_comment_composer();
+            }
             state.close_add_resource_prompt();
             state.close_resource_link_prompt();
             state.close_quit_confirmation();
+            state.close_action_menu();
+            state.close_action_confirm();
             AppIntent::None
         }
+        HitTarget::OpenActionMenu => {
+            state.open_action_menu();
+            AppIntent::None
+        }
+        HitTarget::ActionMenuItem(index) => {
+            let kind = state
+                .action_menu
+                .as_ref()
+                .and_then(|menu| menu.actions.get(index).copied());
+            match kind {
+                Some(kind) => activate_action_kind(state, kind),
+                None => AppIntent::None,
+            }
+        }
+        HitTarget::ConfirmAction => submit_confirmed_action(state),
+        HitTarget::CancelAction => {
+            state.close_action_confirm();
+            AppIntent::None
+        }
+        HitTarget::SelectMergeMethod(index) => {
+            state.select_merge_method(index);
+            AppIntent::None
+        }
+        HitTarget::ComposerSubmit => submit_composer_comment(state),
+        HitTarget::ComposerCancel => {
+            state.cancel_comment_composer();
+            AppIntent::None
+        }
+        HitTarget::ComposerText { .. } => AppIntent::None,
         HitTarget::LoadFullDepth => AppIntent::LoadFullDepth,
         HitTarget::Quit => {
             state.request_quit_confirmation();
@@ -597,6 +891,7 @@ mod tests {
 
     fn resource() -> Resource {
         Resource {
+            actions: crate::domain::ActionContext::default(),
             id: ResourceId {
                 owner: "owner".into(),
                 repo: "repo".into(),
@@ -641,6 +936,7 @@ mod tests {
         resource.id.kind_hint = Some(ResourceKind::PullRequest);
         resource.url = "https://github.com/owner/repo/pull/1".into();
         resource.pull_request = Some(PullRequest {
+            allowed_merge_methods: Vec::new(),
             base_ref: "main".into(),
             head_ref: "topic".into(),
             requested_reviewers: vec![],
@@ -2290,5 +2586,754 @@ mod tests {
 
         assert_eq!(intent, AppIntent::None);
         assert!(state.resource_link_prompt.is_none());
+    }
+
+    fn actionable_issue_state() -> AppState {
+        let mut resource = resource();
+        resource.actions.node_id = "I_node".into();
+        resource.actions.viewer_can_update = true;
+        AppState::new(resource)
+    }
+
+    fn actionable_pr_state() -> AppState {
+        let mut resource = resource();
+        resource.actions.node_id = "PR_node".into();
+        resource.actions.viewer_can_update = true;
+        resource.id.kind_hint = Some(ResourceKind::PullRequest);
+        resource.pull_request = Some(PullRequest {
+            base_ref: "main".into(),
+            head_ref: "topic".into(),
+            requested_reviewers: vec![],
+            review_decision: None,
+            merge_state: None,
+            additions: 0,
+            deletions: 0,
+            commits: vec![],
+            checks: vec![],
+            files: vec![],
+            metadata: vec![],
+            allowed_merge_methods: vec![
+                crate::domain::MergeMethod::Merge,
+                crate::domain::MergeMethod::Squash,
+            ],
+        });
+        AppState::new(resource)
+    }
+
+    fn press(state: &mut AppState, code: KeyCode) -> AppIntent {
+        apply_event(
+            state,
+            AppEvent::Key(KeyEvent::new(code, KeyModifiers::empty())),
+        )
+    }
+
+    fn press_ctrl(state: &mut AppState, ch: char) -> AppIntent {
+        apply_event(
+            state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::CONTROL)),
+        )
+    }
+
+    #[test]
+    fn shift_a_opens_action_menu_when_actions_are_available() {
+        let mut state = actionable_issue_state();
+        let intent = press(&mut state, KeyCode::Char('A'));
+        assert_eq!(intent, AppIntent::None);
+        let menu = state.action_menu.as_ref().expect("action menu open");
+        assert_eq!(menu.actions, vec![ActionKind::Comment, ActionKind::Close]);
+    }
+
+    #[test]
+    fn action_menu_reports_when_no_actions_are_available() {
+        let mut state = AppState::new(resource());
+        press(&mut state, KeyCode::Char('A'));
+        assert!(state.action_menu.is_none());
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("no actions available for this resource")
+        );
+    }
+
+    #[test]
+    fn action_menu_arrows_move_and_enter_opens_close_confirm() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Down);
+        let intent = press(&mut state, KeyCode::Enter);
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_menu.is_none());
+        let confirm = state.action_confirm.as_ref().expect("confirm open");
+        assert_eq!(confirm.kind, ActionKind::Close);
+    }
+
+    #[test]
+    fn action_menu_esc_closes_without_side_effects() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Esc);
+        assert!(state.action_menu.is_none());
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn action_menu_comment_shortcut_opens_composer() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('c'));
+        assert!(state.action_menu.is_none());
+        assert!(state.comment_composer.is_some());
+    }
+
+    #[test]
+    fn close_confirm_enter_submits_close_action() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        let intent = press(&mut state, KeyCode::Enter);
+        assert_eq!(intent, AppIntent::SubmitAction(ResourceAction::Close));
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn confirm_esc_cancels_without_submitting() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Reopen);
+        let intent = press(&mut state, KeyCode::Esc);
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn merge_confirm_selects_method_by_number_and_submits() {
+        let mut state = actionable_pr_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('m'));
+        let confirm = state.action_confirm.as_ref().expect("merge confirm");
+        assert_eq!(
+            confirm.merge_methods,
+            vec![
+                crate::domain::MergeMethod::Merge,
+                crate::domain::MergeMethod::Squash
+            ]
+        );
+        press(&mut state, KeyCode::Char('2'));
+        let intent = press(&mut state, KeyCode::Enter);
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(ResourceAction::Merge {
+                method: crate::domain::MergeMethod::Squash
+            })
+        );
+    }
+
+    #[test]
+    fn merge_confirm_arrows_move_method_selection() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(ActionKind::Merge);
+        press(&mut state, KeyCode::Down);
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1)
+        );
+        press(&mut state, KeyCode::Up);
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn composer_typing_newline_and_ctrl_s_submit_comment() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        press(&mut state, KeyCode::Char('h'));
+        press(&mut state, KeyCode::Char('i'));
+        press(&mut state, KeyCode::Enter);
+        press(&mut state, KeyCode::Char('!'));
+        let intent = press_ctrl(&mut state, 's');
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(ResourceAction::Comment {
+                body: "hi\n!".into()
+            })
+        );
+        assert!(
+            state.comment_composer.is_some(),
+            "composer stays open until the comment is confirmed posted"
+        );
+    }
+
+    #[test]
+    fn composer_submit_with_empty_body_reports_status() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        let intent = press_ctrl(&mut state, 's');
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.status_message.as_deref(), Some("comment is empty"));
+    }
+
+    #[test]
+    fn composer_esc_needs_confirmation_when_dirty() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        press(&mut state, KeyCode::Char('x'));
+        press(&mut state, KeyCode::Esc);
+        assert!(state.comment_composer.is_some());
+        press(&mut state, KeyCode::Esc);
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn composer_esc_closes_immediately_when_empty() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        press(&mut state, KeyCode::Esc);
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn paste_lands_in_the_composer_as_multiline_text() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("one\r\ntwo".into()));
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("one\ntwo".into())
+        );
+    }
+
+    #[test]
+    fn paste_into_add_resource_prompt_flattens_newlines() {
+        let mut state = AppState::new(resource());
+        state.open_add_resource_prompt();
+        apply_event(&mut state, AppEvent::Paste("owner/repo\n#12".into()));
+        assert_eq!(
+            state
+                .add_resource_prompt
+                .as_ref()
+                .map(|prompt| prompt.input.clone()),
+            Some("owner/repo #12".into())
+        );
+    }
+
+    #[test]
+    fn pending_action_blocks_a_second_submission() {
+        let mut state = actionable_issue_state();
+        state.pending_action = Some(ResourceAction::Close);
+        state.open_comment_composer();
+        press(&mut state, KeyCode::Char('x'));
+        let intent = press_ctrl(&mut state, 's');
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("an action is already in flight")
+        );
+    }
+
+    #[test]
+    fn activate_targets_mirror_keyboard_for_action_flows() {
+        let mut state = actionable_issue_state();
+        apply_event(&mut state, AppEvent::Activate(HitTarget::OpenActionMenu));
+        assert!(state.action_menu.is_some());
+        apply_event(&mut state, AppEvent::Activate(HitTarget::ActionMenuItem(1)));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|confirm| confirm.kind),
+            Some(ActionKind::Close)
+        );
+        let intent = apply_event(&mut state, AppEvent::Activate(HitTarget::ConfirmAction));
+        assert_eq!(intent, AppIntent::SubmitAction(ResourceAction::Close));
+    }
+
+    #[test]
+    fn composer_buttons_mirror_keyboard() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("via button".into()));
+        let intent = apply_event(&mut state, AppEvent::Activate(HitTarget::ComposerSubmit));
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(ResourceAction::Comment {
+                body: "via button".into()
+            })
+        );
+        apply_event(&mut state, AppEvent::Activate(HitTarget::ComposerCancel));
+        assert!(
+            state.comment_composer.is_some(),
+            "dirty composer asks before discarding"
+        );
+        apply_event(&mut state, AppEvent::Activate(HitTarget::ComposerCancel));
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn modal_overlay_click_closes_action_modals() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(&mut state, AppEvent::Activate(HitTarget::ModalOverlay));
+        assert!(state.action_menu.is_none());
+    }
+
+    #[test]
+    fn composer_mouse_click_places_cursor_via_hit_area() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("abcdef".into()));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.viewport = (40, 5);
+        }
+        state.hit_areas.push(HitArea::new(
+            Rect::new(10, 5, 40, 5),
+            HitTarget::ComposerText { x: 10, y: 5 },
+        ));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 12,
+                row: 5,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.cursor()),
+            Some((0, 2))
+        );
+    }
+
+    #[test]
+    fn unrelated_drafts_stay_editable_while_a_comment_posts_elsewhere() {
+        let mut state = actionable_issue_state();
+        state.pending_action = Some(ResourceAction::Comment {
+            body: "posted from another tab".into(),
+        });
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("fresh draft".into()));
+        press(&mut state, KeyCode::Char('!'));
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("fresh draft!".into()),
+            "a different draft must not be frozen by an unrelated posting comment"
+        );
+    }
+
+    #[test]
+    fn composer_draft_is_frozen_while_a_comment_is_posting() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("submitted".into()));
+        state.pending_action = Some(ResourceAction::Comment {
+            body: "submitted".into(),
+        });
+        press(&mut state, KeyCode::Char('!'));
+        apply_event(&mut state, AppEvent::Paste("more".into()));
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("submitted".into()),
+            "edits during posting would be silently lost, so they are blocked"
+        );
+        press(&mut state, KeyCode::Esc);
+        press(&mut state, KeyCode::Esc);
+        assert!(
+            state.comment_composer.is_none(),
+            "escape still cancels while posting"
+        );
+    }
+
+    #[test]
+    fn modified_keys_do_not_submit_a_confirmation() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(intent, AppIntent::None);
+        assert!(
+            state.action_confirm.is_some(),
+            "ctrl-modified keys must not confirm a destructive action"
+        );
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT)),
+        );
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.action_confirm.is_some());
+    }
+
+    #[test]
+    fn modified_letters_do_not_activate_menu_items() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_menu.is_some());
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn tab_switch_keeps_each_tabs_comment_draft() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("draft for tab one".into()));
+        state.open_resource_in_tab(resource_with_number(2));
+        assert!(
+            state.comment_composer.is_none(),
+            "the new tab starts without a composer"
+        );
+        state.switch_resource_tab(0);
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("draft for tab one".into()),
+            "returning to the first tab restores its draft"
+        );
+    }
+
+    fn composer_body(state: &AppState) -> String {
+        state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.body())
+            .unwrap_or_default()
+    }
+
+    fn composer_cursor(state: &AppState) -> (usize, usize) {
+        state
+            .comment_composer
+            .as_ref()
+            .map(|composer| composer.cursor())
+            .expect("composer open")
+    }
+
+    fn open_sized_composer(state: &mut AppState, text: &str, viewport: (u16, u16)) {
+        state.open_comment_composer();
+        apply_event(state, AppEvent::Paste(text.into()));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.viewport = viewport;
+        }
+    }
+
+    #[test]
+    fn composer_edit_keys_each_do_their_job() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "ab", (40, 5));
+        press(&mut state, KeyCode::Backspace);
+        assert_eq!(composer_body(&state), "a");
+        press(&mut state, KeyCode::Home);
+        press(&mut state, KeyCode::Delete);
+        assert_eq!(composer_body(&state), "");
+        apply_event(&mut state, AppEvent::Paste("xy".into()));
+        press(&mut state, KeyCode::Left);
+        assert_eq!(composer_cursor(&state), (0, 1));
+        press(&mut state, KeyCode::Right);
+        assert_eq!(composer_cursor(&state), (0, 2));
+        press(&mut state, KeyCode::Home);
+        assert_eq!(composer_cursor(&state), (0, 0));
+        press(&mut state, KeyCode::End);
+        assert_eq!(composer_cursor(&state), (0, 2));
+        press(&mut state, KeyCode::Tab);
+        assert_eq!(composer_body(&state), "xy    ");
+    }
+
+    #[test]
+    fn composer_vertical_keys_move_through_rows() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "a\nb\nc\nd\ne\nf\ng\nh", (10, 3));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.click(10, 0, 1);
+        }
+        press(&mut state, KeyCode::Down);
+        assert_eq!(composer_cursor(&state).0, 1);
+        press(&mut state, KeyCode::Up);
+        assert_eq!(composer_cursor(&state).0, 0);
+        press(&mut state, KeyCode::PageDown);
+        assert_eq!(
+            composer_cursor(&state).0,
+            3,
+            "page down moves by exactly the viewport height"
+        );
+        press(&mut state, KeyCode::PageUp);
+        assert_eq!(composer_cursor(&state).0, 0);
+    }
+
+    #[test]
+    fn composer_ignores_alt_modified_characters() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "seed", (40, 5));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::ALT)),
+        );
+        assert_eq!(composer_body(&state), "seed");
+    }
+
+    #[test]
+    fn ctrl_alt_s_does_not_post_a_comment() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "draft", (40, 5));
+        let intent = apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(
+                KeyCode::Char('s'),
+                KeyModifiers::CONTROL | KeyModifiers::ALT,
+            )),
+        );
+        assert_eq!(intent, AppIntent::None);
+    }
+
+    #[test]
+    fn composer_ctrl_c_cancels_like_escape() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "draft", (40, 5));
+        press_ctrl(&mut state, 'c');
+        assert!(
+            state
+                .comment_composer
+                .as_ref()
+                .is_some_and(|composer| composer.confirm_discard),
+            "first ctrl-c asks for discard confirmation"
+        );
+        press_ctrl(&mut state, 'c');
+        assert!(state.comment_composer.is_none());
+    }
+
+    #[test]
+    fn ctrl_a_does_not_open_the_action_menu() {
+        let mut state = actionable_issue_state();
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::CONTROL)),
+        );
+        assert!(state.action_menu.is_none());
+    }
+
+    #[test]
+    fn menu_k_and_j_move_the_selection_both_ways() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('j'));
+        assert_eq!(state.action_menu.as_ref().map(|m| m.selected), Some(1));
+        press(&mut state, KeyCode::Char('k'));
+        assert_eq!(state.action_menu.as_ref().map(|m| m.selected), Some(0));
+    }
+
+    #[test]
+    fn menu_ctrl_c_closes_but_modified_q_does_not() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_menu.is_some(), "alt-q must not close the menu");
+        press_ctrl(&mut state, 'c');
+        assert!(state.action_menu.is_none(), "ctrl-c closes the menu");
+    }
+
+    #[test]
+    fn menu_ignores_modified_navigation_and_activation_keys() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('j')));
+        assert_eq!(
+            state.action_menu.as_ref().map(|m| m.selected),
+            Some(0),
+            "alt-j must not move the menu selection"
+        );
+        state.move_action_menu_selection(1);
+        apply_event(&mut state, alt(KeyCode::Char('k')));
+        assert_eq!(
+            state.action_menu.as_ref().map(|m| m.selected),
+            Some(1),
+            "alt-k must not move the menu selection"
+        );
+        apply_event(&mut state, alt(KeyCode::Enter));
+        assert!(
+            state.action_menu.is_some() && state.action_confirm.is_none(),
+            "alt-enter must not activate a menu item"
+        );
+    }
+
+    #[test]
+    fn menu_close_and_reopen_shortcuts_open_their_confirms() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('x'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.kind),
+            Some(ActionKind::Close)
+        );
+
+        let mut state = actionable_issue_state();
+        state.resource.state = "CLOSED".into();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('o'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.kind),
+            Some(ActionKind::Reopen)
+        );
+    }
+
+    #[test]
+    fn menu_ignores_shortcuts_for_unavailable_actions() {
+        let mut state = actionable_issue_state();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('m'));
+        assert!(
+            state.action_confirm.is_none(),
+            "merge is not offered on an issue, so 'm' must do nothing"
+        );
+        assert!(state.action_menu.is_some());
+    }
+
+    #[test]
+    fn confirm_ctrl_c_closes_but_plain_c_does_not() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        press(&mut state, KeyCode::Char('c'));
+        assert!(
+            state.action_confirm.is_some(),
+            "plain c is not a cancel key in the confirm modal"
+        );
+        press_ctrl(&mut state, 'c');
+        assert!(state.action_confirm.is_none());
+    }
+
+    #[test]
+    fn confirm_ignores_modified_cancel_keys() {
+        let mut state = actionable_issue_state();
+        state.open_action_confirm(ActionKind::Close);
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::ALT)),
+        );
+        assert!(state.action_confirm.is_some());
+    }
+
+    #[test]
+    fn merge_confirm_ignores_modified_selection_keys() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(ActionKind::Merge);
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('j')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(0),
+            "alt-j must not move the merge method selection"
+        );
+        state.select_merge_method(1);
+        apply_event(&mut state, alt(KeyCode::Char('k')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "alt-k must not move the merge method selection"
+        );
+        apply_event(&mut state, alt(KeyCode::Char('1')));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(1),
+            "alt-1 must not select a merge method"
+        );
+    }
+
+    #[test]
+    fn merge_number_one_selects_the_first_method() {
+        let mut state = actionable_pr_state();
+        state.open_action_confirm(ActionKind::Merge);
+        state.select_merge_method(1);
+        press(&mut state, KeyCode::Char('1'));
+        assert_eq!(
+            state.action_confirm.as_ref().map(|c| c.selected_method),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn wheel_up_scrolls_the_composer_back() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "1\n2\n3\n4\n5\n6\n7\n8", (10, 2));
+        let wheel = |state: &mut AppState, kind: MouseEventKind| {
+            apply_event(
+                state,
+                AppEvent::Mouse(MouseEvent {
+                    kind,
+                    column: 0,
+                    row: 0,
+                    modifiers: KeyModifiers::empty(),
+                }),
+            );
+        };
+        wheel(&mut state, MouseEventKind::ScrollDown);
+        wheel(&mut state, MouseEventKind::ScrollDown);
+        assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(6));
+        wheel(&mut state, MouseEventKind::ScrollUp);
+        assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(3));
+    }
+
+    #[test]
+    fn wheel_does_not_scroll_content_behind_the_action_menu() {
+        let mut state = actionable_issue_state();
+        state.scroll_limit = 100;
+        press(&mut state, KeyCode::Char('A'));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 0,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.scroll, 0);
+    }
+
+    #[test]
+    fn composer_click_accounts_for_scroll_offset() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "a\nb\nc\nd\ne\nf", (10, 2));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.scroll = 2;
+        }
+        state.hit_areas.push(HitArea::new(
+            Rect::new(5, 8, 10, 2),
+            HitTarget::ComposerText { x: 5, y: 8 },
+        ));
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 5,
+                row: 9,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(
+            composer_cursor(&state),
+            (3, 0),
+            "clicked visual row 1 plus scroll 2 lands on line 3"
+        );
+    }
+
+    #[test]
+    fn wheel_scrolls_composer_instead_of_content() {
+        let mut state = actionable_issue_state();
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("1\n2\n3\n4\n5\n6\n7\n8".into()));
+        if let Some(composer) = &mut state.comment_composer {
+            composer.viewport = (10, 2);
+        }
+        let content_scroll = state.scroll;
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 0,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.scroll, content_scroll);
+        assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(3));
     }
 }

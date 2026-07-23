@@ -970,6 +970,7 @@ fn rest_issue_resource(
         related_resources: Vec::new(),
         metadata,
         warnings: Vec::new(),
+        actions: crate::domain::ActionContext::default(),
         pull_request: None,
     }
 }
@@ -1014,6 +1015,7 @@ fn rest_pull_request(
         checks,
         files,
         metadata: rest_pr_metadata(pull),
+        allowed_merge_methods: Vec::new(),
     }
 }
 

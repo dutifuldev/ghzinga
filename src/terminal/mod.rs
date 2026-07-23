@@ -8,7 +8,7 @@ use std::{
 };
 
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -24,12 +24,14 @@ struct TerminalSnapshot {
     raw_enabled: bool,
     alternate_screen: bool,
     mouse_enabled: bool,
+    bracketed_paste: bool,
 }
 
 struct TerminalState {
     raw_enabled: AtomicBool,
     alternate_screen: AtomicBool,
     mouse_enabled: AtomicBool,
+    bracketed_paste: AtomicBool,
 }
 
 impl TerminalState {
@@ -38,6 +40,7 @@ impl TerminalState {
             raw_enabled: AtomicBool::new(false),
             alternate_screen: AtomicBool::new(false),
             mouse_enabled: AtomicBool::new(false),
+            bracketed_paste: AtomicBool::new(false),
         }
     }
 
@@ -53,11 +56,16 @@ impl TerminalState {
         self.mouse_enabled.store(enabled, Ordering::SeqCst);
     }
 
+    fn set_bracketed_paste(&self, enabled: bool) {
+        self.bracketed_paste.store(enabled, Ordering::SeqCst);
+    }
+
     fn snapshot_and_clear(&self) -> TerminalSnapshot {
         TerminalSnapshot {
             raw_enabled: self.raw_enabled.swap(false, Ordering::SeqCst),
             alternate_screen: self.alternate_screen.swap(false, Ordering::SeqCst),
             mouse_enabled: self.mouse_enabled.swap(false, Ordering::SeqCst),
+            bracketed_paste: self.bracketed_paste.swap(false, Ordering::SeqCst),
         }
     }
 
@@ -67,6 +75,7 @@ impl TerminalState {
             raw_enabled: self.raw_enabled.load(Ordering::SeqCst),
             alternate_screen: self.alternate_screen.load(Ordering::SeqCst),
             mouse_enabled: self.mouse_enabled.load(Ordering::SeqCst),
+            bracketed_paste: self.bracketed_paste.load(Ordering::SeqCst),
         }
     }
 }
@@ -86,6 +95,8 @@ impl TerminalGuard {
             execute!(stdout, EnableMouseCapture)?;
             TERMINAL_STATE.set_mouse_enabled(true);
         }
+        execute!(stdout, EnableBracketedPaste)?;
+        TERMINAL_STATE.set_bracketed_paste(true);
         let terminal = Terminal::new(CrosstermBackend::new(stdout))?;
         Ok((guard, terminal))
     }
@@ -114,6 +125,9 @@ fn restore_terminal_state() {
 
 fn restore_snapshot(snapshot: TerminalSnapshot) {
     let mut stdout = io::stdout();
+    if snapshot.bracketed_paste {
+        let _ = execute!(stdout, DisableBracketedPaste);
+    }
     if snapshot.mouse_enabled {
         let _ = execute!(stdout, DisableMouseCapture);
     }
@@ -135,6 +149,7 @@ mod tests {
         state.set_raw_enabled(true);
         state.set_alternate_screen(true);
         state.set_mouse_enabled(true);
+        state.set_bracketed_paste(true);
 
         assert_eq!(
             state.snapshot_and_clear(),
@@ -142,6 +157,7 @@ mod tests {
                 raw_enabled: true,
                 alternate_screen: true,
                 mouse_enabled: true,
+                bracketed_paste: true,
             }
         );
         assert_eq!(
@@ -150,6 +166,7 @@ mod tests {
                 raw_enabled: false,
                 alternate_screen: false,
                 mouse_enabled: false,
+                bracketed_paste: false,
             }
         );
     }
@@ -166,6 +183,7 @@ mod tests {
                 raw_enabled: true,
                 alternate_screen: false,
                 mouse_enabled: true,
+                bracketed_paste: false,
             }
         );
     }
