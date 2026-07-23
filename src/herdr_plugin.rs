@@ -513,8 +513,9 @@ mod tests {
         assert!(herdr_log.contains(
             "plugin pane open --plugin dutifuldev.ghzinga --entrypoint viewer --placement split"
         ));
-        assert!(herdr_log
-            .contains("--env GHZINGA_TARGET=https://github.com/osolmaz/ghzinga/pull/29"));
+        assert!(
+            herdr_log.contains("--env GHZINGA_TARGET=https://github.com/osolmaz/ghzinga/pull/29")
+        );
         assert!(herdr_log.contains("--env GHZINGA_SESSION=herdr-ghzinga-socket_"));
         assert!(herdr_log.contains("_w1_p1"));
 
