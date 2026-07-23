@@ -11,7 +11,18 @@ documentation = "https://docs.rs/ghzinga"
 readme = "README.md"
 keywords = ["github", "terminal", "tui", "pull-request", "issues"]
 categories = ["command-line-utilities", "development-tools"]
-exclude = ["/AGENTS.md", "/captures/**"]
+exclude = [
+    "/.agents",
+    "/.github",
+    "/AGENTS.md",
+    "/captures/**",
+    "/docs",
+    "/fixtures",
+    "/plugins",
+    "/scripts",
+    "/slophammer.yml",
+    "/tests",
+]
 autobins = false
 
 [[bin]]
