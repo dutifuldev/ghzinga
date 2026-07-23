@@ -525,10 +525,9 @@ fn github_repo_name_from_remote(remote: &str) -> Option<String> {
         value = rest.to_string();
     } else if let Some(rest) = value.strip_prefix("https://github.com/") {
         value = rest.to_string();
-    } else if let Some(rest) = value.strip_prefix("ssh://git@github.com/") {
-        value = rest.to_string();
     } else {
-        return None;
+        let rest = value.strip_prefix("ssh://git@github.com/")?;
+        value = rest.to_string();
     }
     let parts = value.split('/').collect::<Vec<_>>();
     (parts.len() >= 2 && !parts[0].is_empty() && !parts[1].is_empty())
