@@ -375,8 +375,7 @@ fn apply_composer_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
 }
 
 fn comment_is_posting(state: &AppState) -> bool {
-    matches!(state.pending_action, Some(ResourceAction::Comment { .. }))
-        && state.comment_composer.is_some()
+    state.composer_is_posting()
 }
 
 fn apply_composer_control_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
@@ -2885,6 +2884,22 @@ mod tests {
         assert_eq!(
             state.comment_composer.as_ref().map(|c| c.cursor()),
             Some((0, 2))
+        );
+    }
+
+    #[test]
+    fn unrelated_drafts_stay_editable_while_a_comment_posts_elsewhere() {
+        let mut state = actionable_issue_state();
+        state.pending_action = Some(ResourceAction::Comment {
+            body: "posted from another tab".into(),
+        });
+        state.open_comment_composer();
+        apply_event(&mut state, AppEvent::Paste("fresh draft".into()));
+        press(&mut state, KeyCode::Char('!'));
+        assert_eq!(
+            state.comment_composer.as_ref().map(|c| c.body()),
+            Some("fresh draft!".into()),
+            "a different draft must not be frozen by an unrelated posting comment"
         );
     }
 

@@ -538,10 +538,7 @@ fn render_comment_composer_modal(
     palette: &Palette,
 ) {
     let title = format!("Comment on {}", state.resource.id.canonical_name());
-    let posting = matches!(
-        state.pending_action,
-        Some(crate::domain::ResourceAction::Comment { .. })
-    );
+    let posting = state.composer_is_posting();
     let Some(inner) = open_action_modal_frame(
         frame,
         area,

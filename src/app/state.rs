@@ -526,6 +526,15 @@ impl AppState {
         self.last_error = None;
     }
 
+    /// True only for the composer whose draft is currently posting; an
+    /// unrelated draft (another tab, or a replacement) stays editable.
+    pub fn composer_is_posting(&self) -> bool {
+        match (&self.pending_action, &self.comment_composer) {
+            (Some(ResourceAction::Comment { body }), Some(composer)) => composer.body() == *body,
+            _ => false,
+        }
+    }
+
     pub fn finish_action_submission(&mut self, action: &ResourceAction, error: Option<String>) {
         self.pending_action = None;
         match error {
