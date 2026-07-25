@@ -2307,4 +2307,20 @@ mod tests {
         assert_eq!(state.status_message.as_deref(), Some("closing\u{2026}"));
         assert!(state.last_error.is_none());
     }
+
+    #[test]
+    fn select_edit_choice_ignores_out_of_range_indexes() {
+        let mut resource = crate::test_fixtures::issue_resource(1, "Issue");
+        resource.actions.node_id = "I_node".into();
+        resource.actions.viewer_can_update = true;
+        let mut state = AppState::new(resource);
+        state.open_edit_picker();
+        state.select_edit_choice(0);
+        state.select_edit_choice(5);
+        assert_eq!(
+            state.edit_picker.as_ref().map(|p| p.selected),
+            Some(0),
+            "an out-of-range index must not move the selection"
+        );
+    }
 }

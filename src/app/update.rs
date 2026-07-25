@@ -3632,4 +3632,43 @@ mod tests {
             "a different edit target with identical text must stay editable"
         );
     }
+
+    #[test]
+    fn picker_plain_keys_navigate_and_modified_keys_never_close() {
+        let mut state = state_with_editable_comment();
+        state.open_edit_picker();
+        press(&mut state, KeyCode::Char('j'));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(1));
+        press(&mut state, KeyCode::Char('k'));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(0));
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('q')));
+        assert!(
+            state.edit_picker.is_some(),
+            "alt-q must not close the picker"
+        );
+        apply_event(&mut state, alt(KeyCode::Char('j')));
+        assert_eq!(
+            state.edit_picker.as_ref().map(|p| p.selected),
+            Some(0),
+            "alt-j must not move the picker selection"
+        );
+        press(&mut state, KeyCode::Char('c'));
+        assert!(
+            state.edit_picker.is_some(),
+            "plain c is not a picker cancel key"
+        );
+        press_ctrl(&mut state, 'c');
+        assert!(state.edit_picker.is_none(), "ctrl-c closes the picker");
+    }
+
+    #[test]
+    fn picker_digit_one_selects_the_first_choice() {
+        let mut state = state_with_editable_comment();
+        state.open_edit_picker();
+        press(&mut state, KeyCode::Char('2'));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(1));
+        press(&mut state, KeyCode::Char('1'));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(0));
+    }
 }

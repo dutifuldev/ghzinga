@@ -1322,3 +1322,24 @@ fn selector(kind: ResourceKind) -> &'static str {
         ResourceKind::Issue => "issue",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn commit_comment_thread_comments_query_selects_the_expected_fields() {
+        let query = commit_comment_thread_comments_query();
+        for expected in [
+            "PullRequestCommitCommentThread",
+            "comments(first: 100, after: $after)",
+            "viewerCanUpdate",
+            "reactionGroups",
+        ] {
+            assert!(
+                query.contains(expected),
+                "commit comment paging query must select `{expected}`"
+            );
+        }
+    }
+}

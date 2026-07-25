@@ -7794,4 +7794,74 @@ mod tests {
             "choices scrolled out of the window are not clickable"
         );
     }
+
+    #[test]
+    fn picker_digit_hints_stop_after_nine_and_selection_is_highlighted() {
+        let palette = ThemeName::Default.palette();
+        let mut state = editable_pr_state();
+        for n in 0..10 {
+            state.resource.activity.push(crate::domain::ActivityEntry {
+                id: format!("HINT_{n}"),
+                edit: Some(crate::domain::EditTarget {
+                    node_id: format!("HINT_{n}"),
+                    kind: crate::domain::EditKind::IssueComment,
+                    current_body: format!("hinted {n}"),
+                }),
+                kind: crate::domain::ActivityKind::Comment,
+                author: "me".into(),
+                body: format!("hinted {n}"),
+                updated_at: "now".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: Default::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            });
+        }
+        state.open_edit_picker();
+        draw(&mut state, 100, 30);
+        let ninth = rendered_target_rect(&state, |target| *target == HitTarget::EditPickerItem(8))
+            .expect("ninth choice");
+        let hint_column = 61;
+        let ninth_row = draw_row_text(&mut state, 100, 30, ninth.y);
+        let ninth_inner = ninth_row.rsplit('\u{2502}').nth(1).unwrap_or("");
+        assert_eq!(
+            ninth_inner.chars().nth(hint_column),
+            Some('9'),
+            "the ninth choice shows its digit hint: {ninth_row}"
+        );
+        let tenth = rendered_target_rect(&state, |target| *target == HitTarget::EditPickerItem(9))
+            .expect("tenth choice");
+        let tenth_row = draw_row_text(&mut state, 100, 30, tenth.y);
+        let tenth_inner = tenth_row.rsplit('\u{2502}').nth(1).unwrap_or("");
+        assert_eq!(
+            tenth_inner.chars().nth(hint_column),
+            Some(' '),
+            "choices past nine have no digit hint: {tenth_row}"
+        );
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 100, 30, "Description", 0),
+            Some(palette.accent),
+            "the selected picker row is highlighted"
+        );
+    }
+
+    #[test]
+    fn comment_edits_use_the_comment_title() {
+        let mut state = editable_pr_state();
+        state.set_tab(crate::app::Tab::Activity);
+        draw_actionable(&mut state);
+        click_rendered_target(&mut state, |target| {
+            matches!(target, HitTarget::EditActivityEntry { .. })
+        });
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Edit comment on openclaw/openclaw#81834"));
+        assert!(!content.contains("Edit description of"));
+    }
 }
