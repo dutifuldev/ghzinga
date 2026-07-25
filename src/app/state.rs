@@ -2316,11 +2316,16 @@ mod tests {
         let mut state = AppState::new(resource);
         state.open_edit_picker();
         state.select_edit_choice(0);
-        state.select_edit_choice(5);
+        let count = state
+            .edit_picker
+            .as_ref()
+            .map(|p| p.choices.len())
+            .expect("picker open");
+        state.select_edit_choice(count);
         assert_eq!(
             state.edit_picker.as_ref().map(|p| p.selected),
             Some(0),
-            "an out-of-range index must not move the selection"
+            "an index one past the end must not move the selection"
         );
     }
 }
