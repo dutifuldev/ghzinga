@@ -453,8 +453,23 @@ fn render_edit_picker_modal(
     ) else {
         return;
     };
+    // The modal may be clamped by the terminal; window the choices so the
+    // selection is always drawn and every drawn row is clickable.
+    let visible = usize::from(inner.height.saturating_sub(2)).max(1);
+    let window_start = picker
+        .selected
+        .saturating_add(1)
+        .saturating_sub(visible)
+        .min(picker.choices.len().saturating_sub(visible));
     let mut rows = vec![modal_title_line("Edit what?".to_string(), palette)];
-    for (index, choice) in picker.choices.iter().enumerate() {
+    for (offset, (index, choice)) in picker
+        .choices
+        .iter()
+        .enumerate()
+        .skip(window_start)
+        .take(visible)
+        .enumerate()
+    {
         let hint = if index < 9 {
             format!("{}", index + 1)
         } else {
@@ -473,17 +488,18 @@ fn render_edit_picker_modal(
             fit_label_to_width(&label, inner.width),
             style,
         )));
-        let row_y = inner.y.saturating_add(1).saturating_add(index as u16);
+        let row_y = inner.y.saturating_add(1).saturating_add(offset as u16);
         state.hit_areas.push(HitArea::new(
             Rect::new(inner.x, row_y, inner.width, 1),
             HitTarget::EditPickerItem(index),
         ));
     }
-    // The modal height is exact: title, one row per choice, hint.
-    rows.push(modal_hint_line(
-        "up/down move  enter edit  esc close",
-        palette,
-    ));
+    let position_hint = format!(
+        "{}/{}  up/down move  enter edit  esc close",
+        picker.selected + 1,
+        picker.choices.len()
+    );
+    rows.push(modal_hint_line(&position_hint, palette));
     Paragraph::new(rows)
         .style(Style::default().fg(palette.text).bg(palette.surface0))
         .render(inner, frame.buffer_mut());
@@ -7717,5 +7733,65 @@ mod tests {
         assert!(content.contains("Edit description of openclaw/openclaw#81834"));
         assert!(content.contains("[save  ctrl+s]"));
         assert!(!content.contains("[comment  ctrl+s]"));
+    }
+
+    #[test]
+    fn edit_picker_windows_long_lists_around_the_selection() {
+        let mut state = editable_pr_state();
+        for n in 0..30 {
+            state.resource.activity.push(crate::domain::ActivityEntry {
+                id: format!("IC_{n}"),
+                edit: Some(crate::domain::EditTarget {
+                    node_id: format!("IC_{n}"),
+                    kind: crate::domain::EditKind::IssueComment,
+                    current_body: format!("comment {n}"),
+                }),
+                kind: crate::domain::ActivityKind::Comment,
+                author: "me".into(),
+                body: format!("comment {n}"),
+                updated_at: "now".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: Default::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            });
+        }
+        state.open_edit_picker();
+        let total = state
+            .edit_picker
+            .as_ref()
+            .map(|picker| picker.choices.len())
+            .expect("picker open");
+        for _ in 0..total {
+            state.move_edit_picker_selection(1);
+        }
+        let content = draw(&mut state, 100, 20);
+        assert!(
+            content.contains(&format!("{total}/{total}")),
+            "position hint must show the selection"
+        );
+        let last = rendered_target_rect(&state, |target| {
+            *target == HitTarget::EditPickerItem(total - 1)
+        })
+        .expect("selected choice stays clickable in the window");
+        let row = draw_row_text(&mut state, 100, 20, last.y);
+        assert!(
+            row.contains("comment 29"),
+            "windowed row text must sit on its hit area: {row}"
+        );
+        assert!(
+            !state
+                .hit_areas
+                .iter()
+                .any(|area| area.target == HitTarget::EditPickerItem(0)),
+            "choices scrolled out of the window are not clickable"
+        );
     }
 }

@@ -426,7 +426,13 @@ fn submit_composer_comment(state: &mut AppState) -> AppIntent {
     let Some(composer) = &state.comment_composer else {
         return AppIntent::None;
     };
-    if composer.is_empty() {
+    // Descriptions may be cleared; comments and reviews need text (the
+    // server rejects empty ones anyway, this is just the friendlier error).
+    let empty_allowed = matches!(
+        state.composer_target.as_ref().map(|target| target.kind),
+        Some(crate::domain::EditKind::IssueBody) | Some(crate::domain::EditKind::PullRequestBody)
+    );
+    if composer.is_empty() && !empty_allowed {
         state.status_message = Some("comment is empty".into());
         return AppIntent::None;
     }
@@ -3555,5 +3561,28 @@ mod tests {
         });
         press(&mut state, KeyCode::Char('!'));
         assert_eq!(composer_body(&state), "original description");
+    }
+
+    #[test]
+    fn description_edits_may_be_submitted_empty_but_comments_may_not() {
+        let mut state = state_with_editable_comment();
+        apply_event(&mut state, AppEvent::Activate(HitTarget::EditResourceBody));
+        if let Some(composer) = &mut state.comment_composer {
+            *composer = crate::app::CommentComposer::new();
+        }
+        let intent = press_ctrl(&mut state, 's');
+        assert!(
+            matches!(
+                intent,
+                AppIntent::SubmitAction(ResourceAction::Edit { ref body, .. }) if body.is_empty()
+            ),
+            "clearing a description is a valid edit: {intent:?}"
+        );
+
+        let mut state = state_with_editable_comment();
+        state.open_comment_composer();
+        let intent = press_ctrl(&mut state, 's');
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(state.status_message.as_deref(), Some("comment is empty"));
     }
 }
