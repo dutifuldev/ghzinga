@@ -621,9 +621,22 @@ impl AppState {
     /// unrelated draft (another tab, or a replacement) stays editable.
     pub fn composer_is_posting(&self) -> bool {
         match (&self.pending_action, &self.comment_composer) {
-            (Some(action), Some(composer)) => action
-                .draft_body()
-                .is_some_and(|body| composer.body() == body),
+            (Some(action), Some(composer)) => {
+                self.composer_matches_action(action)
+                    && action
+                        .draft_body()
+                        .is_some_and(|body| composer.body() == body)
+            }
+            _ => false,
+        }
+    }
+
+    /// An open composer belongs to a pending action only when they agree on
+    /// what is being written: a new comment, or an edit of the same target.
+    fn composer_matches_action(&self, action: &ResourceAction) -> bool {
+        match action {
+            ResourceAction::Comment { .. } => self.composer_target.is_none(),
+            ResourceAction::Edit { target, .. } => self.composer_target.as_ref() == Some(target),
             _ => false,
         }
     }
@@ -636,10 +649,11 @@ impl AppState {
                 if let Some(body) = action.draft_body() {
                     // Close only the composer whose draft was posted; a
                     // replacement draft opened meanwhile must survive.
-                    let holds_posted_draft = self
-                        .comment_composer
-                        .as_ref()
-                        .is_some_and(|composer| composer.body() == body);
+                    let holds_posted_draft = self.composer_matches_action(action)
+                        && self
+                            .comment_composer
+                            .as_ref()
+                            .is_some_and(|composer| composer.body() == body);
                     if holds_posted_draft {
                         self.comment_composer = None;
                         self.composer_target = None;

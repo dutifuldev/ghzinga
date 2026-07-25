@@ -710,6 +710,7 @@ fn apply_mouse_scroll(state: &mut AppState, direction: ScrollDirection) {
         || state.resource_link_prompt.is_some()
         || state.action_menu.is_some()
         || state.action_confirm.is_some()
+        || state.edit_picker.is_some()
     {
         return;
     }
@@ -3584,5 +3585,51 @@ mod tests {
         let intent = press_ctrl(&mut state, 's');
         assert_eq!(intent, AppIntent::None);
         assert_eq!(state.status_message.as_deref(), Some("comment is empty"));
+    }
+
+    #[test]
+    fn wheel_does_not_scroll_content_behind_the_edit_picker() {
+        let mut state = state_with_editable_comment();
+        state.scroll_limit = 100;
+        state.open_edit_picker();
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 0,
+                row: 0,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert_eq!(state.scroll, 0);
+    }
+
+    #[test]
+    fn an_identical_edit_elsewhere_does_not_freeze_or_close_this_composer() {
+        let mut state = state_with_editable_comment();
+        state.pending_action = Some(ResourceAction::Edit {
+            target: crate::domain::EditTarget {
+                node_id: "OTHER".into(),
+                kind: crate::domain::EditKind::IssueComment,
+                current_body: "same text".into(),
+            },
+            body: "same text".into(),
+        });
+        apply_event(
+            &mut state,
+            AppEvent::Activate(HitTarget::EditActivityEntry {
+                node_id: "IC_1".into(),
+            }),
+        );
+        if let Some(composer) = &mut state.comment_composer {
+            *composer = crate::app::CommentComposer::new();
+            composer.insert_str("same text");
+        }
+        press(&mut state, KeyCode::Char('!'));
+        assert_eq!(
+            composer_body(&state),
+            "same text!",
+            "a different edit target with identical text must stay editable"
+        );
     }
 }
