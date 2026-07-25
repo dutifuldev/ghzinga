@@ -2,8 +2,8 @@ use std::{collections::HashSet, fmt, path::PathBuf, str::FromStr};
 
 use crate::app::composer::CommentComposer;
 use crate::domain::{
-    available_actions, ActionKind, MergeMethod, PullRequest, Resource, ResourceAction, ResourceId,
-    ResourceIdError, ResourceKind,
+    available_actions, body_edit_target, editable_targets, ActionKind, EditTarget, MergeMethod,
+    PullRequest, Resource, ResourceAction, ResourceId, ResourceIdError, ResourceKind,
 };
 use crate::input::HitArea;
 use crate::render::{
@@ -126,6 +126,7 @@ pub struct ResourceTabState {
     pub last_error: Option<String>,
     pub status_message: Option<String>,
     pub comment_composer: Option<CommentComposer>,
+    pub composer_target: Option<EditTarget>,
 }
 
 impl ResourceTabState {
@@ -148,6 +149,7 @@ impl ResourceTabState {
             last_error: None,
             status_message: None,
             comment_composer: None,
+            composer_target: None,
         }
     }
 
@@ -177,6 +179,7 @@ impl ResourceTabState {
             last_error: None,
             status_message: None,
             comment_composer: None,
+            composer_target: None,
         }
     }
 }
@@ -223,9 +226,22 @@ impl ActionConfirmState {
                 .merge_methods
                 .get(self.selected_method)
                 .map(|method| ResourceAction::Merge { method: *method }),
-            ActionKind::Comment => None,
+            ActionKind::Comment | ActionKind::Edit => None,
         }
     }
+}
+
+/// One editable object offered by the edit picker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditChoice {
+    pub target: EditTarget,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditPickerState {
+    pub choices: Vec<EditChoice>,
+    pub selected: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -242,7 +258,11 @@ pub struct AppState {
     pub resource_link_prompt: Option<ResourceLinkPrompt>,
     pub action_menu: Option<ActionMenuState>,
     pub action_confirm: Option<ActionConfirmState>,
+    pub edit_picker: Option<EditPickerState>,
     pub comment_composer: Option<CommentComposer>,
+    /// When set, the open composer edits this object instead of posting a
+    /// new comment. Tab-scoped together with the composer.
+    pub composer_target: Option<EditTarget>,
     pub pending_action: Option<ResourceAction>,
     /// Post-action refreshes that could not start immediately because a
     /// fetch was already in flight; drained by the runner once idle.
@@ -294,7 +314,9 @@ impl AppState {
             resource_link_prompt: None,
             action_menu: None,
             action_confirm: None,
+            edit_picker: None,
             comment_composer: None,
+            composer_target: None,
             pending_action: None,
             pending_action_refreshes: Vec::new(),
             pending_activity_focus: None,
@@ -484,8 +506,80 @@ impl AppState {
         self.comment_composer = Some(CommentComposer::new());
     }
 
+    pub fn open_edit_picker(&mut self) {
+        let choices: Vec<EditChoice> = editable_targets(&self.resource)
+            .into_iter()
+            .map(|target| EditChoice {
+                label: self.edit_choice_label(&target),
+                target,
+            })
+            .collect();
+        if choices.is_empty() {
+            self.status_message = Some("nothing editable on this resource".into());
+            return;
+        }
+        self.close_all_prompts();
+        self.edit_picker = Some(EditPickerState {
+            choices,
+            selected: 0,
+        });
+    }
+
+    fn edit_choice_label(&self, target: &EditTarget) -> String {
+        if body_edit_target(&self.resource).as_ref() == Some(target) {
+            return "Description".to_string();
+        }
+        self.resource
+            .activity
+            .iter()
+            .find(|entry| entry.edit.as_ref() == Some(target))
+            .map(|entry| {
+                let snippet: String = entry.body.chars().take(40).collect();
+                let snippet = snippet.replace('\n', " ");
+                format!("{}: {snippet}", entry.author)
+            })
+            .unwrap_or_else(|| "comment".to_string())
+    }
+
+    pub fn close_edit_picker(&mut self) {
+        self.edit_picker = None;
+    }
+
+    pub fn move_edit_picker_selection(&mut self, delta: isize) {
+        if let Some(picker) = &mut self.edit_picker {
+            let last = picker.choices.len().saturating_sub(1);
+            picker.selected = picker.selected.saturating_add_signed(delta).min(last);
+        }
+    }
+
+    pub fn select_edit_choice(&mut self, index: usize) {
+        if let Some(picker) = &mut self.edit_picker {
+            if index < picker.choices.len() {
+                picker.selected = index;
+            }
+        }
+    }
+
+    pub fn selected_edit_target(&self) -> Option<EditTarget> {
+        let picker = self.edit_picker.as_ref()?;
+        picker
+            .choices
+            .get(picker.selected)
+            .map(|choice| choice.target.clone())
+    }
+
+    /// Open the composer prefilled with the target's current text.
+    pub fn open_edit_composer(&mut self, target: EditTarget) {
+        self.close_all_prompts();
+        let mut composer = CommentComposer::new();
+        composer.insert_str(&target.current_body);
+        self.comment_composer = Some(composer);
+        self.composer_target = Some(target);
+    }
+
     pub fn close_comment_composer(&mut self) {
         self.comment_composer = None;
+        self.composer_target = None;
     }
 
     /// Esc/cancel semantics for the composer: an empty composer closes,
@@ -496,6 +590,7 @@ impl AppState {
         };
         if composer.is_empty() || composer.confirm_discard {
             self.comment_composer = None;
+            self.composer_target = None;
         } else {
             composer.confirm_discard = true;
         }
@@ -508,7 +603,9 @@ impl AppState {
         self.resource_link_prompt = None;
         self.action_menu = None;
         self.action_confirm = None;
+        self.edit_picker = None;
         self.comment_composer = None;
+        self.composer_target = None;
         self.quit_confirmation = false;
         self.show_help = false;
         self.show_settings = false;
@@ -524,7 +621,9 @@ impl AppState {
     /// unrelated draft (another tab, or a replacement) stays editable.
     pub fn composer_is_posting(&self) -> bool {
         match (&self.pending_action, &self.comment_composer) {
-            (Some(ResourceAction::Comment { body }), Some(composer)) => composer.body() == *body,
+            (Some(action), Some(composer)) => action
+                .draft_body()
+                .is_some_and(|body| composer.body() == body),
             _ => false,
         }
     }
@@ -534,15 +633,16 @@ impl AppState {
         match error {
             None => {
                 self.status_message = Some(format!("{}, refreshing", action.success_label()));
-                if let ResourceAction::Comment { body } = action {
+                if let Some(body) = action.draft_body() {
                     // Close only the composer whose draft was posted; a
                     // replacement draft opened meanwhile must survive.
                     let holds_posted_draft = self
                         .comment_composer
                         .as_ref()
-                        .is_some_and(|composer| composer.body() == *body);
+                        .is_some_and(|composer| composer.body() == body);
                     if holds_posted_draft {
                         self.comment_composer = None;
+                        self.composer_target = None;
                     }
                 }
             }
@@ -1325,6 +1425,7 @@ impl AppState {
             tab.last_error = self.last_error.clone();
             tab.status_message = self.status_message.clone();
             tab.comment_composer = self.comment_composer.clone();
+            tab.composer_target = self.composer_target.clone();
         }
     }
 
@@ -1354,6 +1455,7 @@ impl AppState {
         self.last_error = tab.last_error;
         self.status_message = tab.status_message;
         self.comment_composer = tab.comment_composer;
+        self.composer_target = tab.composer_target;
         self.hit_areas.clear();
         self.scrollbar_drag = None;
         self.pending_activity_focus = None;
@@ -1529,6 +1631,7 @@ mod tests {
 
     fn activity_entry(id: &str) -> ActivityEntry {
         ActivityEntry {
+            edit: None,
             id: id.into(),
             kind: ActivityKind::Comment,
             author: "alice".into(),
@@ -1799,6 +1902,7 @@ mod tests {
         refreshed.updated_at = "later".into();
         refreshed.body = "Changed body".into();
         refreshed.activity.push(crate::domain::ActivityEntry {
+            edit: None,
             id: "timeline-1".into(),
             kind: crate::domain::ActivityKind::Timeline,
             author: "alice".into(),

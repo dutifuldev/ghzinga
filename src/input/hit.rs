@@ -31,6 +31,9 @@ pub enum HitTarget {
     ActionMenuItem(usize),
     ConfirmAction,
     CancelAction,
+    EditPickerItem(usize),
+    EditActivityEntry { node_id: String },
+    EditResourceBody,
     SelectMergeMethod(usize),
     ComposerSubmit,
     ComposerCancel,
@@ -56,6 +59,8 @@ impl HitTarget {
         matches!(
             self,
             Self::ToggleBlock(_)
+                | Self::EditActivityEntry { .. }
+                | Self::EditResourceBody
                 | Self::ExpandBlocks(_)
                 | Self::CollapseBlocks(_)
                 | Self::ResourceLink { .. }

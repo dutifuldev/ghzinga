@@ -47,6 +47,10 @@ fn action_mutation(
             "mutation($id: ID!, $body: String!) { addComment(input: {subjectId: $id, body: $body}) { clientMutationId } }",
             json!({ "id": node_id, "body": body }),
         ),
+        ResourceAction::Edit { target, body } => (
+            edit_mutation(target.kind),
+            json!({ "id": target.node_id, "body": body }),
+        ),
         ResourceAction::Close => (state_mutation(kind, StateChange::Close), id_variables(node_id)),
         ResourceAction::Reopen => (
             state_mutation(kind, StateChange::Reopen),
@@ -84,6 +88,27 @@ fn state_mutation(kind: ResourceKind, change: StateChange) -> &'static str {
 
 fn id_variables(node_id: &str) -> Value {
     json!({ "id": node_id })
+}
+
+fn edit_mutation(kind: crate::domain::EditKind) -> &'static str {
+    use crate::domain::EditKind;
+    match kind {
+        EditKind::IssueBody => {
+            "mutation($id: ID!, $body: String!) { updateIssue(input: {id: $id, body: $body}) { clientMutationId } }"
+        }
+        EditKind::PullRequestBody => {
+            "mutation($id: ID!, $body: String!) { updatePullRequest(input: {pullRequestId: $id, body: $body}) { clientMutationId } }"
+        }
+        EditKind::IssueComment => {
+            "mutation($id: ID!, $body: String!) { updateIssueComment(input: {id: $id, body: $body}) { clientMutationId } }"
+        }
+        EditKind::Review => {
+            "mutation($id: ID!, $body: String!) { updatePullRequestReview(input: {pullRequestReviewId: $id, body: $body}) { clientMutationId } }"
+        }
+        EditKind::ReviewComment => {
+            "mutation($id: ID!, $body: String!) { updatePullRequestReviewComment(input: {pullRequestReviewCommentId: $id, body: $body}) { clientMutationId } }"
+        }
+    }
 }
 
 #[cfg(test)]
@@ -130,6 +155,45 @@ mod tests {
                 "expected {expected} for {kind:?} {action:?}"
             );
             assert_eq!(variables["id"], "node");
+        }
+    }
+
+    #[test]
+    fn edit_mutations_pick_the_kind_specific_update() {
+        use crate::domain::{EditKind, EditTarget};
+        let cases = [
+            (EditKind::IssueBody, "updateIssue(input: {id:"),
+            (
+                EditKind::PullRequestBody,
+                "updatePullRequest(input: {pullRequestId:",
+            ),
+            (EditKind::IssueComment, "updateIssueComment(input: {id:"),
+            (
+                EditKind::Review,
+                "updatePullRequestReview(input: {pullRequestReviewId:",
+            ),
+            (
+                EditKind::ReviewComment,
+                "updatePullRequestReviewComment(input: {pullRequestReviewCommentId:",
+            ),
+        ];
+        for (kind, expected) in cases {
+            let action = ResourceAction::Edit {
+                target: EditTarget {
+                    node_id: "NODE".into(),
+                    kind,
+                    current_body: "old text".into(),
+                },
+                body: "updated text".into(),
+            };
+            let (mutation, variables) =
+                action_mutation("unused-subject", ResourceKind::PullRequest, &action);
+            assert!(
+                mutation.contains(expected),
+                "expected `{expected}` for {kind:?}: {mutation}"
+            );
+            assert_eq!(variables["id"], "NODE");
+            assert_eq!(variables["body"], "updated text");
         }
     }
 

@@ -74,6 +74,9 @@ fn apply_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
     if state.action_confirm.is_some() {
         return apply_action_confirm_key(state, key);
     }
+    if state.edit_picker.is_some() {
+        return apply_edit_picker_key(state, key);
+    }
     if state.action_menu.is_some() {
         return apply_action_menu_key(state, key);
     }
@@ -431,9 +434,15 @@ fn submit_composer_comment(state: &mut AppState) -> AppIntent {
         state.status_message = Some("an action is already in flight".into());
         return AppIntent::None;
     }
-    AppIntent::SubmitAction(ResourceAction::Comment {
-        body: composer.body(),
-    })
+    let body = composer.body();
+    let action = match &state.composer_target {
+        Some(target) => ResourceAction::Edit {
+            target: target.clone(),
+            body,
+        },
+        None => ResourceAction::Comment { body },
+    };
+    AppIntent::SubmitAction(action)
 }
 
 fn apply_action_menu_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
@@ -475,6 +484,7 @@ fn activate_action_by_shortcut(state: &mut AppState, ch: char) -> AppIntent {
         .unwrap_or_default();
     let kind = match ch {
         'c' => Some(ActionKind::Comment),
+        'e' => Some(ActionKind::Edit),
         'm' => Some(ActionKind::Merge),
         'x' => Some(ActionKind::Close),
         'o' => Some(ActionKind::Reopen),
@@ -489,9 +499,57 @@ fn activate_action_by_shortcut(state: &mut AppState, ch: char) -> AppIntent {
 fn activate_action_kind(state: &mut AppState, kind: ActionKind) -> AppIntent {
     match kind {
         ActionKind::Comment => state.open_comment_composer(),
+        ActionKind::Edit => state.open_edit_picker(),
         ActionKind::Close | ActionKind::Reopen | ActionKind::Merge => {
             state.open_action_confirm(kind)
         }
+    }
+    AppIntent::None
+}
+
+fn apply_edit_picker_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') if is_plain_shortcut(key) => {
+            state.close_edit_picker();
+            AppIntent::None
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.close_edit_picker();
+            AppIntent::None
+        }
+        KeyCode::Up | KeyCode::Char('k') if is_plain_shortcut(key) => {
+            state.move_edit_picker_selection(-1);
+            AppIntent::None
+        }
+        KeyCode::Down | KeyCode::Char('j') if is_plain_shortcut(key) => {
+            state.move_edit_picker_selection(1);
+            AppIntent::None
+        }
+        KeyCode::Char(ch @ '1'..='9') if is_plain_shortcut(key) => {
+            state.select_edit_choice(ch as usize - '1' as usize);
+            AppIntent::None
+        }
+        KeyCode::Enter if is_plain_shortcut(key) => activate_selected_edit_choice(state),
+        _ => AppIntent::None,
+    }
+}
+
+fn activate_selected_edit_choice(state: &mut AppState) -> AppIntent {
+    if let Some(target) = state.selected_edit_target() {
+        state.open_edit_composer(target);
+    }
+    AppIntent::None
+}
+
+fn activate_edit_for_entry(state: &mut AppState, node_id: &str) -> AppIntent {
+    let target = state
+        .resource
+        .activity
+        .iter()
+        .filter_map(|entry| entry.edit.clone())
+        .find(|target| target.node_id == node_id);
+    if let Some(target) = target {
+        state.open_edit_composer(target);
     }
     AppIntent::None
 }
@@ -739,6 +797,7 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
             state.close_quit_confirmation();
             state.close_action_menu();
             state.close_action_confirm();
+            state.close_edit_picker();
             AppIntent::None
         }
         HitTarget::OpenActionMenu => {
@@ -758,6 +817,17 @@ fn apply_target(state: &mut AppState, target: HitTarget) -> AppIntent {
         HitTarget::ConfirmAction => submit_confirmed_action(state),
         HitTarget::CancelAction => {
             state.close_action_confirm();
+            AppIntent::None
+        }
+        HitTarget::EditPickerItem(index) => {
+            state.select_edit_choice(index);
+            activate_selected_edit_choice(state)
+        }
+        HitTarget::EditActivityEntry { node_id } => activate_edit_for_entry(state, &node_id),
+        HitTarget::EditResourceBody => {
+            if let Some(target) = crate::domain::body_edit_target(&state.resource) {
+                state.open_edit_composer(target);
+            }
             AppIntent::None
         }
         HitTarget::SelectMergeMethod(index) => {
@@ -954,6 +1024,7 @@ mod tests {
 
     fn activity_entry(id: &str, url: &str) -> ActivityEntry {
         ActivityEntry {
+            edit: None,
             id: id.into(),
             kind: ActivityKind::Comment,
             author: "alice".into(),
@@ -2640,7 +2711,10 @@ mod tests {
         let intent = press(&mut state, KeyCode::Char('A'));
         assert_eq!(intent, AppIntent::None);
         let menu = state.action_menu.as_ref().expect("action menu open");
-        assert_eq!(menu.actions, vec![ActionKind::Comment, ActionKind::Close]);
+        assert_eq!(
+            menu.actions,
+            vec![ActionKind::Comment, ActionKind::Edit, ActionKind::Close]
+        );
     }
 
     #[test]
@@ -2658,6 +2732,7 @@ mod tests {
     fn action_menu_arrows_move_and_enter_opens_close_confirm() {
         let mut state = actionable_issue_state();
         press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Down);
         press(&mut state, KeyCode::Down);
         let intent = press(&mut state, KeyCode::Enter);
         assert_eq!(intent, AppIntent::None);
@@ -2834,7 +2909,7 @@ mod tests {
         let mut state = actionable_issue_state();
         apply_event(&mut state, AppEvent::Activate(HitTarget::OpenActionMenu));
         assert!(state.action_menu.is_some());
-        apply_event(&mut state, AppEvent::Activate(HitTarget::ActionMenuItem(1)));
+        apply_event(&mut state, AppEvent::Activate(HitTarget::ActionMenuItem(2)));
         assert_eq!(
             state.action_confirm.as_ref().map(|confirm| confirm.kind),
             Some(ActionKind::Close)
@@ -3335,5 +3410,150 @@ mod tests {
         );
         assert_eq!(state.scroll, content_scroll);
         assert_eq!(state.comment_composer.as_ref().map(|c| c.scroll), Some(3));
+    }
+
+    fn state_with_editable_comment() -> AppState {
+        let mut state = actionable_issue_state();
+        state.resource.body = "original description".into();
+        state.resource.activity.push(crate::domain::ActivityEntry {
+            id: "IC_1".into(),
+            edit: Some(crate::domain::EditTarget {
+                node_id: "IC_1".into(),
+                kind: crate::domain::EditKind::IssueComment,
+                current_body: "my comment".into(),
+            }),
+            kind: crate::domain::ActivityKind::Comment,
+            author: "me".into(),
+            body: "my comment".into(),
+            updated_at: "now".into(),
+            path: None,
+            line: None,
+            url: None,
+            author_association: None,
+            reactions: Default::default(),
+            includes_created_edit: false,
+            is_minimized: false,
+            minimized_reason: None,
+            thread_id: None,
+            thread_resolved: None,
+            thread_outdated: None,
+        });
+        state
+    }
+
+    #[test]
+    fn menu_edit_shortcut_opens_the_picker() {
+        let mut state = state_with_editable_comment();
+        press(&mut state, KeyCode::Char('A'));
+        press(&mut state, KeyCode::Char('e'));
+        let picker = state.edit_picker.as_ref().expect("picker open");
+        assert_eq!(picker.choices.len(), 2);
+        assert_eq!(picker.choices[0].label, "Description");
+        assert!(picker.choices[1].label.starts_with("me: my comment"));
+    }
+
+    #[test]
+    fn picker_enter_opens_a_prefilled_edit_composer() {
+        let mut state = state_with_editable_comment();
+        state.open_edit_picker();
+        press(&mut state, KeyCode::Down);
+        press(&mut state, KeyCode::Enter);
+        assert!(state.edit_picker.is_none());
+        assert_eq!(composer_body(&state), "my comment");
+        assert_eq!(
+            state.composer_target.as_ref().map(|t| t.node_id.clone()),
+            Some("IC_1".into())
+        );
+    }
+
+    #[test]
+    fn picker_numbers_select_and_modified_keys_are_ignored() {
+        let mut state = state_with_editable_comment();
+        state.open_edit_picker();
+        press(&mut state, KeyCode::Char('2'));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(1));
+        let alt = |code| AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT));
+        apply_event(&mut state, alt(KeyCode::Char('1')));
+        assert_eq!(
+            state.edit_picker.as_ref().map(|p| p.selected),
+            Some(1),
+            "alt-1 must not move the picker selection"
+        );
+        apply_event(&mut state, alt(KeyCode::Char('k')));
+        assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(1));
+        apply_event(&mut state, alt(KeyCode::Enter));
+        assert!(
+            state.edit_picker.is_some(),
+            "alt-enter must not activate a picker choice"
+        );
+        press(&mut state, KeyCode::Esc);
+        assert!(state.edit_picker.is_none());
+    }
+
+    #[test]
+    fn edit_composer_submits_an_edit_action() {
+        let mut state = state_with_editable_comment();
+        state.open_edit_picker();
+        press(&mut state, KeyCode::Down);
+        press(&mut state, KeyCode::Enter);
+        press(&mut state, KeyCode::Char('!'));
+        let intent = press_ctrl(&mut state, 's');
+        assert_eq!(
+            intent,
+            AppIntent::SubmitAction(ResourceAction::Edit {
+                target: crate::domain::EditTarget {
+                    node_id: "IC_1".into(),
+                    kind: crate::domain::EditKind::IssueComment,
+                    current_body: "my comment".into(),
+                },
+                body: "my comment!".into(),
+            })
+        );
+    }
+
+    #[test]
+    fn inline_edit_targets_open_the_right_composer() {
+        let mut state = state_with_editable_comment();
+        apply_event(
+            &mut state,
+            AppEvent::Activate(HitTarget::EditActivityEntry {
+                node_id: "IC_1".into(),
+            }),
+        );
+        assert_eq!(composer_body(&state), "my comment");
+        state.close_comment_composer();
+
+        apply_event(&mut state, AppEvent::Activate(HitTarget::EditResourceBody));
+        assert_eq!(composer_body(&state), "original description");
+        assert_eq!(
+            state.composer_target.as_ref().map(|t| t.kind),
+            Some(crate::domain::EditKind::IssueBody)
+        );
+    }
+
+    #[test]
+    fn cancelling_an_edit_clears_the_target() {
+        let mut state = state_with_editable_comment();
+        apply_event(&mut state, AppEvent::Activate(HitTarget::EditResourceBody));
+        press(&mut state, KeyCode::Esc);
+        press(&mut state, KeyCode::Esc);
+        assert!(state.comment_composer.is_none());
+        assert!(state.composer_target.is_none());
+    }
+
+    #[test]
+    fn edit_draft_is_frozen_while_saving() {
+        let mut state = state_with_editable_comment();
+        apply_event(&mut state, AppEvent::Activate(HitTarget::EditResourceBody));
+        state.pending_action = Some(ResourceAction::Edit {
+            target: crate::domain::EditTarget {
+                node_id: "I_node".into(),
+                kind: crate::domain::EditKind::IssueBody,
+                current_body: "original description".into(),
+            },
+            body: "original description".into(),
+        });
+        press(&mut state, KeyCode::Char('!'));
+        assert_eq!(composer_body(&state), "original description");
     }
 }

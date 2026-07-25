@@ -545,6 +545,9 @@ pub struct PullRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivityEntry {
     pub id: String,
+    /// Present when the viewer may edit this entry (GraphQL viewerCanUpdate).
+    #[serde(default)]
+    pub edit: Option<crate::domain::action::EditTarget>,
     #[serde(default)]
     pub kind: ActivityKind,
     pub author: String,
@@ -913,6 +916,7 @@ mod tests {
             reactions: ReactionCounts::default(),
             body: "body".into(),
             activity: vec![ActivityEntry {
+                edit: None,
                 id: "comment".into(),
                 kind: ActivityKind::Comment,
                 author: "bob".into(),
