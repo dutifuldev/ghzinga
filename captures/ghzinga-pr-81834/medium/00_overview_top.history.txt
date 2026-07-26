@@ -12,7 +12,7 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
   📝 @KLilyZ opened 2mo ago                                                                                             
-  [edit]                                                                                                                
+  [✏ edit]                                                                                                              
   Summary                                                                                                               
                                                                                                                         
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
