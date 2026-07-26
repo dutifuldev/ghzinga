@@ -245,6 +245,8 @@ pub fn render_app(frame: &mut Frame<'_>, state: &mut AppState) {
         render_comment_composer_modal(frame, rects.area, state, &palette);
     } else if state.action_confirm.is_some() {
         render_action_confirm_modal(frame, rects.area, state, &palette);
+    } else if state.edit_picker.is_some() {
+        render_edit_picker_modal(frame, rects.area, state, &palette);
     } else if state.action_menu.is_some() {
         render_action_menu_modal(frame, rects.area, state, &palette);
     }
@@ -371,6 +373,7 @@ fn modal_hint_line(text: &str, palette: &Palette) -> Line<'static> {
 fn action_kind_shortcut(kind: ActionKind) -> char {
     match kind {
         ActionKind::Comment => 'c',
+        ActionKind::Edit => 'e',
         ActionKind::Merge => 'm',
         ActionKind::Close => 'x',
         ActionKind::Reopen => 'o',
@@ -424,6 +427,79 @@ fn render_action_menu_modal(
         "up/down move  enter select  esc close",
         palette,
     ));
+    Paragraph::new(rows)
+        .style(Style::default().fg(palette.text).bg(palette.surface0))
+        .render(inner, frame.buffer_mut());
+}
+
+fn render_edit_picker_modal(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &mut AppState,
+    palette: &Palette,
+) {
+    let Some(picker) = state.edit_picker.clone() else {
+        return;
+    };
+    let height = (picker.choices.len() as u16).saturating_add(4);
+    let Some(inner) = open_action_modal_frame(
+        frame,
+        area,
+        state,
+        palette,
+        (40, 70),
+        (height, height),
+        palette.accent,
+    ) else {
+        return;
+    };
+    // The modal may be clamped by the terminal; window the choices so the
+    // selection is always drawn and every drawn row is clickable.
+    let visible = usize::from(inner.height.saturating_sub(2)).max(1);
+    let window_start = picker
+        .selected
+        .saturating_add(1)
+        .saturating_sub(visible)
+        .min(picker.choices.len().saturating_sub(visible));
+    let mut rows = vec![modal_title_line("Edit what?".to_string(), palette)];
+    for (offset, (index, choice)) in picker
+        .choices
+        .iter()
+        .enumerate()
+        .skip(window_start)
+        .take(visible)
+        .enumerate()
+    {
+        let hint = if index < 9 {
+            format!("{}", index + 1)
+        } else {
+            " ".to_string()
+        };
+        let label = format!(" {:<60}{hint} ", choice.label);
+        let style = if index == picker.selected {
+            Style::default()
+                .fg(palette.panel_bg)
+                .bg(palette.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(palette.text).bg(palette.surface0)
+        };
+        rows.push(Line::from(Span::styled(
+            fit_label_to_width(&label, inner.width),
+            style,
+        )));
+        let row_y = inner.y.saturating_add(1).saturating_add(offset as u16);
+        state.hit_areas.push(HitArea::new(
+            Rect::new(inner.x, row_y, inner.width, 1),
+            HitTarget::EditPickerItem(index),
+        ));
+    }
+    let position_hint = format!(
+        "{}/{}  up/down move  enter edit  esc close",
+        picker.selected + 1,
+        picker.choices.len()
+    );
+    rows.push(modal_hint_line(&position_hint, palette));
     Paragraph::new(rows)
         .style(Style::default().fg(palette.text).bg(palette.surface0))
         .render(inner, frame.buffer_mut());
@@ -535,7 +611,20 @@ fn render_comment_composer_modal(
     state: &mut AppState,
     palette: &Palette,
 ) {
-    let title = format!("Comment on {}", state.resource.id.canonical_name());
+    let title = match &state.composer_target {
+        Some(target)
+            if crate::domain::body_edit_target(&state.resource).as_ref() == Some(target) =>
+        {
+            format!("Edit description of {}", state.resource.id.canonical_name())
+        }
+        Some(_) => format!("Edit comment on {}", state.resource.id.canonical_name()),
+        None => format!("Comment on {}", state.resource.id.canonical_name()),
+    };
+    let submit_label = if state.composer_target.is_some() {
+        "[save  ctrl+s]"
+    } else {
+        "[comment  ctrl+s]"
+    };
     let posting = state.composer_is_posting();
     let Some(inner) = open_action_modal_frame(
         frame,
@@ -573,7 +662,7 @@ fn render_comment_composer_modal(
     rows.push(composer_hint_line(layout.confirm_discard, posting, palette));
     let buttons = vec![
         (
-            "[comment  ctrl+s]".to_string(),
+            submit_label.to_string(),
             HitTarget::ComposerSubmit,
             ModalButtonTone::Primary,
         ),
@@ -2511,6 +2600,13 @@ fn push_body_timeline_rows(
         ),
         heading_style(palette),
     ));
+    if crate::domain::body_edit_target(resource).is_some() {
+        rows.push(ContentRow::target_styled(
+            "[edit]",
+            HitTarget::EditResourceBody,
+            link_style(palette),
+        ));
+    }
     if resource.body.trim().is_empty() {
         rows.push(ContentRow::styled(
             "No description provided.",
@@ -2608,6 +2704,9 @@ fn push_activity_timeline_rows(
     if let Some(url) = &entry.url {
         rows.push(activity_detail_row(url, resource, palette));
     }
+    if let Some(edit_row) = activity_edit_row(entry, palette) {
+        rows.push(edit_row);
+    }
     if expanded {
         if let Some(url) = &entry.url {
             rows.push(linkable_text_row(format!("url: {url}"), resource));
@@ -2645,6 +2744,19 @@ fn activity_detail_row(url: &str, resource: &Resource, palette: &Palette) -> Con
         .map(|(_display, target)| target)
         .unwrap_or_else(|| HitTarget::OpenUrl(url.to_string()));
     ContentRow::target_styled("[details]", target, link_style(palette))
+}
+
+/// A standalone clickable row offered on entries the viewer may edit.
+fn activity_edit_row(entry: &ActivityEntry, palette: &Palette) -> Option<ContentRow> {
+    entry.edit.as_ref().map(|target| {
+        ContentRow::target_styled(
+            "[edit]",
+            HitTarget::EditActivityEntry {
+                node_id: target.node_id.clone(),
+            },
+            link_style(palette),
+        )
+    })
 }
 
 fn activity_heading_style(entry: &ActivityEntry, palette: &Palette) -> Style {
@@ -2726,6 +2838,9 @@ fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<C
         let expanded = can_expand && state.block_expanded(&block);
         if let Some(url) = &entry.url {
             rows.push(activity_detail_row(url, &state.resource, palette));
+        }
+        if let Some(edit_row) = activity_edit_row(entry, palette) {
+            rows.push(edit_row);
         }
         if expanded {
             if let Some(url) = &entry.url {
@@ -3923,6 +4038,7 @@ mod tests {
             body: "## Summary\nProblem: senseaudio has ASR but no TTS.\nWhat changed: registers a speechProvider."
                 .into(),
             activity: vec![ActivityEntry {
+                edit: None,
                 id: "c1".into(),
                 kind: ActivityKind::Comment,
                 author: "github-actions".into(),
@@ -6851,6 +6967,7 @@ mod tests {
         let mut resource = pr_resource();
         resource.activity = vec![
             ActivityEntry {
+                edit: None,
                 id: "r1-c1".into(),
                 kind: ActivityKind::ReviewComment,
                 author: "alice".into(),
@@ -6869,6 +6986,7 @@ mod tests {
                 thread_outdated: Some(true),
             },
             ActivityEntry {
+                edit: None,
                 id: "r1-c2".into(),
                 kind: ActivityKind::ReviewComment,
                 author: "bob".into(),
@@ -6887,6 +7005,7 @@ mod tests {
                 thread_outdated: Some(false),
             },
             ActivityEntry {
+                edit: None,
                 id: "r2-c1".into(),
                 kind: ActivityKind::ReviewComment,
                 author: "alice".into(),
@@ -7367,7 +7486,7 @@ mod tests {
             row.contains("Comment"),
             "menu row text must sit on its hit area: {row}"
         );
-        let hint_row = draw_row_text(&mut state, 120, 36, (36 - 7) / 2 + 5);
+        let hint_row = draw_row_text(&mut state, 120, 36, (36 - 8) / 2 + 6);
         assert!(
             hint_row.contains("up/down move"),
             "hint must sit on the last inner row: {hint_row}"
@@ -7379,7 +7498,7 @@ mod tests {
     fn action_menu_highlights_only_the_selected_row() {
         let mut state = actionable_pr_state();
         state.open_action_menu();
-        state.move_action_menu_selection(1);
+        state.move_action_menu_selection(2);
         let palette = state.theme.palette();
         draw_actionable(&mut state);
         assert_eq!(
@@ -7533,5 +7652,216 @@ mod tests {
         state.cancel_comment_composer();
         let content = draw_actionable(&mut state);
         assert!(content.contains("press esc again to discard this comment"));
+    }
+
+    fn editable_pr_state() -> AppState {
+        let mut state = actionable_pr_state();
+        state.resource.body = "the description".into();
+        if let Some(entry) = state.resource.activity.first_mut() {
+            entry.edit = Some(crate::domain::EditTarget {
+                node_id: "IC_9".into(),
+                kind: crate::domain::EditKind::IssueComment,
+                current_body: entry.body.clone(),
+            });
+        }
+        state
+    }
+
+    #[test]
+    fn edit_rows_appear_only_where_the_viewer_may_edit() {
+        let mut state = AppState::new(pr_resource());
+        let content = draw_actionable(&mut state);
+        assert!(!content.contains("[edit]"));
+
+        let mut state = editable_pr_state();
+        draw_actionable(&mut state);
+        assert!(state
+            .hit_areas
+            .iter()
+            .any(|area| area.target == HitTarget::EditResourceBody));
+        let intent =
+            click_rendered_target(&mut state, |target| *target == HitTarget::EditResourceBody);
+        assert_eq!(intent, AppIntent::None);
+        assert_eq!(
+            state
+                .comment_composer
+                .as_ref()
+                .map(|composer| composer.body()),
+            Some("the description".into())
+        );
+    }
+
+    #[test]
+    fn activity_edit_row_opens_the_entry_composer() {
+        let mut state = editable_pr_state();
+        state.set_tab(crate::app::Tab::Activity);
+        draw_actionable(&mut state);
+        let intent = click_rendered_target(&mut state, |target| {
+            matches!(target, HitTarget::EditActivityEntry { .. })
+        });
+        assert_eq!(intent, AppIntent::None);
+        assert!(state.comment_composer.is_some());
+        assert_eq!(
+            state.composer_target.as_ref().map(|t| t.node_id.clone()),
+            Some("IC_9".into())
+        );
+    }
+
+    #[test]
+    fn edit_picker_modal_lists_choices_and_click_edits() {
+        let mut state = editable_pr_state();
+        state.open_edit_picker();
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Edit what?"));
+        assert!(content.contains("Description"));
+        click_rendered_target(&mut state, |target| *target == HitTarget::EditPickerItem(0));
+        assert!(state.edit_picker.is_none());
+        assert_eq!(
+            state
+                .comment_composer
+                .as_ref()
+                .map(|composer| composer.body()),
+            Some("the description".into())
+        );
+    }
+
+    #[test]
+    fn edit_composer_shows_edit_title_and_save_button() {
+        let mut state = editable_pr_state();
+        apply_event(&mut state, AppEvent::Activate(HitTarget::EditResourceBody));
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Edit description of openclaw/openclaw#81834"));
+        assert!(content.contains("[save  ctrl+s]"));
+        assert!(!content.contains("[comment  ctrl+s]"));
+    }
+
+    #[test]
+    fn edit_picker_windows_long_lists_around_the_selection() {
+        let mut state = editable_pr_state();
+        for n in 0..30 {
+            state.resource.activity.push(crate::domain::ActivityEntry {
+                id: format!("IC_{n}"),
+                edit: Some(crate::domain::EditTarget {
+                    node_id: format!("IC_{n}"),
+                    kind: crate::domain::EditKind::IssueComment,
+                    current_body: format!("comment {n}"),
+                }),
+                kind: crate::domain::ActivityKind::Comment,
+                author: "me".into(),
+                body: format!("comment {n}"),
+                updated_at: "now".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: Default::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            });
+        }
+        state.open_edit_picker();
+        let total = state
+            .edit_picker
+            .as_ref()
+            .map(|picker| picker.choices.len())
+            .expect("picker open");
+        for _ in 0..total {
+            state.move_edit_picker_selection(1);
+        }
+        let content = draw(&mut state, 100, 20);
+        assert!(
+            content.contains(&format!("{total}/{total}")),
+            "position hint must show the selection"
+        );
+        let last = rendered_target_rect(&state, |target| {
+            *target == HitTarget::EditPickerItem(total - 1)
+        })
+        .expect("selected choice stays clickable in the window");
+        let row = draw_row_text(&mut state, 100, 20, last.y);
+        assert!(
+            row.contains("comment 29"),
+            "windowed row text must sit on its hit area: {row}"
+        );
+        assert!(
+            !state
+                .hit_areas
+                .iter()
+                .any(|area| area.target == HitTarget::EditPickerItem(0)),
+            "choices scrolled out of the window are not clickable"
+        );
+    }
+
+    #[test]
+    fn picker_digit_hints_stop_after_nine_and_selection_is_highlighted() {
+        let palette = ThemeName::Default.palette();
+        let mut state = editable_pr_state();
+        for n in 0..10 {
+            state.resource.activity.push(crate::domain::ActivityEntry {
+                id: format!("HINT_{n}"),
+                edit: Some(crate::domain::EditTarget {
+                    node_id: format!("HINT_{n}"),
+                    kind: crate::domain::EditKind::IssueComment,
+                    current_body: format!("hinted {n}"),
+                }),
+                kind: crate::domain::ActivityKind::Comment,
+                author: "me".into(),
+                body: format!("hinted {n}"),
+                updated_at: "now".into(),
+                path: None,
+                line: None,
+                url: None,
+                author_association: None,
+                reactions: Default::default(),
+                includes_created_edit: false,
+                is_minimized: false,
+                minimized_reason: None,
+                thread_id: None,
+                thread_resolved: None,
+                thread_outdated: None,
+            });
+        }
+        state.open_edit_picker();
+        draw(&mut state, 100, 30);
+        let ninth = rendered_target_rect(&state, |target| *target == HitTarget::EditPickerItem(8))
+            .expect("ninth choice");
+        let hint_column = 61;
+        let ninth_row = draw_row_text(&mut state, 100, 30, ninth.y);
+        let ninth_inner = ninth_row.rsplit('\u{2502}').nth(1).unwrap_or("");
+        assert_eq!(
+            ninth_inner.chars().nth(hint_column),
+            Some('9'),
+            "the ninth choice shows its digit hint: {ninth_row}"
+        );
+        let tenth = rendered_target_rect(&state, |target| *target == HitTarget::EditPickerItem(9))
+            .expect("tenth choice");
+        let tenth_row = draw_row_text(&mut state, 100, 30, tenth.y);
+        let tenth_inner = tenth_row.rsplit('\u{2502}').nth(1).unwrap_or("");
+        assert_eq!(
+            tenth_inner.chars().nth(hint_column),
+            Some(' '),
+            "choices past nine have no digit hint: {tenth_row}"
+        );
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 100, 30, "Description", 0),
+            Some(palette.accent),
+            "the selected picker row is highlighted"
+        );
+    }
+
+    #[test]
+    fn comment_edits_use_the_comment_title() {
+        let mut state = editable_pr_state();
+        state.set_tab(crate::app::Tab::Activity);
+        draw_actionable(&mut state);
+        click_rendered_target(&mut state, |target| {
+            matches!(target, HitTarget::EditActivityEntry { .. })
+        });
+        let content = draw_actionable(&mut state);
+        assert!(content.contains("Edit comment on openclaw/openclaw#81834"));
+        assert!(!content.contains("Edit description of"));
     }
 }

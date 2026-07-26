@@ -1060,6 +1060,7 @@ fn rest_pr_metadata(pr: &RestPullDto) -> Vec<MetadataItem> {
 fn rest_comment_activity((index, comment): (usize, RestCommentDto)) -> ActivityEntry {
     let includes_created_edit = comment.updated_at != comment.created_at;
     ActivityEntry {
+        edit: None,
         id: format!("rest-comment-{}", comment.id),
         kind: ActivityKind::Comment,
         author: display_rest_author(comment.user),
@@ -1093,6 +1094,7 @@ fn rest_review_activity((index, review): (usize, RestReviewDto)) -> ActivityEntr
         format!("{state}: {body}")
     };
     ActivityEntry {
+        edit: None,
         id: format!("rest-review-{}", review.id),
         kind: ActivityKind::Review,
         author: display_rest_author(review.user),
@@ -1115,6 +1117,7 @@ fn rest_review_activity((index, review): (usize, RestReviewDto)) -> ActivityEntr
 fn rest_review_comment_activity((index, comment): (usize, RestReviewCommentDto)) -> ActivityEntry {
     let includes_created_edit = comment.updated_at != comment.created_at;
     ActivityEntry {
+        edit: None,
         id: format!("rest-review-comment-{}", comment.id),
         kind: ActivityKind::ReviewComment,
         author: display_rest_author(comment.user),
@@ -1152,6 +1155,7 @@ fn rest_timeline_event_activity(
     }
     let body = rest_timeline_event_body(event_name, &event);
     Some(ActivityEntry {
+        edit: None,
         id: format!(
             "rest-timeline-{}",
             event

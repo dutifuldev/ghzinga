@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 
 use crate::domain::{
     ActionContext, ActivityEntry, ActivityKind, ChangedFile, CheckRun, CheckStatus, Commit,
-    Deployment, MergeMethod, MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId,
-    ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
+    Deployment, EditKind, MergeMethod, MetadataItem, PullRequest, ReactionCounts, Resource,
+    ResourceId, ResourceKind, FILE_PATCH_CONTEXT_UNAVAILABLE_WARNING, FULL_DEPTH_WARNING_HINT,
 };
 use crate::github::transport::{run_graphql_query, run_rest_get, GITHUB_GRAPHQL_URL};
 use crate::github::{
@@ -1153,6 +1153,8 @@ struct TotalCountDto {
 #[serde(rename_all = "camelCase")]
 struct CommentDto {
     id: Option<String>,
+    #[serde(default)]
+    viewer_can_update: bool,
     author: Option<UserDto>,
     author_association: Option<String>,
     body: String,
@@ -1202,6 +1204,8 @@ struct CommentsConnection {
 #[serde(rename_all = "camelCase")]
 struct ReviewDto {
     id: Option<String>,
+    #[serde(default)]
+    viewer_can_update: bool,
     author: Option<UserDto>,
     author_association: Option<String>,
     body: Option<String>,
@@ -1340,6 +1344,8 @@ struct CommitCommentThreadCommentsConnection {
 #[serde(rename_all = "camelCase")]
 struct ReviewThreadCommentDto {
     id: Option<String>,
+    #[serde(default)]
+    viewer_can_update: bool,
     author: Option<UserDto>,
     author_association: Option<String>,
     body: String,
@@ -3045,11 +3051,35 @@ fn reaction_counts_from_value(value: Option<&Value>) -> ReactionCounts {
         .unwrap_or_default()
 }
 
+/// Editable objects need a real GraphQL node id and server-side permission;
+/// everything else renders read-only.
+fn edit_target_for(
+    node_id: &Option<String>,
+    viewer_can_update: bool,
+    kind: EditKind,
+    current_body: &str,
+) -> Option<crate::domain::EditTarget> {
+    match node_id {
+        Some(id) if viewer_can_update => Some(crate::domain::EditTarget {
+            node_id: id.clone(),
+            kind,
+            current_body: current_body.to_string(),
+        }),
+        _ => None,
+    }
+}
+
 fn comments_to_activity(comments: Vec<CommentDto>) -> Vec<ActivityEntry> {
     comments
         .into_iter()
         .enumerate()
         .map(|(index, comment)| ActivityEntry {
+            edit: edit_target_for(
+                &comment.id,
+                comment.viewer_can_update,
+                EditKind::IssueComment,
+                &comment.body,
+            ),
             id: comment.id.unwrap_or_else(|| format!("comment-{index}")),
             kind: ActivityKind::Comment,
             author: display_author(comment.author),
@@ -4052,6 +4082,12 @@ fn review_thread_to_activity(thread: ReviewThreadDto) -> Vec<ActivityEntry> {
     let mut entries = Vec::new();
     for comment in thread.comments.nodes {
         entries.push(ActivityEntry {
+            edit: edit_target_for(
+                &comment.id,
+                comment.viewer_can_update,
+                EditKind::ReviewComment,
+                &comment.body,
+            ),
             id: comment.id.unwrap_or_else(|| {
                 format!(
                     "review-comment-{}-{}",
@@ -4176,6 +4212,7 @@ fn commit_comment_thread_to_activity(index: usize, node: &Value) -> Vec<Activity
                 format!("on commit {commit}\n{comment_body}")
             };
             ActivityEntry {
+                edit: None,
                 id: string_field(comment, "id")
                     .map(str::to_string)
                     .unwrap_or_else(|| format!("commit-comment-{index}-{comment_index}")),
@@ -4208,6 +4245,7 @@ fn commit_comment_thread_to_activity(index: usize, node: &Value) -> Vec<Activity
 
 fn empty_commit_comment_thread(index: usize, node: &Value, commit: &str) -> ActivityEntry {
     ActivityEntry {
+        edit: None,
         id: string_field(node, "id")
             .map(str::to_string)
             .unwrap_or_else(|| format!("commit-comment-thread-{index}")),
@@ -4237,6 +4275,7 @@ fn timeline_node_to_activity(index: usize, node: &Value) -> ActivityEntry {
         .map(str::to_string)
         .unwrap_or_else(|| "unknown".to_string());
     ActivityEntry {
+        edit: None,
         id: string_field(node, "id")
             .map(str::to_string)
             .unwrap_or_else(|| synthetic_timeline_id(index, typename, &updated_at, &author, &body)),
@@ -4763,13 +4802,19 @@ fn reviews_to_activity(reviews: Vec<ReviewDto>) -> Vec<ActivityEntry> {
         .enumerate()
         .map(|(index, review)| {
             let state = review.state.unwrap_or_else(|| "REVIEW".to_string());
-            let body = review.body.unwrap_or_default();
-            let body = if body.trim().is_empty() {
+            let raw_body = review.body.unwrap_or_default();
+            let body = if raw_body.trim().is_empty() {
                 state.clone()
             } else {
-                format!("{state}: {body}")
+                format!("{state}: {raw_body}")
             };
             ActivityEntry {
+                edit: edit_target_for(
+                    &review.id,
+                    review.viewer_can_update,
+                    EditKind::Review,
+                    &raw_body,
+                ),
                 id: review.id.unwrap_or_else(|| format!("review-{index}")),
                 kind: ActivityKind::Review,
                 author: display_author(review.author),
@@ -6208,6 +6253,7 @@ mod tests {
                                 end_cursor: Some("comment-cursor-2".into()),
                             },
                             nodes: vec![CommentDto {
+                                viewer_can_update: false,
                                 id: Some("comment-1".into()),
                                 author: Some(UserDto {
                                     login: Some("alice".into()),
@@ -6262,6 +6308,7 @@ mod tests {
                                 end_cursor: Some("review-cursor-2".into()),
                             },
                             nodes: vec![ReviewDto {
+                                viewer_can_update: false,
                                 id: Some("review-1".into()),
                                 author: Some(UserDto {
                                     login: Some("bob".into()),
@@ -6318,6 +6365,7 @@ mod tests {
             body: "body".into(),
             activity: vec![
                 ActivityEntry {
+                    edit: None,
                     id: "old-comment".into(),
                     kind: ActivityKind::Comment,
                     author: "alice".into(),
@@ -6336,6 +6384,7 @@ mod tests {
                     thread_outdated: None,
                 },
                 ActivityEntry {
+                    edit: None,
                     id: "review".into(),
                     kind: ActivityKind::Review,
                     author: "bob".into(),
@@ -6363,6 +6412,7 @@ mod tests {
         replace_comment_activity(
             &mut resource,
             vec![ActivityEntry {
+                edit: None,
                 id: "new-comment".into(),
                 kind: ActivityKind::Comment,
                 author: "carol".into(),
@@ -6398,6 +6448,7 @@ mod tests {
     fn replace_review_activity_keeps_comments_review_comments_and_timeline() {
         fn activity(id: &str, kind: ActivityKind) -> ActivityEntry {
             ActivityEntry {
+                edit: None,
                 id: id.into(),
                 kind,
                 author: "alice".into(),
@@ -7664,6 +7715,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
     fn pr_activity_includes_reviews_with_state() {
         let activity = pr_activity(
             vec![CommentDto {
+                viewer_can_update: false,
                 id: Some("comment".into()),
                 author: Some(UserDto {
                     login: Some("alice".into()),
@@ -7683,6 +7735,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
                 }],
             }],
             vec![ReviewDto {
+                viewer_can_update: false,
                 id: Some("review".into()),
                 author: Some(UserDto {
                     login: Some("bob".into()),
@@ -7736,6 +7789,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         end_cursor: None,
                                     },
                                     nodes: vec![ReviewThreadCommentDto {
+                                        viewer_can_update: false,
                                         id: Some("review-comment".into()),
                                         author: Some(UserDto {
                                             login: Some("reviewer".into()),
@@ -7801,6 +7855,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
                                         end_cursor: None,
                                     },
                                     nodes: vec![ReviewThreadCommentDto {
+                                        viewer_can_update: false,
                                         id: Some("review-comment-2".into()),
                                         author: Some(UserDto {
                                             login: Some("maintainer".into()),
@@ -7847,6 +7902,7 @@ diff --git a/docs/two.md b/docs/two.md\n\
                             end_cursor: Some("comment-cursor-2".into()),
                         },
                         nodes: vec![ReviewThreadCommentDto {
+                            viewer_can_update: false,
                             id: Some("review-comment-3".into()),
                             author: Some(UserDto {
                                 login: Some("reviewer".into()),
@@ -8447,5 +8503,79 @@ diff --git a/docs/two.md b/docs/two.md\n\
         );
         let all_off = serde_json::json!({"data": {"repository": {}}});
         assert!(allowed_merge_methods_from_repository(&all_off).is_empty());
+    }
+
+    fn comment_dto_base() -> CommentDto {
+        CommentDto {
+            id: None,
+            viewer_can_update: false,
+            author: None,
+            author_association: None,
+            body: String::new(),
+            created_at: None,
+            updated_at: None,
+            url: None,
+            includes_created_edit: None,
+            is_minimized: None,
+            minimized_reason: None,
+            reaction_groups: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn comment_edit_targets_require_id_and_permission() {
+        let editable = CommentDto {
+            id: Some("IC_1".into()),
+            viewer_can_update: true,
+            body: "mine".into(),
+            ..comment_dto_base()
+        };
+        let readonly = CommentDto {
+            id: Some("IC_2".into()),
+            viewer_can_update: false,
+            body: "theirs".into(),
+            ..comment_dto_base()
+        };
+        let synthetic = CommentDto {
+            id: None,
+            viewer_can_update: true,
+            body: "orphan".into(),
+            ..comment_dto_base()
+        };
+
+        let entries = comments_to_activity(vec![editable, readonly, synthetic]);
+
+        let edit = entries[0].edit.as_ref().expect("editable comment");
+        assert_eq!(edit.node_id, "IC_1");
+        assert_eq!(edit.kind, EditKind::IssueComment);
+        assert_eq!(edit.current_body, "mine");
+        assert!(entries[1].edit.is_none(), "no permission, no edit target");
+        assert!(entries[2].edit.is_none(), "no node id, no edit target");
+    }
+
+    #[test]
+    fn review_edit_targets_carry_the_raw_body_not_the_display_body() {
+        let review = ReviewDto {
+            id: Some("PRR_1".into()),
+            viewer_can_update: true,
+            author: None,
+            author_association: None,
+            body: Some("looks good".into()),
+            state: Some("APPROVED".into()),
+            submitted_at: None,
+            updated_at: Some("2026-01-01T00:00:00Z".into()),
+            url: None,
+            reaction_groups: Vec::new(),
+        };
+
+        let entries = reviews_to_activity(vec![review]);
+
+        assert_eq!(entries[0].body, "APPROVED: looks good");
+        let edit = entries[0].edit.as_ref().expect("editable review");
+        assert_eq!(edit.kind, EditKind::Review);
+        assert_eq!(
+            edit.current_body, "looks good",
+            "editing must start from the raw review body, not the display prefix"
+        );
     }
 }

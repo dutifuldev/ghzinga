@@ -1,7 +1,10 @@
 pub mod action;
 pub mod resource;
 
-pub use action::{available_actions, ActionKind, MergeMethod, ResourceAction};
+pub use action::{
+    available_actions, body_edit_target, editable_targets, ActionKind, EditKind, EditTarget,
+    MergeMethod, ResourceAction,
+};
 pub use resource::{
     ActionContext, ActivityEntry, ActivityKind, ChangedFile, CheckCounts, CheckRun, CheckStatus,
     Commit, Deployment, MetadataItem, PullRequest, ReactionCounts, Resource, ResourceId,

@@ -110,6 +110,7 @@ query($owner: String!, $name: String!, $number: Int!) {
         pageInfo { hasNextPage }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -126,6 +127,7 @@ query($owner: String!, $name: String!, $number: Int!) {
         pageInfo { hasNextPage }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -189,6 +191,7 @@ query($owner: String!, $name: String!, $number: Int!) {
         pageInfo { hasNextPage }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -448,6 +451,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {{
         }}
         nodes {{
           id
+          viewerCanUpdate
           author {{ login }}
           authorAssociation
           body
@@ -552,6 +556,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
             }
             nodes {
               id
+              viewerCanUpdate
               author { login }
               authorAssociation
               body
@@ -589,6 +594,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
         }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -620,6 +626,7 @@ query($threadId: ID!, $after: String) {
         }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -655,6 +662,7 @@ query($threadId: ID!, $after: String) {
         }
         nodes {
           id
+          viewerCanUpdate
           author { login }
           authorAssociation
           body
@@ -817,6 +825,7 @@ pub(crate) fn timeline_query(kind: ResourceKind) -> String {
               }
               nodes {
                 id
+                viewerCanUpdate
                 author { login }
                 authorAssociation
                 body
@@ -1311,5 +1320,26 @@ fn selector(kind: ResourceKind) -> &'static str {
     match kind {
         ResourceKind::PullRequest => "pullRequest",
         ResourceKind::Issue => "issue",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn commit_comment_thread_comments_query_selects_the_expected_fields() {
+        let query = commit_comment_thread_comments_query();
+        for expected in [
+            "PullRequestCommitCommentThread",
+            "comments(first: 100, after: $after)",
+            "viewerCanUpdate",
+            "reactionGroups",
+        ] {
+            assert!(
+                query.contains(expected),
+                "commit comment paging query must select `{expected}`"
+            );
+        }
     }
 }

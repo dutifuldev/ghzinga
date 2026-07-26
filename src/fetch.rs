@@ -1949,4 +1949,71 @@ mod tests {
             "completion messages must not leak onto the navigated-to resource"
         );
     }
+
+    #[tokio::test]
+    async fn successful_edit_closes_its_composer_and_refreshes() {
+        let mut state = actionable_state();
+        let target = crate::domain::EditTarget {
+            node_id: "IC_1".into(),
+            kind: crate::domain::EditKind::IssueComment,
+            current_body: "old".into(),
+        };
+        state.open_edit_composer(target.clone());
+        if let Some(composer) = &mut state.comment_composer {
+            composer.insert_str(" text");
+        }
+        let action = ResourceAction::Edit {
+            target,
+            body: "old text".into(),
+        };
+        state.begin_action_submission(&action);
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Ok(()),
+        };
+
+        let application = deliver_outcome(&mut state, outcome);
+
+        assert!(application.refresh_started);
+        assert!(state.comment_composer.is_none());
+        assert!(state.composer_target.is_none());
+        assert_eq!(
+            state.status_message.as_deref(),
+            Some("edit saved, refreshing")
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_edit_keeps_the_draft_and_target() {
+        let mut state = actionable_state();
+        let target = crate::domain::EditTarget {
+            node_id: "IC_1".into(),
+            kind: crate::domain::EditKind::IssueComment,
+            current_body: "old".into(),
+        };
+        state.open_edit_composer(target.clone());
+        let action = ResourceAction::Edit {
+            target,
+            body: "old".into(),
+        };
+        state.begin_action_submission(&action);
+        let outcome = MutationOutcome {
+            action,
+            target: state.resource.id.clone(),
+            origin_tab_id: state.active_resource_tab_id(),
+            result: Err(anyhow::anyhow!("was deleted meanwhile")),
+        };
+
+        deliver_outcome(&mut state, outcome);
+
+        assert!(state.comment_composer.is_some(), "draft survives failure");
+        assert!(state.composer_target.is_some());
+        assert!(state
+            .last_error
+            .as_deref()
+            .expect("error surfaced")
+            .contains("saving edit failed"));
+    }
 }
