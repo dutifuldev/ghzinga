@@ -1,30 +1,91 @@
 name: publish
 
 on:
-  workflow_dispatch:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published GitHub Release tag to publish
+        required: true
+        type: string
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   crates-io:
     name: crates.io
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Resolve release tag
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG:-${INPUT_TAG:-}}"
+          if [ -z "$tag" ]; then
+            echo "missing release tag" >&2
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            release_state="$(gh release view "$tag" --repo "$REPO" --json isDraft,publishedAt \
+              --jq 'if .isDraft == false and .publishedAt != null then "published" else "unpublished" end')"
+            if [ "$release_state" != "published" ]; then
+              echo "release tag '$tag' is not a published GitHub Release" >&2
+              exit 1
+            fi
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+
+      - name: Checkout release tag
         uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 0
 
       - name: Install Rust
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Validate release
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "ghzinga") | .version')"
+          tag_version="${RELEASE_TAG#v}"
+          if [ "$tag_version" != "$version" ]; then
+            echo "release tag '$RELEASE_TAG' does not match Cargo.toml version '$version'" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          tag_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+          if ! git merge-base --is-ancestor "$tag_commit" "origin/$DEFAULT_BRANCH"; then
+            echo "release tag '$RELEASE_TAG' is not on '$DEFAULT_BRANCH'" >&2
+            exit 1
+          fi
+          if cargo search ghzinga --limit 1 | grep -Eq "^ghzinga = \"$version\""; then
+            echo "ghzinga $version is already published on crates.io" >&2
+            exit 1
+          fi
+
       - name: Verify package
         run: cargo package --locked
 
+      - name: Authenticate with crates.io
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
       - name: Publish to crates.io
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: cargo publish --locked
