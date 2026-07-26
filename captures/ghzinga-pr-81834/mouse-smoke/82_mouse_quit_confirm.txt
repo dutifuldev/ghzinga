@@ -3,8 +3,8 @@ feat(senseaudio): add SenseAudio TTS provider
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (5 pass, 0 pending, 0 fail)                            
 📄 6 files changed +1.1k -22                                                                                            
-ⓘ saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml             
-[🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                    
+ⓘ saved settings to /home/onur/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml            
+[🏠 Overview] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                 
 📝 @KLilyZ opened 1mo ago                                                                                               
 Summary                                                                                                                 
 - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                              
@@ -23,7 +23,6 @@ Telephony, streaming, voice cloni│[quit]  [cancel]                            
 feat(senseaudio): add SenseAudio TTS provider                                                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 💬 Comment by @github-actions 1mo ago                                                                                   
-[details]                                                                                                               
 Dependency Changes Detected                                                                                             
 This PR changes dependency-related files. Maintainers should confirm these changes are intentional.                     
                                                                                                                         
@@ -32,5 +31,6 @@ Changed files:
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 💬 Comment by @osolmaz 1mo ago                                                                                          
 extensions/senseaudio/tts.ts:99                                                                                         
-saved settings to /home/bob/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml               
+Summary: The PR adds a SenseAudio speech provider to the bundled senseaudio plugin, with TTS HTTP helpers, voice        
+saved settings to /home/onur/repos/ghzinga/captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml              
 [🔄 refresh] [➕  expand ] [⚙ settings] [❔ help] [⏻ quit]                                                              

@@ -5,7 +5,8 @@
     "fixtures/issue-66943.json"
   ],
   "binary": "target/debug/gzg",
-  "git_commit": "cb1324be888eea5626abde412011aa2e9e93935b",
+  "git_commit": "7b2ff93058b1f92375216e3ce803e2aef74a2136",
+  "app_tree_hash": "ca8a23ff4647a5a88eb10737da5ef3bfc41b51789e9b8243c11771e0f0ba83f7",
   "config_path": "captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml",
   "command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache BROWSER=./captures/ghzinga-pr-81834/mouse-smoke/capture-open-url.sh GZG_COPY_COMMAND=./captures/ghzinga-pr-81834/mouse-smoke/capture-copy-url.sh ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/navigation-fixture.json --offline-resource-fixture ./fixtures/issue-66943.json --no-restore --refresh-seconds 0",
   "actual_tmux_size": "120x36",
@@ -22,7 +23,7 @@
       30
     ],
     "files_tab": [
-      56,
+      43,
       10
     ],
     "file_row_more": [
@@ -42,7 +43,7 @@
       35
     ],
     "checks_tab": [
-      45,
+      32,
       10
     ],
     "check_row_more": [
@@ -54,7 +55,7 @@
       18
     ],
     "links_tab": [
-      66,
+      53,
       10
     ],
     "linked_issue": [
@@ -64,18 +65,6 @@
     "linked_issue_here": [
       26,
       22
-    ],
-    "activity_tab_for_detail": [
-      20,
-      10
-    ],
-    "activity_details": [
-      3,
-      15
-    ],
-    "overview_tab_after_detail": [
-      7,
-      10
     ],
     "refresh": [
       3,
@@ -193,21 +182,6 @@
       "ansi": "60_keyboard_back_after_navigation.ansi"
     },
     {
-      "name": "62_mouse_activity_tab_for_detail",
-      "txt": "62_mouse_activity_tab_for_detail.txt",
-      "ansi": "62_mouse_activity_tab_for_detail.ansi"
-    },
-    {
-      "name": "63_mouse_activity_details_focus",
-      "txt": "63_mouse_activity_details_focus.txt",
-      "ansi": "63_mouse_activity_details_focus.ansi"
-    },
-    {
-      "name": "64_mouse_back_to_overview_after_detail",
-      "txt": "64_mouse_back_to_overview_after_detail.txt",
-      "ansi": "64_mouse_back_to_overview_after_detail.ansi"
-    },
-    {
       "name": "65_mouse_footer_refresh",
       "txt": "65_mouse_footer_refresh.txt",
       "ansi": "65_mouse_footer_refresh.ansi"
@@ -239,6 +213,5 @@
     }
   ],
   "load_full_fixture": "captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json",
-  "load_full_command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --no-restore --refresh-seconds 0",
-  "app_tree_hash": "d88325deb3b91e11a0014942dc46000ff4b9b868bd72d23f4962302bc76ddcf3"
+  "load_full_command": "cd . && TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/mouse-smoke/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/mouse-smoke/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --offline-fixture ./captures/ghzinga-pr-81834/mouse-smoke/load-full-fixture.json --no-restore --refresh-seconds 0"
 }

@@ -5,8 +5,8 @@
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
-  ✅ checks PASS (40 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  ⓘ loading additional GitHub details                                           
+  ✅ checks PASS (51 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
+  🔁 Refresh: 04:21:23 changed ✦ Changed: metadata, warnings, checks            
    🏠 Overview  🧱 Commits  ✅ Checks  📄 Files [🔗 Links]                      
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
@@ -20,5 +20,5 @@
   collapse long text, checks, and files.                                        
   - Click visible GitHub issue or PR references to navigate.                    
   - Use the mouse wheel to scroll the current view.                             
-  loading additional GitHub details                                             
+                                                                                
   [🔄 refresh] [⚙ settings] [❔ help] [⏻ quit]                                  
