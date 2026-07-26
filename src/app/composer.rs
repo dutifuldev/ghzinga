@@ -802,4 +802,46 @@ mod tests {
         composer.kill_word_back();
         assert!(!composer.confirm_discard);
     }
+
+    #[test]
+    fn kill_to_end_at_the_very_end_of_the_buffer_is_a_no_op() {
+        let mut composer = composer_with("only line");
+        composer.kill_to_end();
+        assert_eq!(composer.body(), "only line");
+        composer.yank();
+        assert_eq!(
+            composer.body(),
+            "only line",
+            "nothing was killed, so nothing yanks"
+        );
+    }
+
+    #[test]
+    fn kill_word_back_covers_trailing_whitespace_and_column_zero() {
+        let mut composer = composer_with("alpha beta  ");
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "alpha ");
+        composer.move_home();
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "alpha ", "nothing before column zero");
+        let mut composer = composer_with("   ");
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "", "an all-whitespace line kills cleanly");
+    }
+
+    #[test]
+    fn alnum_word_kill_consumes_a_pure_punctuation_prefix() {
+        let mut composer = composer_with("...");
+        composer.kill_word_back_alnum();
+        assert_eq!(composer.body(), "");
+    }
+
+    #[test]
+    fn forward_word_ops_stop_at_the_buffer_end() {
+        let mut composer = composer_with("word");
+        composer.kill_word_forward();
+        assert_eq!(composer.body(), "word", "nothing after the cursor");
+        composer.move_word_forward();
+        assert_eq!(composer.cursor(), (0, 4), "motion clamps at the end");
+    }
 }
