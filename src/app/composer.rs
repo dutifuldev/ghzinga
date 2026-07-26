@@ -10,6 +10,8 @@ pub struct CommentComposer {
     cursor_col: usize,
     pub scroll: usize,
     pub confirm_discard: bool,
+    /// Single-slot kill buffer shared by the kill chords, yanked by Ctrl+Y.
+    kill_buffer: String,
     /// Text viewport (columns, rows) recorded by the renderer so key and
     /// click handling wrap text exactly like the last drawn frame.
     pub viewport: (u16, u16),
@@ -140,6 +142,94 @@ impl CommentComposer {
         self.cursor_col = self.current_line().chars().count();
     }
 
+    /// Move to the end of the current or next word (Emacs M-f), crossing
+    /// line boundaries like plain character motion does.
+    pub fn move_word_forward(&mut self) {
+        if self.cursor_col == self.current_line().chars().count() {
+            self.move_right();
+        }
+        self.cursor_col = word_end_after(self.current_line(), self.cursor_col);
+    }
+
+    /// Move to the start of the current or previous word (Emacs M-b).
+    pub fn move_word_back(&mut self) {
+        if self.cursor_col == 0 {
+            self.move_left();
+        }
+        self.cursor_col = word_start_before(self.current_line(), self.cursor_col);
+    }
+
+    /// Kill from the cursor to the end of the line; at the end of a line the
+    /// newline itself is killed, joining the next line (readline Ctrl+K).
+    pub fn kill_to_end(&mut self) {
+        self.touch();
+        let line_chars = self.current_line().chars().count();
+        if self.cursor_col < line_chars {
+            let start = char_to_byte(self.current_line(), self.cursor_col);
+            self.kill_buffer = self.lines[self.cursor_line].split_off(start);
+        } else if self.cursor_line + 1 < self.lines.len() {
+            self.kill_buffer = "\n".to_string();
+            self.delete();
+        }
+    }
+
+    /// Kill from the start of the line to the cursor (readline Ctrl+U).
+    /// At column zero there is nothing to kill; the newline is never merged.
+    pub fn kill_to_start(&mut self) {
+        self.touch();
+        if self.cursor_col == 0 {
+            return;
+        }
+        let end = char_to_byte(self.current_line(), self.cursor_col);
+        self.kill_buffer = self.lines[self.cursor_line][..end].to_string();
+        self.lines[self.cursor_line].replace_range(..end, "");
+        self.cursor_col = 0;
+    }
+
+    /// Kill the whitespace-delimited word before the cursor (Ctrl+W).
+    pub fn kill_word_back(&mut self) {
+        self.kill_back_to(unix_word_start_before(self.current_line(), self.cursor_col));
+    }
+
+    /// Kill the letter/digit-delimited word before the cursor (M-Backspace).
+    pub fn kill_word_back_alnum(&mut self) {
+        self.kill_back_to(word_start_before(self.current_line(), self.cursor_col));
+    }
+
+    fn kill_back_to(&mut self, target_col: usize) {
+        self.touch();
+        if target_col >= self.cursor_col {
+            return;
+        }
+        let start = char_to_byte(self.current_line(), target_col);
+        let end = char_to_byte(self.current_line(), self.cursor_col);
+        self.kill_buffer = self.lines[self.cursor_line][start..end].to_string();
+        self.lines[self.cursor_line].replace_range(start..end, "");
+        self.cursor_col = target_col;
+    }
+
+    /// Kill the word after the cursor (M-d).
+    pub fn kill_word_forward(&mut self) {
+        self.touch();
+        let target = word_end_after(self.current_line(), self.cursor_col);
+        if target <= self.cursor_col {
+            return;
+        }
+        let start = char_to_byte(self.current_line(), self.cursor_col);
+        let end = char_to_byte(self.current_line(), target);
+        self.kill_buffer = self.lines[self.cursor_line][start..end].to_string();
+        self.lines[self.cursor_line].replace_range(start..end, "");
+    }
+
+    /// Insert the last killed text at the cursor (Ctrl+Y).
+    pub fn yank(&mut self) {
+        if self.kill_buffer.is_empty() {
+            return;
+        }
+        let killed = self.kill_buffer.clone();
+        self.insert_str(&killed);
+    }
+
     /// Move one display row up or down, holding the current display column
     /// so the cursor travels straight through wrapped lines.
     pub fn move_vertical(&mut self, width: usize, delta: isize) {
@@ -258,6 +348,45 @@ fn chars_slice(line: &str, start: usize, end: usize) -> &str {
     let start_byte = char_to_byte(line, start);
     let end_byte = char_to_byte(line, end);
     &line[start_byte..end_byte]
+}
+
+/// Column of the start of the whitespace-delimited word before `col`.
+fn unix_word_start_before(line: &str, col: usize) -> usize {
+    let chars: Vec<char> = line.chars().collect();
+    let mut index = col.min(chars.len());
+    while index > 0 && chars[index - 1].is_whitespace() {
+        index -= 1;
+    }
+    while index > 0 && !chars[index - 1].is_whitespace() {
+        index -= 1;
+    }
+    index
+}
+
+/// Column of the start of the alphanumeric word before `col`.
+fn word_start_before(line: &str, col: usize) -> usize {
+    let chars: Vec<char> = line.chars().collect();
+    let mut index = col.min(chars.len());
+    while index > 0 && !chars[index - 1].is_alphanumeric() {
+        index -= 1;
+    }
+    while index > 0 && chars[index - 1].is_alphanumeric() {
+        index -= 1;
+    }
+    index
+}
+
+/// Column just past the end of the alphanumeric word at or after `col`.
+fn word_end_after(line: &str, col: usize) -> usize {
+    let chars: Vec<char> = line.chars().collect();
+    let mut index = col.min(chars.len());
+    while index < chars.len() && !chars[index].is_alphanumeric() {
+        index += 1;
+    }
+    while index < chars.len() && chars[index].is_alphanumeric() {
+        index += 1;
+    }
+    index
 }
 
 fn char_to_byte(line: &str, char_index: usize) -> usize {
@@ -575,5 +704,144 @@ mod tests {
         composer.confirm_discard = true;
         composer.insert_char('!');
         assert!(!composer.confirm_discard);
+    }
+
+    #[test]
+    fn kill_to_end_takes_the_rest_of_the_line() {
+        let mut composer = composer_with("keep killme");
+        composer.click(80, 0, 5);
+        composer.kill_to_end();
+        assert_eq!(composer.body(), "keep ");
+        composer.yank();
+        assert_eq!(composer.body(), "keep killme");
+    }
+
+    #[test]
+    fn kill_to_end_at_line_end_kills_the_newline() {
+        let mut composer = composer_with("one\ntwo");
+        composer.click(80, 0, 3);
+        composer.kill_to_end();
+        assert_eq!(composer.body(), "onetwo");
+        composer.yank();
+        assert_eq!(composer.body(), "one\ntwo");
+    }
+
+    #[test]
+    fn kill_to_start_stops_at_column_zero() {
+        let mut composer = composer_with("prefix suffix");
+        composer.click(80, 0, 7);
+        composer.kill_to_start();
+        assert_eq!(composer.body(), "suffix");
+        assert_eq!(composer.cursor(), (0, 0));
+        let mut composer = composer_with("one\ntwo");
+        composer.click(80, 1, 0);
+        composer.kill_to_start();
+        assert_eq!(
+            composer.body(),
+            "one\ntwo",
+            "kill-to-start at column zero must never merge lines"
+        );
+    }
+
+    #[test]
+    fn ctrl_w_and_alt_backspace_use_different_word_boundaries() {
+        let mut composer = composer_with("alpha b-c");
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "alpha ", "ctrl-w is whitespace-delimited");
+        let mut composer = composer_with("alpha b-c");
+        composer.kill_word_back_alnum();
+        assert_eq!(
+            composer.body(),
+            "alpha b-",
+            "alt-backspace stops at the letter/digit boundary"
+        );
+    }
+
+    #[test]
+    fn kill_word_forward_takes_the_next_word() {
+        let mut composer = composer_with("alpha beta");
+        composer.move_home();
+        composer.kill_word_forward();
+        assert_eq!(composer.body(), " beta");
+        composer.yank();
+        assert_eq!(composer.body(), "alpha beta");
+    }
+
+    #[test]
+    fn yank_with_an_empty_kill_buffer_is_a_no_op() {
+        let mut composer = composer_with("text");
+        composer.yank();
+        assert_eq!(composer.body(), "text");
+    }
+
+    #[test]
+    fn word_motion_crosses_punctuation_and_lines() {
+        let mut composer = composer_with("one two\nthree");
+        composer.move_home();
+        composer.click(80, 0, 0);
+        composer.move_word_forward();
+        assert_eq!(composer.cursor(), (0, 3));
+        composer.move_word_forward();
+        assert_eq!(composer.cursor(), (0, 7));
+        composer.move_word_forward();
+        assert_eq!(composer.cursor(), (1, 5), "m-f crosses the newline");
+        composer.move_word_back();
+        assert_eq!(composer.cursor(), (1, 0));
+        composer.move_word_back();
+        assert_eq!(
+            composer.cursor(),
+            (0, 4),
+            "m-b crosses back to the prior line"
+        );
+    }
+
+    #[test]
+    fn kills_clear_the_discard_confirmation() {
+        let mut composer = composer_with("draft text");
+        composer.confirm_discard = true;
+        composer.kill_word_back();
+        assert!(!composer.confirm_discard);
+    }
+
+    #[test]
+    fn kill_to_end_at_the_very_end_of_the_buffer_is_a_no_op() {
+        let mut composer = composer_with("only line");
+        composer.kill_to_end();
+        assert_eq!(composer.body(), "only line");
+        composer.yank();
+        assert_eq!(
+            composer.body(),
+            "only line",
+            "nothing was killed, so nothing yanks"
+        );
+    }
+
+    #[test]
+    fn kill_word_back_covers_trailing_whitespace_and_column_zero() {
+        let mut composer = composer_with("alpha beta  ");
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "alpha ");
+        composer.move_home();
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "alpha ", "nothing before column zero");
+        let mut composer = composer_with("   ");
+        composer.kill_word_back();
+        assert_eq!(composer.body(), "", "an all-whitespace line kills cleanly");
+    }
+
+    #[test]
+    fn alnum_word_kill_consumes_a_pure_punctuation_prefix() {
+        let mut composer = composer_with("...");
+        composer.kill_word_back_alnum();
+        assert_eq!(composer.body(), "");
+    }
+
+    #[test]
+    fn forward_word_ops_stop_at_the_buffer_end() {
+        let mut composer = composer_with("word");
+        composer.kill_word_forward();
+        assert_eq!(composer.body(), "word", "nothing after the cursor");
+        composer.move_word_forward();
+        assert_eq!(composer.cursor(), (0, 4), "motion clamps at the end");
     }
 }

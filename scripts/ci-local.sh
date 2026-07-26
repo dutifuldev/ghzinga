@@ -25,7 +25,14 @@ else
   mutation_diff="$(mktemp)"
   git -c diff.mnemonicPrefix=false diff "$mutation_base"...HEAD > "$mutation_diff"
   if [ -s "$mutation_diff" ]; then
-    cargo mutants --timeout 120 --in-diff "$mutation_diff"
+    # Exit 3 means some mutants only timed out: an infinite-loop mutant
+    # cannot pass the suite, so it is detected, just slowly. Missed
+    # mutants (exit 2) and real errors still fail the gate.
+    mutation_status=0
+    cargo mutants --timeout 120 --in-diff "$mutation_diff" || mutation_status=$?
+    if [ "$mutation_status" -ne 0 ] && [ "$mutation_status" -ne 3 ]; then
+      exit "$mutation_status"
+    fi
   else
     echo "no changed code to mutate"
   fi
