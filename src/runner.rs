@@ -1927,7 +1927,7 @@ mod tests {
         let resource = issue_resource(2, "Cached issue");
         let snapshot = session_snapshot_for(&resource);
         let mut state = AppState::new(resource.clone());
-        state.set_tab(crate::app::Tab::Activity);
+        state.set_tab(crate::app::Tab::Links);
         state.scroll_down(5);
 
         let action =
@@ -1935,7 +1935,7 @@ mod tests {
 
         assert!(matches!(action, Some(FetchAction::Refresh { .. })));
         assert_eq!(state.resource.title, "Cached issue");
-        assert_eq!(state.active_tab, crate::app::Tab::Activity);
+        assert_eq!(state.active_tab, crate::app::Tab::Links);
         assert_eq!(state.resource_tabs.len(), 1);
     }
 

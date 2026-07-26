@@ -1251,7 +1251,6 @@ fn render_tabs(
 fn tab_label(tab: Tab, symbols: &Symbols) -> String {
     let icon = match tab {
         Tab::Overview => symbols.tab_overview,
-        Tab::Activity => symbols.tab_activity,
         Tab::Commits => symbols.tab_commits,
         Tab::Checks => symbols.tab_checks,
         Tab::Files => symbols.tab_files,
@@ -2158,7 +2157,6 @@ fn content_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<Co
     }
     match state.active_tab {
         Tab::Overview => overview_rows(state, width, palette),
-        Tab::Activity => activity_rows(state, width, palette),
         Tab::Commits => commits_rows(state, width, palette),
         Tab::Checks => checks_rows(state, width, palette),
         Tab::Files => files_rows(state, width, palette),
@@ -2202,7 +2200,7 @@ fn help_rows(width: usize, palette: &Palette, symbols: &Symbols) -> Vec<ContentR
             "- x: close the current resource tab",
             "- f: load full GitHub pages when a partial-depth warning is shown",
             "- y: copy first visible URL, or current resource URL",
-            "- Left / Right or h / l: switch Overview, Activity, and other content tabs",
+            "- Left / Right or h / l: switch Overview, Commits, and other content tabs",
             "- Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs",
             "- 1-6: jump to the visible tab in that position",
             "- v: reverse chronological feed order",
@@ -2675,16 +2673,19 @@ fn push_activity_timeline_rows(
 ) {
     let resource = &state.resource;
     let symbols = state.symbols.symbols();
-    rows.push(ContentRow::styled(
-        format!(
-            "{} {} by @{} {}",
-            activity_icon(entry, &symbols),
-            entry.kind.label(),
-            entry.author,
-            relative_time_phrase(&entry.updated_at)
-        ),
-        activity_heading_style(entry, palette),
-    ));
+    rows.push(
+        ContentRow::styled(
+            format!(
+                "{} {} by @{} {}",
+                activity_icon(entry, &symbols),
+                entry.kind.label(),
+                entry.author,
+                relative_time_phrase(&entry.updated_at)
+            ),
+            activity_heading_style(entry, palette),
+        )
+        .with_activity_focus(entry.id.clone()),
+    );
     if let Some(path) = &entry.path {
         rows.push(ContentRow::plain(format!(
             "{}:{}",
@@ -2701,9 +2702,6 @@ fn push_activity_timeline_rows(
     let block = BlockId::Activity(entry.id.clone());
     let can_expand = text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES);
     let expanded = can_expand && state.block_expanded(&block);
-    if let Some(url) = &entry.url {
-        rows.push(activity_detail_row(url, resource, palette));
-    }
     if let Some(edit_row) = activity_edit_row(entry, palette) {
         rows.push(edit_row);
     }
@@ -2737,13 +2735,6 @@ fn activity_icon(entry: &ActivityEntry, symbols: &Symbols) -> &'static str {
         crate::domain::ActivityKind::CommitComment => symbols.activity_commit_comment,
         crate::domain::ActivityKind::Timeline => symbols.activity_timeline,
     }
-}
-
-fn activity_detail_row(url: &str, resource: &Resource, palette: &Palette) -> ContentRow {
-    let target = parse_link_token(url, resource)
-        .map(|(_display, target)| target)
-        .unwrap_or_else(|| HitTarget::OpenUrl(url.to_string()));
-    ContentRow::target_styled("[details]", target, link_style(palette))
 }
 
 /// A standalone clickable row offered on entries the viewer may edit.
@@ -2797,76 +2788,6 @@ fn push_metadata_rows(
                 .map(ContentRow::plain),
         );
     }
-}
-
-fn activity_rows(state: &mut AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
-    let symbols = state.symbols.symbols();
-    let mut rows = Vec::new();
-    if state.resource.activity.is_empty() {
-        rows.push(ContentRow::plain("No comments."));
-        return rows;
-    }
-    let mut entries = state.resource.activity.iter().collect::<Vec<_>>();
-    if state.reverse_chronological {
-        entries.reverse();
-    }
-    for entry in entries {
-        rows.push(
-            ContentRow::plain(format!(
-                "{} by @{} {}",
-                entry.kind.label(),
-                entry.author,
-                relative_time_phrase(&entry.updated_at)
-            ))
-            .with_activity_focus(entry.id.clone()),
-        );
-        if let Some(path) = &entry.path {
-            rows.push(ContentRow::plain(format!(
-                "{}:{}",
-                path,
-                entry.line.unwrap_or_default()
-            )));
-        }
-        if let Some(summary) = review_thread_summary(entry) {
-            rows.push(ContentRow::plain(summary));
-        }
-        if let Some(summary) = activity_metadata_summary(entry) {
-            rows.push(ContentRow::plain(truncate_ascii(&summary, width)));
-        }
-        let block = BlockId::Activity(entry.id.clone());
-        let can_expand = text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES);
-        let expanded = can_expand && state.block_expanded(&block);
-        if let Some(url) = &entry.url {
-            rows.push(activity_detail_row(url, &state.resource, palette));
-        }
-        if let Some(edit_row) = activity_edit_row(entry, palette) {
-            rows.push(edit_row);
-        }
-        if expanded {
-            if let Some(url) = &entry.url {
-                rows.push(linkable_text_row(format!("url: {url}"), &state.resource));
-            }
-        }
-        let wrapped = markdown::wrap_plain_text(&entry.body, width);
-        let (visible, _truncated) =
-            markdown::visible_prefix(&wrapped, ACTIVITY_COLLAPSED_LINES, expanded);
-        rows.extend(
-            visible
-                .into_iter()
-                .map(|line| linkable_text_row(line, &state.resource)),
-        );
-        if can_expand {
-            rows.push(ContentRow::target_styled(
-                expand_label(expanded, &symbols),
-                HitTarget::ToggleBlock(block),
-                button_style(palette),
-            ));
-        }
-        if let Some(last) = rows.last_mut() {
-            last.comfortable_gap_after = true;
-        }
-    }
-    rows
 }
 
 fn commits_rows(state: &AppState, width: usize, palette: &Palette) -> Vec<ContentRow> {
@@ -5080,7 +5001,7 @@ mod tests {
         resource.activity[0].body =
             "Follow up at https://github.com/openclaw/openclaw/pull/81835".into();
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
 
         terminal
             .draw(|frame| render_app(frame, &mut state))
@@ -5101,7 +5022,7 @@ mod tests {
         resource.activity[0].body =
             "Permalink https://github.com/openclaw/openclaw/pull/81834#discussion_r1".into();
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
 
         terminal
             .draw(|frame| render_app(frame, &mut state))
@@ -5284,7 +5205,6 @@ mod tests {
             resource.activity.push(activity.clone());
         }
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
         draw(&mut state, 120, 20);
         state.scroll_to_bottom();
 
@@ -5311,7 +5231,6 @@ mod tests {
                 resource.activity.push(activity.clone());
             }
             let mut state = AppState::new(resource);
-            state.set_tab(Tab::Activity);
             draw(&mut state, width, height);
             state.scroll_to_bottom();
 
@@ -5338,7 +5257,6 @@ mod tests {
             resource.activity.push(activity.clone());
         }
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
         draw(&mut state, 120, 36);
         state.scroll_to_bottom();
 
@@ -5591,7 +5509,7 @@ mod tests {
         let area = Rect::new(0, 4, 160, 20);
 
         let overview = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Overview);
-        let activity = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Activity);
+        let activity = content_area_for_spacing(area, SpacingMode::Comfortable, Tab::Links);
 
         assert_eq!(overview.x, 2);
         assert_eq!(overview.width, 118);
@@ -5690,11 +5608,11 @@ mod tests {
         draw(&mut compact_state, 120, 36);
 
         let comfortable_tab = rendered_target_rect(&comfortable_state, |target| {
-            *target == HitTarget::Tab(Tab::Activity)
+            *target == HitTarget::Tab(Tab::Links)
         })
         .expect("comfortable tab target");
         let compact_tab = rendered_target_rect(&compact_state, |target| {
-            *target == HitTarget::Tab(Tab::Activity)
+            *target == HitTarget::Tab(Tab::Links)
         })
         .expect("compact tab target");
         let comfortable_footer =
@@ -6864,7 +6782,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
+        state.reverse_chronological = true;
 
         terminal
             .draw(|frame| render_app(frame, &mut state))
@@ -6879,48 +6797,17 @@ mod tests {
     }
 
     #[test]
-    fn activity_permalink_details_are_clickable_without_expansion() {
+    fn permalink_details_rows_are_gone_from_the_timeline() {
         let mut resource = pr_resource();
-        resource.activity[0].body = "short comment".into();
         resource.activity[0].url =
             Some("https://github.com/openclaw/openclaw/pull/81834#issuecomment-1".into());
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
-
+        state.reverse_chronological = true;
         let content = draw(&mut state, 120, 36);
-
-        assert!(content.contains("[details]"));
-        assert!(!content.contains("[+ more]"));
-        assert!(state.hit_areas.iter().any(|area| matches!(
-            &area.target,
-            HitTarget::ResourceLink { id, url: Some(url) }
-                if id.canonical_name() == "openclaw/openclaw#81834"
-                    && url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
-        )));
-        let intent = click_rendered_target(&mut state, |target| {
-            matches!(
-                target,
-                HitTarget::ResourceLink { id, url: Some(url) }
-                    if id.canonical_name() == "openclaw/openclaw#81834"
-                        && url == "https://github.com/openclaw/openclaw/pull/81834#issuecomment-1"
-            )
-        });
-
-        assert_eq!(intent, AppIntent::None);
-        assert_eq!(state.active_tab, Tab::Activity);
-        assert_eq!(
-            state.status_message.as_deref(),
-            Some("focused linked activity")
+        assert!(
+            !content.contains("[details]"),
+            "the details affordance was removed; expansion covers it"
         );
-
-        state.toggle_block(BlockId::Activity("c1".into()));
-        let content = draw(&mut state, 120, 36);
-
-        assert!(!content.contains("[- less]"));
-        assert!(!state.hit_areas.iter().any(|area| matches!(
-            &area.target,
-            HitTarget::ToggleBlock(BlockId::Activity(id)) if id == "c1"
-        )));
     }
 
     #[test]
@@ -6937,7 +6824,7 @@ mod tests {
         resource.activity[0].thread_resolved = Some(false);
         resource.activity[0].thread_outdated = Some(true);
         let mut state = AppState::new(resource);
-        state.set_tab(Tab::Activity);
+        state.reverse_chronological = true;
 
         let content = draw(&mut state, 120, 36);
 
@@ -6945,13 +6832,10 @@ mod tests {
         assert!(content.contains("src/reviewed.rs:12"));
         assert!(content.contains("thread: unresolved, outdated"));
         assert!(content.contains("meta: association MEMBER, edited, reactions eyes:1"));
-        assert!(content.contains("[details]"));
-        assert!(state.hit_areas.iter().any(|area| matches!(
-            &area.target,
-            HitTarget::ResourceLink { id, url: Some(url) }
-                if id.canonical_name() == "openclaw/openclaw#81834"
-                    && url == "https://github.com/openclaw/openclaw/pull/81834#discussion_r1"
-        )));
+        assert!(
+            !content.contains("[details]"),
+            "the details affordance was removed"
+        );
 
         state.toggle_block(BlockId::Activity("c1".into()));
         let content = draw(&mut state, 120, 36);
@@ -7694,7 +7578,6 @@ mod tests {
     #[test]
     fn activity_edit_row_opens_the_entry_composer() {
         let mut state = editable_pr_state();
-        state.set_tab(crate::app::Tab::Activity);
         draw_actionable(&mut state);
         let intent = click_rendered_target(&mut state, |target| {
             matches!(target, HitTarget::EditActivityEntry { .. })
@@ -7855,7 +7738,6 @@ mod tests {
     #[test]
     fn comment_edits_use_the_comment_title() {
         let mut state = editable_pr_state();
-        state.set_tab(crate::app::Tab::Activity);
         draw_actionable(&mut state);
         click_rendered_target(&mut state, |target| {
             matches!(target, HitTarget::EditActivityEntry { .. })

@@ -730,7 +730,7 @@ mod tests {
         let mut full = issue_resource(1, "Initial issue");
         full.body = "full body with later comments".into();
         let mut state = AppState::new(initial);
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.set_scroll_limit(10);
         state.scroll_down(4);
         let id = state.resource.id.clone();
@@ -748,7 +748,7 @@ mod tests {
             },
         );
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert_eq!(state.scroll, 4);
         assert_eq!(state.resource.body, "full body with later comments");
         assert!(!state.resource.has_partial_depth_warning());
@@ -1411,7 +1411,7 @@ mod tests {
         };
         let loaded = issue_resource(1, "Loaded issue");
         let mut state = AppState::new(loading_resource_placeholder(id.clone()));
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         let (fetch_tx, mut fetch_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let started = start_background_fetch(
@@ -1432,7 +1432,7 @@ mod tests {
         apply_fetch_outcome(&mut state, outcome);
 
         assert_eq!(state.resource.title, "Loaded issue");
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert!(state.loading.is_none());
     }
 

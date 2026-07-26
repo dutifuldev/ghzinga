@@ -57,7 +57,7 @@ pub struct Cli {
     #[arg(long)]
     pub once: bool,
 
-    /// Initial tab to show: overview, activity, commits, checks, files, or links.
+    /// Initial tab to show: overview, commits, checks, files, or links.
     #[arg(long, value_name = "TAB")]
     pub tab: Option<Tab>,
 

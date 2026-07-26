@@ -105,7 +105,7 @@ The UI is built for active terminal use:
 - click the top-right plus button, or press `n`, to open another PR or issue in a new tab
 - when multiple resources are open, click the resource tabs to switch or close them
 - click GitHub issue/PR links to choose between opening here or in a new tab
-- click same-resource comment links to focus the matching Activity entry
+- click same-resource comment links to jump to the matching conversation entry
 - click rows and `[more]` controls to expand details
 - click footer actions for refresh, expand/collapse, settings, help, and quit
 - scroll with the mouse wheel or keyboard
@@ -121,7 +121,7 @@ Common keys:
 - `o`: open a PR or issue in the current tab
 - `x`: close the current resource tab
 - `Ctrl-C` in the open-resource modal: clear input, then close when empty
-- `Left`, `Right`, `h`, `l`: switch Overview, Activity, and other content tabs
+- `Left`, `Right`, `h`, `l`: switch Overview, Commits, and other content tabs
 - `Tab`, `Shift+Tab`, `Shift+Left`, `Shift+Right`: switch PR/issue tabs
 - `Up`, `Down`, `j`, `k`, `PageUp`, `PageDown`, `Home`, `End`: scroll
 - `Enter`: activate the first visible link or action

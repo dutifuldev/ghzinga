@@ -17,7 +17,6 @@ const SCROLLBAR_VISIBLE_FRAMES: u8 = 12;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tab {
     Overview,
-    Activity,
     Commits,
     Checks,
     Files,
@@ -28,7 +27,6 @@ impl Tab {
     pub fn label(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
-            Self::Activity => "Activity",
             Self::Commits => "Commits",
             Self::Checks => "Checks",
             Self::Files => "Files",
@@ -40,13 +38,12 @@ impl Tab {
         match kind {
             ResourceKind::PullRequest => &[
                 Self::Overview,
-                Self::Activity,
                 Self::Commits,
                 Self::Checks,
                 Self::Files,
                 Self::Links,
             ],
-            ResourceKind::Issue => &[Self::Overview, Self::Activity, Self::Links],
+            ResourceKind::Issue => &[Self::Overview, Self::Links],
         }
     }
 }
@@ -55,7 +52,6 @@ impl fmt::Display for Tab {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Overview => f.write_str("overview"),
-            Self::Activity => f.write_str("activity"),
             Self::Commits => f.write_str("commits"),
             Self::Checks => f.write_str("checks"),
             Self::Files => f.write_str("files"),
@@ -70,7 +66,6 @@ impl FromStr for Tab {
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.trim().to_ascii_lowercase().as_str() {
             "overview" => Ok(Self::Overview),
-            "activity" | "comments" => Ok(Self::Activity),
             "commits" => Ok(Self::Commits),
             "checks" | "ci" => Ok(Self::Checks),
             "files" => Ok(Self::Files),
@@ -944,7 +939,7 @@ impl AppState {
             return false;
         };
 
-        self.set_tab(Tab::Activity);
+        self.set_tab(Tab::Overview);
         self.expand_blocks([BlockId::Activity(entry_id.clone())]);
         self.pending_activity_focus = Some(entry_id);
         self.status_message = Some("focused linked activity".into());
@@ -1530,7 +1525,6 @@ fn resource_url_fragment(url: &str) -> Option<&str> {
 fn expandable_blocks_for_tab(tab: Tab, resource: &Resource) -> Vec<BlockId> {
     match tab {
         Tab::Overview => overview_expandable_blocks(resource),
-        Tab::Activity => activity_expandable_blocks(resource),
         Tab::Commits => resource
             .pull_request
             .as_ref()
@@ -1714,14 +1708,13 @@ mod tests {
     fn issue_tabs_are_limited_to_issue_views() {
         let state = AppState::new(issue_resource());
 
-        assert_eq!(state.tabs(), &[Tab::Overview, Tab::Activity, Tab::Links]);
+        assert_eq!(state.tabs(), &[Tab::Overview, Tab::Links]);
     }
 
     #[test]
     fn next_tab_wraps() {
         let mut state = AppState::new(issue_resource());
 
-        state.next_tab();
         state.next_tab();
         state.next_tab();
 
@@ -1851,11 +1844,11 @@ mod tests {
     #[test]
     fn replace_resource_preserve_tab_keeps_valid_tab_and_falls_back_for_invalid_tab() {
         let mut state = AppState::new(pr_resource());
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
 
         state.replace_resource_preserve_tab(issue_resource());
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
 
         state = AppState::new(pr_resource());
         state.set_tab(Tab::Files);
@@ -1887,7 +1880,7 @@ mod tests {
     #[test]
     fn refreshed_resource_preserves_view_state_when_unchanged() {
         let mut state = AppState::new(issue_resource());
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.scroll = 7;
         state.toggle_block(BlockId::Activity("comment-1".into()));
         state.refresh_requested = true;
@@ -1896,7 +1889,7 @@ mod tests {
         let changed = state.apply_refreshed_resource(issue_resource(), "12:34:56 UTC");
 
         assert!(!changed);
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert_eq!(state.scroll, 7);
         assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
         assert!(!state.refresh_requested);
@@ -1910,7 +1903,7 @@ mod tests {
     #[test]
     fn refreshed_resource_records_changes_without_resetting_tab_or_scroll() {
         let mut state = AppState::new(issue_resource());
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.scroll = 4;
         let mut refreshed = issue_resource();
         refreshed.updated_at = "later".into();
@@ -1938,7 +1931,7 @@ mod tests {
         let changed = state.apply_refreshed_resource(refreshed, "12:35:00 UTC");
 
         assert!(changed);
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert_eq!(state.scroll, 4);
         assert_eq!(state.resource.body, "Changed body");
         assert_eq!(state.last_refresh_had_changes, Some(true));
@@ -2131,7 +2124,7 @@ mod tests {
         second.id.number = 2;
         second.title = "Second issue".into();
 
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.scroll = 5;
         state.toggle_block(BlockId::Body);
         state.history.push(state.resource.id.clone());
@@ -2151,7 +2144,7 @@ mod tests {
         state.switch_resource_tab(0);
 
         assert_eq!(state.resource.id.number, 1);
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert_eq!(state.scroll, 5);
         assert!(state.block_expanded(&BlockId::Body));
         assert_eq!(state.history.len(), 1);
