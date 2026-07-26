@@ -4,14 +4,15 @@
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
-  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (40 pass, 0 pending, 0 fail)                         
+  ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (51 pass, 0 pending, 0 fail)                         
   📄 14 files changed +1.1k -22                                                                                         
-  ⓘ loading additional GitHub details                                                                                   
-  [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                  
+  🔁 Refresh: 04:29:08 changed ✦ Changed: metadata, warnings, checks                                                    
+  [🏠 Overview] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                               
                                                                                                                         
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                         
   📝 @KLilyZ opened 2mo ago                                                                                             
+  [edit]                                                                                                                
   Summary                                                                                                               
                                                                                                                         
   - Problem: senseaudio bundled plugin only has ASR; no TTS.                                                            
@@ -30,7 +31,6 @@
   [ ] Refactor required for the fix                                                                                     
   [ ] Docs                                                                                                              
   [ ] Security hardening                                                                                                
-  [ ] Chore/infra                                                                                                       
-  loading additional GitHub details                                                                                     
+                                                                                                                        
   [🔄 refresh] [⚡ actions] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                      
                                                                                                                         

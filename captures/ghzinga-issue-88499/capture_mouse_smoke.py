@@ -38,7 +38,6 @@ SESSION = "ghzinga-issue-mouse-smoke"
 COLS = 120
 ROWS = 36
 CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/issues/88499"
-DETAIL_URL = "https://github.com/openclaw/openclaw/issues/88499#issuecomment-1"
 EXPANDED_BODY_MARKER = "Related regressions were discussed"
 WIDE_SYMBOLS = set("✅❌⏳⚠➕➖🔄📋🌐⚙❔⏻⬇🏠💬🧱📄🔗👤👍🎯🧵📝")
 
@@ -131,7 +130,6 @@ def require_screen_contains(marker: str):
 
 def write_navigation_fixture():
     resource = json.loads(FIXTURE.read_text())
-    resource["activity"][0]["url"] = DETAIL_URL
     resource["related_resources"] = [
         *resource.get("related_resources", []),
         {
@@ -263,20 +261,7 @@ def capture_mouse_smoke():
             raise RuntimeError(f"keyboard collapse all left issue body expanded:\n{text}")
         write_frame(ROOT, "08_keyboard_collapse_all", frames)
 
-        activity_tab = find_marker_position(SESSION, "Activity", line_contains="Overview")
-        mouse_coordinates["activity_tab"] = list(activity_tab)
-        send_mouse_click(SESSION, *activity_tab)
-        wait_for_text(SESSION, "Comment by @clawsweeper")
-        wait_for_text(SESSION, "[details]")
-        write_frame(ROOT, "10_mouse_activity_tab", frames)
-
-        activity_details = find_marker_position(SESSION, "[details]")
-        mouse_coordinates["activity_details"] = list(activity_details)
-        send_mouse_click(SESSION, *activity_details)
-        wait_for_text(SESSION, "focused linked activity")
-        write_frame(ROOT, "11_mouse_activity_details_focus", frames)
-
-        links_tab = find_marker_position(SESSION, "Links", line_contains="Activity")
+        links_tab = find_marker_position(SESSION, "Links", line_contains="Overview")
         mouse_coordinates["links_tab"] = list(links_tab)
         send_mouse_click(SESSION, *links_tab)
         wait_for_text(SESSION, NAVIGATION_TARGET)
@@ -399,8 +384,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             for item in fixture.get("related_resources", [])
         ):
             errors.append(f"manifest fixture {fixture_path} does not include {NAVIGATION_TARGET}")
-        if not any(item.get("url") == DETAIL_URL for item in fixture.get("activity", [])):
-            errors.append(f"manifest fixture {fixture_path} does not include {DETAIL_URL}")
     if not allow_stale_revision:
         reason = app_tree_freshness_error(
             manifest.get("git_commit"),
@@ -440,8 +423,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
     for target in (
         "overview_more",
         "overview_less",
-        "activity_tab",
-        "activity_details",
         "links_tab",
         "linked_issue",
         "linked_issue_here",
@@ -467,12 +448,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "06_mouse_overview_less": ["[🏠 Overview]", "Bug Description", "[➕ more]"],
         "07_keyboard_expand_all": ["[🏠 Overview]", EXPANDED_BODY_MARKER, "[➖ less]"],
         "08_keyboard_collapse_all": ["[🏠 Overview]", "Bug Description", "[➕ more]"],
-        "10_mouse_activity_tab": ["[💬 Activity]", "Comment by @clawsweeper", "[details]"],
-        "11_mouse_activity_details_focus": [
-            "[💬 Activity]",
-            "focused linked activity",
-            "[details]",
-        ],
         "30_mouse_links_tab": ["[🔗 Links]", NAVIGATION_TARGET],
         "35_mouse_resource_link_prompt": [
             "[🔗 Links]",

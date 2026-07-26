@@ -37,8 +37,7 @@
       "body": "### Dependency Changes Detected\nThis PR changes dependency-related files. Maintainers should confirm these changes are intentional.\n\nChanged files:\n- `extensions/senseaudio/package.json`",
       "updated_at": "1mo ago",
       "path": null,
-      "line": null,
-      "url": "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
+      "line": null
     },
     {
       "id": "comment-2",

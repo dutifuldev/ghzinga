@@ -7,7 +7,7 @@
   ❌ CLOSED  👤 @xneone                                                         
                                                                                 
                                                                                 
-  [🏠 Overview] 💬 Activity  🔗 Links                                           
+  [🏠 Overview] 🔗 Links                                                        
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
   HTTP 404: Item with id rs_xxxxx not found. Items are not persisted when    │  

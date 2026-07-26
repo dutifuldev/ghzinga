@@ -85,7 +85,6 @@ pub struct Symbols {
     pub footer_help: &'static str,
     pub footer_quit: &'static str,
     pub tab_overview: &'static str,
-    pub tab_activity: &'static str,
     pub tab_commits: &'static str,
     pub tab_checks: &'static str,
     pub tab_files: &'static str,
@@ -141,7 +140,6 @@ impl Symbols {
             footer_help: "[help]",
             footer_quit: "[quit]",
             tab_overview: "",
-            tab_activity: "",
             tab_commits: "",
             tab_checks: "",
             tab_files: "",
@@ -197,7 +195,6 @@ impl Symbols {
             footer_help: "[❔ help]",
             footer_quit: "[⏻ quit]",
             tab_overview: "🏠",
-            tab_activity: "💬",
             tab_commits: "🧱",
             tab_checks: "✅",
             tab_files: "📄",
@@ -210,7 +207,7 @@ impl Symbols {
 mod tests {
     use super::*;
 
-    fn symbol_values(symbols: Symbols) -> [&'static str; 50] {
+    fn symbol_values(symbols: Symbols) -> [&'static str; 49] {
         [
             symbols.state_open,
             symbols.state_merged,
@@ -257,7 +254,6 @@ mod tests {
             symbols.footer_help,
             symbols.footer_quit,
             symbols.tab_overview,
-            symbols.tab_activity,
             symbols.tab_commits,
             symbols.tab_checks,
             symbols.tab_files,
@@ -319,7 +315,6 @@ mod tests {
         let symbols = Symbols::emoji();
         for value in [
             symbols.tab_overview,
-            symbols.tab_activity,
             symbols.tab_commits,
             symbols.tab_checks,
             symbols.tab_files,

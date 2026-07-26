@@ -1116,7 +1116,7 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::empty())),
         );
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Commits);
 
         apply_event(
             &mut state,
@@ -1130,7 +1130,7 @@ mod tests {
     fn shift_left_and_right_change_resource_tabs() {
         let mut state = state_with_resource_tabs();
         state.switch_resource_tab(1);
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
 
         apply_event(
             &mut state,
@@ -1172,7 +1172,7 @@ mod tests {
             &mut state,
             AppEvent::Key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty())),
         );
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Commits);
 
         apply_event(
             &mut state,
@@ -1185,11 +1185,10 @@ mod tests {
     fn number_keys_jump_to_visible_pr_tabs() {
         for (shortcut, expected) in [
             ('1', Tab::Overview),
-            ('2', Tab::Activity),
-            ('3', Tab::Commits),
-            ('4', Tab::Checks),
-            ('5', Tab::Files),
-            ('6', Tab::Links),
+            ('2', Tab::Commits),
+            ('3', Tab::Checks),
+            ('4', Tab::Files),
+            ('5', Tab::Links),
         ] {
             let mut state = AppState::new(pr_resource());
             state.scroll = 5;
@@ -1215,7 +1214,7 @@ mod tests {
 
         apply_event(
             &mut state,
-            AppEvent::Key(KeyEvent::new(KeyCode::Char('3'), KeyModifiers::empty())),
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::empty())),
         );
 
         assert_eq!(state.active_tab, Tab::Links);
@@ -1225,7 +1224,7 @@ mod tests {
     #[test]
     fn unsupported_number_key_keeps_current_tab() {
         let mut state = AppState::new(resource());
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.scroll = 5;
 
         apply_event(
@@ -1233,7 +1232,7 @@ mod tests {
             AppEvent::Key(KeyEvent::new(KeyCode::Char('6'), KeyModifiers::empty())),
         );
 
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Links);
         assert_eq!(state.scroll, 5);
     }
 
@@ -1971,7 +1970,7 @@ mod tests {
     }
 
     #[test]
-    fn same_resource_comment_link_focuses_activity_without_prompt() {
+    fn same_resource_comment_link_focuses_the_conversation_without_prompt() {
         let mut resource = resource();
         resource.activity = vec![activity_entry(
             "comment-1",
@@ -1994,7 +1993,7 @@ mod tests {
 
         assert_eq!(intent, AppIntent::None);
         assert!(state.resource_link_prompt.is_none());
-        assert_eq!(state.active_tab, Tab::Activity);
+        assert_eq!(state.active_tab, Tab::Overview);
         assert!(state.block_expanded(&BlockId::Activity("comment-1".into())));
         assert_eq!(
             state.take_pending_activity_focus().as_deref(),

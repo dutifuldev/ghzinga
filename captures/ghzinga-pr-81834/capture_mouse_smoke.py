@@ -39,7 +39,6 @@ SESSION = "ghzinga-mouse-smoke"
 COLS = 120
 ROWS = 36
 CURRENT_RESOURCE_URL = "https://github.com/openclaw/openclaw/pull/81834"
-DETAIL_URL = "https://github.com/openclaw/openclaw/pull/81834#issuecomment-smoke-1"
 WIDE_SYMBOLS = set("✅❌⏳⚠➕➖🔄📋🌐⚙❔⏻⬇🏠💬🧱📄🔗👤👍🎯🧵📝")
 
 
@@ -158,7 +157,6 @@ def require_screen_contains(marker: str):
 
 def write_navigation_fixture():
     resource = json.loads(FIXTURE.read_text())
-    resource["activity"][0]["url"] = DETAIL_URL
     resource["related_resources"] = [
         {
             "owner": "openclaw",
@@ -410,25 +408,6 @@ def capture_mouse_smoke():
         wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
         write_frame(ROOT, "60_keyboard_back_after_navigation", frames)
 
-        activity_tab = find_marker_position(SESSION, "Activity", line_contains="Overview")
-        mouse_coordinates["activity_tab_for_detail"] = list(activity_tab)
-        send_mouse_click(SESSION, *activity_tab)
-        wait_for_text(SESSION, "Comment by @github-actions")
-        wait_for_text(SESSION, "[details]")
-        write_frame(ROOT, "62_mouse_activity_tab_for_detail", frames)
-
-        activity_details = find_marker_position(SESSION, "[details]")
-        mouse_coordinates["activity_details"] = list(activity_details)
-        send_mouse_click(SESSION, *activity_details)
-        wait_for_text(SESSION, "focused linked activity")
-        write_frame(ROOT, "63_mouse_activity_details_focus", frames)
-
-        overview_tab = find_marker_position(SESSION, "Overview", line_contains="Activity")
-        mouse_coordinates["overview_tab_after_detail"] = list(overview_tab)
-        send_mouse_click(SESSION, *overview_tab)
-        wait_for_text(SESSION, "Problem: senseaudio bundled plugin only has ASR; no TTS.")
-        write_frame(ROOT, "64_mouse_back_to_overview_after_detail", frames)
-
         refresh_button = find_marker_position(SESSION, "[🔄 refresh]")
         mouse_coordinates["refresh"] = list(refresh_button)
         send_mouse_click(SESSION, *refresh_button)
@@ -576,8 +555,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             for item in fixture.get("related_resources", [])
         ):
             errors.append(f"manifest fixture {fixture_path} does not include {NAVIGATION_TARGET}")
-        if not any(item.get("url") == DETAIL_URL for item in fixture.get("activity", [])):
-            errors.append(f"manifest fixture {fixture_path} does not include {DETAIL_URL}")
     load_full_fixture_path = REPO / manifest.get("load_full_fixture", "")
     if not load_full_fixture_path.exists():
         errors.append(f"manifest load_full_fixture {load_full_fixture_path} is missing")
@@ -632,9 +609,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
         "file_row_less",
         "check_row_more",
         "check_row_less",
-        "activity_tab_for_detail",
-        "activity_details",
-        "overview_tab_after_detail",
         "settings_compact",
         "load_full",
         "quit",
@@ -716,20 +690,6 @@ def validate_mouse_smoke(allow_stale_revision: bool = False):
             NAVIGATION_TARGET_TITLE,
         ],
         "60_keyboard_back_after_navigation": [
-            "[🏠 Overview]",
-            "Problem: senseaudio bundled plugin only has ASR; no TTS.",
-        ],
-        "62_mouse_activity_tab_for_detail": [
-            "[💬 Activity]",
-            "Comment by @github-actions",
-            "[details]",
-        ],
-        "63_mouse_activity_details_focus": [
-            "[💬 Activity]",
-            "focused linked activity",
-            "[details]",
-        ],
-        "64_mouse_back_to_overview_after_detail": [
             "[🏠 Overview]",
             "Problem: senseaudio bundled plugin only has ASR; no TTS.",
         ],

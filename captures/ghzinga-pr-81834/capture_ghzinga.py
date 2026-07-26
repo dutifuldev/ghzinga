@@ -378,8 +378,6 @@ def capture_size(label: str, cols: int, rows: int):
             ("00_overview_top", None, []),
             ("01_overview_expanded", None, ["e"]),
             ("02_overview_pagedown", None, ["e", "PageDown"]),
-            ("10_activity_top", "activity", []),
-            ("11_activity_pagedown", "activity", ["PageDown"]),
             ("20_links_top", "links", []),
             ("30_help", "links", ["?"]),
         ]
@@ -388,8 +386,6 @@ def capture_size(label: str, cols: int, rows: int):
             ("00_overview_top", None, []),
             ("01_overview_expanded", None, ["e"]),
             ("02_overview_pagedown", None, ["e", "PageDown"]),
-            ("10_activity_top", "activity", []),
-            ("11_activity_pagedown", "activity", ["PageDown", "PageDown"]),
             ("20_commits_top", "commits", []),
             ("30_checks_top", "checks", []),
             ("31_checks_pagedown", "checks", ["PageDown"]),
@@ -409,8 +405,6 @@ def expected_frames(mode: str) -> list[str]:
             "00_overview_top",
             "01_overview_expanded",
             "02_overview_pagedown",
-            "10_activity_top",
-            "11_activity_pagedown",
             "20_links_top",
             "30_help",
         ]
@@ -418,8 +412,6 @@ def expected_frames(mode: str) -> list[str]:
         "00_overview_top",
         "01_overview_expanded",
         "02_overview_pagedown",
-        "10_activity_top",
-        "11_activity_pagedown",
         "20_commits_top",
         "30_checks_top",
         "31_checks_pagedown",
@@ -432,8 +424,8 @@ def expected_frames(mode: str) -> list[str]:
 
 def expected_markers(mode: str) -> list[str]:
     if mode == "issue":
-        return ["[🏠 Overview]", "[💬 Activity]", "[🔗 Links]", "Help"]
-    return ["[💬 Activity]", "[🧱 Commits]", "[✅ Checks]", "[📄 Files]", "[🔗 Links]", "Help"]
+        return ["[🏠 Overview]", "[🔗 Links]", "Help"]
+    return ["[🧱 Commits]", "[✅ Checks]", "[📄 Files]", "[🔗 Links]", "Help"]
 
 
 def expected_content_markers(mode: str, target: str | None) -> dict[str, list[str]]:
@@ -441,14 +433,6 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
         return {
             "00_overview_top": [
                 "Problem: senseaudio bundled plugin only has ASR; no TTS.",
-            ],
-            "10_activity_top": [
-                "Comment by @github-actions",
-                "Dependency Changes Detected",
-            ],
-            "11_activity_pagedown": [
-                "Comment by @KLilyZ",
-                "Reproducibility: not applicable",
             ],
             "20_commits_top": [
                 "feat(senseaudio): add SenseAudio TTS provider",
@@ -474,13 +458,6 @@ def expected_content_markers(mode: str, target: str | None) -> dict[str, list[st
             "00_overview_top": [
                 "Bug Description",
                 "previous_response_id",
-            ],
-            "10_activity_top": [
-                "Comment by @clawsweeper",
-            ],
-            "11_activity_pagedown": [
-                "Comment by @tianxiaochannel-oss88",
-                "Adding a fresh macOS/Slack data point",
             ],
             "20_links_top": [
                 "openclaw/openclaw#84904",
@@ -508,8 +485,8 @@ def expected_capture_contract(root: Path, mode: str) -> dict[str, object]:
 
 def scrollbar_evidence_frames(mode: str) -> list[str]:
     if mode == "issue":
-        return ["02_overview_pagedown", "11_activity_pagedown"]
-    return ["02_overview_pagedown", "11_activity_pagedown", "31_checks_pagedown", "41_files_pagedown"]
+        return ["02_overview_pagedown"]
+    return ["02_overview_pagedown", "31_checks_pagedown", "41_files_pagedown"]
 
 
 def read_json(path: Path) -> dict:

@@ -1612,7 +1612,7 @@ mod tests {
     fn session_snapshot_round_trips_tabs() {
         let mut state = AppState::new(resource(1));
         state.open_resource_in_tab(resource(2));
-        state.set_tab(Tab::Activity);
+        state.set_tab(Tab::Links);
         state.scroll_down(5);
 
         let snapshot = SessionSnapshot::from_state(
@@ -1626,7 +1626,7 @@ mod tests {
 
         assert_eq!(snapshot.resources.tabs.len(), 2);
         assert_eq!(snapshot.resources.active_index, 1);
-        assert_eq!(snapshot.resources.tabs[1].view, "activity");
+        assert_eq!(snapshot.resources.tabs[1].view, "links");
         assert_eq!(snapshot.resources.tabs[1].scroll, 5);
     }
 

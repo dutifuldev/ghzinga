@@ -7,7 +7,7 @@
   ❌ CLOSED  👤 @xneone                                                                                                                                         
                                                                                                                                                                 
                                                                                                                                                                 
-   🏠 Overview  💬 Activity [🔗 Links]                                                                                                                          
+   🏠 Overview [🔗 Links]                                                                                                                                       
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
@@ -32,9 +32,9 @@
   - x: close the current resource tab                                                                                                                           
   - f: load full GitHub pages when a partial-depth warning is shown                                                                                             
   - y: copy first visible URL, or current resource URL                                                                                                          
-  - Left / Right or h / l: switch Overview, Activity, and other content tabs                                                                                    
+  - Left / Right or h / l: switch Overview, Commits, and other content tabs                                                                                     
   - Tab / Shift-Tab or Shift-Left / Shift-Right: switch PR/issue tabs                                                                                           
-  - 1-6: jump to the visible tab in that position                                                                                                               
+  - 1-5: jump to the visible tab in that position                                                                                                               
   - v: reverse chronological feed order                                                                                                                         
   - a: expand or collapse all rows in the current tab                                                                                                           
   - Up / Down or k / j, PageUp / PageDown / Home / End: scroll                                                                                                  
