@@ -77,6 +77,7 @@ pub struct Symbols {
     pub more_patch: &'static str,
     pub less_patch: &'static str,
     pub footer_actions: &'static str,
+    pub edit_button: &'static str,
     pub footer_refresh: &'static str,
     pub footer_copy: &'static str,
     pub footer_open: &'static str,
@@ -132,6 +133,7 @@ impl Symbols {
             more_patch: "[+ more patch]",
             less_patch: "[- less patch]",
             footer_actions: "[actions]",
+            edit_button: "[edit]",
             footer_refresh: "[refresh]",
             footer_copy: "[copy]",
             footer_open: "[open]",
@@ -187,6 +189,7 @@ impl Symbols {
             more_patch: "[➕ more patch]",
             less_patch: "[➖ less patch]",
             footer_actions: "[⚡ actions]",
+            edit_button: "[✏ edit]",
             footer_refresh: "[🔄 refresh]",
             footer_copy: "[📋 copy]",
             footer_open: "[🌐 open]",
@@ -207,7 +210,7 @@ impl Symbols {
 mod tests {
     use super::*;
 
-    fn symbol_values(symbols: Symbols) -> [&'static str; 49] {
+    fn symbol_values(symbols: Symbols) -> [&'static str; 50] {
         [
             symbols.state_open,
             symbols.state_merged,
@@ -246,6 +249,7 @@ mod tests {
             symbols.collapse_all,
             symbols.more_patch,
             symbols.less_patch,
+            symbols.edit_button,
             symbols.footer_refresh,
             symbols.footer_copy,
             symbols.footer_open,
@@ -291,6 +295,7 @@ mod tests {
             symbols.collapse_all,
             symbols.more_patch,
             symbols.less_patch,
+            symbols.edit_button,
             symbols.footer_refresh,
             symbols.footer_copy,
             symbols.footer_open,
