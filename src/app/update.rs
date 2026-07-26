@@ -371,8 +371,27 @@ fn apply_composer_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
         }
         return AppIntent::None;
     }
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return apply_composer_alt_key(state, key);
+    }
     if let Some(intent) = apply_composer_edit_key(state, key) {
         return intent;
+    }
+    AppIntent::None
+}
+
+/// Readline word chords (Alt is otherwise ignored so stray escape
+/// sequences cannot type into the draft).
+fn apply_composer_alt_key(state: &mut AppState, key: KeyEvent) -> AppIntent {
+    let Some(composer) = state.comment_composer.as_mut() else {
+        return AppIntent::None;
+    };
+    match key.code {
+        KeyCode::Char('f') => composer.move_word_forward(),
+        KeyCode::Char('b') => composer.move_word_back(),
+        KeyCode::Char('d') => composer.kill_word_forward(),
+        KeyCode::Backspace => composer.kill_word_back_alnum(),
+        _ => {}
     }
     AppIntent::None
 }
@@ -386,13 +405,35 @@ fn apply_composer_control_key(state: &mut AppState, key: KeyEvent) -> AppIntent 
         return AppIntent::None;
     }
     match key.code {
-        KeyCode::Char('s') => submit_composer_comment(state),
+        KeyCode::Char('s') => return submit_composer_comment(state),
         KeyCode::Char('c') => {
             state.cancel_comment_composer();
-            AppIntent::None
+            return AppIntent::None;
         }
-        _ => AppIntent::None,
+        _ => {}
     }
+    if comment_is_posting(state) {
+        return AppIntent::None;
+    }
+    let Some(composer) = state.comment_composer.as_mut() else {
+        return AppIntent::None;
+    };
+    let width = composer.viewport_width();
+    match key.code {
+        KeyCode::Char('a') => composer.move_home(),
+        KeyCode::Char('e') => composer.move_end(),
+        KeyCode::Char('f') => composer.move_right(),
+        KeyCode::Char('b') => composer.move_left(),
+        KeyCode::Char('p') => composer.move_vertical(width, -1),
+        KeyCode::Char('n') => composer.move_vertical(width, 1),
+        KeyCode::Char('k') => composer.kill_to_end(),
+        KeyCode::Char('u') => composer.kill_to_start(),
+        KeyCode::Char('w') => composer.kill_word_back(),
+        KeyCode::Char('d') => composer.delete(),
+        KeyCode::Char('y') => composer.yank(),
+        _ => {}
+    }
+    AppIntent::None
 }
 
 fn apply_composer_edit_key(state: &mut AppState, key: KeyEvent) -> Option<AppIntent> {
@@ -3669,5 +3710,94 @@ mod tests {
         assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(1));
         press(&mut state, KeyCode::Char('1'));
         assert_eq!(state.edit_picker.as_ref().map(|p| p.selected), Some(0));
+    }
+
+    #[test]
+    fn readline_control_chords_drive_the_composer() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "hello world", (40, 5));
+        press_ctrl(&mut state, 'a');
+        assert_eq!(composer_cursor(&state), (0, 0));
+        press_ctrl(&mut state, 'f');
+        assert_eq!(composer_cursor(&state), (0, 1));
+        press_ctrl(&mut state, 'b');
+        assert_eq!(composer_cursor(&state), (0, 0));
+        press_ctrl(&mut state, 'e');
+        assert_eq!(composer_cursor(&state), (0, 11));
+        press_ctrl(&mut state, 'w');
+        assert_eq!(composer_body(&state), "hello ");
+        press_ctrl(&mut state, 'y');
+        assert_eq!(composer_body(&state), "hello world");
+        press_ctrl(&mut state, 'u');
+        assert_eq!(composer_body(&state), "");
+        press_ctrl(&mut state, 'y');
+        assert_eq!(composer_body(&state), "hello world");
+        press_ctrl(&mut state, 'a');
+        press_ctrl(&mut state, 'k');
+        assert_eq!(composer_body(&state), "");
+        press_ctrl(&mut state, 'y');
+        press_ctrl(&mut state, 'a');
+        press_ctrl(&mut state, 'd');
+        assert_eq!(composer_body(&state), "ello world");
+    }
+
+    #[test]
+    fn readline_line_chords_move_between_rows() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "one\ntwo", (40, 5));
+        press_ctrl(&mut state, 'p');
+        assert_eq!(composer_cursor(&state).0, 0);
+        press_ctrl(&mut state, 'n');
+        assert_eq!(composer_cursor(&state).0, 1);
+    }
+
+    #[test]
+    fn readline_alt_chords_drive_word_edits() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "alpha beta", (40, 5));
+        let alt = |state: &mut AppState, code| {
+            apply_event(state, AppEvent::Key(KeyEvent::new(code, KeyModifiers::ALT)));
+        };
+        alt(&mut state, KeyCode::Char('b'));
+        assert_eq!(composer_cursor(&state), (0, 6));
+        alt(&mut state, KeyCode::Char('d'));
+        assert_eq!(composer_body(&state), "alpha ");
+        alt(&mut state, KeyCode::Backspace);
+        assert_eq!(composer_body(&state), "");
+        apply_event(&mut state, AppEvent::Paste("one two".into()));
+        alt(&mut state, KeyCode::Char('b'));
+        alt(&mut state, KeyCode::Char('f'));
+        assert_eq!(composer_cursor(&state), (0, 7));
+    }
+
+    #[test]
+    fn posting_freeze_blocks_readline_edit_chords() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "posted", (40, 5));
+        state.pending_action = Some(ResourceAction::Comment {
+            body: "posted".into(),
+        });
+        press_ctrl(&mut state, 'k');
+        press_ctrl(&mut state, 'u');
+        press_ctrl(&mut state, 'w');
+        assert_eq!(
+            composer_body(&state),
+            "posted",
+            "kill chords must not edit a posting draft"
+        );
+    }
+
+    #[test]
+    fn ctrl_alt_chords_do_not_edit_the_composer() {
+        let mut state = actionable_issue_state();
+        open_sized_composer(&mut state, "steady", (40, 5));
+        apply_event(
+            &mut state,
+            AppEvent::Key(KeyEvent::new(
+                KeyCode::Char('k'),
+                KeyModifiers::CONTROL | KeyModifiers::ALT,
+            )),
+        );
+        assert_eq!(composer_body(&state), "steady");
     }
 }

@@ -137,7 +137,9 @@ that apply right now:
 
 - comment on the PR or issue in a multiline in-app composer
   (`Ctrl-S` or the `[comment]` button submits, paste works, click to move the
-  cursor)
+  cursor, and the readline chords apply: `Ctrl-A`/`Ctrl-E`, `Ctrl-F`/`Ctrl-B`/
+  `Ctrl-P`/`Ctrl-N`, `Alt-F`/`Alt-B`, `Ctrl-W`/`Alt-Backspace`/`Alt-D`,
+  `Ctrl-K`/`Ctrl-U` with `Ctrl-Y` yank, `Ctrl-D`)
 - merge an open PR, picking from the repository's allowed merge methods
 - close or reopen the PR or issue after a short confirmation
 
