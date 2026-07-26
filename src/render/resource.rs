@@ -2127,6 +2127,9 @@ fn wrap_content_row(row: ContentRow, width: usize, spacing: SpacingMode) -> Vec<
                 None if style != Style::default() => ContentRow::styled(line, style),
                 None => ContentRow::plain(line),
             };
+            // Button-like rows keep their precise hit width on every
+            // wrapped fragment; registration clamps it to the viewport.
+            wrapped.target_width = row.target_width;
             wrapped.activity_focus = focus.clone();
             wrapped
         })
