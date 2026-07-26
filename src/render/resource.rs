@@ -33,6 +33,10 @@ use self::header::{
 struct ContentRow {
     line: Line<'static>,
     target: Option<HitTarget>,
+    /// Clickable width of the target. None means the whole row is the hit
+    /// area (list rows); buttons set their rendered label width so clicks
+    /// beside them do nothing.
+    target_width: Option<u16>,
     comfortable_gap_after: bool,
     activity_focus: Option<String>,
 }
@@ -121,6 +125,7 @@ struct ChromeSpacingPlan {
 impl ContentRow {
     fn plain(text: impl Into<String>) -> Self {
         Self {
+            target_width: None,
             line: Line::from(text.into()),
             target: None,
             comfortable_gap_after: false,
@@ -130,6 +135,7 @@ impl ContentRow {
 
     fn styled(text: impl Into<String>, style: Style) -> Self {
         Self {
+            target_width: None,
             line: Line::from(Span::styled(text.into(), style)),
             target: None,
             comfortable_gap_after: false,
@@ -139,6 +145,7 @@ impl ContentRow {
 
     fn target(text: impl Into<String>, target: HitTarget) -> Self {
         Self {
+            target_width: None,
             line: Line::from(text.into()),
             target: Some(target),
             comfortable_gap_after: false,
@@ -148,6 +155,7 @@ impl ContentRow {
 
     fn target_styled(text: impl Into<String>, target: HitTarget, style: Style) -> Self {
         Self {
+            target_width: None,
             line: Line::from(Span::styled(text.into(), style)),
             target: Some(target),
             comfortable_gap_after: false,
@@ -157,11 +165,17 @@ impl ContentRow {
 
     fn target_line(line: Line<'static>, target: HitTarget) -> Self {
         Self {
+            target_width: None,
             line,
             target: Some(target),
             comfortable_gap_after: false,
             activity_focus: None,
         }
+    }
+
+    fn with_target_width(mut self, width: u16) -> Self {
+        self.target_width = Some(width);
+        self
     }
 
     fn with_comfortable_gap_after(mut self) -> Self {
@@ -1803,11 +1817,14 @@ fn render_content(frame: &mut Frame<'_>, area: Rect, state: &mut AppState, palet
     let mut visible = Vec::new();
     for (visible_index, (_row_index, row)) in visible_rows.into_iter().enumerate() {
         if let Some(target) = row.target {
+            let width = row
+                .target_width
+                .map_or(content_area.width, |width| width.min(content_area.width));
             state.hit_areas.push(HitArea::new(
                 Rect::new(
                     content_area.x,
                     content_area.y.saturating_add(visible_index as u16),
-                    content_area.width,
+                    width,
                     1,
                 ),
                 target,
@@ -2599,10 +2616,10 @@ fn push_body_timeline_rows(
         heading_style(palette),
     ));
     if crate::domain::body_edit_target(resource).is_some() {
-        rows.push(ContentRow::target_styled(
-            "[edit]",
+        rows.push(edit_button_row(
+            &symbols,
+            palette,
             HitTarget::EditResourceBody,
-            link_style(palette),
         ));
     }
     if resource.body.trim().is_empty() {
@@ -2702,7 +2719,7 @@ fn push_activity_timeline_rows(
     let block = BlockId::Activity(entry.id.clone());
     let can_expand = text_is_truncated(&entry.body, width, ACTIVITY_COLLAPSED_LINES);
     let expanded = can_expand && state.block_expanded(&block);
-    if let Some(edit_row) = activity_edit_row(entry, palette) {
+    if let Some(edit_row) = activity_edit_row(entry, &symbols, palette) {
         rows.push(edit_row);
     }
     if expanded {
@@ -2738,16 +2755,28 @@ fn activity_icon(entry: &ActivityEntry, symbols: &Symbols) -> &'static str {
 }
 
 /// A standalone clickable row offered on entries the viewer may edit.
-fn activity_edit_row(entry: &ActivityEntry, palette: &Palette) -> Option<ContentRow> {
+fn activity_edit_row(
+    entry: &ActivityEntry,
+    symbols: &Symbols,
+    palette: &Palette,
+) -> Option<ContentRow> {
     entry.edit.as_ref().map(|target| {
-        ContentRow::target_styled(
-            "[edit]",
+        edit_button_row(
+            symbols,
+            palette,
             HitTarget::EditActivityEntry {
                 node_id: target.node_id.clone(),
             },
-            link_style(palette),
         )
     })
+}
+
+/// The edit affordance renders like every other button and is clickable
+/// only on its own label, not the rest of the row.
+fn edit_button_row(symbols: &Symbols, palette: &Palette, target: HitTarget) -> ContentRow {
+    let label = symbols.edit_button;
+    ContentRow::target_styled(label, target, button_style(palette))
+        .with_target_width(UnicodeWidthStr::width(label) as u16)
 }
 
 fn activity_heading_style(entry: &ActivityEntry, palette: &Palette) -> Style {
@@ -7745,5 +7774,59 @@ mod tests {
         let content = draw_actionable(&mut state);
         assert!(content.contains("Edit comment on openclaw/openclaw#81834"));
         assert!(!content.contains("Edit description of"));
+    }
+
+    #[test]
+    fn edit_button_is_styled_like_a_button_and_sized_to_its_label() {
+        let palette = ThemeName::Default.palette();
+        let mut state = editable_pr_state();
+        draw_actionable(&mut state);
+        let rect = rendered_target_rect(&state, |target| *target == HitTarget::EditResourceBody)
+            .expect("edit button hit area");
+        let label = state.symbols.symbols().edit_button;
+        assert_eq!(
+            usize::from(rect.width),
+            UnicodeWidthStr::width(label),
+            "the hit area covers exactly the label"
+        );
+        assert_eq!(
+            draw_cell_bg_for_text(&mut state, 120, 36, label, 0),
+            Some(palette.accent),
+            "edit renders with the shared button style"
+        );
+    }
+
+    #[test]
+    fn clicking_beside_the_edit_button_does_nothing() {
+        let mut state = editable_pr_state();
+        draw_actionable(&mut state);
+        let rect = rendered_target_rect(&state, |target| *target == HitTarget::EditResourceBody)
+            .expect("edit button hit area");
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: rect.x + rect.width + 4,
+                row: rect.y,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert!(
+            state.comment_composer.is_none(),
+            "the row beside the button must not open the composer"
+        );
+        apply_event(
+            &mut state,
+            AppEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: rect.x + 1,
+                row: rect.y,
+                modifiers: KeyModifiers::empty(),
+            }),
+        );
+        assert!(
+            state.comment_composer.is_some(),
+            "the button itself still opens the composer"
+        );
     }
 }
