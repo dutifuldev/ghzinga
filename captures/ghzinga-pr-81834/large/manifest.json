@@ -4,8 +4,8 @@
   "title": "feat(senseaudio): add SenseAudio TTS provider",
   "mode": "pr",
   "binary": "target/debug/gzg",
-  "git_commit": "586817dfe1f49e03f66cb4912a6a1a0f07c199f8",
-  "app_tree_hash": "0fea15dad5b7fe9ed5d986b2bb142246d52f2add690ab0c490d1595b124f8fc5",
+  "git_commit": "cb1324be888eea5626abde412011aa2e9e93935b",
+  "app_tree_hash": "d88325deb3b91e11a0014942dc46000ff4b9b868bd72d23f4962302bc76ddcf3",
   "config_path": "captures/ghzinga-pr-81834/capture-empty-config.toml",
   "requested_columns": 160,
   "requested_rows": 50,
@@ -51,35 +51,6 @@
       "tab": "overview",
       "keys": [
         "e",
-        "PageDown"
-      ],
-      "actual_tmux_size": "160x50",
-      "config_path": "captures/ghzinga-pr-81834/capture-empty-config.toml"
-    },
-    {
-      "name": "10_activity_top",
-      "txt": "10_activity_top.txt",
-      "ansi": "10_activity_top.ansi",
-      "history_txt": "10_activity_top.history.txt",
-      "history_ansi": "10_activity_top.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg 'openclaw/openclaw#81834' --tab activity --no-restore --refresh-seconds 0",
-      "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --tab activity --no-restore --refresh-seconds 0",
-      "tab": "activity",
-      "keys": [],
-      "actual_tmux_size": "160x50",
-      "config_path": "captures/ghzinga-pr-81834/capture-empty-config.toml"
-    },
-    {
-      "name": "11_activity_pagedown",
-      "txt": "11_activity_pagedown.txt",
-      "ansi": "11_activity_pagedown.ansi",
-      "history_txt": "11_activity_pagedown.history.txt",
-      "history_ansi": "11_activity_pagedown.history.ansi",
-      "command": "TERM=xterm-256color GZG_CONFIG_PATH=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/capture-empty-config.toml GZG_STATE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/.capture-state GZG_CACHE_HOME=/home/onur/repos/ghzinga/captures/ghzinga-pr-81834/.capture-cache /home/onur/repos/ghzinga/target/debug/gzg 'openclaw/openclaw#81834' --tab activity --no-restore --refresh-seconds 0",
-      "portable_command": "TERM=xterm-256color GZG_CONFIG_PATH=./captures/ghzinga-pr-81834/capture-empty-config.toml GZG_STATE_HOME=./captures/ghzinga-pr-81834/.capture-state GZG_CACHE_HOME=./captures/ghzinga-pr-81834/.capture-cache ./target/debug/gzg 'openclaw/openclaw#81834' --tab activity --no-restore --refresh-seconds 0",
-      "tab": "activity",
-      "keys": [
-        "PageDown",
         "PageDown"
       ],
       "actual_tmux_size": "160x50",

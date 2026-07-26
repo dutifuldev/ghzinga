@@ -5,15 +5,16 @@
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
                                                                                                                                                                 
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main  ✅ checks PASS (51 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22                                  
-  🔁 Refresh: 12:02:34 changed ✦ Changed: metadata, warnings, checks                                                                                            
+  🔁 Refresh: 04:15:55 changed ✦ Changed: metadata, warnings, checks                                                                                            
                                                                                                                                                                 
-  [🏠 Overview] 💬 Activity  🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                                          
+  [🏠 Overview] 🧱 Commits  ✅ Checks  📄 Files  🔗 Links                                                                                                       
                                                                                                                                                                 
   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  
-  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of│                                        
+  missing-audio buckets.                                                                                               │                                        
+  - What did NOT change: no core code; ASR untouched; streaming, telephony, voice cloning, text-generated voices out of█                                        
   scope.                                                                                                               █                                        
                                                                                                                        █                                        
-  Change Type (select all)                                                                                             █                                        
+  Change Type (select all)                                                                                             │                                        
                                                                                                                        │                                        
   [ ] Bug fix                                                                                                          │                                        
   [x] Feature                                                                                                          │                                        
@@ -44,7 +45,6 @@
   - Behavior addressed: SenseAudio bundled plugin now registers a speechProvider alongside the existing ASR provider.  │                                        
   With SENSEAUDIO_API_KEY set, isConfigured returns true, listVoices surfaces the upstream system_voice set via POST   │                                        
   /v1/get_voice, and synthesize returns a real MP3 (or transcoded opus on voice-note targets).                         │                                        
-  - Real environment tested: Yes (Linux 5.14.0, Node 22.22.3, production https://api.senseaudio.cn with a valid        │                                        
                                                                                                                                                                 
   [🔄 refresh] [⚡ actions] [➕  expand ] [⬇ full] [⚙ settings] [❔ help] [⏻ quit]                                                                              
                                                                                                                                                                 
