@@ -70,9 +70,7 @@ impl FromStr for Tab {
             "checks" | "ci" => Ok(Self::Checks),
             "files" => Ok(Self::Files),
             "links" => Ok(Self::Links),
-            _ => {
-                Err("expected one of overview, activity, commits, checks, files, links".to_string())
-            }
+            _ => Err("expected one of overview, commits, checks, files, links".to_string()),
         }
     }
 }
@@ -1724,8 +1722,16 @@ mod tests {
     #[test]
     fn parses_tab_names() {
         assert_eq!("overview".parse::<Tab>().unwrap(), Tab::Overview);
+        assert_eq!("commits".parse::<Tab>().unwrap(), Tab::Commits);
+        assert_eq!("checks".parse::<Tab>().unwrap(), Tab::Checks);
         assert_eq!("ci".parse::<Tab>().unwrap(), Tab::Checks);
-        assert!("unknown".parse::<Tab>().is_err());
+        assert_eq!("files".parse::<Tab>().unwrap(), Tab::Files);
+        assert_eq!("links".parse::<Tab>().unwrap(), Tab::Links);
+        let error = "activity".parse::<Tab>().unwrap_err();
+        assert_eq!(
+            error, "expected one of overview, commits, checks, files, links",
+            "the removed tab must not be advertised"
+        );
     }
 
     #[test]
