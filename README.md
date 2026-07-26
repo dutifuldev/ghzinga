@@ -5,7 +5,9 @@ open on the side while you work.
 
 It is not trying to be a full GitHub client. It is for maintainers who want a
 faster-than-the-web-UI view of the current status, comments, checks, files, and
-links for a PR or issue, with automatic refresh. It is similar in spirit to
+links for a PR or issue, with automatic refresh — plus the everyday actions:
+commenting, editing what GitHub lets you edit, merging, closing, and
+reopening, all without leaving the terminal. It is similar in spirit to
 [`gh dash`](https://github.com/dlvhdr/gh-dash), but focused on a single item
 first instead of a dashboard list.
 
