@@ -5,20 +5,20 @@
   ────────────────────────────────────────────────────────────────────────────  
                                                                                 
   ✅ OPEN  👤 @KLilyZ  feat/senseaudio-tts -> main                              
-  ✅ checks PASS (40 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
-  ⓘ loading additional GitHub details                                           
+  ✅ checks PASS (51 pass, 0 pending, 0 fail)  📄 14 files changed +1.1k -22    
+  🔁 Refresh: 04:28:37 changed ✦ Changed: metadata, warnings, checks            
    🏠 Overview  🧱 Commits [✅ Checks] 📄 Files  🔗 Links                       
                                                                                 
   ────────────────────────────────────────────────────────────────────────────  
                                                                              █  
-  [✅ PASS] Auto response/auto-response [➕ more]                            │  
+  [✅ PASS] suite/CodeQL Critical Quality [➕ more]                          │  
                                                                              │  
-  [✅ PASS] Auto response/auto-response [➕ more]                            │  
+  [✅ PASS] suite/Dependency Guard [➕ more]                                 │  
                                                                              │  
-  [✅ PASS] Auto response/auto-response [➕ more]                            │  
+  [✅ PASS] suite/GitHub Advanced Security [➕ more]                         │  
                                                                              │  
-  [✅ PASS] Auto response/auto-response [➕ more]                            │  
+  [✅ PASS] suite/Labeler [➕ more]                                          │  
                                                                              │  
-  [✅ PASS] Auto response/auto-response [➕ more]                            │  
+  [✅ PASS] suite/OpenGrep — PR Diff [➕ more]                               │  
   [🔄 refresh] [⚡ actions] [➕  expand ] [⬇ full] [⚙ settings] [❔ help]       
   [⏻ quit]                                                                      
