@@ -16,7 +16,9 @@ mod platform;
 
 pub(crate) use platform::*;
 
-pub(crate) struct SessionLock(File);
+pub(crate) struct SessionLock {
+    _file: File,
+}
 
 impl SessionLock {
     pub(crate) fn acquire(path: &Path) -> io::Result<Self> {
@@ -35,13 +37,7 @@ impl SessionLock {
                 format!("ghzinga session control endpoint is already active: {error}"),
             )
         })?;
-        Ok(Self(file))
-    }
-}
-
-impl Drop for SessionLock {
-    fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.0);
+        Ok(Self { _file: file })
     }
 }
 

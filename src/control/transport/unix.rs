@@ -1,9 +1,6 @@
 use std::{
     fs, io,
-    os::unix::{
-        fs::{MetadataExt, PermissionsExt},
-        net::UnixStream as StdUnixStream,
-    },
+    os::unix::{fs::PermissionsExt, net::UnixStream as StdUnixStream},
     path::PathBuf,
 };
 
@@ -18,19 +15,12 @@ pub(crate) struct Listener {
 
 pub(crate) struct Cleanup {
     path: PathBuf,
-    device: u64,
-    inode: u64,
     _lock: SessionLock,
 }
 
 impl Cleanup {
     pub(crate) fn remove(&self) {
-        let Ok(metadata) = fs::metadata(&self.path) else {
-            return;
-        };
-        if metadata.dev() == self.device && metadata.ino() == self.inode {
-            let _ = fs::remove_file(&self.path);
-        }
+        let _ = fs::remove_file(&self.path);
     }
 }
 
@@ -58,15 +48,9 @@ impl Listener {
             permissions.set_mode(0o600);
             let _ = fs::set_permissions(&path, permissions);
         }
-        let metadata = fs::metadata(&path)?;
         Ok(Self {
             inner,
-            cleanup: Some(Cleanup {
-                path,
-                device: metadata.dev(),
-                inode: metadata.ino(),
-                _lock: lock,
-            }),
+            cleanup: Some(Cleanup { path, _lock: lock }),
         })
     }
 

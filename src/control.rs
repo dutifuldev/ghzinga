@@ -445,6 +445,11 @@ mod tests {
 
     static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
+    #[test]
+    fn control_message_limit_is_sixteen_kibibytes() {
+        assert_eq!(MAX_CONTROL_LINE_BYTES, 16_384);
+    }
+
     fn default_runtime_dir(suffix: &str) -> PathBuf {
         #[cfg(unix)]
         let base = PathBuf::from("/tmp");
@@ -535,6 +540,49 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn rejects_failed_reply_with_result_even_when_error_is_present() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_1","ok":false,"result":"opened","error":"failed"}"#,
+            "c_1",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reads_chunked_line_without_consuming_following_data() {
+        let (mut writer, reader) = tokio::io::duplex(32);
+        writer.write_all(b"abc\nnext").await.unwrap();
+        let mut reader = BufReader::with_capacity(2, reader);
+
+        let line = read_control_line(&mut reader).await.unwrap();
+
+        assert_eq!(line, "abc\n");
+        assert_eq!(reader.fill_buf().await.unwrap(), b"ne");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn accepts_control_message_at_exact_size_limit() {
+        let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES);
+        let write = tokio::spawn(async move {
+            writer
+                .write_all(&vec![b'a'; MAX_CONTROL_LINE_BYTES - 1])
+                .await
+                .unwrap();
+            writer.write_all(b"\n").await.unwrap();
+        });
+
+        let line = read_control_line(&mut BufReader::with_capacity(7, reader))
+            .await
+            .unwrap();
+        write.await.unwrap();
+
+        assert_eq!(line.len(), MAX_CONTROL_LINE_BYTES);
+        assert!(line.ends_with('\n'));
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -633,6 +681,23 @@ mod tests {
         let reply = client.await.unwrap();
         assert!(reply.ok);
         assert_eq!(reply.result.as_deref(), Some("opened"));
+
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn unknown_session_is_not_live() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("missing-{}", std::process::id());
+
+        assert!(!is_session_live(&session_id));
 
         if let Some(value) = previous_runtime {
             env::set_var(GZG_RUNTIME_HOME_ENV, value);

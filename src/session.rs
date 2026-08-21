@@ -1346,6 +1346,21 @@ mod tests {
     }
 
     #[test]
+    fn cache_dir_uses_runtime_override() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous = env::var_os(GZG_CACHE_HOME_ENV);
+        env::set_var(GZG_CACHE_HOME_ENV, "C:/temp/ghzinga-cache");
+
+        assert_eq!(cache_dir(), PathBuf::from("C:/temp/ghzinga-cache"));
+
+        if let Some(value) = previous {
+            env::set_var(GZG_CACHE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_CACHE_HOME_ENV);
+        }
+    }
+
+    #[test]
     fn state_and_cache_dirs_use_windows_local_app_data() {
         let local = Some("C:/Users/alice/AppData/Local".into());
 
