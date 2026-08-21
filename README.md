@@ -31,8 +31,9 @@ Install from crates.io:
 cargo install ghzinga
 ```
 
-Linux, macOS, and Windows are supported. Live session control uses Unix domain
-sockets on Unix and named pipes on Windows.
+The standalone CLI and TUI support Linux, macOS, and Windows. Live session
+control uses Unix domain sockets on Unix and authenticated, owner-only named
+pipes on Windows. The optional Herdr plugin currently supports Linux and macOS.
 
 Install from a local checkout:
 

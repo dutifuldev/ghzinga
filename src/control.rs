@@ -1,13 +1,10 @@
-use std::{env, io, path::PathBuf, time::Duration};
-
-#[cfg(unix)]
-use std::fs;
+use std::{env, fs, io, path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
+    io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{mpsc::UnboundedSender, oneshot},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 
 use crate::domain::ResourceId;
@@ -17,6 +14,8 @@ mod transport;
 pub const GZG_RUNTIME_HOME_ENV: &str = "GZG_RUNTIME_HOME";
 const CONTROL_SCHEMA_VERSION: u32 = 1;
 const CONTROL_TIMEOUT: Duration = Duration::from_millis(1200);
+const MAX_CONTROL_CONNECTIONS: usize = 32;
+const MAX_CONTROL_LINE_BYTES: usize = 16 * 1024;
 
 #[derive(Debug)]
 pub struct RuntimeRequest {
@@ -74,6 +73,8 @@ impl ControlReply {
 struct WireCommand {
     schema_version: u32,
     id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auth_token: Option<String>,
     method: String,
     #[serde(default)]
     resource: Option<String>,
@@ -152,7 +153,6 @@ pub fn socket_path(session_id: &str) -> PathBuf {
 }
 
 pub struct ControlServer {
-    #[cfg(unix)]
     path: PathBuf,
     task: JoinHandle<()>,
 }
@@ -160,10 +160,7 @@ pub struct ControlServer {
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.task.abort();
-        #[cfg(unix)]
-        {
-            let _ = fs::remove_file(&self.path);
-        }
+        let _ = fs::remove_file(&self.path);
     }
 }
 
@@ -172,15 +169,9 @@ pub fn start_server(
     tx: UnboundedSender<RuntimeRequest>,
 ) -> io::Result<ControlServer> {
     let listener = transport::Listener::bind(session_id)?;
+    let path = listener.cleanup_path();
     let task = tokio::spawn(server_loop(listener, tx));
-    #[cfg(unix)]
-    let server = ControlServer {
-        path: socket_path(session_id),
-        task,
-    };
-    #[cfg(windows)]
-    let server = ControlServer { task };
-    Ok(server)
+    Ok(ControlServer { path, task })
 }
 
 pub fn is_session_live(session_id: &str) -> bool {
@@ -188,25 +179,37 @@ pub fn is_session_live(session_id: &str) -> bool {
 }
 
 async fn server_loop(mut listener: transport::Listener, tx: UnboundedSender<RuntimeRequest>) {
+    let auth_token = listener.auth_token().map(str::to_string);
+    let mut connections = JoinSet::new();
     loop {
+        while connections.len() >= MAX_CONTROL_CONNECTIONS {
+            let _ = connections.join_next().await;
+        }
         let Ok(stream) = listener.accept().await else {
             break;
         };
         let tx = tx.clone();
-        tokio::spawn(async move {
-            let _ = handle_connection(stream, tx).await;
+        let auth_token = auth_token.clone();
+        connections.spawn(async move {
+            let _ = handle_connection(stream, tx, auth_token.as_deref()).await;
         });
+        while connections.try_join_next().is_some() {}
     }
 }
 
-async fn handle_connection<S>(stream: S, tx: UnboundedSender<RuntimeRequest>) -> io::Result<()>
+async fn handle_connection<S>(
+    stream: S,
+    tx: UnboundedSender<RuntimeRequest>,
+    auth_token: Option<&str>,
+) -> io::Result<()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    reader.read_line(&mut line).await?;
-    let command = parse_wire_command(&line);
+    let line = tokio::time::timeout(CONTROL_TIMEOUT, read_control_line(&mut reader))
+        .await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control request timed out"))??;
+    let command = parse_wire_command(&line, auth_token);
     let reply = match command {
         Ok(command) => {
             let request_id = command.request_id().to_string();
@@ -247,13 +250,19 @@ where
     Ok(())
 }
 
-fn parse_wire_command(line: &str) -> Result<RuntimeCommand, (String, String)> {
+fn parse_wire_command(
+    line: &str,
+    expected_auth_token: Option<&str>,
+) -> Result<RuntimeCommand, (String, String)> {
     let value = serde_json::from_str::<WireCommand>(line).map_err(|error| {
         (
             "unknown".to_string(),
             format!("invalid control command: {error}"),
         )
     })?;
+    if value.auth_token.as_deref() != expected_auth_token {
+        return Err((value.id, "unauthorized control command".to_string()));
+    }
     if value.schema_version != CONTROL_SCHEMA_VERSION {
         return Err((
             value.id,
@@ -308,6 +317,7 @@ pub async fn send_open(session_id: &str, resource: &ResourceId) -> io::Result<Co
         WireCommand {
             schema_version: CONTROL_SCHEMA_VERSION,
             id: command_id(),
+            auth_token: None,
             method: "open".into(),
             resource: Some(resource.canonical_name()),
             key: None,
@@ -323,6 +333,7 @@ pub async fn send_set(session_id: &str, key: &str, value: &str) -> io::Result<Co
         WireCommand {
             schema_version: CONTROL_SCHEMA_VERSION,
             id: command_id(),
+            auth_token: None,
             method: "set".into(),
             resource: None,
             key: Some(key.into()),
@@ -332,27 +343,79 @@ pub async fn send_set(session_id: &str, key: &str, value: &str) -> io::Result<Co
     .await
 }
 
-async fn send_command(session_id: &str, command: WireCommand) -> io::Result<ControlReply> {
-    let mut stream = tokio::time::timeout(CONTROL_TIMEOUT, transport::connect(session_id))
-        .await
-        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control connect timed out"))??;
+async fn send_command(session_id: &str, mut command: WireCommand) -> io::Result<ControlReply> {
+    let (mut stream, auth_token) =
+        tokio::time::timeout(CONTROL_TIMEOUT, transport::connect(session_id))
+            .await
+            .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control connect timed out"))??;
+    command.auth_token = auth_token;
+    let request_id = command.id.clone();
     stream
         .write_all(serde_json::to_string(&command)?.as_bytes())
         .await?;
     stream.write_all(b"\n").await?;
     stream.flush().await?;
     let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    tokio::time::timeout(CONTROL_TIMEOUT, reader.read_line(&mut line))
+    let line = tokio::time::timeout(CONTROL_TIMEOUT, read_control_line(&mut reader))
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control reply timed out"))??;
-    let reply = serde_json::from_str::<WireReply>(&line)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let reply = parse_wire_reply(&line, &request_id)?;
     Ok(ControlReply {
         ok: reply.ok,
         result: reply.result,
         error: reply.error,
     })
+}
+
+async fn read_control_line<R>(reader: &mut R) -> io::Result<String>
+where
+    R: AsyncBufRead + Unpin,
+{
+    let mut bytes = Vec::with_capacity(512);
+    loop {
+        let available = reader.fill_buf().await?;
+        if available.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "control connection closed before newline",
+            ));
+        }
+        let consumed = available
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(available.len(), |index| index + 1);
+        if bytes.len() + consumed > MAX_CONTROL_LINE_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "control message exceeds size limit",
+            ));
+        }
+        let complete = available[consumed - 1] == b'\n';
+        bytes.extend_from_slice(&available[..consumed]);
+        reader.consume(consumed);
+        if complete {
+            return String::from_utf8(bytes)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error));
+        }
+    }
+}
+
+fn parse_wire_reply(line: &str, expected_id: &str) -> io::Result<WireReply> {
+    let reply = serde_json::from_str::<WireReply>(line)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    if reply.schema_version != CONTROL_SCHEMA_VERSION {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("unsupported control schema {}", reply.schema_version),
+        ));
+    }
+    if reply.id != expected_id {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "control reply id does not match request",
+        ));
+    }
+    Ok(reply)
 }
 
 fn command_id() -> String {
@@ -410,6 +473,7 @@ mod tests {
     fn parses_open_wire_command() {
         let parsed = parse_wire_command(
             r#"{"schema_version":1,"id":"c_1","method":"open","resource":"owner/repo#12"}"#,
+            None,
         )
         .unwrap();
 
@@ -424,11 +488,79 @@ mod tests {
 
     #[test]
     fn rejects_unknown_schema() {
-        let error =
-            parse_wire_command(r#"{"schema_version":2,"id":"c_1","method":"open"}"#).unwrap_err();
+        let error = parse_wire_command(r#"{"schema_version":2,"id":"c_1","method":"open"}"#, None)
+            .unwrap_err();
 
         assert_eq!(error.0, "c_1");
         assert!(error.1.contains("unsupported control schema"));
+    }
+
+    #[test]
+    fn rejects_missing_control_auth_token() {
+        let error = parse_wire_command(
+            r#"{"schema_version":1,"id":"c_1","method":"open","resource":"owner/repo#12"}"#,
+            Some("secret"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.0, "c_1");
+        assert!(error.1.contains("unauthorized"));
+    }
+
+    #[test]
+    fn rejects_reply_for_different_request() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_other","ok":true}"#,
+            "c_expected",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejects_oversized_control_message() {
+        let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES + 2);
+        let write = tokio::spawn(async move {
+            writer
+                .write_all(&vec![b'a'; MAX_CONTROL_LINE_BYTES + 1])
+                .await
+                .unwrap();
+            writer.write_all(b"\n").await.unwrap();
+        });
+        let error = read_control_line(&mut BufReader::new(reader))
+            .await
+            .unwrap_err();
+        write.await.unwrap();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn idle_control_client_is_disconnected_after_timeout() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("idle-{}", std::process::id());
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let _server = start_server(&session_id, tx).unwrap();
+        let (mut client, _) = transport::connect(&session_id).await.unwrap();
+
+        let error = tokio::time::timeout(
+            CONTROL_TIMEOUT * 2,
+            tokio::io::AsyncReadExt::read_u8(&mut client),
+        )
+        .await
+        .expect("server should close idle clients")
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]

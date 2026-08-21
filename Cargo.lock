@@ -683,6 +683,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "crossterm",
+ "getrandom 0.3.4",
  "predicates",
  "ratatui",
  "regex",
@@ -694,6 +695,7 @@ dependencies = [
  "tokio",
  "toml",
  "unicode-width",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
