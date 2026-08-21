@@ -454,7 +454,7 @@ fn print_sessions() -> anyhow::Result<()> {
 }
 
 fn session_live_status(id: &str) -> &'static str {
-    if std::os::unix::net::UnixStream::connect(control::socket_path(id)).is_ok() {
+    if control::is_session_live(id) {
         "running"
     } else {
         "saved"
@@ -661,7 +661,9 @@ async fn run_tui(
         Some(runtime) => match control::start_server(&runtime.handle.id, control_tx) {
             Ok(server) => Some(server),
             Err(error) => {
-                state.last_error = Some(format!("failed to start ghzinga control socket: {error}"));
+                state.last_error = Some(format!(
+                    "failed to start ghzinga control transport: {error}"
+                ));
                 None
             }
         },
@@ -1580,10 +1582,10 @@ fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
 
     #[cfg(target_os = "windows")]
     {
-        return (
+        (
             "cmd".into(),
             vec!["/C".into(), "start".into(), "".into(), url.into()],
-        );
+        )
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -1619,7 +1621,7 @@ fn current_clipboard_platform() -> ClipboardPlatform {
 
     #[cfg(target_os = "windows")]
     {
-        return ClipboardPlatform::Windows;
+        ClipboardPlatform::Windows
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -1742,14 +1744,22 @@ mod tests {
         maybe_auto_refresh_with_start, maybe_load_file_patches_with_start,
         maybe_refresh_loading_active_resource, navigate_back, navigate_to_resource,
         parse_resource_args, prepare_restored_initial_fetch, resource_count_label,
-        save_open_commands_to_session, session_state_persistable, should_advance_loading_frame,
-        should_advance_scrollbar_fade, should_redraw_after_scrollbar_frame,
-        should_replace_empty_launch_tab, url_open_command, ClipboardPlatform,
+        save_open_commands_to_session, session_live_status, session_state_persistable,
+        should_advance_loading_frame, should_advance_scrollbar_fade,
+        should_redraw_after_scrollbar_frame, should_replace_empty_launch_tab, url_open_command,
+        ClipboardPlatform,
     };
 
     struct FakeGateway {
         resources: Mutex<VecDeque<Resource>>,
         requested: Mutex<Vec<ResourceId>>,
+    }
+
+    #[test]
+    fn missing_session_status_is_saved() {
+        let id = format!("missing-status-{}", std::process::id());
+
+        assert_eq!(session_live_status(&id), "saved");
     }
 
     impl FakeGateway {

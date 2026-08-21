@@ -37,6 +37,9 @@ rust:
       min_tokens: 100
   unsafe:
     policy: forbid
+    allow:
+      - path: "src/control/transport/windows.rs"
+        reason: narrowly scoped Windows security-descriptor FFI required for owner-only named-pipe ACLs
   mutation:
     targets:
       - src/app

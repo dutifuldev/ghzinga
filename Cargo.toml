@@ -37,6 +37,7 @@ path = "src/bin/ghzinga.rs"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 crossterm = { version = "0.29", features = ["bracketed-paste"] }
+fs2 = "0.4"
 ratatui = "0.30"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -46,6 +47,14 @@ thiserror = "2"
 tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 toml = "0.8"
 unicode-width = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+getrandom = "0.3"
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+] }
 
 [dev-dependencies]
 assert_cmd = "2"

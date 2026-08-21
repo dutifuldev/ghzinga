@@ -1,12 +1,14 @@
 use std::{
     collections::{BTreeMap, HashSet},
     env, fs, io,
-    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+#[cfg(unix)]
+use std::io::{BufRead, BufReader, Write};
 
 use serde::{Deserialize, Serialize};
 
@@ -332,6 +334,7 @@ pub fn state_dir() -> PathBuf {
     app_state_dir_from_env(
         env::var_os(GZG_STATE_HOME_ENV),
         env::var_os("XDG_STATE_HOME"),
+        env::var_os("LOCALAPPDATA"),
         env::var_os("HOME"),
     )
 }
@@ -340,6 +343,7 @@ pub fn cache_dir() -> PathBuf {
     app_cache_dir_from_env(
         env::var_os(GZG_CACHE_HOME_ENV),
         env::var_os("XDG_CACHE_HOME"),
+        env::var_os("LOCALAPPDATA"),
         env::var_os("HOME"),
     )
 }
@@ -347,6 +351,7 @@ pub fn cache_dir() -> PathBuf {
 fn app_state_dir_from_env(
     override_dir: Option<std::ffi::OsString>,
     xdg_state: Option<std::ffi::OsString>,
+    local_app_data: Option<std::ffi::OsString>,
     home: Option<std::ffi::OsString>,
 ) -> PathBuf {
     if let Some(path) = override_dir {
@@ -354,6 +359,9 @@ fn app_state_dir_from_env(
     }
     if let Some(path) = xdg_state {
         return PathBuf::from(path).join("ghzinga");
+    }
+    if let Some(path) = local_app_data {
+        return PathBuf::from(path).join("ghzinga").join("state");
     }
     home.map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
@@ -365,6 +373,7 @@ fn app_state_dir_from_env(
 fn app_cache_dir_from_env(
     override_dir: Option<std::ffi::OsString>,
     xdg_cache: Option<std::ffi::OsString>,
+    local_app_data: Option<std::ffi::OsString>,
     home: Option<std::ffi::OsString>,
 ) -> PathBuf {
     if let Some(path) = override_dir {
@@ -372,6 +381,9 @@ fn app_cache_dir_from_env(
     }
     if let Some(path) = xdg_cache {
         return PathBuf::from(path).join("ghzinga");
+    }
+    if let Some(path) = local_app_data {
+        return PathBuf::from(path).join("ghzinga").join("cache");
     }
     home.map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
@@ -812,31 +824,32 @@ pub fn save_session(
     Ok(snapshot)
 }
 
+#[cfg(unix)]
 fn best_effort_mark_provider_session(handle: &SessionHandle, state: &mut AppState) {
-    #[cfg(unix)]
-    {
-        let Some(context) = handle
-            .contexts
-            .iter()
-            .find(|context| context.provider == "herdr")
-        else {
-            return;
-        };
-        let (Some(socket), Some(pane)) = (
-            context.metadata.get("socket_path"),
-            context.metadata.get("pane_id"),
-        ) else {
-            return;
-        };
-        let active = state
-            .session_resource_tabs()
-            .get(state.active_resource_tab)
-            .map(|tab| tab.resource.id.canonical_name())
-            .unwrap_or_else(|| "empty".into());
-        let label = format!("gzg:{} {active}", handle.id);
-        let _ = write_herdr_pane_label(socket, pane, &label);
-    }
+    let Some(context) = handle
+        .contexts
+        .iter()
+        .find(|context| context.provider == "herdr")
+    else {
+        return;
+    };
+    let (Some(socket), Some(pane)) = (
+        context.metadata.get("socket_path"),
+        context.metadata.get("pane_id"),
+    ) else {
+        return;
+    };
+    let active = state
+        .session_resource_tabs()
+        .get(state.active_resource_tab)
+        .map(|tab| tab.resource.id.canonical_name())
+        .unwrap_or_else(|| "empty".into());
+    let label = format!("gzg:{} {active}", handle.id);
+    let _ = write_herdr_pane_label(socket, pane, &label);
 }
+
+#[cfg(not(unix))]
+fn best_effort_mark_provider_session(_: &SessionHandle, _: &mut AppState) {}
 
 #[cfg(unix)]
 fn write_herdr_pane_label(socket: &str, pane_id: &str, label: &str) -> io::Result<()> {
@@ -896,6 +909,7 @@ fn read_herdr_pane_label(socket: &str, pane_id: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+#[cfg(any(unix, test))]
 fn parse_herdr_session_marker(label: &str) -> Option<String> {
     label
         .strip_prefix("gzg:")
@@ -1085,6 +1099,7 @@ fn normalize_session_id(input: &str) -> String {
     while output.contains("--") {
         output = output.replace("--", "-");
     }
+    output.truncate(64);
     output = output.trim_matches('-').to_string();
     if output.is_empty() {
         new_session_id()
@@ -1321,13 +1336,50 @@ mod tests {
     #[test]
     fn state_and_cache_dirs_use_overrides() {
         assert_eq!(
-            app_state_dir_from_env(Some("/tmp/state".into()), None, None),
+            app_state_dir_from_env(Some("/tmp/state".into()), None, None, None),
             PathBuf::from("/tmp/state")
         );
         assert_eq!(
-            app_cache_dir_from_env(Some("/tmp/cache".into()), None, None),
+            app_cache_dir_from_env(Some("/tmp/cache".into()), None, None, None),
             PathBuf::from("/tmp/cache")
         );
+    }
+
+    #[test]
+    fn cache_dir_uses_runtime_override() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let previous = env::var_os(GZG_CACHE_HOME_ENV);
+        env::set_var(GZG_CACHE_HOME_ENV, "C:/temp/ghzinga-cache");
+
+        assert_eq!(cache_dir(), PathBuf::from("C:/temp/ghzinga-cache"));
+
+        if let Some(value) = previous {
+            env::set_var(GZG_CACHE_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_CACHE_HOME_ENV);
+        }
+    }
+
+    #[test]
+    fn state_and_cache_dirs_use_windows_local_app_data() {
+        let local = Some("C:/Users/alice/AppData/Local".into());
+
+        assert_eq!(
+            app_state_dir_from_env(None, None, local.clone(), None),
+            PathBuf::from("C:/Users/alice/AppData/Local/ghzinga/state")
+        );
+        assert_eq!(
+            app_cache_dir_from_env(None, None, local, None),
+            PathBuf::from("C:/Users/alice/AppData/Local/ghzinga/cache")
+        );
+    }
+
+    #[test]
+    fn normalized_session_ids_fit_control_transport_limits() {
+        let normalized = normalize_session_id(&"a".repeat(80));
+
+        assert_eq!(normalized.len(), 64);
+        assert!(normalized.bytes().all(|byte| byte.is_ascii_alphanumeric()));
     }
 
     #[test]

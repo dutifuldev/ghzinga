@@ -8,6 +8,11 @@
 # - submit_resource_action is the thin authenticated wrapper around the
 #   GraphQL transport; its request construction and error handling are unit
 #   tested through submit_resource_action_with.
+# - Windows control transport behavior is covered by native Windows tests and
+#   cannot be exercised by the Ubuntu mutation job because the module is
+#   excluded at compile time by cfg(windows).
+exclude_globs = ["src/control/transport/windows.rs"]
+
 exclude_re = [
     "replace run_tui .* with Ok\\(\\(\\)\\)",
     "replace restore_snapshot with \\(\\)",

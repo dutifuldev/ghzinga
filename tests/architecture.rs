@@ -304,13 +304,11 @@ fn gh_cli_shell_out_is_only_for_auth_token_fallback() {
         .into_iter()
         .filter_map(|path| {
             let source = fs::read_to_string(&path).expect("read source file");
-            source
-                .contains("Command::new(\"gh\")")
-                .then_some(path.display().to_string())
+            source.contains("Command::new(\"gh\")").then_some(path)
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(matches, ["src/github/auth.rs"]);
+    assert_eq!(matches, [PathBuf::from("src/github/auth.rs")]);
 }
 
 #[test]

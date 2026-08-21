@@ -31,6 +31,10 @@ Install from crates.io:
 cargo install ghzinga
 ```
 
+The standalone CLI and TUI support Linux, macOS, and Windows. Live session
+control uses Unix domain sockets on Unix and authenticated, owner-only named
+pipes on Windows. The optional Herdr plugin currently supports Linux and macOS.
+
 Install from a local checkout:
 
 ```sh
@@ -156,7 +160,8 @@ permission.
 The config file is:
 
 ```text
-~/.config/ghzinga/config.toml
+Linux/macOS: ~/.config/ghzinga/config.toml
+Windows:     %APPDATA%\ghzinga\config.toml
 ```
 
 Default config:
@@ -196,20 +201,22 @@ Supported setting values:
 `ghzinga` saves open PR/issue tabs and UI state under:
 
 ```text
-~/.local/state/ghzinga
+Linux/macOS: ~/.local/state/ghzinga
+Windows:     %LOCALAPPDATA%\ghzinga\state
 ```
 
 Cached GitHub resource snapshots are stored separately under:
 
 ```text
-~/.cache/ghzinga
+Linux/macOS: ~/.cache/ghzinga
+Windows:     %LOCALAPPDATA%\ghzinga\cache
 ```
 
 Environment overrides:
 
 - `GZG_STATE_HOME`: alternate session state directory
 - `GZG_CACHE_HOME`: alternate resource cache directory
-- `GZG_RUNTIME_HOME`: alternate runtime socket directory for live session control
+- `GZG_RUNTIME_HOME`: alternate runtime namespace for live session control
 - `GZG_SESSION`: default named session
 
 Session commands:

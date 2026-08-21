@@ -28,7 +28,7 @@ for GitHub resources.
 
 ## Storage Layout
 
-Use XDG state and cache paths:
+On Unix, use XDG state and cache paths:
 
 ```text
 $XDG_STATE_HOME/ghzinga/sessions/<session-id>/session.json
@@ -43,6 +43,15 @@ Fallbacks:
 ~/.local/state/ghzinga/...
 /tmp/ghzinga-$UID/...
 ~/.cache/ghzinga/...
+```
+
+On Windows, use native per-user directories:
+
+```text
+%LOCALAPPDATA%\ghzinga\state\sessions\<session-id>\session.json
+%LOCALAPPDATA%\ghzinga\state\session-index.json
+%TEMP%\ghzinga-<user>\<session-id>.pipe
+%LOCALAPPDATA%\ghzinga\cache\resources\<owner>\<repo>\<number>.json
 ```
 
 Test and scripting overrides:
@@ -350,7 +359,7 @@ Control command behavior:
 
 ## Runtime Control Channel
 
-Each running persistent TUI owns a local Unix socket:
+On Unix, each running persistent TUI owns a local socket:
 
 ```text
 $XDG_RUNTIME_DIR/ghzinga/<session-id>.sock
@@ -362,18 +371,31 @@ Fallback when `XDG_RUNTIME_DIR` is absent:
 /tmp/ghzinga-$UID/<session-id>.sock
 ```
 
+On Windows, the per-user runtime directory contains an endpoint file:
+
+```text
+%TEMP%\ghzinga-<user>\<session-id>.pipe
+```
+
+The endpoint file points to a cryptographically random, owner-only local named
+pipe and carries the random authentication token used by control commands.
+
 Rules:
 
-- Socket paths are runtime-only and are not the session source of truth.
-- On TUI startup, create the socket after the session id is resolved and remove
-  stale sockets for the same session when the owning process is gone.
-- The socket should accept newline-delimited JSON commands so it can evolve
-  without breaking older clients.
+- Control endpoints are runtime-only and are not the session source of truth.
+- On TUI startup, create the platform endpoint after the session id is resolved
+  and remove stale endpoint metadata for the same session.
+- Hold an exclusive per-session runtime lock for the server lifetime so endpoint
+  publication and cleanup cannot race with another process.
+- Windows named pipes must reject remote clients, use an owner-only DACL, and
+  authenticate commands using an unguessable per-run token.
+- The control transport accepts bounded newline-delimited JSON commands so it
+  can evolve without breaking older clients.
 - Commands must include a schema version and command id.
-- Replies must include `ok`, the command id, and either a short result or an
-  error.
+- Replies must include `ok`, the matching command id, and either a short result
+  or an error.
 - Unsupported command versions should fail cleanly with a user-facing error.
-- A command sent to a stale socket should fail fast, remove the stale runtime
+- A command sent to a stale endpoint should fail fast, remove the stale runtime
   marker if safe, and fall back to saved-state mutation when appropriate.
 - Runtime control is local only. Do not expose a network listener.
 - File and socket permissions should be owner-only where the platform permits
@@ -398,7 +420,8 @@ Initial reply shapes:
 Cache normalized GitHub resources separately from session files:
 
 ```text
-$XDG_CACHE_HOME/ghzinga/resources/osolmaz/ghzinga/28.json
+Unix:    $XDG_CACHE_HOME/ghzinga/resources/osolmaz/ghzinga/28.json
+Windows: %LOCALAPPDATA%\ghzinga\cache\resources\osolmaz\ghzinga\28.json
 ```
 
 Cache metadata should include:
@@ -484,7 +507,7 @@ Do not auto-delete sessions silently in the first version.
   width mode, fixed width, and scrollbar visibility.
 - Reuse existing app actions for opening/focusing tabs and applying settings so
   runtime commands behave the same as keyboard/mouse UI commands.
-- Add tests for running-session command delivery, stale socket fallback,
+- Add tests for running-session command delivery, stale endpoint fallback,
   ambiguous session resolution, saved-state mutation, and invalid setting
   errors.
 

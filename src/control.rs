@@ -1,22 +1,21 @@
-use std::{
-    env, fs, io,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{env, io, path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{UnixListener, UnixStream},
+    io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{mpsc::UnboundedSender, oneshot},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 
 use crate::domain::ResourceId;
 
+mod transport;
+
 pub const GZG_RUNTIME_HOME_ENV: &str = "GZG_RUNTIME_HOME";
 const CONTROL_SCHEMA_VERSION: u32 = 1;
 const CONTROL_TIMEOUT: Duration = Duration::from_millis(1200);
+const MAX_CONTROL_CONNECTIONS: usize = 32;
+const MAX_CONTROL_LINE_BYTES: usize = 16 * 1024;
 
 #[derive(Debug)]
 pub struct RuntimeRequest {
@@ -74,6 +73,8 @@ impl ControlReply {
 struct WireCommand {
     schema_version: u32,
     id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    auth_token: Option<String>,
     method: String,
     #[serde(default)]
     resource: Option<String>,
@@ -119,7 +120,11 @@ fn runtime_dir_from_env(
         .and_then(runtime_suffix)
         .or_else(|| user.and_then(runtime_suffix))
         .unwrap_or_else(stable_runtime_suffix);
-    PathBuf::from("/tmp").join(format!("ghzinga-{suffix}"))
+    #[cfg(unix)]
+    let base = PathBuf::from("/tmp");
+    #[cfg(windows)]
+    let base = env::temp_dir();
+    base.join(format!("ghzinga-{suffix}"))
 }
 
 fn runtime_suffix(value: std::ffi::OsString) -> Option<String> {
@@ -148,14 +153,14 @@ pub fn socket_path(session_id: &str) -> PathBuf {
 }
 
 pub struct ControlServer {
-    path: PathBuf,
+    cleanup: transport::Cleanup,
     task: JoinHandle<()>,
 }
 
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.task.abort();
-        let _ = fs::remove_file(&self.path);
+        self.cleanup.remove();
     }
 }
 
@@ -163,63 +168,48 @@ pub fn start_server(
     session_id: &str,
     tx: UnboundedSender<RuntimeRequest>,
 ) -> io::Result<ControlServer> {
-    let path = socket_path(session_id);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    remove_stale_socket(&path)?;
-    let listener = UnixListener::bind(&path)?;
-    set_owner_only_permissions(&path);
+    let mut listener = transport::Listener::bind(session_id)?;
+    let cleanup = listener.take_cleanup()?;
     let task = tokio::spawn(server_loop(listener, tx));
-    Ok(ControlServer { path, task })
+    Ok(ControlServer { cleanup, task })
 }
 
-fn remove_stale_socket(path: &Path) -> io::Result<()> {
-    if !path.exists() {
-        return Ok(());
-    }
-    match std::os::unix::net::UnixStream::connect(path) {
-        Ok(_) => Err(io::Error::new(
-            io::ErrorKind::AddrInUse,
-            format!("ghzinga session socket already active: {}", path.display()),
-        )),
-        Err(_) => fs::remove_file(path),
-    }
+pub fn is_session_live(session_id: &str) -> bool {
+    transport::is_session_live(session_id)
 }
 
-fn set_owner_only_permissions(path: &Path) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-
-        if let Ok(metadata) = fs::metadata(path) {
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o600);
-            let _ = fs::set_permissions(path, permissions);
-        }
-    }
-}
-
-async fn server_loop(listener: UnixListener, tx: UnboundedSender<RuntimeRequest>) {
+async fn server_loop(mut listener: transport::Listener, tx: UnboundedSender<RuntimeRequest>) {
+    let auth_token = listener.auth_token().map(str::to_string);
+    let mut connections = JoinSet::new();
     loop {
-        let Ok((stream, _)) = listener.accept().await else {
+        while connections.len() >= MAX_CONTROL_CONNECTIONS {
+            let _ = connections.join_next().await;
+        }
+        let Ok(stream) = listener.accept().await else {
             break;
         };
         let tx = tx.clone();
-        tokio::spawn(async move {
-            let _ = handle_connection(stream, tx).await;
+        let auth_token = auth_token.clone();
+        connections.spawn(async move {
+            let _ = handle_connection(stream, tx, auth_token.as_deref()).await;
         });
+        while connections.try_join_next().is_some() {}
     }
 }
 
-async fn handle_connection(
-    stream: UnixStream,
+async fn handle_connection<S>(
+    stream: S,
     tx: UnboundedSender<RuntimeRequest>,
-) -> io::Result<()> {
+    auth_token: Option<&str>,
+) -> io::Result<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    reader.read_line(&mut line).await?;
-    let command = parse_wire_command(&line);
+    let line = tokio::time::timeout(CONTROL_TIMEOUT, read_control_line(&mut reader))
+        .await
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control request timed out"))??;
+    let command = parse_wire_command(&line, auth_token);
     let reply = match command {
         Ok(command) => {
             let request_id = command.request_id().to_string();
@@ -260,13 +250,19 @@ async fn handle_connection(
     Ok(())
 }
 
-fn parse_wire_command(line: &str) -> Result<RuntimeCommand, (String, String)> {
+fn parse_wire_command(
+    line: &str,
+    expected_auth_token: Option<&str>,
+) -> Result<RuntimeCommand, (String, String)> {
     let value = serde_json::from_str::<WireCommand>(line).map_err(|error| {
         (
             "unknown".to_string(),
             format!("invalid control command: {error}"),
         )
     })?;
+    if value.auth_token.as_deref() != expected_auth_token {
+        return Err((value.id, "unauthorized control command".to_string()));
+    }
     if value.schema_version != CONTROL_SCHEMA_VERSION {
         return Err((
             value.id,
@@ -321,6 +317,7 @@ pub async fn send_open(session_id: &str, resource: &ResourceId) -> io::Result<Co
         WireCommand {
             schema_version: CONTROL_SCHEMA_VERSION,
             id: command_id(),
+            auth_token: None,
             method: "open".into(),
             resource: Some(resource.canonical_name()),
             key: None,
@@ -336,6 +333,7 @@ pub async fn send_set(session_id: &str, key: &str, value: &str) -> io::Result<Co
         WireCommand {
             schema_version: CONTROL_SCHEMA_VERSION,
             id: command_id(),
+            auth_token: None,
             method: "set".into(),
             resource: None,
             key: Some(key.into()),
@@ -345,30 +343,87 @@ pub async fn send_set(session_id: &str, key: &str, value: &str) -> io::Result<Co
     .await
 }
 
-async fn send_command(session_id: &str, command: WireCommand) -> io::Result<ControlReply> {
-    let path = socket_path(session_id);
-    let mut stream = tokio::time::timeout(CONTROL_TIMEOUT, UnixStream::connect(&path))
-        .await
-        .map_err(|_| {
-            io::Error::new(io::ErrorKind::TimedOut, "control socket connect timed out")
-        })??;
+async fn send_command(session_id: &str, mut command: WireCommand) -> io::Result<ControlReply> {
+    let (mut stream, auth_token) =
+        tokio::time::timeout(CONTROL_TIMEOUT, transport::connect(session_id))
+            .await
+            .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control connect timed out"))??;
+    command.auth_token = auth_token;
+    let request_id = command.id.clone();
     stream
         .write_all(serde_json::to_string(&command)?.as_bytes())
         .await?;
     stream.write_all(b"\n").await?;
     stream.flush().await?;
     let mut reader = BufReader::new(stream);
-    let mut line = String::new();
-    tokio::time::timeout(CONTROL_TIMEOUT, reader.read_line(&mut line))
+    let line = tokio::time::timeout(CONTROL_TIMEOUT, read_control_line(&mut reader))
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control reply timed out"))??;
-    let reply = serde_json::from_str::<WireReply>(&line)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let reply = parse_wire_reply(&line, &request_id)?;
     Ok(ControlReply {
         ok: reply.ok,
         result: reply.result,
         error: reply.error,
     })
+}
+
+async fn read_control_line<R>(reader: &mut R) -> io::Result<String>
+where
+    R: AsyncBufRead + Unpin,
+{
+    let mut bytes = Vec::with_capacity(512);
+    loop {
+        let available = reader.fill_buf().await?;
+        if available.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "control connection closed before newline",
+            ));
+        }
+        let consumed = available
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(available.len(), |index| index + 1);
+        if bytes.len() + consumed > MAX_CONTROL_LINE_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "control message exceeds size limit",
+            ));
+        }
+        let complete = available[consumed - 1] == b'\n';
+        bytes.extend_from_slice(&available[..consumed]);
+        reader.consume(consumed);
+        if complete {
+            return String::from_utf8(bytes)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error));
+        }
+    }
+}
+
+fn parse_wire_reply(line: &str, expected_id: &str) -> io::Result<WireReply> {
+    let reply = serde_json::from_str::<WireReply>(line)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    if reply.schema_version != CONTROL_SCHEMA_VERSION {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("unsupported control schema {}", reply.schema_version),
+        ));
+    }
+    if reply.id != expected_id {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "control reply id does not match request",
+        ));
+    }
+    if (reply.ok && reply.error.is_some())
+        || (!reply.ok && (reply.result.is_some() || reply.error.is_none()))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "control reply fields do not match status",
+        ));
+    }
+    Ok(reply)
 }
 
 fn command_id() -> String {
@@ -391,6 +446,19 @@ mod tests {
     static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
     #[test]
+    fn control_message_limit_is_sixteen_kibibytes() {
+        assert_eq!(MAX_CONTROL_LINE_BYTES, 16_384);
+    }
+
+    fn default_runtime_dir(suffix: &str) -> PathBuf {
+        #[cfg(unix)]
+        let base = PathBuf::from("/tmp");
+        #[cfg(windows)]
+        let base = env::temp_dir();
+        base.join(format!("ghzinga-{suffix}"))
+    }
+
+    #[test]
     fn runtime_dir_uses_override_then_xdg_then_tmp() {
         assert_eq!(
             runtime_dir_from_env(Some("/tmp/custom".into()), None, None, None),
@@ -402,7 +470,7 @@ mod tests {
         );
         assert_eq!(
             runtime_dir_from_env(None, None, Some("1000".into()), None),
-            PathBuf::from("/tmp/ghzinga-1000")
+            default_runtime_dir("1000")
         );
     }
 
@@ -410,7 +478,7 @@ mod tests {
     fn runtime_dir_uses_stable_user_when_uid_env_is_missing() {
         assert_eq!(
             runtime_dir_from_env(None, None, None, Some("alice@example.com".into())),
-            PathBuf::from("/tmp/ghzinga-alice_example.com")
+            default_runtime_dir("alice_example.com")
         );
     }
 
@@ -418,6 +486,7 @@ mod tests {
     fn parses_open_wire_command() {
         let parsed = parse_wire_command(
             r#"{"schema_version":1,"id":"c_1","method":"open","resource":"owner/repo#12"}"#,
+            None,
         )
         .unwrap();
 
@@ -432,11 +501,173 @@ mod tests {
 
     #[test]
     fn rejects_unknown_schema() {
-        let error =
-            parse_wire_command(r#"{"schema_version":2,"id":"c_1","method":"open"}"#).unwrap_err();
+        let error = parse_wire_command(r#"{"schema_version":2,"id":"c_1","method":"open"}"#, None)
+            .unwrap_err();
 
         assert_eq!(error.0, "c_1");
         assert!(error.1.contains("unsupported control schema"));
+    }
+
+    #[test]
+    fn rejects_missing_control_auth_token() {
+        let error = parse_wire_command(
+            r#"{"schema_version":1,"id":"c_1","method":"open","resource":"owner/repo#12"}"#,
+            Some("secret"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.0, "c_1");
+        assert!(error.1.contains("unauthorized"));
+    }
+
+    #[test]
+    fn rejects_reply_for_different_request() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_other","ok":true}"#,
+            "c_expected",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn rejects_inconsistent_control_reply() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_1","ok":false,"result":"opened"}"#,
+            "c_1",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn rejects_failed_reply_with_result_even_when_error_is_present() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_1","ok":false,"result":"opened","error":"failed"}"#,
+            "c_1",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reads_chunked_line_without_consuming_following_data() {
+        let (mut writer, reader) = tokio::io::duplex(32);
+        writer.write_all(b"abc\nnext").await.unwrap();
+        let mut reader = BufReader::with_capacity(2, reader);
+
+        let line = read_control_line(&mut reader).await.unwrap();
+
+        assert_eq!(line, "abc\n");
+        assert_eq!(reader.fill_buf().await.unwrap(), b"ne");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reads_empty_control_line_without_consuming_following_data() {
+        let (mut writer, reader) = tokio::io::duplex(16);
+        writer.write_all(b"\nnext").await.unwrap();
+        let mut reader = BufReader::with_capacity(2, reader);
+
+        let line = read_control_line(&mut reader).await.unwrap();
+
+        assert_eq!(line, "\n");
+        assert_eq!(reader.fill_buf().await.unwrap(), b"n");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn accepts_control_message_at_exact_size_limit() {
+        let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES);
+        let write = tokio::spawn(async move {
+            writer
+                .write_all(&vec![b'a'; MAX_CONTROL_LINE_BYTES - 1])
+                .await
+                .unwrap();
+            writer.write_all(b"\n").await.unwrap();
+        });
+
+        let line = read_control_line(&mut BufReader::with_capacity(7, reader))
+            .await
+            .unwrap();
+        write.await.unwrap();
+
+        assert_eq!(line.len(), MAX_CONTROL_LINE_BYTES);
+        assert!(line.ends_with('\n'));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejects_oversized_control_message() {
+        let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES + 2);
+        let write = tokio::spawn(async move {
+            writer
+                .write_all(&vec![b'a'; MAX_CONTROL_LINE_BYTES + 1])
+                .await
+                .unwrap();
+            writer.write_all(b"\n").await.unwrap();
+        });
+        let error = read_control_line(&mut BufReader::new(reader))
+            .await
+            .unwrap_err();
+        write.await.unwrap();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn idle_control_client_is_disconnected_after_timeout() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("idle-{}", std::process::id());
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let _server = start_server(&session_id, tx).unwrap();
+        let (mut client, _) = transport::connect(&session_id).await.unwrap();
+
+        let error = tokio::time::timeout(
+            CONTROL_TIMEOUT * 2,
+            tokio::io::AsyncReadExt::read_u8(&mut client),
+        )
+        .await
+        .expect("server should close idle clients")
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn duplicate_session_server_is_rejected() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("duplicate-{}", std::process::id());
+        let (first_tx, _first_rx) = tokio::sync::mpsc::unbounded_channel();
+        let first = start_server(&session_id, first_tx).unwrap();
+        let (second_tx, _second_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let error = match start_server(&session_id, second_tx) {
+            Ok(_) => panic!("duplicate control server should be rejected"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), io::ErrorKind::AddrInUse);
+        drop(first);
+        let (replacement_tx, _replacement_rx) = tokio::sync::mpsc::unbounded_channel();
+        let _replacement = start_server(&session_id, replacement_tx).unwrap();
+        assert!(is_session_live(&session_id));
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -446,9 +677,11 @@ mod tests {
         let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
         env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let _server = start_server("work", tx).unwrap();
+        let session_id = format!("work-{}", std::process::id());
+        let _server = start_server(&session_id, tx).unwrap();
+        assert!(is_session_live(&session_id));
         let id = ResourceId::parse("owner/repo#12").unwrap();
-        let client = tokio::spawn(async move { send_open("work", &id).await.unwrap() });
+        let client = tokio::spawn(async move { send_open(&session_id, &id).await.unwrap() });
 
         let request = rx.recv().await.unwrap();
         assert!(matches!(
@@ -460,6 +693,23 @@ mod tests {
         let reply = client.await.unwrap();
         assert!(reply.ok);
         assert_eq!(reply.result.as_deref(), Some("opened"));
+
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn unknown_session_is_not_live() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("missing-{}", std::process::id());
+
+        assert!(!is_session_live(&session_id));
 
         if let Some(value) = previous_runtime {
             env::set_var(GZG_RUNTIME_HOME_ENV, value);
