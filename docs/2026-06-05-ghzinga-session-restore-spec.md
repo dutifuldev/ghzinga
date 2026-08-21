@@ -350,7 +350,7 @@ Control command behavior:
 
 ## Runtime Control Channel
 
-Each running persistent TUI owns a local Unix socket:
+On Unix, each running persistent TUI owns a local socket:
 
 ```text
 $XDG_RUNTIME_DIR/ghzinga/<session-id>.sock
@@ -362,16 +362,27 @@ Fallback when `XDG_RUNTIME_DIR` is absent:
 /tmp/ghzinga-$UID/<session-id>.sock
 ```
 
+On Windows, the per-user runtime directory contains an endpoint file:
+
+```text
+%TEMP%\ghzinga-<user>\<session-id>.pipe
+```
+
+The endpoint file points to a cryptographically random, owner-only local named
+pipe and carries the random authentication token used by control commands.
+
 Rules:
 
-- Socket paths are runtime-only and are not the session source of truth.
-- On TUI startup, create the socket after the session id is resolved and remove
-  stale sockets for the same session when the owning process is gone.
-- The socket should accept newline-delimited JSON commands so it can evolve
-  without breaking older clients.
+- Control endpoints are runtime-only and are not the session source of truth.
+- On TUI startup, create the platform endpoint after the session id is resolved
+  and remove stale endpoint metadata for the same session.
+- Windows named pipes must reject remote clients, use an owner-only DACL, and
+  authenticate commands using an unguessable per-run token.
+- The control transport accepts bounded newline-delimited JSON commands so it
+  can evolve without breaking older clients.
 - Commands must include a schema version and command id.
-- Replies must include `ok`, the command id, and either a short result or an
-  error.
+- Replies must include `ok`, the matching command id, and either a short result
+  or an error.
 - Unsupported command versions should fail cleanly with a user-facing error.
 - A command sent to a stale socket should fail fast, remove the stale runtime
   marker if safe, and fall back to saved-state mutation when appropriate.
