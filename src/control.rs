@@ -1,18 +1,18 @@
-use std::{
-    env, fs, io,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{env, io, path::PathBuf, time::Duration};
+
+#[cfg(unix)]
+use std::fs;
 
 use serde::{Deserialize, Serialize};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{UnixListener, UnixStream},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{mpsc::UnboundedSender, oneshot},
     task::JoinHandle,
 };
 
 use crate::domain::ResourceId;
+
+mod transport;
 
 pub const GZG_RUNTIME_HOME_ENV: &str = "GZG_RUNTIME_HOME";
 const CONTROL_SCHEMA_VERSION: u32 = 1;
@@ -119,7 +119,11 @@ fn runtime_dir_from_env(
         .and_then(runtime_suffix)
         .or_else(|| user.and_then(runtime_suffix))
         .unwrap_or_else(stable_runtime_suffix);
-    PathBuf::from("/tmp").join(format!("ghzinga-{suffix}"))
+    #[cfg(unix)]
+    let base = PathBuf::from("/tmp");
+    #[cfg(windows)]
+    let base = env::temp_dir();
+    base.join(format!("ghzinga-{suffix}"))
 }
 
 fn runtime_suffix(value: std::ffi::OsString) -> Option<String> {
@@ -148,6 +152,7 @@ pub fn socket_path(session_id: &str) -> PathBuf {
 }
 
 pub struct ControlServer {
+    #[cfg(unix)]
     path: PathBuf,
     task: JoinHandle<()>,
 }
@@ -155,7 +160,10 @@ pub struct ControlServer {
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.task.abort();
-        let _ = fs::remove_file(&self.path);
+        #[cfg(unix)]
+        {
+            let _ = fs::remove_file(&self.path);
+        }
     }
 }
 
@@ -163,46 +171,25 @@ pub fn start_server(
     session_id: &str,
     tx: UnboundedSender<RuntimeRequest>,
 ) -> io::Result<ControlServer> {
-    let path = socket_path(session_id);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    remove_stale_socket(&path)?;
-    let listener = UnixListener::bind(&path)?;
-    set_owner_only_permissions(&path);
+    let listener = transport::Listener::bind(session_id)?;
     let task = tokio::spawn(server_loop(listener, tx));
-    Ok(ControlServer { path, task })
-}
-
-fn remove_stale_socket(path: &Path) -> io::Result<()> {
-    if !path.exists() {
-        return Ok(());
-    }
-    match std::os::unix::net::UnixStream::connect(path) {
-        Ok(_) => Err(io::Error::new(
-            io::ErrorKind::AddrInUse,
-            format!("ghzinga session socket already active: {}", path.display()),
-        )),
-        Err(_) => fs::remove_file(path),
-    }
-}
-
-fn set_owner_only_permissions(path: &Path) {
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-
-        if let Ok(metadata) = fs::metadata(path) {
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o600);
-            let _ = fs::set_permissions(path, permissions);
-        }
-    }
+    let server = ControlServer {
+        path: socket_path(session_id),
+        task,
+    };
+    #[cfg(windows)]
+    let server = ControlServer { task };
+    Ok(server)
 }
 
-async fn server_loop(listener: UnixListener, tx: UnboundedSender<RuntimeRequest>) {
+pub fn is_session_live(session_id: &str) -> bool {
+    transport::is_session_live(session_id)
+}
+
+async fn server_loop(mut listener: transport::Listener, tx: UnboundedSender<RuntimeRequest>) {
     loop {
-        let Ok((stream, _)) = listener.accept().await else {
+        let Ok(stream) = listener.accept().await else {
             break;
         };
         let tx = tx.clone();
@@ -212,10 +199,10 @@ async fn server_loop(listener: UnixListener, tx: UnboundedSender<RuntimeRequest>
     }
 }
 
-async fn handle_connection(
-    stream: UnixStream,
-    tx: UnboundedSender<RuntimeRequest>,
-) -> io::Result<()> {
+async fn handle_connection<S>(stream: S, tx: UnboundedSender<RuntimeRequest>) -> io::Result<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut reader = BufReader::new(stream);
     let mut line = String::new();
     reader.read_line(&mut line).await?;
@@ -346,12 +333,9 @@ pub async fn send_set(session_id: &str, key: &str, value: &str) -> io::Result<Co
 }
 
 async fn send_command(session_id: &str, command: WireCommand) -> io::Result<ControlReply> {
-    let path = socket_path(session_id);
-    let mut stream = tokio::time::timeout(CONTROL_TIMEOUT, UnixStream::connect(&path))
+    let mut stream = tokio::time::timeout(CONTROL_TIMEOUT, transport::connect(session_id))
         .await
-        .map_err(|_| {
-            io::Error::new(io::ErrorKind::TimedOut, "control socket connect timed out")
-        })??;
+        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "control connect timed out"))??;
     stream
         .write_all(serde_json::to_string(&command)?.as_bytes())
         .await?;
@@ -390,6 +374,14 @@ mod tests {
 
     static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
+    fn default_runtime_dir(suffix: &str) -> PathBuf {
+        #[cfg(unix)]
+        let base = PathBuf::from("/tmp");
+        #[cfg(windows)]
+        let base = env::temp_dir();
+        base.join(format!("ghzinga-{suffix}"))
+    }
+
     #[test]
     fn runtime_dir_uses_override_then_xdg_then_tmp() {
         assert_eq!(
@@ -402,7 +394,7 @@ mod tests {
         );
         assert_eq!(
             runtime_dir_from_env(None, None, Some("1000".into()), None),
-            PathBuf::from("/tmp/ghzinga-1000")
+            default_runtime_dir("1000")
         );
     }
 
@@ -410,7 +402,7 @@ mod tests {
     fn runtime_dir_uses_stable_user_when_uid_env_is_missing() {
         assert_eq!(
             runtime_dir_from_env(None, None, None, Some("alice@example.com".into())),
-            PathBuf::from("/tmp/ghzinga-alice_example.com")
+            default_runtime_dir("alice_example.com")
         );
     }
 
@@ -446,9 +438,11 @@ mod tests {
         let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
         env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let _server = start_server("work", tx).unwrap();
+        let session_id = format!("work-{}", std::process::id());
+        let _server = start_server(&session_id, tx).unwrap();
+        assert!(is_session_live(&session_id));
         let id = ResourceId::parse("owner/repo#12").unwrap();
-        let client = tokio::spawn(async move { send_open("work", &id).await.unwrap() });
+        let client = tokio::spawn(async move { send_open(&session_id, &id).await.unwrap() });
 
         let request = rx.recv().await.unwrap();
         assert!(matches!(

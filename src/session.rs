@@ -1,12 +1,14 @@
 use std::{
     collections::{BTreeMap, HashSet},
     env, fs, io,
-    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::Command,
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+#[cfg(unix)]
+use std::io::{BufRead, BufReader, Write};
 
 use serde::{Deserialize, Serialize};
 
@@ -812,31 +814,32 @@ pub fn save_session(
     Ok(snapshot)
 }
 
+#[cfg(unix)]
 fn best_effort_mark_provider_session(handle: &SessionHandle, state: &mut AppState) {
-    #[cfg(unix)]
-    {
-        let Some(context) = handle
-            .contexts
-            .iter()
-            .find(|context| context.provider == "herdr")
-        else {
-            return;
-        };
-        let (Some(socket), Some(pane)) = (
-            context.metadata.get("socket_path"),
-            context.metadata.get("pane_id"),
-        ) else {
-            return;
-        };
-        let active = state
-            .session_resource_tabs()
-            .get(state.active_resource_tab)
-            .map(|tab| tab.resource.id.canonical_name())
-            .unwrap_or_else(|| "empty".into());
-        let label = format!("gzg:{} {active}", handle.id);
-        let _ = write_herdr_pane_label(socket, pane, &label);
-    }
+    let Some(context) = handle
+        .contexts
+        .iter()
+        .find(|context| context.provider == "herdr")
+    else {
+        return;
+    };
+    let (Some(socket), Some(pane)) = (
+        context.metadata.get("socket_path"),
+        context.metadata.get("pane_id"),
+    ) else {
+        return;
+    };
+    let active = state
+        .session_resource_tabs()
+        .get(state.active_resource_tab)
+        .map(|tab| tab.resource.id.canonical_name())
+        .unwrap_or_else(|| "empty".into());
+    let label = format!("gzg:{} {active}", handle.id);
+    let _ = write_herdr_pane_label(socket, pane, &label);
 }
+
+#[cfg(not(unix))]
+fn best_effort_mark_provider_session(_: &SessionHandle, _: &mut AppState) {}
 
 #[cfg(unix)]
 fn write_herdr_pane_label(socket: &str, pane_id: &str, label: &str) -> io::Result<()> {
@@ -896,6 +899,7 @@ fn read_herdr_pane_label(socket: &str, pane_id: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+#[cfg(any(unix, test))]
 fn parse_herdr_session_marker(label: &str) -> Option<String> {
     label
         .strip_prefix("gzg:")

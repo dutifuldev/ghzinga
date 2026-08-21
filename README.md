@@ -31,6 +31,9 @@ Install from crates.io:
 cargo install ghzinga
 ```
 
+Linux, macOS, and Windows are supported. Live session control uses Unix domain
+sockets on Unix and named pipes on Windows.
+
 Install from a local checkout:
 
 ```sh
@@ -209,7 +212,7 @@ Environment overrides:
 
 - `GZG_STATE_HOME`: alternate session state directory
 - `GZG_CACHE_HOME`: alternate resource cache directory
-- `GZG_RUNTIME_HOME`: alternate runtime socket directory for live session control
+- `GZG_RUNTIME_HOME`: alternate runtime namespace for live session control
 - `GZG_SESSION`: default named session
 
 Session commands:

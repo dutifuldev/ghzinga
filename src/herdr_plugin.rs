@@ -351,15 +351,20 @@ fn print_usage_to_stderr() {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use std::{env, ffi::OsString, fs, path::PathBuf, sync::Mutex};
 
+    #[cfg(unix)]
+    use super::{herdr_source_key, run_open_entrypoint};
     use super::{
-        herdr_source_key, normalize_github_issue_or_pr_url, plugin_focuses_viewer,
-        plugin_pane_id_from_response, run_open_entrypoint, stable_key_for_text, state_key_for_pane,
+        normalize_github_issue_or_pr_url, plugin_focuses_viewer, plugin_pane_id_from_response,
+        stable_key_for_text, state_key_for_pane,
     };
 
+    #[cfg(unix)]
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    #[cfg(unix)]
     const PLUGIN_ENV_KEYS: &[&str] = &[
         "GZG_FAKE_LOG",
         "GHZINGA_BIN",
@@ -378,6 +383,7 @@ mod tests {
         "HERDR_SOCKET_PATH",
     ];
 
+    #[cfg(unix)]
     fn first_file_with_extension(dir: &std::path::Path, extension: &str) -> PathBuf {
         let mut files = fs::read_dir(dir)
             .unwrap()
@@ -388,10 +394,12 @@ mod tests {
         files.into_iter().next().unwrap()
     }
 
+    #[cfg(unix)]
     struct EnvRestore {
         values: Vec<(&'static str, Option<OsString>)>,
     }
 
+    #[cfg(unix)]
     impl EnvRestore {
         fn clear() -> Self {
             let values = PLUGIN_ENV_KEYS
@@ -406,6 +414,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     impl Drop for EnvRestore {
         fn drop(&mut self) {
             for (key, value) in &self.values {
@@ -482,6 +491,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn open_entrypoint_opens_new_plugin_pane_and_records_state() {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -531,6 +541,7 @@ mod tests {
         assert!(!gzg_log.exists());
     }
 
+    #[cfg(unix)]
     #[test]
     fn open_entrypoint_reuses_existing_matching_viewer_pane() {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -575,6 +586,7 @@ mod tests {
         )));
     }
 
+    #[cfg(unix)]
     #[test]
     fn open_entrypoint_reuses_current_viewer_when_link_originates_inside_ghzinga() {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -627,6 +639,7 @@ mod tests {
         )));
     }
 
+    #[cfg(unix)]
     #[test]
     fn open_entrypoint_uses_current_viewer_context_when_reverse_state_is_missing() {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -664,6 +677,7 @@ mod tests {
         assert!(!gzg_log.contains("--session"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn open_entrypoint_reopens_when_stored_pane_is_not_our_viewer() {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -705,6 +719,7 @@ mod tests {
         assert!(!gzg_log.exists());
     }
 
+    #[cfg(unix)]
     fn repo_file(path: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
     }

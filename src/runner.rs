@@ -454,7 +454,7 @@ fn print_sessions() -> anyhow::Result<()> {
 }
 
 fn session_live_status(id: &str) -> &'static str {
-    if std::os::unix::net::UnixStream::connect(control::socket_path(id)).is_ok() {
+    if control::is_session_live(id) {
         "running"
     } else {
         "saved"
@@ -661,7 +661,9 @@ async fn run_tui(
         Some(runtime) => match control::start_server(&runtime.handle.id, control_tx) {
             Ok(server) => Some(server),
             Err(error) => {
-                state.last_error = Some(format!("failed to start ghzinga control socket: {error}"));
+                state.last_error = Some(format!(
+                    "failed to start ghzinga control transport: {error}"
+                ));
                 None
             }
         },
@@ -1580,10 +1582,10 @@ fn url_open_command(url: &str, browser: Option<&str>) -> (String, Vec<String>) {
 
     #[cfg(target_os = "windows")]
     {
-        return (
+        (
             "cmd".into(),
             vec!["/C".into(), "start".into(), "".into(), url.into()],
-        );
+        )
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -1619,7 +1621,7 @@ fn current_clipboard_platform() -> ClipboardPlatform {
 
     #[cfg(target_os = "windows")]
     {
-        return ClipboardPlatform::Windows;
+        ClipboardPlatform::Windows
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
