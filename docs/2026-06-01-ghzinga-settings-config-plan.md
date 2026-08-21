@@ -16,10 +16,11 @@ live.
 Use a TOML config file:
 
 ```text
-~/.config/ghzinga/config.toml
+Linux/macOS: ~/.config/ghzinga/config.toml
+Windows:     %APPDATA%\ghzinga\config.toml
 ```
 
-Respect `XDG_CONFIG_HOME` when set:
+Respect `XDG_CONFIG_HOME` when set on Unix:
 
 ```text
 $XDG_CONFIG_HOME/ghzinga/config.toml

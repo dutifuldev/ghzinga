@@ -28,7 +28,7 @@ for GitHub resources.
 
 ## Storage Layout
 
-Use XDG state and cache paths:
+On Unix, use XDG state and cache paths:
 
 ```text
 $XDG_STATE_HOME/ghzinga/sessions/<session-id>/session.json
@@ -43,6 +43,15 @@ Fallbacks:
 ~/.local/state/ghzinga/...
 /tmp/ghzinga-$UID/...
 ~/.cache/ghzinga/...
+```
+
+On Windows, use native per-user directories:
+
+```text
+%LOCALAPPDATA%\ghzinga\state\sessions\<session-id>\session.json
+%LOCALAPPDATA%\ghzinga\state\session-index.json
+%TEMP%\ghzinga-<user>\<session-id>.pipe
+%LOCALAPPDATA%\ghzinga\cache\resources\<owner>\<repo>\<number>.json
 ```
 
 Test and scripting overrides:
@@ -409,7 +418,8 @@ Initial reply shapes:
 Cache normalized GitHub resources separately from session files:
 
 ```text
-$XDG_CACHE_HOME/ghzinga/resources/osolmaz/ghzinga/28.json
+Unix:    $XDG_CACHE_HOME/ghzinga/resources/osolmaz/ghzinga/28.json
+Windows: %LOCALAPPDATA%\ghzinga\cache\resources\osolmaz\ghzinga\28.json
 ```
 
 Cache metadata should include:
