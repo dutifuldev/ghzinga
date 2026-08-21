@@ -168,8 +168,8 @@ pub fn start_server(
     session_id: &str,
     tx: UnboundedSender<RuntimeRequest>,
 ) -> io::Result<ControlServer> {
-    let listener = transport::Listener::bind(session_id)?;
-    let cleanup = listener.cleanup();
+    let mut listener = transport::Listener::bind(session_id)?;
+    let cleanup = listener.take_cleanup()?;
     let task = tokio::spawn(server_loop(listener, tx));
     Ok(ControlServer { cleanup, task })
 }
@@ -599,11 +599,9 @@ mod tests {
         };
 
         assert_eq!(error.kind(), io::ErrorKind::AddrInUse);
-        let stale_cleanup = first.cleanup.clone();
         drop(first);
         let (replacement_tx, _replacement_rx) = tokio::sync::mpsc::unbounded_channel();
         let _replacement = start_server(&session_id, replacement_tx).unwrap();
-        stale_cleanup.remove();
         assert!(is_session_live(&session_id));
         if let Some(value) = previous_runtime {
             env::set_var(GZG_RUNTIME_HOME_ENV, value);

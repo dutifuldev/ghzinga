@@ -1,3 +1,11 @@
+use std::{
+    fs::{self, File, OpenOptions},
+    io,
+    path::Path,
+};
+
+use fs2::FileExt;
+
 #[cfg(unix)]
 #[path = "transport/unix.rs"]
 mod platform;
@@ -7,6 +15,35 @@ mod platform;
 mod platform;
 
 pub(crate) use platform::*;
+
+pub(crate) struct SessionLock(File);
+
+impl SessionLock {
+    pub(crate) fn acquire(path: &Path) -> io::Result<Self> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(path)?;
+        file.try_lock_exclusive().map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::AddrInUse,
+                format!("ghzinga session control endpoint is already active: {error}"),
+            )
+        })?;
+        Ok(Self(file))
+    }
+}
+
+impl Drop for SessionLock {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.0);
+    }
+}
 
 #[cfg(all(test, windows))]
 mod tests {

@@ -385,6 +385,8 @@ Rules:
 - Control endpoints are runtime-only and are not the session source of truth.
 - On TUI startup, create the platform endpoint after the session id is resolved
   and remove stale endpoint metadata for the same session.
+- Hold an exclusive per-session runtime lock for the server lifetime so endpoint
+  publication and cleanup cannot race with another process.
 - Windows named pipes must reject remote clients, use an owner-only DACL, and
   authenticate commands using an unguessable per-run token.
 - The control transport accepts bounded newline-delimited JSON commands so it

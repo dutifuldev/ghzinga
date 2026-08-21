@@ -37,6 +37,7 @@ path = "src/bin/ghzinga.rs"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 crossterm = { version = "0.29", features = ["bracketed-paste"] }
+fs2 = "0.4"
 ratatui = "0.30"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

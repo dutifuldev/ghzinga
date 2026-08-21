@@ -9,20 +9,18 @@ use std::{
 
 use tokio::net::{UnixListener, UnixStream};
 
-use super::super::socket_path;
+use super::{super::socket_path, SessionLock};
 
 pub(crate) struct Listener {
     inner: UnixListener,
-    cleanup_path: PathBuf,
-    cleanup_device: u64,
-    cleanup_inode: u64,
+    cleanup: Option<Cleanup>,
 }
 
-#[derive(Clone)]
 pub(crate) struct Cleanup {
     path: PathBuf,
     device: u64,
     inode: u64,
+    _lock: SessionLock,
 }
 
 impl Cleanup {
@@ -42,6 +40,7 @@ impl Listener {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
+        let lock = SessionLock::acquire(&path.with_extension("lock"))?;
         if path.exists() {
             match StdUnixStream::connect(&path) {
                 Ok(_) => {
@@ -62,9 +61,12 @@ impl Listener {
         let metadata = fs::metadata(&path)?;
         Ok(Self {
             inner,
-            cleanup_path: path,
-            cleanup_device: metadata.dev(),
-            cleanup_inode: metadata.ino(),
+            cleanup: Some(Cleanup {
+                path,
+                device: metadata.dev(),
+                inode: metadata.ino(),
+                _lock: lock,
+            }),
         })
     }
 
@@ -72,12 +74,10 @@ impl Listener {
         self.inner.accept().await.map(|(stream, _)| stream)
     }
 
-    pub(crate) fn cleanup(&self) -> Cleanup {
-        Cleanup {
-            path: self.cleanup_path.clone(),
-            device: self.cleanup_device,
-            inode: self.cleanup_inode,
-        }
+    pub(crate) fn take_cleanup(&mut self) -> io::Result<Cleanup> {
+        self.cleanup
+            .take()
+            .ok_or_else(|| io::Error::other("control cleanup already taken"))
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {

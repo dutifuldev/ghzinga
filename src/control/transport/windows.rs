@@ -21,7 +21,7 @@ use windows_sys::Win32::{
     },
 };
 
-use super::super::runtime_dir;
+use super::{super::runtime_dir, SessionLock};
 
 const ERROR_PIPE_BUSY_CODE: i32 = 231;
 const SDDL_REVISION_1: u32 = 1;
@@ -37,14 +37,14 @@ struct EndpointInfo {
 pub(crate) struct Listener {
     name: String,
     pending: NamedPipeServer,
-    cleanup_path: PathBuf,
     auth_token: String,
+    cleanup: Option<Cleanup>,
 }
 
-#[derive(Clone)]
 pub(crate) struct Cleanup {
     path: PathBuf,
     auth_token: String,
+    _lock: SessionLock,
 }
 
 impl Cleanup {
@@ -64,6 +64,7 @@ impl Listener {
         if let Some(parent) = cleanup_path.parent() {
             fs::create_dir_all(parent)?;
         }
+        let lock = SessionLock::acquire(&cleanup_path.with_extension("lock"))?;
         let name = format!(r"\\.\pipe\ghzinga-{}", random_hex()?);
         let auth_token = random_hex()?;
         let pending = create_server(&name, true)?;
@@ -75,8 +76,12 @@ impl Listener {
         Ok(Self {
             name,
             pending,
-            cleanup_path,
             auth_token,
+            cleanup: Some(Cleanup {
+                path: cleanup_path,
+                auth_token: endpoint.auth_token,
+                _lock: lock,
+            }),
         })
     }
 
@@ -86,11 +91,10 @@ impl Listener {
         Ok(mem::replace(&mut self.pending, next))
     }
 
-    pub(crate) fn cleanup(&self) -> Cleanup {
-        Cleanup {
-            path: self.cleanup_path.clone(),
-            auth_token: self.auth_token.clone(),
-        }
+    pub(crate) fn take_cleanup(&mut self) -> io::Result<Cleanup> {
+        self.cleanup
+            .take()
+            .ok_or_else(|| io::Error::other("control cleanup already taken"))
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {
