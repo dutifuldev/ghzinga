@@ -566,6 +566,18 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn reads_empty_control_line_without_consuming_following_data() {
+        let (mut writer, reader) = tokio::io::duplex(16);
+        writer.write_all(b"\nnext").await.unwrap();
+        let mut reader = BufReader::with_capacity(2, reader);
+
+        let line = read_control_line(&mut reader).await.unwrap();
+
+        assert_eq!(line, "\n");
+        assert_eq!(reader.fill_buf().await.unwrap(), b"n");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn accepts_control_message_at_exact_size_limit() {
         let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES);
         let write = tokio::spawn(async move {
