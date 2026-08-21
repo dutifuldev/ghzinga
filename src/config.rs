@@ -136,9 +136,10 @@ pub fn save_to_path(path: &Path, config: AppConfig) -> io::Result<()> {
 }
 
 pub fn config_path() -> PathBuf {
-    config_path_from_env(
+    config_path_from_env_with_app_data(
         env::var_os("GZG_CONFIG_PATH"),
         env::var_os("XDG_CONFIG_HOME"),
+        env::var_os("APPDATA"),
         env::var_os("HOME"),
     )
 }
@@ -148,11 +149,24 @@ pub fn config_path_from_env(
     xdg_config_home: Option<impl Into<PathBuf>>,
     home: Option<impl Into<PathBuf>>,
 ) -> PathBuf {
+    config_path_from_env_with_app_data(override_path, xdg_config_home, None::<PathBuf>, home)
+}
+
+fn config_path_from_env_with_app_data(
+    override_path: Option<impl Into<PathBuf>>,
+    xdg_config_home: Option<impl Into<PathBuf>>,
+    app_data: Option<impl Into<PathBuf>>,
+    home: Option<impl Into<PathBuf>>,
+) -> PathBuf {
     if let Some(path) = override_path {
         return path.into();
     }
 
     if let Some(path) = xdg_config_home {
+        return path.into().join("ghzinga").join("config.toml");
+    }
+
+    if let Some(path) = app_data {
         return path.into().join("ghzinga").join("config.toml");
     }
 
@@ -300,6 +314,19 @@ mod tests {
         assert_eq!(
             config_path_from_env(None::<PathBuf>, None::<PathBuf>, Some("/home/alice")),
             PathBuf::from("/home/alice/.config/ghzinga/config.toml")
+        );
+    }
+
+    #[test]
+    fn config_path_uses_windows_app_data_before_home() {
+        assert_eq!(
+            config_path_from_env_with_app_data(
+                None::<PathBuf>,
+                None::<PathBuf>,
+                Some("C:/Users/alice/AppData/Roaming"),
+                Some("C:/Users/alice"),
+            ),
+            PathBuf::from("C:/Users/alice/AppData/Roaming/ghzinga/config.toml")
         );
     }
 

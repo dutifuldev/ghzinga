@@ -3,7 +3,7 @@ use std::{
     fmt::Write as _,
     fs, io, iter, mem,
     os::windows::ffi::OsStrExt,
-    path::PathBuf,
+    path::{Path, PathBuf},
     ptr,
     time::Duration,
 };
@@ -41,6 +41,23 @@ pub(crate) struct Listener {
     auth_token: String,
 }
 
+#[derive(Clone)]
+pub(crate) struct Cleanup {
+    path: PathBuf,
+    auth_token: String,
+}
+
+impl Cleanup {
+    pub(crate) fn remove(&self) {
+        let Ok(endpoint) = read_endpoint_path(&self.path) else {
+            return;
+        };
+        if endpoint.auth_token == self.auth_token {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
+}
+
 impl Listener {
     pub(crate) fn bind(session_id: &str) -> io::Result<Self> {
         let cleanup_path = endpoint_path(session_id)?;
@@ -54,10 +71,7 @@ impl Listener {
             pipe_name: name.clone(),
             auth_token: auth_token.clone(),
         };
-        fs::write(
-            &cleanup_path,
-            serde_json::to_vec(&endpoint).map_err(io::Error::other)?,
-        )?;
+        publish_endpoint(&cleanup_path, &endpoint)?;
         Ok(Self {
             name,
             pending,
@@ -72,8 +86,11 @@ impl Listener {
         Ok(mem::replace(&mut self.pending, next))
     }
 
-    pub(crate) fn cleanup_path(&self) -> PathBuf {
-        self.cleanup_path.clone()
+    pub(crate) fn cleanup(&self) -> Cleanup {
+        Cleanup {
+            path: self.cleanup_path.clone(),
+            auth_token: self.auth_token.clone(),
+        }
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {
@@ -120,8 +137,12 @@ pub(super) fn endpoint_path(session_id: &str) -> io::Result<PathBuf> {
 }
 
 fn read_endpoint(session_id: &str) -> io::Result<EndpointInfo> {
-    let endpoint = serde_json::from_slice::<EndpointInfo>(&fs::read(endpoint_path(session_id)?)?)
-        .map_err(io::Error::other)?;
+    read_endpoint_path(&endpoint_path(session_id)?)
+}
+
+fn read_endpoint_path(path: &Path) -> io::Result<EndpointInfo> {
+    let endpoint =
+        serde_json::from_slice::<EndpointInfo>(&fs::read(path)?).map_err(io::Error::other)?;
     if !endpoint.pipe_name.starts_with(r"\\.\pipe\ghzinga-")
         || endpoint.auth_token.len() != 32
         || !endpoint
@@ -135,6 +156,56 @@ fn read_endpoint(session_id: &str) -> io::Result<EndpointInfo> {
         ));
     }
     Ok(endpoint)
+}
+
+fn publish_endpoint(path: &Path, endpoint: &EndpointInfo) -> io::Result<()> {
+    let temp_path = path.with_extension(format!("{}.tmp", endpoint.auth_token));
+    let _pending = PendingEndpoint(temp_path.clone());
+    fs::write(
+        &temp_path,
+        serde_json::to_vec(endpoint).map_err(io::Error::other)?,
+    )?;
+    for _ in 0..3 {
+        match fs::hard_link(&temp_path, path) {
+            Ok(()) => return Ok(()),
+            Err(_error) if path.exists() => {
+                if endpoint_path_is_live(path) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::AddrInUse,
+                        "ghzinga session control endpoint is already active",
+                    ));
+                }
+                match fs::remove_file(path) {
+                    Ok(()) => {}
+                    Err(remove_error) if remove_error.kind() == io::ErrorKind::NotFound => {}
+                    Err(remove_error) => return Err(remove_error),
+                }
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::AddrInUse,
+        "ghzinga session control endpoint changed repeatedly",
+    ))
+}
+
+fn endpoint_path_is_live(path: &Path) -> bool {
+    let Ok(endpoint) = read_endpoint_path(path) else {
+        return false;
+    };
+    match ClientOptions::new().open(endpoint.pipe_name) {
+        Ok(_) => true,
+        Err(error) => error.raw_os_error() == Some(ERROR_PIPE_BUSY_CODE),
+    }
+}
+
+struct PendingEndpoint(PathBuf);
+
+impl Drop for PendingEndpoint {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
 }
 
 fn random_hex() -> io::Result<String> {

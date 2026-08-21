@@ -384,7 +384,7 @@ Rules:
 - Replies must include `ok`, the matching command id, and either a short result
   or an error.
 - Unsupported command versions should fail cleanly with a user-facing error.
-- A command sent to a stale socket should fail fast, remove the stale runtime
+- A command sent to a stale endpoint should fail fast, remove the stale runtime
   marker if safe, and fall back to saved-state mutation when appropriate.
 - Runtime control is local only. Do not expose a network listener.
 - File and socket permissions should be owner-only where the platform permits
@@ -495,7 +495,7 @@ Do not auto-delete sessions silently in the first version.
   width mode, fixed width, and scrollbar visibility.
 - Reuse existing app actions for opening/focusing tabs and applying settings so
   runtime commands behave the same as keyboard/mouse UI commands.
-- Add tests for running-session command delivery, stale socket fallback,
+- Add tests for running-session command delivery, stale endpoint fallback,
   ambiguous session resolution, saved-state mutation, and invalid setting
   errors.
 

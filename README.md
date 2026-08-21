@@ -160,7 +160,8 @@ permission.
 The config file is:
 
 ```text
-~/.config/ghzinga/config.toml
+Linux/macOS: ~/.config/ghzinga/config.toml
+Windows:     %APPDATA%\ghzinga\config.toml
 ```
 
 Default config:
@@ -200,13 +201,15 @@ Supported setting values:
 `ghzinga` saves open PR/issue tabs and UI state under:
 
 ```text
-~/.local/state/ghzinga
+Linux/macOS: ~/.local/state/ghzinga
+Windows:     %LOCALAPPDATA%\ghzinga\state
 ```
 
 Cached GitHub resource snapshots are stored separately under:
 
 ```text
-~/.cache/ghzinga
+Linux/macOS: ~/.cache/ghzinga
+Windows:     %LOCALAPPDATA%\ghzinga\cache
 ```
 
 Environment overrides:

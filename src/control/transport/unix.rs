@@ -13,6 +13,17 @@ pub(crate) struct Listener {
     cleanup_path: PathBuf,
 }
 
+#[derive(Clone)]
+pub(crate) struct Cleanup {
+    path: PathBuf,
+}
+
+impl Cleanup {
+    pub(crate) fn remove(&self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 impl Listener {
     pub(crate) fn bind(session_id: &str) -> io::Result<Self> {
         let path = socket_path(session_id);
@@ -46,8 +57,10 @@ impl Listener {
         self.inner.accept().await.map(|(stream, _)| stream)
     }
 
-    pub(crate) fn cleanup_path(&self) -> PathBuf {
-        self.cleanup_path.clone()
+    pub(crate) fn cleanup(&self) -> Cleanup {
+        Cleanup {
+            path: self.cleanup_path.clone(),
+        }
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {

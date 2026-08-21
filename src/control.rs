@@ -1,4 +1,4 @@
-use std::{env, fs, io, path::PathBuf, time::Duration};
+use std::{env, io, path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -153,14 +153,14 @@ pub fn socket_path(session_id: &str) -> PathBuf {
 }
 
 pub struct ControlServer {
-    path: PathBuf,
+    cleanup: transport::Cleanup,
     task: JoinHandle<()>,
 }
 
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.task.abort();
-        let _ = fs::remove_file(&self.path);
+        self.cleanup.remove();
     }
 }
 
@@ -169,9 +169,9 @@ pub fn start_server(
     tx: UnboundedSender<RuntimeRequest>,
 ) -> io::Result<ControlServer> {
     let listener = transport::Listener::bind(session_id)?;
-    let path = listener.cleanup_path();
+    let cleanup = listener.cleanup();
     let task = tokio::spawn(server_loop(listener, tx));
-    Ok(ControlServer { path, task })
+    Ok(ControlServer { cleanup, task })
 }
 
 pub fn is_session_live(session_id: &str) -> bool {
@@ -415,6 +415,14 @@ fn parse_wire_reply(line: &str, expected_id: &str) -> io::Result<WireReply> {
             "control reply id does not match request",
         ));
     }
+    if (reply.ok && reply.error.is_some())
+        || (!reply.ok && (reply.result.is_some() || reply.error.is_none()))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "control reply fields do not match status",
+        ));
+    }
     Ok(reply)
 }
 
@@ -518,6 +526,17 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::InvalidData);
     }
 
+    #[test]
+    fn rejects_inconsistent_control_reply() {
+        let error = parse_wire_reply(
+            r#"{"schema_version":1,"id":"c_1","ok":false,"result":"opened"}"#,
+            "c_1",
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn rejects_oversized_control_message() {
         let (mut writer, reader) = tokio::io::duplex(MAX_CONTROL_LINE_BYTES + 2);
@@ -556,6 +575,36 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+        if let Some(value) = previous_runtime {
+            env::set_var(GZG_RUNTIME_HOME_ENV, value);
+        } else {
+            env::remove_var(GZG_RUNTIME_HOME_ENV);
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn duplicate_session_server_is_rejected() {
+        let _guard = ENV_LOCK.lock().await;
+        let dir = tempdir().unwrap();
+        let previous_runtime = env::var_os(GZG_RUNTIME_HOME_ENV);
+        env::set_var(GZG_RUNTIME_HOME_ENV, dir.path());
+        let session_id = format!("duplicate-{}", std::process::id());
+        let (first_tx, _first_rx) = tokio::sync::mpsc::unbounded_channel();
+        let first = start_server(&session_id, first_tx).unwrap();
+        let (second_tx, _second_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let error = match start_server(&session_id, second_tx) {
+            Ok(_) => panic!("duplicate control server should be rejected"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.kind(), io::ErrorKind::AddrInUse);
+        let stale_cleanup = first.cleanup.clone();
+        drop(first);
+        let (replacement_tx, _replacement_rx) = tokio::sync::mpsc::unbounded_channel();
+        let _replacement = start_server(&session_id, replacement_tx).unwrap();
+        stale_cleanup.remove();
+        assert!(is_session_live(&session_id));
         if let Some(value) = previous_runtime {
             env::set_var(GZG_RUNTIME_HOME_ENV, value);
         } else {
