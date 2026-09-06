@@ -3,6 +3,9 @@ set -eu
 
 log=${HERDR_FAKE_LOG:?HERDR_FAKE_LOG is required}
 printf '%s\n' "$*" >>"$log"
+if [ -n "${HERDR_FAKE_ENV_LOG:-}" ]; then
+  printf 'HERDR_SOCKET_PATH=%s\n' "${HERDR_SOCKET_PATH:-}" >>"$HERDR_FAKE_ENV_LOG"
+fi
 
 if [ "$#" -ge 3 ] && [ "$1" = "pane" ] && [ "$2" = "get" ]; then
   if [ "${HERDR_FAKE_EXISTING_PANE:-}" = "$3" ]; then
