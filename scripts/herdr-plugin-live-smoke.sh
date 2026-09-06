@@ -266,7 +266,7 @@ def main():
         if neighbor_pane == source_pane:
             raise RuntimeError("right neighbor resolved to the source pane")
 
-        visible = wait_for_visible(neighbor_pane, ["Overview", "Activity", "Files"])
+        visible = wait_for_visible(neighbor_pane, ["Overview", "Commits", "Files"])
         if "openclaw" not in visible.lower():
             raise RuntimeError(f"ghzinga pane did not show the expected fixture:\n{visible}")
 
