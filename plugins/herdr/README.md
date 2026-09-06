@@ -70,6 +70,12 @@ existing ghzinga pane if it is still alive and still belongs to this plugin, the
 sends `gzg open --session ... <url>` into that ghzinga session. If the stored
 pane is gone or belongs to something else, it opens a fresh side pane.
 
+For each Herdr command, the entrypoint first uses the exact `HERDR_BIN_PATH`
+value supplied by Herdr. If that command cannot start because it is not found,
+the entrypoint retries with `herdr` from `PATH` and keeps the same plugin
+environment, including `HERDR_SOCKET_PATH`. It does not retry a command that
+started, returned a nonzero status, or failed to start for another reason.
+
 When the source pane is already a ghzinga plugin viewer, the entrypoint uses the
 viewer-pane-to-session state written at pane creation time and opens the link in
 that same ghzinga session. If that reverse state is missing, for example for a

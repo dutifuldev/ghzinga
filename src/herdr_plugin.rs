@@ -1,7 +1,9 @@
 use std::{
-    env, fs,
+    env,
+    ffi::OsStr,
+    fs, io,
     path::{Path, PathBuf},
-    process::Command as StdCommand,
+    process::{Command as StdCommand, ExitStatus, Output},
 };
 
 use anyhow::Context;
@@ -11,6 +13,55 @@ use crate::domain::ResourceId;
 
 const DEFAULT_PLUGIN_ID: &str = "dutifuldev.ghzinga";
 const VIEWER_ENTRYPOINT: &str = "viewer";
+const HERDR_PATH_COMMAND: &str = "herdr";
+
+#[derive(Debug)]
+struct HerdrCommand {
+    primary: PathBuf,
+    fallback: Option<PathBuf>,
+}
+
+impl HerdrCommand {
+    fn from_env() -> Self {
+        Self::new(env::var_os("HERDR_BIN_PATH").map(PathBuf::from))
+    }
+
+    fn new(configured: Option<PathBuf>) -> Self {
+        let primary = configured.unwrap_or_else(|| PathBuf::from(HERDR_PATH_COMMAND));
+        let fallback =
+            (primary != Path::new(HERDR_PATH_COMMAND)).then(|| PathBuf::from(HERDR_PATH_COMMAND));
+        Self { primary, fallback }
+    }
+
+    fn status<S: AsRef<OsStr>>(&self, args: &[S]) -> io::Result<ExitStatus> {
+        self.try_spawn(|program| {
+            StdCommand::new(program)
+                .args(args.iter().map(AsRef::as_ref))
+                .status()
+        })
+    }
+
+    fn output<S: AsRef<OsStr>>(&self, args: &[S]) -> io::Result<Output> {
+        self.try_spawn(|program| {
+            StdCommand::new(program)
+                .args(args.iter().map(AsRef::as_ref))
+                .output()
+        })
+    }
+
+    fn try_spawn<T>(&self, mut spawn: impl FnMut(&Path) -> io::Result<T>) -> io::Result<T> {
+        match spawn(&self.primary) {
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                if let Some(fallback) = &self.fallback {
+                    spawn(fallback)
+                } else {
+                    Err(error)
+                }
+            }
+            result => result,
+        }
+    }
+}
 
 pub fn run_command(args: &[String]) -> anyhow::Result<i32> {
     let Some(command) = args.first().map(String::as_str) else {
@@ -36,9 +87,7 @@ fn run_open_entrypoint() -> anyhow::Result<i32> {
     let clicked_url = required_env("HERDR_PLUGIN_CLICKED_URL")?;
     let source_pane = required_env("HERDR_PANE_ID")?;
     let target = normalize_github_issue_or_pr_url(&clicked_url)?;
-    let herdr = env::var_os("HERDR_BIN_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("herdr"));
+    let herdr = HerdrCommand::from_env();
     let plugin_id = env::var("HERDR_PLUGIN_ID").unwrap_or_else(|_| DEFAULT_PLUGIN_ID.into());
     let state_dir = plugin_state_dir();
     fs::create_dir_all(&state_dir)
@@ -57,7 +106,7 @@ fn run_open_entrypoint() -> anyhow::Result<i32> {
     let state_file = state_dir.join(format!("{source_key}.pane"));
 
     if let Some(stored_pane) = read_stored_line(&state_file)? {
-        if herdr_command_succeeds(&herdr, ["pane", "get", stored_pane.as_str()])
+        if herdr_command_succeeds(&herdr, &["pane", "get", stored_pane.as_str()])
             && focus_is_our_viewer(&herdr, &stored_pane, &plugin_id)?
         {
             return run_ghzinga_open(&session, &target);
@@ -241,14 +290,14 @@ fn read_stored_line(path: &Path) -> anyhow::Result<Option<String>> {
     }
 }
 
-fn focus_is_our_viewer(herdr: &Path, pane_id: &str, plugin_id: &str) -> anyhow::Result<bool> {
-    let output = StdCommand::new(herdr)
-        .arg("plugin")
-        .arg("pane")
-        .arg("focus")
-        .arg(pane_id)
-        .output()
-        .with_context(|| format!("failed to run {}", herdr.display()))?;
+fn focus_is_our_viewer(
+    herdr: &HerdrCommand,
+    pane_id: &str,
+    plugin_id: &str,
+) -> anyhow::Result<bool> {
+    let output = herdr
+        .output(&["plugin", "pane", "focus", pane_id])
+        .context("failed to run Herdr command")?;
     if !output.status.success() {
         return Ok(false);
     }
@@ -256,18 +305,12 @@ fn focus_is_our_viewer(herdr: &Path, pane_id: &str, plugin_id: &str) -> anyhow::
     Ok(plugin_focuses_viewer(&response, plugin_id))
 }
 
-fn herdr_command_succeeds<'a>(herdr: &Path, args: impl IntoIterator<Item = &'a str>) -> bool {
-    StdCommand::new(herdr)
-        .args(args)
-        .status()
-        .is_ok_and(|status| status.success())
+fn herdr_command_succeeds(herdr: &HerdrCommand, args: &[&str]) -> bool {
+    herdr.status(args).is_ok_and(|status| status.success())
 }
 
-fn run_herdr_capture(herdr: &Path, args: Vec<String>) -> anyhow::Result<String> {
-    let output = StdCommand::new(herdr)
-        .args(&args)
-        .output()
-        .with_context(|| format!("failed to run {}", herdr.display()))?;
+fn run_herdr_capture(herdr: &HerdrCommand, args: Vec<String>) -> anyhow::Result<String> {
+    let output = herdr.output(&args).context("failed to run Herdr command")?;
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     if output.status.success() {
         return Ok(stdout);
@@ -351,11 +394,12 @@ fn print_usage_to_stderr() {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, ffi::OsString, fs, path::PathBuf, sync::Mutex};
+    use std::{env, ffi::OsString, fs, io, path::PathBuf, sync::Mutex};
 
     use super::{
         herdr_source_key, normalize_github_issue_or_pr_url, plugin_focuses_viewer,
         plugin_pane_id_from_response, run_open_entrypoint, stable_key_for_text, state_key_for_pane,
+        HerdrCommand,
     };
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -416,6 +460,95 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn herdr_command_uses_the_configured_path_first() {
+        let configured = PathBuf::from("/configured/herdr");
+        let command = HerdrCommand::new(Some(configured.clone()));
+        let mut attempts = Vec::new();
+
+        let result = command
+            .try_spawn(|program| {
+                attempts.push(program.to_path_buf());
+                Ok("configured")
+            })
+            .unwrap();
+
+        assert_eq!(result, "configured");
+        assert_eq!(attempts, [configured]);
+    }
+
+    #[test]
+    fn herdr_command_falls_back_to_path_when_the_configured_path_is_not_found() {
+        let configured = PathBuf::from("/configured/herdr (deleted)");
+        let command = HerdrCommand::new(Some(configured.clone()));
+        let mut attempts = Vec::new();
+
+        let result = command
+            .try_spawn(|program| {
+                attempts.push(program.to_path_buf());
+                if program == configured {
+                    Err(io::Error::from(io::ErrorKind::NotFound))
+                } else {
+                    Ok("path")
+                }
+            })
+            .unwrap();
+
+        assert_eq!(result, "path");
+        assert_eq!(attempts, [configured, PathBuf::from("herdr")]);
+    }
+
+    #[test]
+    fn herdr_command_returns_the_path_fallback_error() {
+        let configured = PathBuf::from("/configured/herdr");
+        let command = HerdrCommand::new(Some(configured.clone()));
+        let mut attempts = Vec::new();
+
+        let error = command
+            .try_spawn::<()>(|program| {
+                attempts.push(program.to_path_buf());
+                Err(io::Error::from(io::ErrorKind::NotFound))
+            })
+            .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert_eq!(attempts, [configured, PathBuf::from("herdr")]);
+    }
+
+    #[test]
+    fn herdr_command_does_not_retry_after_the_command_starts() {
+        let configured = PathBuf::from("/configured/herdr");
+        let command = HerdrCommand::new(Some(configured.clone()));
+        let mut attempts = Vec::new();
+
+        let exit_code = command
+            .try_spawn(|program| {
+                attempts.push(program.to_path_buf());
+                Ok(17)
+            })
+            .unwrap();
+
+        assert_eq!(exit_code, 17);
+        assert_eq!(attempts, [configured]);
+    }
+
+    #[test]
+    fn herdr_command_does_not_retry_other_spawn_errors() {
+        let configured = PathBuf::from("/configured/herdr");
+        let command = HerdrCommand::new(Some(configured.clone()));
+        let mut attempts = Vec::new();
+
+        let error = command
+            .try_spawn::<()>(|program| {
+                attempts.push(program.to_path_buf());
+                Err(io::Error::from(io::ErrorKind::PermissionDenied))
+            })
+            .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(attempts, [configured]);
     }
 
     #[test]

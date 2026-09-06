@@ -88,6 +88,20 @@ assert_contains "$first_herdr" "--env GHZINGA_SESSION=$herdr_session"
 assert_contains "$first_herdr" "--env GHZINGA_BIN=${script_dir}/fake-gzg.sh"
 assert_contains "$(first_state_file "$first_state")" "w1:p9"
 
+fallback_bin="${work_dir}/fallback-bin"
+mkdir -p "$fallback_bin"
+ln -s "${script_dir}/fake-herdr.sh" "${fallback_bin}/herdr"
+fallback_state="${work_dir}/fallback-state"
+fallback_herdr="${work_dir}/fallback-herdr.log"
+fallback_gzg="${work_dir}/fallback-gzg.log"
+fallback_env="${work_dir}/fallback-env.log"
+run_open "https://github.com/osolmaz/ghzinga/pull/29" "$fallback_state" "$fallback_herdr" "$fallback_gzg" \
+  HERDR_BIN_PATH="${work_dir}/herdr (deleted)" \
+  HERDR_FAKE_ENV_LOG="$fallback_env" \
+  PATH="${fallback_bin}:$PATH"
+assert_contains "$fallback_herdr" "plugin pane open --plugin dutifuldev.ghzinga"
+assert_contains "$fallback_env" "HERDR_SOCKET_PATH=$herdr_socket"
+
 second_socket="${work_dir}/herdr-b.sock"
 shared_state="${work_dir}/shared-state"
 mkdir -p "$shared_state"
